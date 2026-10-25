@@ -1,0 +1,27 @@
+{{define "content"}}
+<p class="eyebrow">List</p>
+<h1>{{.List.Name}}</h1>
+<p class="muted">{{.List.Visibility}} · {{len .Items}} saved</p>
+{{if .List.Description}}<p>{{.List.Description}}</p>{{end}}
+
+{{range .Items}}
+  <article class="card list-row">
+    <div>
+      <strong><a href="/drinks/{{.Slug}}">{{.Name}}</a></strong>
+      <div class="muted">{{.Brand}}{{if .Style}} · {{.Style}}{{end}} · {{.VolumeML}} ml</div>
+      {{if .Note}}<p class="note">{{.Note}}</p>{{end}}
+    </div>
+    {{if .CanEdit}}
+    <form method="post" action="/lists/{{$.List.ID}}/items/{{.DrinkID}}/remove" class="inline">
+      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+      <button class="btn btn-small" type="submit">Remove</button>
+    </form>
+    {{end}}
+  </article>
+{{else}}
+  <div class="empty">
+    <p>Nothing here yet.</p>
+    <a class="btn btn-primary" href="/search">Find a soda</a>
+  </div>
+{{end}}
+{{end}}

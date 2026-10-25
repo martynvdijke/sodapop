@@ -273,6 +273,11 @@ type FeedItem struct {
 	Note        string `json:"note,omitempty"`
 	Visibility  string `json:"visibility"`
 	CreatedAt   string `json:"created_at"`
+	PhotoID     string `json:"photo_id,omitempty"`
+	PhotoMime   string `json:"photo_mime,omitempty"`
+	PhotoKind   string `json:"photo_kind,omitempty"`
+	PosterPath  string `json:"poster_path,omitempty"`
+	Duration    int    `json:"duration_seconds,omitempty"`
 	Toasts      int    `json:"toasts"`
 	Toasted     bool   `json:"toasted"`
 	CSRF        string `json:"-"`
@@ -299,6 +304,8 @@ func (s *Service) Feed(ctx context.Context, userID string, limit int, before str
 		SELECT c.id, c.user_id, u.handle, u.display_name,
 		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
 		       COALESCE(v.name,''), c.rating, c.note, c.visibility, c.created_at,
+		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.kind,''),
+		       COALESCE(m.poster_path,''), COALESCE(m.duration_seconds,0),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
 		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?)
 		FROM checkins c
@@ -306,6 +313,7 @@ func (s *Service) Feed(ctx context.Context, userID string, limit int, before str
 		JOIN drinks d ON d.id = c.drink_id
 		LEFT JOIN brands b ON b.id = d.brand_id
 		LEFT JOIN venues v ON v.id = c.venue_id
+		LEFT JOIN media m ON m.id = c.photo_media_id
 		WHERE c.deleted_at IS NULL
 		  AND c.user_id IN (` + placeholders + `)
 		  AND (c.user_id = ? OR c.visibility IN ('public','friends'))`
@@ -328,7 +336,9 @@ func (s *Service) Feed(ctx context.Context, userID string, limit int, before str
 		var rating sql.NullInt64
 		if err := rows.Scan(&f.ID, &f.UserID, &f.Handle, &f.DisplayName,
 			&f.DrinkID, &f.DrinkName, &f.DrinkSlug, &f.Brand, &f.Container, &f.VolumeML,
-			&f.VenueName, &rating, &f.Note, &f.Visibility, &f.CreatedAt, &f.Toasts, &f.Toasted); err != nil {
+			&f.VenueName, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
+			&f.PhotoID, &f.PhotoMime, &f.PhotoKind, &f.PosterPath, &f.Duration,
+			&f.Toasts, &f.Toasted); err != nil {
 			return nil, err
 		}
 		if rating.Valid {

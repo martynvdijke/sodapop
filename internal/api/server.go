@@ -13,11 +13,16 @@ import (
 	"github.com/swaggest/swgui/v5emb"
 
 	"sodapop/ent"
+	"sodapop/internal/ai"
 	"sodapop/internal/auth"
+	"sodapop/internal/badges"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
 	"sodapop/internal/config"
+	"sodapop/internal/db"
 	"sodapop/internal/email"
+	"sodapop/internal/integrations"
+	"sodapop/internal/media"
 	"sodapop/internal/ratelimit"
 	"sodapop/internal/social"
 	"sodapop/internal/venues"
@@ -25,15 +30,20 @@ import (
 
 // Server exposes the authenticated, deliberately non-enumerable JSON API.
 type Server struct {
-	Cfg      *config.Config
-	Auth     *auth.Service
-	Catalog  *catalog.Service
-	Checkins *checkins.Service
-	Social   *social.Service
-	Venues   *venues.Service
-	Mailer   *email.Mailer
-	Log      *slog.Logger
-	Limiter  *ratelimit.Limiter
+	Cfg          *config.Config
+	Auth         *auth.Service
+	Catalog      *catalog.Service
+	Checkins     *checkins.Service
+	Social       *social.Service
+	Venues       *venues.Service
+	Mailer       *email.Mailer
+	Log          *slog.Logger
+	Limiter      *ratelimit.Limiter
+	DB           *db.DB
+	Media        *media.Service
+	AI           *ai.Service
+	Integrations *integrations.Service
+	Badges       *badges.Service
 }
 
 type apiFunc func(http.ResponseWriter, *http.Request, *auth.APIToken) error
@@ -73,6 +83,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/drinks/{slug}", s.protect("read", false, s.getDrink))
 	mux.HandleFunc("GET /api/v1/search", s.protectStrict("read", false, s.search))
 	mux.HandleFunc("GET /api/v1/barcodes/{gtin}", s.protectStrict("read", false, s.barcode))
+	mux.HandleFunc("POST /api/v1/ai/drafts", s.protectStrict("write", true, s.aiDraft))
+	mux.HandleFunc("POST /api/v1/ai/tasting-note", s.protectStrict("write", true, s.aiTastingNote))
+	mux.HandleFunc("POST /api/v1/ai/recommend", s.protectStrict("read", false, s.aiRecommend))
 	mux.HandleFunc("POST /api/v1/drinks", s.protectStrict("write", true, s.createDrink))
 
 	mux.HandleFunc("GET /api/v1/venues/search", s.protectStrict("read", false, s.searchVenues))

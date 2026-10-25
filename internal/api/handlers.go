@@ -12,6 +12,7 @@ import (
 	"sodapop/internal/auth"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
+	"sodapop/internal/integrations"
 	"sodapop/internal/social"
 	"sodapop/internal/venues"
 )
@@ -249,6 +250,16 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 	if created {
 		status = http.StatusCreated
 		w.Header().Set("Location", "/api/v1/checkins/"+c.ID)
+		if s.Badges != nil {
+			if earned, err := s.Badges.Evaluate(r.Context(), tok.User.ID); err == nil {
+				for _, badge := range earned {
+					s.Integrations.Dispatch(r.Context(), integrations.Event{UserID: tok.User.ID, Kind: "badge", Text: "Earned the " + badge + " badge."})
+				}
+			}
+		}
+		if s.Integrations != nil {
+			s.Integrations.Dispatch(r.Context(), integrations.Event{UserID: tok.User.ID, Kind: "checkin", Text: "Logged a soda.", URL: s.Cfg.BaseURL + "/you"})
+		}
 	}
 	writeJSON(w, status, map[string]any{"data": map[string]any{
 		"id": c.ID, "drink_id": c.DrinkID, "rating": c.Rating, "visibility": c.Visibility,

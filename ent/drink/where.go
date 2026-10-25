@@ -104,6 +104,11 @@ func CaloriesKcalPer100ml(v int) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldCaloriesKcalPer100ml, v))
 }
 
+// RecipeJSON applies equality check predicate on the "recipe_json" field. It's identical to RecipeJSONEQ.
+func RecipeJSON(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldRecipeJSON, v))
+}
+
 // CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
 func CreatedBy(v string) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldCreatedBy, v))
@@ -692,6 +697,91 @@ func AcidIn(vs ...Acid) predicate.Drink {
 // AcidNotIn applies the NotIn predicate on the "acid" field.
 func AcidNotIn(vs ...Acid) predicate.Drink {
 	return predicate.Drink(sql.FieldNotIn(FieldAcid, vs...))
+}
+
+// KindEQ applies the EQ predicate on the "kind" field.
+func KindEQ(v Kind) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldKind, v))
+}
+
+// KindNEQ applies the NEQ predicate on the "kind" field.
+func KindNEQ(v Kind) predicate.Drink {
+	return predicate.Drink(sql.FieldNEQ(FieldKind, v))
+}
+
+// KindIn applies the In predicate on the "kind" field.
+func KindIn(vs ...Kind) predicate.Drink {
+	return predicate.Drink(sql.FieldIn(FieldKind, vs...))
+}
+
+// KindNotIn applies the NotIn predicate on the "kind" field.
+func KindNotIn(vs ...Kind) predicate.Drink {
+	return predicate.Drink(sql.FieldNotIn(FieldKind, vs...))
+}
+
+// RecipeJSONEQ applies the EQ predicate on the "recipe_json" field.
+func RecipeJSONEQ(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldRecipeJSON, v))
+}
+
+// RecipeJSONNEQ applies the NEQ predicate on the "recipe_json" field.
+func RecipeJSONNEQ(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldNEQ(FieldRecipeJSON, v))
+}
+
+// RecipeJSONIn applies the In predicate on the "recipe_json" field.
+func RecipeJSONIn(vs ...string) predicate.Drink {
+	return predicate.Drink(sql.FieldIn(FieldRecipeJSON, vs...))
+}
+
+// RecipeJSONNotIn applies the NotIn predicate on the "recipe_json" field.
+func RecipeJSONNotIn(vs ...string) predicate.Drink {
+	return predicate.Drink(sql.FieldNotIn(FieldRecipeJSON, vs...))
+}
+
+// RecipeJSONGT applies the GT predicate on the "recipe_json" field.
+func RecipeJSONGT(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldGT(FieldRecipeJSON, v))
+}
+
+// RecipeJSONGTE applies the GTE predicate on the "recipe_json" field.
+func RecipeJSONGTE(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldGTE(FieldRecipeJSON, v))
+}
+
+// RecipeJSONLT applies the LT predicate on the "recipe_json" field.
+func RecipeJSONLT(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldLT(FieldRecipeJSON, v))
+}
+
+// RecipeJSONLTE applies the LTE predicate on the "recipe_json" field.
+func RecipeJSONLTE(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldLTE(FieldRecipeJSON, v))
+}
+
+// RecipeJSONContains applies the Contains predicate on the "recipe_json" field.
+func RecipeJSONContains(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldContains(FieldRecipeJSON, v))
+}
+
+// RecipeJSONHasPrefix applies the HasPrefix predicate on the "recipe_json" field.
+func RecipeJSONHasPrefix(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldHasPrefix(FieldRecipeJSON, v))
+}
+
+// RecipeJSONHasSuffix applies the HasSuffix predicate on the "recipe_json" field.
+func RecipeJSONHasSuffix(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldHasSuffix(FieldRecipeJSON, v))
+}
+
+// RecipeJSONEqualFold applies the EqualFold predicate on the "recipe_json" field.
+func RecipeJSONEqualFold(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEqualFold(FieldRecipeJSON, v))
+}
+
+// RecipeJSONContainsFold applies the ContainsFold predicate on the "recipe_json" field.
+func RecipeJSONContainsFold(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldContainsFold(FieldRecipeJSON, v))
 }
 
 // SourceEQ applies the EQ predicate on the "source" field.

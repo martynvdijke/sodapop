@@ -1,0 +1,38 @@
+{{define "content"}}
+<p class="eyebrow">Soda passport</p>
+<h1>Where the fizz has taken you.</h1>
+<p class="lede">Every check-in is a stamp: styles tried, venue kinds visited, and countries your sodas came from.</p>
+
+<section class="stat-grid" aria-label="Passport totals">
+  <div><strong>{{.Passport.Checkins}}</strong><span>check-ins</span></div>
+  <div><strong>{{.Passport.Styles}}</strong><span>styles</span></div>
+  <div><strong>{{.Passport.VenueKinds}}</strong><span>venue kinds</span></div>
+  <div><strong>{{.Passport.Countries}}</strong><span>brand countries</span></div>
+</section>
+
+<h2>Style stamps</h2>
+{{if .Passport.StyleRows}}
+<table class="admin-table">
+  <thead><tr><th>Style</th><th>Check-ins</th><th>Last tried</th></tr></thead>
+  <tbody>{{range .Passport.StyleRows}}<tr><td>{{.Name}}</td><td>{{.Count}}</td><td>{{.Last}}</td></tr>{{end}}</tbody>
+</table>
+{{else}}<div class="empty"><p>No style stamps yet.</p></div>{{end}}
+
+<h2>Venue kinds</h2>
+<div class="pill-row">
+  {{range .Passport.VenueRows}}<span class="pill">{{.Label}} · {{.Count}}</span>{{else}}<span class="muted">No venue check-ins yet.</span>{{end}}
+</div>
+
+<h2>Brand countries</h2>
+<div class="pill-row">
+  {{range .Passport.CountryRows}}<span class="pill">{{.Label}} · {{.Count}}</span>{{else}}<span class="muted">Add more sodas to fill the map.</span>{{end}}
+</div>
+
+<h2>Recent stamps</h2>
+{{range .Passport.Recent}}
+  <a class="card list-row" href="/drinks/{{.Slug}}">
+    <div><strong>{{.Name}}</strong><div class="muted">{{.Style}} · {{.CreatedAt}}</div></div>
+    <span class="rating-pill">{{.Rating}}</span>
+  </a>
+{{else}}<div class="empty"><p>Your passport is empty. Scan a can to start.</p></div>{{end}}
+{{end}}

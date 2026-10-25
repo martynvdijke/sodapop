@@ -20,6 +20,18 @@
     <a class="btn" href="/search">Back to search</a>
   </div>
 
+  {{if .Lists}}
+  <form method="post" action="/lists/add" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <input type="hidden" name="drink_id" value="{{$d.Drink.ID}}">
+    <label class="sr-only" for="list_id">Save to list</label>
+    <select id="list_id" name="list_id">
+      {{range .Lists}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+    </select>
+    <button class="btn btn-small" type="submit">Save to list</button>
+  </form>
+  {{end}}
+
   {{if $d.Drink.Description}}<p class="note">{{$d.Drink.Description}}</p>{{end}}
 
   <dl class="facts">
@@ -42,5 +54,26 @@
   <h2>Also known as</h2>
   <p class="muted">{{range $i, $a := $d.Aliases}}{{if $i}}, {{end}}{{$a}}{{end}}</p>
   {{end}}
+
+  <details class="card">
+    <summary>Report a problem</summary>
+    <form method="post" action="/reports" class="stack" style="margin-top:.75rem">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="entity" value="drink">
+      <input type="hidden" name="entity_id" value="{{$d.Drink.ID}}">
+      <label>Reason
+        <select name="reason">
+          <option value="duplicate">Duplicate drink</option>
+          <option value="incorrect">Incorrect details</option>
+          <option value="off">Offensive content</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Details <span class="hint">optional</span>
+        <textarea name="details" rows="2" maxlength="500"></textarea>
+      </label>
+      <button class="btn btn-small" type="submit">Send report</button>
+    </form>
+  </details>
 </article>
 {{end}}

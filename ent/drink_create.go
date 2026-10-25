@@ -206,6 +206,34 @@ func (_c *DrinkCreate) SetNillableAcid(v *drink.Acid) *DrinkCreate {
 	return _c
 }
 
+// SetKind sets the "kind" field.
+func (_c *DrinkCreate) SetKind(v drink.Kind) *DrinkCreate {
+	_c.mutation.SetKind(v)
+	return _c
+}
+
+// SetNillableKind sets the "kind" field if the given value is not nil.
+func (_c *DrinkCreate) SetNillableKind(v *drink.Kind) *DrinkCreate {
+	if v != nil {
+		_c.SetKind(*v)
+	}
+	return _c
+}
+
+// SetRecipeJSON sets the "recipe_json" field.
+func (_c *DrinkCreate) SetRecipeJSON(v string) *DrinkCreate {
+	_c.mutation.SetRecipeJSON(v)
+	return _c
+}
+
+// SetNillableRecipeJSON sets the "recipe_json" field if the given value is not nil.
+func (_c *DrinkCreate) SetNillableRecipeJSON(v *string) *DrinkCreate {
+	if v != nil {
+		_c.SetRecipeJSON(*v)
+	}
+	return _c
+}
+
 // SetSource sets the "source" field.
 func (_c *DrinkCreate) SetSource(v drink.Source) *DrinkCreate {
 	_c.mutation.SetSource(v)
@@ -452,6 +480,14 @@ func (_c *DrinkCreate) defaults() {
 		v := drink.DefaultAcid
 		_c.mutation.SetAcid(v)
 	}
+	if _, ok := _c.mutation.Kind(); !ok {
+		v := drink.DefaultKind
+		_c.mutation.SetKind(v)
+	}
+	if _, ok := _c.mutation.RecipeJSON(); !ok {
+		v := drink.DefaultRecipeJSON
+		_c.mutation.SetRecipeJSON(v)
+	}
 	if _, ok := _c.mutation.Source(); !ok {
 		v := drink.DefaultSource
 		_c.mutation.SetSource(v)
@@ -534,6 +570,17 @@ func (_c *DrinkCreate) check() error {
 		if err := drink.AcidValidator(v); err != nil {
 			return &ValidationError{Name: "acid", err: fmt.Errorf(`ent: validator failed for field "Drink.acid": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Kind(); !ok {
+		return &ValidationError{Name: "kind", err: errors.New(`ent: missing required field "Drink.kind"`)}
+	}
+	if v, ok := _c.mutation.Kind(); ok {
+		if err := drink.KindValidator(v); err != nil {
+			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "Drink.kind": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RecipeJSON(); !ok {
+		return &ValidationError{Name: "recipe_json", err: errors.New(`ent: missing required field "Drink.recipe_json"`)}
 	}
 	if _, ok := _c.mutation.Source(); !ok {
 		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "Drink.source"`)}
@@ -636,6 +683,14 @@ func (_c *DrinkCreate) createSpec() (*Drink, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Acid(); ok {
 		_spec.SetField(drink.FieldAcid, field.TypeEnum, value)
 		_node.Acid = value
+	}
+	if value, ok := _c.mutation.Kind(); ok {
+		_spec.SetField(drink.FieldKind, field.TypeEnum, value)
+		_node.Kind = value
+	}
+	if value, ok := _c.mutation.RecipeJSON(); ok {
+		_spec.SetField(drink.FieldRecipeJSON, field.TypeString, value)
+		_node.RecipeJSON = value
 	}
 	if value, ok := _c.mutation.Source(); ok {
 		_spec.SetField(drink.FieldSource, field.TypeEnum, value)

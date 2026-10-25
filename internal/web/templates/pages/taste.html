@@ -1,0 +1,33 @@
+{{define "content"}}
+<p class="eyebrow">Taste Twin</p>
+<h1>People whose palate matches yours.</h1>
+<p class="lede">Built only from mutual friends and shared ratings. No global directory, no public ranking.</p>
+
+<h2>Your twins</h2>
+{{range .Twins}}
+  <div class="card twin">
+    <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+    <div style="flex:1">
+      <strong>{{.DisplayName}}</strong>
+      <div class="muted">@{{.Handle}} · {{.Shared}} shared ratings</div>
+    </div>
+    <span class="twin-meter">{{percent .Score}}</span>
+  </div>
+{{else}}
+  <div class="empty"><p>No twins yet. Rate at least three sodas your friends have also rated.</p></div>
+{{end}}
+
+<h2>Recommended next</h2>
+{{range .Recommendations}}
+  <a class="card drink-card" href="/drinks/{{.Slug}}">
+    <div class="bottle" aria-hidden="true">{{initial .Name}}</div>
+    <div>
+      <strong>{{.Name}}</strong>
+      <div class="muted">{{.Brand}} · {{.Reason}}</div>
+    </div>
+    {{if .Score}}<span class="rating-pill">{{printf "%.1f" .Score}}</span>{{end}}
+  </a>
+{{else}}
+  <div class="empty"><p>No recommendations yet. Add a few friends and ratings first.</p></div>
+{{end}}
+{{end}}

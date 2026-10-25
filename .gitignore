@@ -85,3 +85,4 @@ tmp/
 
 # Local OpenSpec working notes (not published)
 openspec/
+internal/web/static/sw.js

@@ -33,6 +33,7 @@ import (
 	"sodapop/ent/flavour"
 	"sodapop/ent/follow"
 	"sodapop/ent/friendship"
+	"sodapop/ent/integration"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
 	"sodapop/ent/loginattempt"
@@ -40,6 +41,7 @@ import (
 	"sodapop/ent/notification"
 	"sodapop/ent/offproduct"
 	"sodapop/ent/passwordresettoken"
+	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
@@ -107,6 +109,8 @@ type Client struct {
 	Follow *FollowClient
 	// Friendship is the client for interacting with the Friendship builders.
 	Friendship *FriendshipClient
+	// Integration is the client for interacting with the Integration builders.
+	Integration *IntegrationClient
 	// List is the client for interacting with the List builders.
 	List *ListClient
 	// ListItem is the client for interacting with the ListItem builders.
@@ -121,6 +125,8 @@ type Client struct {
 	OffProduct *OffProductClient
 	// PasswordResetToken is the client for interacting with the PasswordResetToken builders.
 	PasswordResetToken *PasswordResetTokenClient
+	// PushSubscription is the client for interacting with the PushSubscription builders.
+	PushSubscription *PushSubscriptionClient
 	// Report is the client for interacting with the Report builders.
 	Report *ReportClient
 	// Session is the client for interacting with the Session builders.
@@ -176,6 +182,7 @@ func (c *Client) init() {
 	c.Flavour = NewFlavourClient(c.config)
 	c.Follow = NewFollowClient(c.config)
 	c.Friendship = NewFriendshipClient(c.config)
+	c.Integration = NewIntegrationClient(c.config)
 	c.List = NewListClient(c.config)
 	c.ListItem = NewListItemClient(c.config)
 	c.LoginAttempt = NewLoginAttemptClient(c.config)
@@ -183,6 +190,7 @@ func (c *Client) init() {
 	c.Notification = NewNotificationClient(c.config)
 	c.OffProduct = NewOffProductClient(c.config)
 	c.PasswordResetToken = NewPasswordResetTokenClient(c.config)
+	c.PushSubscription = NewPushSubscriptionClient(c.config)
 	c.Report = NewReportClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.Style = NewStyleClient(c.config)
@@ -308,6 +316,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Flavour:                NewFlavourClient(cfg),
 		Follow:                 NewFollowClient(cfg),
 		Friendship:             NewFriendshipClient(cfg),
+		Integration:            NewIntegrationClient(cfg),
 		List:                   NewListClient(cfg),
 		ListItem:               NewListItemClient(cfg),
 		LoginAttempt:           NewLoginAttemptClient(cfg),
@@ -315,6 +324,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Notification:           NewNotificationClient(cfg),
 		OffProduct:             NewOffProductClient(cfg),
 		PasswordResetToken:     NewPasswordResetTokenClient(cfg),
+		PushSubscription:       NewPushSubscriptionClient(cfg),
 		Report:                 NewReportClient(cfg),
 		Session:                NewSessionClient(cfg),
 		Style:                  NewStyleClient(cfg),
@@ -367,6 +377,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Flavour:                NewFlavourClient(cfg),
 		Follow:                 NewFollowClient(cfg),
 		Friendship:             NewFriendshipClient(cfg),
+		Integration:            NewIntegrationClient(cfg),
 		List:                   NewListClient(cfg),
 		ListItem:               NewListItemClient(cfg),
 		LoginAttempt:           NewLoginAttemptClient(cfg),
@@ -374,6 +385,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Notification:           NewNotificationClient(cfg),
 		OffProduct:             NewOffProductClient(cfg),
 		PasswordResetToken:     NewPasswordResetTokenClient(cfg),
+		PushSubscription:       NewPushSubscriptionClient(cfg),
 		Report:                 NewReportClient(cfg),
 		Session:                NewSessionClient(cfg),
 		Style:                  NewStyleClient(cfg),
@@ -418,10 +430,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
 		c.CheckinLike, c.Drink, c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour,
 		c.DrinkImage, c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow,
-		c.Friendship, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
-		c.OffProduct, c.PasswordResetToken, c.Report, c.Session, c.Style, c.User,
-		c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueName,
-		c.VenueSave,
+		c.Friendship, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
+		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushSubscription,
+		c.Report, c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity,
+		c.UserSetting, c.Venue, c.VenueDrink, c.VenueName, c.VenueSave,
 	} {
 		n.Use(hooks...)
 	}
@@ -435,10 +447,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
 		c.CheckinLike, c.Drink, c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour,
 		c.DrinkImage, c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow,
-		c.Friendship, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
-		c.OffProduct, c.PasswordResetToken, c.Report, c.Session, c.Style, c.User,
-		c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueName,
-		c.VenueSave,
+		c.Friendship, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
+		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushSubscription,
+		c.Report, c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity,
+		c.UserSetting, c.Venue, c.VenueDrink, c.VenueName, c.VenueSave,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -491,6 +503,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Follow.mutate(ctx, m)
 	case *FriendshipMutation:
 		return c.Friendship.mutate(ctx, m)
+	case *IntegrationMutation:
+		return c.Integration.mutate(ctx, m)
 	case *ListMutation:
 		return c.List.mutate(ctx, m)
 	case *ListItemMutation:
@@ -505,6 +519,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.OffProduct.mutate(ctx, m)
 	case *PasswordResetTokenMutation:
 		return c.PasswordResetToken.mutate(ctx, m)
+	case *PushSubscriptionMutation:
+		return c.PushSubscription.mutate(ctx, m)
 	case *ReportMutation:
 		return c.Report.mutate(ctx, m)
 	case *SessionMutation:
@@ -3746,6 +3762,139 @@ func (c *FriendshipClient) mutate(ctx context.Context, m *FriendshipMutation) (V
 	}
 }
 
+// IntegrationClient is a client for the Integration schema.
+type IntegrationClient struct {
+	config
+}
+
+// NewIntegrationClient returns a client for the Integration from the given config.
+func NewIntegrationClient(c config) *IntegrationClient {
+	return &IntegrationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `integration.Hooks(f(g(h())))`.
+func (c *IntegrationClient) Use(hooks ...Hook) {
+	c.hooks.Integration = append(c.hooks.Integration, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `integration.Intercept(f(g(h())))`.
+func (c *IntegrationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Integration = append(c.inters.Integration, interceptors...)
+}
+
+// Create returns a builder for creating a Integration entity.
+func (c *IntegrationClient) Create() *IntegrationCreate {
+	mutation := newIntegrationMutation(c.config, OpCreate)
+	return &IntegrationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Integration entities.
+func (c *IntegrationClient) CreateBulk(builders ...*IntegrationCreate) *IntegrationCreateBulk {
+	return &IntegrationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IntegrationClient) MapCreateBulk(slice any, setFunc func(*IntegrationCreate, int)) *IntegrationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IntegrationCreateBulk{err: fmt.Errorf("calling to IntegrationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IntegrationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IntegrationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Integration.
+func (c *IntegrationClient) Update() *IntegrationUpdate {
+	mutation := newIntegrationMutation(c.config, OpUpdate)
+	return &IntegrationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IntegrationClient) UpdateOne(_m *Integration) *IntegrationUpdateOne {
+	mutation := newIntegrationMutation(c.config, OpUpdateOne, withIntegration(_m))
+	return &IntegrationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IntegrationClient) UpdateOneID(id int) *IntegrationUpdateOne {
+	mutation := newIntegrationMutation(c.config, OpUpdateOne, withIntegrationID(id))
+	return &IntegrationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Integration.
+func (c *IntegrationClient) Delete() *IntegrationDelete {
+	mutation := newIntegrationMutation(c.config, OpDelete)
+	return &IntegrationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IntegrationClient) DeleteOne(_m *Integration) *IntegrationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IntegrationClient) DeleteOneID(id int) *IntegrationDeleteOne {
+	builder := c.Delete().Where(integration.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IntegrationDeleteOne{builder}
+}
+
+// Query returns a query builder for Integration.
+func (c *IntegrationClient) Query() *IntegrationQuery {
+	return &IntegrationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIntegration},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Integration entity by its id.
+func (c *IntegrationClient) Get(ctx context.Context, id int) (*Integration, error) {
+	return c.Query().Where(integration.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IntegrationClient) GetX(ctx context.Context, id int) *Integration {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *IntegrationClient) Hooks() []Hook {
+	return c.hooks.Integration
+}
+
+// Interceptors returns the client interceptors.
+func (c *IntegrationClient) Interceptors() []Interceptor {
+	return c.inters.Integration
+}
+
+func (c *IntegrationClient) mutate(ctx context.Context, m *IntegrationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IntegrationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IntegrationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IntegrationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IntegrationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Integration mutation op: %q", m.Op())
+	}
+}
+
 // ListClient is a client for the List schema.
 type ListClient struct {
 	config
@@ -4722,6 +4871,139 @@ func (c *PasswordResetTokenClient) mutate(ctx context.Context, m *PasswordResetT
 		return (&PasswordResetTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown PasswordResetToken mutation op: %q", m.Op())
+	}
+}
+
+// PushSubscriptionClient is a client for the PushSubscription schema.
+type PushSubscriptionClient struct {
+	config
+}
+
+// NewPushSubscriptionClient returns a client for the PushSubscription from the given config.
+func NewPushSubscriptionClient(c config) *PushSubscriptionClient {
+	return &PushSubscriptionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `pushsubscription.Hooks(f(g(h())))`.
+func (c *PushSubscriptionClient) Use(hooks ...Hook) {
+	c.hooks.PushSubscription = append(c.hooks.PushSubscription, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `pushsubscription.Intercept(f(g(h())))`.
+func (c *PushSubscriptionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PushSubscription = append(c.inters.PushSubscription, interceptors...)
+}
+
+// Create returns a builder for creating a PushSubscription entity.
+func (c *PushSubscriptionClient) Create() *PushSubscriptionCreate {
+	mutation := newPushSubscriptionMutation(c.config, OpCreate)
+	return &PushSubscriptionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PushSubscription entities.
+func (c *PushSubscriptionClient) CreateBulk(builders ...*PushSubscriptionCreate) *PushSubscriptionCreateBulk {
+	return &PushSubscriptionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PushSubscriptionClient) MapCreateBulk(slice any, setFunc func(*PushSubscriptionCreate, int)) *PushSubscriptionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PushSubscriptionCreateBulk{err: fmt.Errorf("calling to PushSubscriptionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PushSubscriptionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PushSubscriptionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PushSubscription.
+func (c *PushSubscriptionClient) Update() *PushSubscriptionUpdate {
+	mutation := newPushSubscriptionMutation(c.config, OpUpdate)
+	return &PushSubscriptionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PushSubscriptionClient) UpdateOne(_m *PushSubscription) *PushSubscriptionUpdateOne {
+	mutation := newPushSubscriptionMutation(c.config, OpUpdateOne, withPushSubscription(_m))
+	return &PushSubscriptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PushSubscriptionClient) UpdateOneID(id int) *PushSubscriptionUpdateOne {
+	mutation := newPushSubscriptionMutation(c.config, OpUpdateOne, withPushSubscriptionID(id))
+	return &PushSubscriptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PushSubscription.
+func (c *PushSubscriptionClient) Delete() *PushSubscriptionDelete {
+	mutation := newPushSubscriptionMutation(c.config, OpDelete)
+	return &PushSubscriptionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PushSubscriptionClient) DeleteOne(_m *PushSubscription) *PushSubscriptionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PushSubscriptionClient) DeleteOneID(id int) *PushSubscriptionDeleteOne {
+	builder := c.Delete().Where(pushsubscription.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PushSubscriptionDeleteOne{builder}
+}
+
+// Query returns a query builder for PushSubscription.
+func (c *PushSubscriptionClient) Query() *PushSubscriptionQuery {
+	return &PushSubscriptionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePushSubscription},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PushSubscription entity by its id.
+func (c *PushSubscriptionClient) Get(ctx context.Context, id int) (*PushSubscription, error) {
+	return c.Query().Where(pushsubscription.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PushSubscriptionClient) GetX(ctx context.Context, id int) *PushSubscription {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PushSubscriptionClient) Hooks() []Hook {
+	return c.hooks.PushSubscription
+}
+
+// Interceptors returns the client interceptors.
+func (c *PushSubscriptionClient) Interceptors() []Interceptor {
+	return c.inters.PushSubscription
+}
+
+func (c *PushSubscriptionClient) mutate(ctx context.Context, m *PushSubscriptionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PushSubscriptionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PushSubscriptionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PushSubscriptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PushSubscriptionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PushSubscription mutation op: %q", m.Op())
 	}
 }
 
@@ -6402,17 +6684,18 @@ type (
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
 		Block, Brand, CatalogRevision, Checkin, CheckinLike, Drink, DrinkAlias,
 		DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox, EmailVerificationToken,
-		Flavour, Follow, Friendship, List, ListItem, LoginAttempt, Media, Notification,
-		OffProduct, PasswordResetToken, Report, Session, Style, User, UserBadge,
-		UserIdentity, UserSetting, Venue, VenueDrink, VenueName, VenueSave []ent.Hook
+		Flavour, Follow, Friendship, Integration, List, ListItem, LoginAttempt, Media,
+		Notification, OffProduct, PasswordResetToken, PushSubscription, Report,
+		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
+		VenueName, VenueSave []ent.Hook
 	}
 	inters struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
 		Block, Brand, CatalogRevision, Checkin, CheckinLike, Drink, DrinkAlias,
 		DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox, EmailVerificationToken,
-		Flavour, Follow, Friendship, List, ListItem, LoginAttempt, Media, Notification,
-		OffProduct, PasswordResetToken, Report, Session, Style, User, UserBadge,
-		UserIdentity, UserSetting, Venue, VenueDrink, VenueName,
-		VenueSave []ent.Interceptor
+		Flavour, Follow, Friendship, Integration, List, ListItem, LoginAttempt, Media,
+		Notification, OffProduct, PasswordResetToken, PushSubscription, Report,
+		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
+		VenueName, VenueSave []ent.Interceptor
 	}
 )

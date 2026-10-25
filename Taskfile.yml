@@ -15,8 +15,15 @@ tasks:
     cmds:
       - go generate ./ent
 
+  web-build:
+    desc: Typecheck and build the TypeScript PWA assets
+    cmds:
+      - npm run typecheck
+      - npm run build
+
   build:
     desc: Build the server binary
+    deps: [web-build]
     cmds:
       - go build -trimpath -o {{.BIN}} ./cmd/server
 
@@ -56,6 +63,7 @@ tasks:
     cmds:
       - task fmt
       - task vet
+      - task web-build
       - task test
       - task e2e
 

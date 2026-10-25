@@ -6,7 +6,12 @@
   <meta name="color-scheme" content="light dark">
   <meta name="robots" content="noindex, nofollow">
   <title>{{.Title}} · {{.AppName}}</title>
+  <meta name="theme-color" content="#B4E32C">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icon-180.png">
   <link rel="stylesheet" href="/static/app.css">
+  <script defer src="{{.AssetScript}}"></script>
   {{if .UmamiURL}}<script defer src="{{.UmamiURL}}/script.js" data-website-id="{{.UmamiID}}"></script>{{end}}
 </head>
 <body>
@@ -15,9 +20,12 @@
     <a class="brand" href="/"><span class="brand-dot" aria-hidden="true"></span> Sodapop</a>
     <nav aria-label="Primary">
       {{if .User}}
-        <a href="/search">Search</a>
+        <a href="/search">Discover</a>
         <a href="/friends">Friends</a>
-        <a href="/settings/tokens">API</a>
+        <a href="/lists">Lists</a>
+        <a href="/passport">Passport</a>
+        <a href="/mix">Mix Lab</a>
+        <a href="/you">You</a>
         <form method="post" action="/logout" class="inline">
           <input type="hidden" name="csrf_token" value="{{.CSRF}}">
           <button class="link" type="submit">Sign out</button>
@@ -30,6 +38,7 @@
   </header>
 
   <main id="main" class="wrap">
+    <p class="banner" id="offline-status" hidden>Offline. Check-ins are saved on this device and sync when you reconnect.</p>
     {{if .User}}{{if not .User.EmailVerifiedAt}}
       <p class="banner warn">Your email is not verified yet. You can browse, but check-ins and friends are disabled. <a href="/verify">Verify email</a>.</p>
     {{end}}{{end}}
@@ -41,7 +50,7 @@
     <a href="/search">Search</a>
     <a class="scan" href="/search" aria-label="Scan or search a soda">＋</a>
     <a href="/friends">Friends</a>
-    <a href="/settings/tokens">You</a>
+    <a href="/you">You <span class="pending-count" data-pending-count hidden></span></a>
   </nav>
 
   <footer class="site-footer wrap">

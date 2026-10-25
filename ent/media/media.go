@@ -19,8 +19,14 @@ const (
 	FieldKind = "kind"
 	// FieldPath holds the string denoting the path field in the database.
 	FieldPath = "path"
+	// FieldThumbPath holds the string denoting the thumb_path field in the database.
+	FieldThumbPath = "thumb_path"
+	// FieldPosterPath holds the string denoting the poster_path field in the database.
+	FieldPosterPath = "poster_path"
 	// FieldMime holds the string denoting the mime field in the database.
 	FieldMime = "mime"
+	// FieldDurationSeconds holds the string denoting the duration_seconds field in the database.
+	FieldDurationSeconds = "duration_seconds"
 	// FieldWidth holds the string denoting the width field in the database.
 	FieldWidth = "width"
 	// FieldHeight holds the string denoting the height field in the database.
@@ -39,7 +45,10 @@ var Columns = []string{
 	FieldUserID,
 	FieldKind,
 	FieldPath,
+	FieldThumbPath,
+	FieldPosterPath,
 	FieldMime,
+	FieldDurationSeconds,
 	FieldWidth,
 	FieldHeight,
 	FieldBytes,
@@ -59,8 +68,14 @@ func ValidColumn(column string) bool {
 var (
 	// PathValidator is a validator for the "path" field. It is called by the builders before save.
 	PathValidator func(string) error
+	// DefaultThumbPath holds the default value on creation for the "thumb_path" field.
+	DefaultThumbPath string
+	// DefaultPosterPath holds the default value on creation for the "poster_path" field.
+	DefaultPosterPath string
 	// MimeValidator is a validator for the "mime" field. It is called by the builders before save.
 	MimeValidator func(string) error
+	// DefaultDurationSeconds holds the default value on creation for the "duration_seconds" field.
+	DefaultDurationSeconds int
 	// DefaultWidth holds the default value on creation for the "width" field.
 	DefaultWidth int
 	// DefaultHeight holds the default value on creation for the "height" field.
@@ -86,6 +101,7 @@ const (
 	KindDrink   Kind = "drink"
 	KindVenue   Kind = "venue"
 	KindBrand   Kind = "brand"
+	KindVideo   Kind = "video"
 )
 
 func (k Kind) String() string {
@@ -95,7 +111,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindCheckin, KindAvatar, KindDrink, KindVenue, KindBrand:
+	case KindCheckin, KindAvatar, KindDrink, KindVenue, KindBrand, KindVideo:
 		return nil
 	default:
 		return fmt.Errorf("media: invalid enum value for kind field: %q", k)
@@ -125,9 +141,24 @@ func ByPath(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPath, opts...).ToFunc()
 }
 
+// ByThumbPath orders the results by the thumb_path field.
+func ByThumbPath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldThumbPath, opts...).ToFunc()
+}
+
+// ByPosterPath orders the results by the poster_path field.
+func ByPosterPath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPosterPath, opts...).ToFunc()
+}
+
 // ByMime orders the results by the mime field.
 func ByMime(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMime, opts...).ToFunc()
+}
+
+// ByDurationSeconds orders the results by the duration_seconds field.
+func ByDurationSeconds(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDurationSeconds, opts...).ToFunc()
 }
 
 // ByWidth orders the results by the width field.

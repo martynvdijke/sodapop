@@ -7,13 +7,20 @@ import (
 	"strings"
 	"time"
 
+	"sodapop/internal/ai"
 	"sodapop/internal/auth"
+	"sodapop/internal/badges"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
 	"sodapop/internal/config"
+	"sodapop/internal/db"
 	"sodapop/internal/email"
+	"sodapop/internal/integrations"
+	"sodapop/internal/media"
+	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
 	"sodapop/internal/social"
+	"sodapop/internal/taste"
 	"sodapop/internal/venues"
 )
 
@@ -22,16 +29,23 @@ type sessionKey struct{}
 
 // Server renders the server-side HTML application.
 type Server struct {
-	Cfg      *config.Config
-	Auth     *auth.Service
-	Catalog  *catalog.Service
-	Checkins *checkins.Service
-	Social   *social.Service
-	Venues   *venues.Service
-	Mailer   *email.Mailer
-	Log      *slog.Logger
-	Limiter  *ratelimit.Limiter
-	Render   *Renderer
+	Cfg          *config.Config
+	Auth         *auth.Service
+	Catalog      *catalog.Service
+	Checkins     *checkins.Service
+	Social       *social.Service
+	Venues       *venues.Service
+	Badges       *badges.Service
+	Taste        *taste.Service
+	Mix          *mix.Service
+	Media        *media.Service
+	AI           *ai.Service
+	Integrations *integrations.Service
+	DB           *db.DB
+	Mailer       *email.Mailer
+	Log          *slog.Logger
+	Limiter      *ratelimit.Limiter
+	Render       *Renderer
 }
 
 // Register wires HTML routes and the OIDC redirect endpoints.
@@ -57,12 +71,55 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /checkins/{id}/toast", s.requireVerified(s.checkinToast))
 	mux.HandleFunc("GET /new", s.requireVerified(s.newDrinkPage))
 	mux.HandleFunc("POST /new", s.requireVerified(s.newDrinkSubmit))
+	mux.HandleFunc("GET /venues", s.requireUser(s.venuesPage))
+	mux.HandleFunc("POST /venues", s.requireVerified(s.venueCreate))
+	mux.HandleFunc("GET /venues/{id}", s.requireUser(s.venuePage))
+	mux.HandleFunc("POST /venues/{id}/save", s.requireVerified(s.venueSave))
+	mux.HandleFunc("GET /sw.js", s.serviceWorker)
+	mux.HandleFunc("GET /manifest.webmanifest", s.webManifest)
 	mux.HandleFunc("GET /friends", s.requireUser(s.friendsPage))
 	mux.HandleFunc("POST /friends/request", s.requireUser(s.friendRequest))
 	mux.HandleFunc("POST /friends/{id}/accept", s.requireUser(s.friendAccept))
 	mux.HandleFunc("POST /friends/{id}/remove", s.requireUser(s.friendRemove))
 	mux.HandleFunc("GET /settings/tokens", s.requireUser(s.tokensPage))
 	mux.HandleFunc("POST /settings/tokens", s.requireUser(s.tokensCreate))
+	mux.HandleFunc("GET /you", s.requireUser(s.youPage))
+	mux.HandleFunc("GET /lists", s.requireUser(s.listsPage))
+	mux.HandleFunc("POST /lists", s.requireUser(s.listCreate))
+	mux.HandleFunc("POST /lists/add", s.requireUser(s.listAdd))
+	mux.HandleFunc("GET /lists/{id}", s.requireUser(s.listPage))
+	mux.HandleFunc("POST /lists/{id}/add", s.requireUser(s.listAdd))
+	mux.HandleFunc("POST /lists/{id}/items/{drink}/remove", s.requireUser(s.listRemove))
+	mux.HandleFunc("GET /passport", s.requireUser(s.passportPage))
+	mux.HandleFunc("GET /taste", s.requireUser(s.tastePage))
+	mux.HandleFunc("GET /mix", s.requireUser(s.mixPage))
+	mux.HandleFunc("POST /mix", s.requireVerified(s.mixCreate))
+	mux.HandleFunc("GET /mix/{slug}", s.requireUser(s.mixDetailPage))
+	mux.HandleFunc("POST /reports", s.requireUser(s.reportSubmit))
+
+	mux.HandleFunc("GET /media/{id}", s.mediaServe)
+	mux.HandleFunc("GET /media/{id}/thumb", s.mediaThumb)
+	mux.HandleFunc("GET /media/{id}/poster", s.mediaThumb)
+	mux.HandleFunc("POST /ai/polish", s.requireVerified(s.aiPolish))
+	mux.HandleFunc("POST /ai/draft", s.requireVerified(s.aiDraft))
+
+	mux.HandleFunc("GET /integrations", s.requireUser(s.integrationsPage))
+	mux.HandleFunc("POST /integrations", s.requireUser(s.integrationSave))
+	mux.HandleFunc("POST /integrations/{kind}/test", s.requireUser(s.integrationTest))
+	mux.HandleFunc("POST /push/subscribe", s.requireUser(s.pushSubscribe))
+	mux.HandleFunc("POST /push/unsubscribe", s.requireUser(s.pushUnsubscribe))
+	mux.HandleFunc("GET /export.json", s.requireUser(s.exportJSON))
+	mux.HandleFunc("POST /import.csv", s.requireUser(s.importCSV))
+	mux.HandleFunc("GET /feeds/{token}", s.rssFeed)
+
+	mux.HandleFunc("GET /admin", s.requireAdmin(s.adminPage))
+	mux.HandleFunc("POST /admin/ai", s.requireAdmin(s.adminAISave))
+	mux.HandleFunc("POST /admin/ai/{id}/toggle", s.requireAdmin(s.adminAIToggle))
+	mux.HandleFunc("POST /admin/ai/{id}/test", s.requireAdmin(s.adminAITest))
+	mux.HandleFunc("POST /admin/reports/{id}/resolve", s.requireAdmin(s.adminReportResolve))
+	mux.HandleFunc("POST /admin/reports/{id}/dismiss", s.requireAdmin(s.adminReportDismiss))
+	mux.HandleFunc("POST /admin/drinks/{id}/activate", s.requireAdmin(s.adminDrinkActivate))
+	mux.HandleFunc("POST /admin/digest", s.requireAdmin(s.adminDigest))
 }
 
 // Middleware attaches the session and applies security headers.
@@ -80,7 +137,7 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")
 		} else {
-			csp := "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			csp := "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 			if s.Cfg.UmamiURL != "" {
 				csp = strings.Replace(csp, "script-src 'self'", "script-src 'self' "+s.Cfg.UmamiURL, 1)
 				csp = strings.Replace(csp, "connect-src 'self'", "connect-src 'self' "+s.Cfg.UmamiURL, 1)
@@ -96,13 +153,14 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 
 func (s *Server) base(r *http.Request) map[string]any {
 	d := map[string]any{
-		"AppName":  s.Cfg.AppName,
-		"Env":      s.Cfg.Env,
-		"Version":  s.Cfg.Version,
-		"UmamiURL": s.Cfg.UmamiURL,
-		"UmamiID":  s.Cfg.UmamiWebsiteID,
-		"OIDC":     s.Auth.OIDCStatus(),
-		"Year":     time.Now().Year(),
+		"AppName":     s.Cfg.AppName,
+		"Env":         s.Cfg.Env,
+		"Version":     s.Cfg.Version,
+		"UmamiURL":    s.Cfg.UmamiURL,
+		"UmamiID":     s.Cfg.UmamiWebsiteID,
+		"OIDC":        s.Auth.OIDCStatus(),
+		"AssetScript": uiAssets.Script,
+		"Year":        time.Now().Year(),
 	}
 	if u := UserFromContext(r); u != nil {
 		d["User"] = u

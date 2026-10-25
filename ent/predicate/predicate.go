@@ -72,6 +72,9 @@ type Follow func(*sql.Selector)
 // Friendship is the predicate function for friendship builders.
 type Friendship func(*sql.Selector)
 
+// Integration is the predicate function for integration builders.
+type Integration func(*sql.Selector)
+
 // List is the predicate function for list builders.
 type List func(*sql.Selector)
 
@@ -92,6 +95,9 @@ type OffProduct func(*sql.Selector)
 
 // PasswordResetToken is the predicate function for passwordresettoken builders.
 type PasswordResetToken func(*sql.Selector)
+
+// PushSubscription is the predicate function for pushsubscription builders.
+type PushSubscription func(*sql.Selector)
 
 // Report is the predicate function for report builders.
 type Report func(*sql.Selector)

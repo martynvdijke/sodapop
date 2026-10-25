@@ -16,7 +16,7 @@ import (
 //go:embed templates/*.html templates/pages/*.html
 var templateFS embed.FS
 
-//go:embed static
+//go:embed all:static
 var staticFS embed.FS
 
 type Renderer struct {
@@ -24,7 +24,8 @@ type Renderer struct {
 }
 
 func NewRenderer() (*Renderer, error) {
-	names := []string{"home", "login", "register", "verify", "search", "drink", "checkin", "friends", "tokens", "newdrink", "error"}
+	names := []string{"home", "login", "register", "verify", "search", "drink", "checkin", "friends", "tokens", "newdrink", "error",
+		"you", "lists", "list", "passport", "taste", "mix", "mix_detail", "integrations", "admin", "venues", "venue"}
 	r := &Renderer{pages: map[string]*template.Template{}}
 	for _, name := range names {
 		t, err := template.New("base").Funcs(template.FuncMap{

@@ -294,6 +294,8 @@ var (
 		{Name: "sweetener", Type: field.TypeEnum, Enums: []string{"sugar", "hfcs", "aspartame", "sucralose", "acesulfame_k", "saccharin", "stevia", "monk_fruit", "allulose", "erythritol", "mixed", "none", "unknown"}, Default: "unknown"},
 		{Name: "carbonation", Type: field.TypeEnum, Enums: []string{"still", "light", "standard", "extra", "unknown"}, Default: "unknown"},
 		{Name: "acid", Type: field.TypeEnum, Enums: []string{"phosphoric", "citric", "malic", "tartaric", "none", "unknown"}, Default: "unknown"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"packaged", "mix"}, Default: "packaged"},
+		{Name: "recipe_json", Type: field.TypeString, Default: "{}"},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"local", "off", "user"}, Default: "local"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"provisional", "active", "merged"}, Default: "active"},
 		{Name: "created_by", Type: field.TypeString, Nullable: true},
@@ -311,13 +313,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "drinks_brands_drinks",
-				Columns:    []*schema.Column{DrinksColumns[19]},
+				Columns:    []*schema.Column{DrinksColumns[21]},
 				RefColumns: []*schema.Column{BrandsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "drinks_styles_drinks",
-				Columns:    []*schema.Column{DrinksColumns[20]},
+				Columns:    []*schema.Column{DrinksColumns[22]},
 				RefColumns: []*schema.Column{StylesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -331,12 +333,12 @@ var (
 			{
 				Name:    "drink_brand_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[19]},
+				Columns: []*schema.Column{DrinksColumns[21]},
 			},
 			{
 				Name:    "drink_style_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[20]},
+				Columns: []*schema.Column{DrinksColumns[22]},
 			},
 		},
 	}
@@ -531,6 +533,30 @@ var (
 			},
 		},
 	}
+	// IntegrationsColumns holds the columns for the "integrations" table.
+	IntegrationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"home_assistant", "matrix", "trmnl"}, Default: "home_assistant"},
+		{Name: "target", Type: field.TypeString, Default: ""},
+		{Name: "secret", Type: field.TypeString, Default: ""},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeString},
+		{Name: "updated_at", Type: field.TypeString},
+	}
+	// IntegrationsTable holds the schema information for the "integrations" table.
+	IntegrationsTable = &schema.Table{
+		Name:       "integrations",
+		Columns:    IntegrationsColumns,
+		PrimaryKey: []*schema.Column{IntegrationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "integration_user_id_kind",
+				Unique:  true,
+				Columns: []*schema.Column{IntegrationsColumns[1], IntegrationsColumns[2]},
+			},
+		},
+	}
 	// ListsColumns holds the columns for the "lists" table.
 	ListsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
@@ -609,9 +635,12 @@ var (
 	MediaColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
 		{Name: "user_id", Type: field.TypeString, Nullable: true},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"checkin", "avatar", "drink", "venue", "brand"}, Default: "checkin"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"checkin", "avatar", "drink", "venue", "brand", "video"}, Default: "checkin"},
 		{Name: "path", Type: field.TypeString},
+		{Name: "thumb_path", Type: field.TypeString, Default: ""},
+		{Name: "poster_path", Type: field.TypeString, Default: ""},
 		{Name: "mime", Type: field.TypeString},
+		{Name: "duration_seconds", Type: field.TypeInt, Default: 0},
 		{Name: "width", Type: field.TypeInt, Default: 0},
 		{Name: "height", Type: field.TypeInt, Default: 0},
 		{Name: "bytes", Type: field.TypeInt, Default: 0},
@@ -680,6 +709,28 @@ var (
 		Name:       "password_reset_tokens",
 		Columns:    PasswordResetTokensColumns,
 		PrimaryKey: []*schema.Column{PasswordResetTokensColumns[0]},
+	}
+	// PushSubscriptionsColumns holds the columns for the "push_subscriptions" table.
+	PushSubscriptionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "endpoint", Type: field.TypeString, Unique: true},
+		{Name: "p256dh", Type: field.TypeString},
+		{Name: "auth", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeString},
+	}
+	// PushSubscriptionsTable holds the schema information for the "push_subscriptions" table.
+	PushSubscriptionsTable = &schema.Table{
+		Name:       "push_subscriptions",
+		Columns:    PushSubscriptionsColumns,
+		PrimaryKey: []*schema.Column{PushSubscriptionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pushsubscription_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{PushSubscriptionsColumns[1]},
+			},
+		},
 	}
 	// ReportsColumns holds the columns for the "reports" table.
 	ReportsColumns = []*schema.Column{
@@ -955,6 +1006,7 @@ var (
 		FlavoursTable,
 		FollowsTable,
 		FriendshipsTable,
+		IntegrationsTable,
 		ListsTable,
 		ListItemsTable,
 		LoginAttemptsTable,
@@ -962,6 +1014,7 @@ var (
 		NotificationsTable,
 		OffProductsTable,
 		PasswordResetTokensTable,
+		PushSubscriptionsTable,
 		ReportsTable,
 		SessionsTable,
 		StylesTable,

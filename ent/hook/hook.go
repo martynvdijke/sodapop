@@ -272,6 +272,18 @@ func (f FriendshipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FriendshipMutation", m)
 }
 
+// The IntegrationFunc type is an adapter to allow the use of ordinary
+// function as Integration mutator.
+type IntegrationFunc func(context.Context, *ent.IntegrationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IntegrationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IntegrationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IntegrationMutation", m)
+}
+
 // The ListFunc type is an adapter to allow the use of ordinary
 // function as List mutator.
 type ListFunc func(context.Context, *ent.ListMutation) (ent.Value, error)
@@ -354,6 +366,18 @@ func (f PasswordResetTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PasswordResetTokenMutation", m)
+}
+
+// The PushSubscriptionFunc type is an adapter to allow the use of ordinary
+// function as PushSubscription mutator.
+type PushSubscriptionFunc func(context.Context, *ent.PushSubscriptionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PushSubscriptionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PushSubscriptionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PushSubscriptionMutation", m)
 }
 
 // The ReportFunc type is an adapter to allow the use of ordinary

@@ -276,6 +276,34 @@ func (_u *DrinkUpdate) SetNillableAcid(v *drink.Acid) *DrinkUpdate {
 	return _u
 }
 
+// SetKind sets the "kind" field.
+func (_u *DrinkUpdate) SetKind(v drink.Kind) *DrinkUpdate {
+	_u.mutation.SetKind(v)
+	return _u
+}
+
+// SetNillableKind sets the "kind" field if the given value is not nil.
+func (_u *DrinkUpdate) SetNillableKind(v *drink.Kind) *DrinkUpdate {
+	if v != nil {
+		_u.SetKind(*v)
+	}
+	return _u
+}
+
+// SetRecipeJSON sets the "recipe_json" field.
+func (_u *DrinkUpdate) SetRecipeJSON(v string) *DrinkUpdate {
+	_u.mutation.SetRecipeJSON(v)
+	return _u
+}
+
+// SetNillableRecipeJSON sets the "recipe_json" field if the given value is not nil.
+func (_u *DrinkUpdate) SetNillableRecipeJSON(v *string) *DrinkUpdate {
+	if v != nil {
+		_u.SetRecipeJSON(*v)
+	}
+	return _u
+}
+
 // SetSource sets the "source" field.
 func (_u *DrinkUpdate) SetSource(v drink.Source) *DrinkUpdate {
 	_u.mutation.SetSource(v)
@@ -645,6 +673,11 @@ func (_u *DrinkUpdate) check() error {
 			return &ValidationError{Name: "acid", err: fmt.Errorf(`ent: validator failed for field "Drink.acid": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Kind(); ok {
+		if err := drink.KindValidator(v); err != nil {
+			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "Drink.kind": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Source(); ok {
 		if err := drink.SourceValidator(v); err != nil {
 			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "Drink.source": %w`, err)}
@@ -720,6 +753,12 @@ func (_u *DrinkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Acid(); ok {
 		_spec.SetField(drink.FieldAcid, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Kind(); ok {
+		_spec.SetField(drink.FieldKind, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RecipeJSON(); ok {
+		_spec.SetField(drink.FieldRecipeJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(drink.FieldSource, field.TypeEnum, value)
@@ -1293,6 +1332,34 @@ func (_u *DrinkUpdateOne) SetNillableAcid(v *drink.Acid) *DrinkUpdateOne {
 	return _u
 }
 
+// SetKind sets the "kind" field.
+func (_u *DrinkUpdateOne) SetKind(v drink.Kind) *DrinkUpdateOne {
+	_u.mutation.SetKind(v)
+	return _u
+}
+
+// SetNillableKind sets the "kind" field if the given value is not nil.
+func (_u *DrinkUpdateOne) SetNillableKind(v *drink.Kind) *DrinkUpdateOne {
+	if v != nil {
+		_u.SetKind(*v)
+	}
+	return _u
+}
+
+// SetRecipeJSON sets the "recipe_json" field.
+func (_u *DrinkUpdateOne) SetRecipeJSON(v string) *DrinkUpdateOne {
+	_u.mutation.SetRecipeJSON(v)
+	return _u
+}
+
+// SetNillableRecipeJSON sets the "recipe_json" field if the given value is not nil.
+func (_u *DrinkUpdateOne) SetNillableRecipeJSON(v *string) *DrinkUpdateOne {
+	if v != nil {
+		_u.SetRecipeJSON(*v)
+	}
+	return _u
+}
+
 // SetSource sets the "source" field.
 func (_u *DrinkUpdateOne) SetSource(v drink.Source) *DrinkUpdateOne {
 	_u.mutation.SetSource(v)
@@ -1675,6 +1742,11 @@ func (_u *DrinkUpdateOne) check() error {
 			return &ValidationError{Name: "acid", err: fmt.Errorf(`ent: validator failed for field "Drink.acid": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Kind(); ok {
+		if err := drink.KindValidator(v); err != nil {
+			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "Drink.kind": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Source(); ok {
 		if err := drink.SourceValidator(v); err != nil {
 			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "Drink.source": %w`, err)}
@@ -1767,6 +1839,12 @@ func (_u *DrinkUpdateOne) sqlSave(ctx context.Context) (_node *Drink, err error)
 	}
 	if value, ok := _u.mutation.Acid(); ok {
 		_spec.SetField(drink.FieldAcid, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Kind(); ok {
+		_spec.SetField(drink.FieldKind, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RecipeJSON(); ok {
+		_spec.SetField(drink.FieldRecipeJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(drink.FieldSource, field.TypeEnum, value)

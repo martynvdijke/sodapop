@@ -1,0 +1,19 @@
+{{define "content"}}
+<p class="eyebrow">Mix Lab</p>
+<h1>{{.Mix.Name}}</h1>
+<p class="muted">by @{{.Mix.Author}} · {{.Mix.Visibility}}</p>
+{{if .Mix.Notes}}<p class="note">{{.Mix.Notes}}</p>{{end}}
+
+<h2>Recipe</h2>
+{{range .Components}}
+  <a class="card list-row" href="/drinks/{{.Slug}}">
+    <div><strong>{{.Parts}} part{{if ne .Parts 1}}s{{end}} {{.Name}}</strong><div class="muted">{{.Brand}}</div></div>
+    <span class="rating-pill">{{.Rating}}</span>
+  </a>
+{{end}}
+
+<div class="actions">
+  <a class="btn btn-primary" href="/checkins/new?slug={{.Mix.Slug}}">Log this mix</a>
+  <a class="btn" href="/mix">All mixes</a>
+</div>
+{{end}}

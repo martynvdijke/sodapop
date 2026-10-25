@@ -53,9 +53,51 @@ func (_c *MediaCreate) SetPath(v string) *MediaCreate {
 	return _c
 }
 
+// SetThumbPath sets the "thumb_path" field.
+func (_c *MediaCreate) SetThumbPath(v string) *MediaCreate {
+	_c.mutation.SetThumbPath(v)
+	return _c
+}
+
+// SetNillableThumbPath sets the "thumb_path" field if the given value is not nil.
+func (_c *MediaCreate) SetNillableThumbPath(v *string) *MediaCreate {
+	if v != nil {
+		_c.SetThumbPath(*v)
+	}
+	return _c
+}
+
+// SetPosterPath sets the "poster_path" field.
+func (_c *MediaCreate) SetPosterPath(v string) *MediaCreate {
+	_c.mutation.SetPosterPath(v)
+	return _c
+}
+
+// SetNillablePosterPath sets the "poster_path" field if the given value is not nil.
+func (_c *MediaCreate) SetNillablePosterPath(v *string) *MediaCreate {
+	if v != nil {
+		_c.SetPosterPath(*v)
+	}
+	return _c
+}
+
 // SetMime sets the "mime" field.
 func (_c *MediaCreate) SetMime(v string) *MediaCreate {
 	_c.mutation.SetMime(v)
+	return _c
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (_c *MediaCreate) SetDurationSeconds(v int) *MediaCreate {
+	_c.mutation.SetDurationSeconds(v)
+	return _c
+}
+
+// SetNillableDurationSeconds sets the "duration_seconds" field if the given value is not nil.
+func (_c *MediaCreate) SetNillableDurationSeconds(v *int) *MediaCreate {
+	if v != nil {
+		_c.SetDurationSeconds(*v)
+	}
 	return _c
 }
 
@@ -168,6 +210,18 @@ func (_c *MediaCreate) defaults() {
 		v := media.DefaultKind
 		_c.mutation.SetKind(v)
 	}
+	if _, ok := _c.mutation.ThumbPath(); !ok {
+		v := media.DefaultThumbPath
+		_c.mutation.SetThumbPath(v)
+	}
+	if _, ok := _c.mutation.PosterPath(); !ok {
+		v := media.DefaultPosterPath
+		_c.mutation.SetPosterPath(v)
+	}
+	if _, ok := _c.mutation.DurationSeconds(); !ok {
+		v := media.DefaultDurationSeconds
+		_c.mutation.SetDurationSeconds(v)
+	}
 	if _, ok := _c.mutation.Width(); !ok {
 		v := media.DefaultWidth
 		_c.mutation.SetWidth(v)
@@ -208,6 +262,12 @@ func (_c *MediaCreate) check() error {
 			return &ValidationError{Name: "path", err: fmt.Errorf(`ent: validator failed for field "Media.path": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.ThumbPath(); !ok {
+		return &ValidationError{Name: "thumb_path", err: errors.New(`ent: missing required field "Media.thumb_path"`)}
+	}
+	if _, ok := _c.mutation.PosterPath(); !ok {
+		return &ValidationError{Name: "poster_path", err: errors.New(`ent: missing required field "Media.poster_path"`)}
+	}
 	if _, ok := _c.mutation.Mime(); !ok {
 		return &ValidationError{Name: "mime", err: errors.New(`ent: missing required field "Media.mime"`)}
 	}
@@ -215,6 +275,9 @@ func (_c *MediaCreate) check() error {
 		if err := media.MimeValidator(v); err != nil {
 			return &ValidationError{Name: "mime", err: fmt.Errorf(`ent: validator failed for field "Media.mime": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.DurationSeconds(); !ok {
+		return &ValidationError{Name: "duration_seconds", err: errors.New(`ent: missing required field "Media.duration_seconds"`)}
 	}
 	if _, ok := _c.mutation.Width(); !ok {
 		return &ValidationError{Name: "width", err: errors.New(`ent: missing required field "Media.width"`)}
@@ -275,9 +338,21 @@ func (_c *MediaCreate) createSpec() (*Media, *sqlgraph.CreateSpec) {
 		_spec.SetField(media.FieldPath, field.TypeString, value)
 		_node.Path = value
 	}
+	if value, ok := _c.mutation.ThumbPath(); ok {
+		_spec.SetField(media.FieldThumbPath, field.TypeString, value)
+		_node.ThumbPath = value
+	}
+	if value, ok := _c.mutation.PosterPath(); ok {
+		_spec.SetField(media.FieldPosterPath, field.TypeString, value)
+		_node.PosterPath = value
+	}
 	if value, ok := _c.mutation.Mime(); ok {
 		_spec.SetField(media.FieldMime, field.TypeString, value)
 		_node.Mime = value
+	}
+	if value, ok := _c.mutation.DurationSeconds(); ok {
+		_spec.SetField(media.FieldDurationSeconds, field.TypeInt, value)
+		_node.DurationSeconds = value
 	}
 	if value, ok := _c.mutation.Width(); ok {
 		_spec.SetField(media.FieldWidth, field.TypeInt, value)

@@ -5,7 +5,17 @@
   <p class="muted">Scan the barcode first if you have it. New entries start provisional until a moderator confirms them.</p>
   {{if .Error}}<p class="banner warn">{{.Error}}</p>{{end}}
 
-  <form method="post" action="/new" class="stack">
+  <div class="card">
+    <h2>Draft from notes</h2>
+    <p class="muted">Paste label text or a rough description and let the configured AI assistant draft the catalog fields. You stay in control of what is saved.</p>
+    <label>Notes for the assistant
+      <textarea name="ai_notes" rows="3" maxlength="2000" placeholder="Fentimans cherry cola, 275 ml glass bottle, botanically brewed, cherry and vanilla."></textarea>
+    </label>
+    <button class="btn" type="button" data-ai-draft data-csrf="{{.CSRF}}">Draft fields</button>
+    <p class="hint" data-ai-draft-status></p>
+  </div>
+
+  <form method="post" action="/new" class="stack" data-newdrink>
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
     <label>Barcode <span class="hint">EAN/UPC, optional</span>
       <input name="barcode" value="{{.Barcode}}" inputmode="numeric" autocomplete="off" placeholder="5449000000996">

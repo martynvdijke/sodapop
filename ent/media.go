@@ -22,8 +22,14 @@ type Media struct {
 	Kind media.Kind `json:"kind,omitempty"`
 	// Path holds the value of the "path" field.
 	Path string `json:"path,omitempty"`
+	// ThumbPath holds the value of the "thumb_path" field.
+	ThumbPath string `json:"thumb_path,omitempty"`
+	// PosterPath holds the value of the "poster_path" field.
+	PosterPath string `json:"poster_path,omitempty"`
 	// Mime holds the value of the "mime" field.
 	Mime string `json:"mime,omitempty"`
+	// DurationSeconds holds the value of the "duration_seconds" field.
+	DurationSeconds int `json:"duration_seconds,omitempty"`
 	// Width holds the value of the "width" field.
 	Width int `json:"width,omitempty"`
 	// Height holds the value of the "height" field.
@@ -40,9 +46,9 @@ func (*Media) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case media.FieldWidth, media.FieldHeight, media.FieldBytes:
+		case media.FieldDurationSeconds, media.FieldWidth, media.FieldHeight, media.FieldBytes:
 			values[i] = new(sql.NullInt64)
-		case media.FieldID, media.FieldUserID, media.FieldKind, media.FieldPath, media.FieldMime, media.FieldCreatedAt:
+		case media.FieldID, media.FieldUserID, media.FieldKind, media.FieldPath, media.FieldThumbPath, media.FieldPosterPath, media.FieldMime, media.FieldCreatedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -84,11 +90,29 @@ func (_m *Media) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Path = value.String
 			}
+		case media.FieldThumbPath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field thumb_path", values[i])
+			} else if value.Valid {
+				_m.ThumbPath = value.String
+			}
+		case media.FieldPosterPath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field poster_path", values[i])
+			} else if value.Valid {
+				_m.PosterPath = value.String
+			}
 		case media.FieldMime:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field mime", values[i])
 			} else if value.Valid {
 				_m.Mime = value.String
+			}
+		case media.FieldDurationSeconds:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field duration_seconds", values[i])
+			} else if value.Valid {
+				_m.DurationSeconds = int(value.Int64)
 			}
 		case media.FieldWidth:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -161,8 +185,17 @@ func (_m *Media) String() string {
 	builder.WriteString("path=")
 	builder.WriteString(_m.Path)
 	builder.WriteString(", ")
+	builder.WriteString("thumb_path=")
+	builder.WriteString(_m.ThumbPath)
+	builder.WriteString(", ")
+	builder.WriteString("poster_path=")
+	builder.WriteString(_m.PosterPath)
+	builder.WriteString(", ")
 	builder.WriteString("mime=")
 	builder.WriteString(_m.Mime)
+	builder.WriteString(", ")
+	builder.WriteString("duration_seconds=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DurationSeconds))
 	builder.WriteString(", ")
 	builder.WriteString("width=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Width))

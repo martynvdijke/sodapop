@@ -1,5 +1,14 @@
 # syntax=docker/dockerfile:1
 
+FROM node:24-alpine AS web
+WORKDIR /src
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.ts ./
+COPY web ./web
+COPY internal/web/static ./internal/web/static
+RUN npm run build
+
 FROM golang:1.27-alpine AS build
 WORKDIR /src
 ARG VERSION=0.0.0-dev
@@ -7,6 +16,7 @@ ENV CGO_ENABLED=0
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=web /src/internal/web/static ./internal/web/static
 RUN go build -trimpath -ldflags="-s -w -X main.Version=${VERSION}" -o /out/sodapop ./cmd/server \
     && go build -trimpath -ldflags="-s -w" -o /out/sodapop-seed ./cmd/seed
 

@@ -5,7 +5,7 @@
   <h1>{{$d.Drink.Name}}</h1>
   <p class="muted">{{$d.BrandName}} · {{$d.Drink.VolumeMl}} ml {{container $d.Drink.Container}}</p>
 
-  <form method="post" action="/checkins" class="stack">
+  <form method="post" action="/checkins" class="stack" enctype="multipart/form-data" data-offline-checkin>
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
     <input type="hidden" name="drink_id" value="{{$d.Drink.ID}}">
     <input type="hidden" name="idempotency_key" value="{{.Idempotency}}">
@@ -27,9 +27,21 @@
       </select>
     </label>
 
-    <label>Note <span class="hint">optional</span>
-      <textarea name="note" rows="3" maxlength="1000" placeholder="Sharp ginger, low sweetness, would buy again."></textarea>
+    <label>Where? <span class="hint">optional</span>
+      <select name="venue_id">
+        <option value="">No venue</option>
+        {{range .Venues}}<option value="{{.ID}}">{{.Name}}{{if .City}} · {{.City}}{{end}}</option>{{end}}
+      </select>
     </label>
+
+    <label>Photo or short video <span class="hint">optional · JPEG, PNG, WebP, GIF, MP4, WebM</span>
+      <input type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+    </label>
+
+    <label>Note <span class="hint">optional</span>
+      <textarea name="note" rows="3" maxlength="1000" placeholder="Sharp ginger, low sweetness, would buy again." data-ai-note></textarea>
+    </label>
+    <button class="btn btn-small" type="button" data-ai-polish data-csrf="{{.CSRF}}">Polish note with AI</button>
 
     <label>Who can see this?
       <select name="visibility">

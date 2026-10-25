@@ -73,9 +73,24 @@ func Path(v string) predicate.Media {
 	return predicate.Media(sql.FieldEQ(FieldPath, v))
 }
 
+// ThumbPath applies equality check predicate on the "thumb_path" field. It's identical to ThumbPathEQ.
+func ThumbPath(v string) predicate.Media {
+	return predicate.Media(sql.FieldEQ(FieldThumbPath, v))
+}
+
+// PosterPath applies equality check predicate on the "poster_path" field. It's identical to PosterPathEQ.
+func PosterPath(v string) predicate.Media {
+	return predicate.Media(sql.FieldEQ(FieldPosterPath, v))
+}
+
 // Mime applies equality check predicate on the "mime" field. It's identical to MimeEQ.
 func Mime(v string) predicate.Media {
 	return predicate.Media(sql.FieldEQ(FieldMime, v))
+}
+
+// DurationSeconds applies equality check predicate on the "duration_seconds" field. It's identical to DurationSecondsEQ.
+func DurationSeconds(v int) predicate.Media {
+	return predicate.Media(sql.FieldEQ(FieldDurationSeconds, v))
 }
 
 // Width applies equality check predicate on the "width" field. It's identical to WidthEQ.
@@ -258,6 +273,136 @@ func PathContainsFold(v string) predicate.Media {
 	return predicate.Media(sql.FieldContainsFold(FieldPath, v))
 }
 
+// ThumbPathEQ applies the EQ predicate on the "thumb_path" field.
+func ThumbPathEQ(v string) predicate.Media {
+	return predicate.Media(sql.FieldEQ(FieldThumbPath, v))
+}
+
+// ThumbPathNEQ applies the NEQ predicate on the "thumb_path" field.
+func ThumbPathNEQ(v string) predicate.Media {
+	return predicate.Media(sql.FieldNEQ(FieldThumbPath, v))
+}
+
+// ThumbPathIn applies the In predicate on the "thumb_path" field.
+func ThumbPathIn(vs ...string) predicate.Media {
+	return predicate.Media(sql.FieldIn(FieldThumbPath, vs...))
+}
+
+// ThumbPathNotIn applies the NotIn predicate on the "thumb_path" field.
+func ThumbPathNotIn(vs ...string) predicate.Media {
+	return predicate.Media(sql.FieldNotIn(FieldThumbPath, vs...))
+}
+
+// ThumbPathGT applies the GT predicate on the "thumb_path" field.
+func ThumbPathGT(v string) predicate.Media {
+	return predicate.Media(sql.FieldGT(FieldThumbPath, v))
+}
+
+// ThumbPathGTE applies the GTE predicate on the "thumb_path" field.
+func ThumbPathGTE(v string) predicate.Media {
+	return predicate.Media(sql.FieldGTE(FieldThumbPath, v))
+}
+
+// ThumbPathLT applies the LT predicate on the "thumb_path" field.
+func ThumbPathLT(v string) predicate.Media {
+	return predicate.Media(sql.FieldLT(FieldThumbPath, v))
+}
+
+// ThumbPathLTE applies the LTE predicate on the "thumb_path" field.
+func ThumbPathLTE(v string) predicate.Media {
+	return predicate.Media(sql.FieldLTE(FieldThumbPath, v))
+}
+
+// ThumbPathContains applies the Contains predicate on the "thumb_path" field.
+func ThumbPathContains(v string) predicate.Media {
+	return predicate.Media(sql.FieldContains(FieldThumbPath, v))
+}
+
+// ThumbPathHasPrefix applies the HasPrefix predicate on the "thumb_path" field.
+func ThumbPathHasPrefix(v string) predicate.Media {
+	return predicate.Media(sql.FieldHasPrefix(FieldThumbPath, v))
+}
+
+// ThumbPathHasSuffix applies the HasSuffix predicate on the "thumb_path" field.
+func ThumbPathHasSuffix(v string) predicate.Media {
+	return predicate.Media(sql.FieldHasSuffix(FieldThumbPath, v))
+}
+
+// ThumbPathEqualFold applies the EqualFold predicate on the "thumb_path" field.
+func ThumbPathEqualFold(v string) predicate.Media {
+	return predicate.Media(sql.FieldEqualFold(FieldThumbPath, v))
+}
+
+// ThumbPathContainsFold applies the ContainsFold predicate on the "thumb_path" field.
+func ThumbPathContainsFold(v string) predicate.Media {
+	return predicate.Media(sql.FieldContainsFold(FieldThumbPath, v))
+}
+
+// PosterPathEQ applies the EQ predicate on the "poster_path" field.
+func PosterPathEQ(v string) predicate.Media {
+	return predicate.Media(sql.FieldEQ(FieldPosterPath, v))
+}
+
+// PosterPathNEQ applies the NEQ predicate on the "poster_path" field.
+func PosterPathNEQ(v string) predicate.Media {
+	return predicate.Media(sql.FieldNEQ(FieldPosterPath, v))
+}
+
+// PosterPathIn applies the In predicate on the "poster_path" field.
+func PosterPathIn(vs ...string) predicate.Media {
+	return predicate.Media(sql.FieldIn(FieldPosterPath, vs...))
+}
+
+// PosterPathNotIn applies the NotIn predicate on the "poster_path" field.
+func PosterPathNotIn(vs ...string) predicate.Media {
+	return predicate.Media(sql.FieldNotIn(FieldPosterPath, vs...))
+}
+
+// PosterPathGT applies the GT predicate on the "poster_path" field.
+func PosterPathGT(v string) predicate.Media {
+	return predicate.Media(sql.FieldGT(FieldPosterPath, v))
+}
+
+// PosterPathGTE applies the GTE predicate on the "poster_path" field.
+func PosterPathGTE(v string) predicate.Media {
+	return predicate.Media(sql.FieldGTE(FieldPosterPath, v))
+}
+
+// PosterPathLT applies the LT predicate on the "poster_path" field.
+func PosterPathLT(v string) predicate.Media {
+	return predicate.Media(sql.FieldLT(FieldPosterPath, v))
+}
+
+// PosterPathLTE applies the LTE predicate on the "poster_path" field.
+func PosterPathLTE(v string) predicate.Media {
+	return predicate.Media(sql.FieldLTE(FieldPosterPath, v))
+}
+
+// PosterPathContains applies the Contains predicate on the "poster_path" field.
+func PosterPathContains(v string) predicate.Media {
+	return predicate.Media(sql.FieldContains(FieldPosterPath, v))
+}
+
+// PosterPathHasPrefix applies the HasPrefix predicate on the "poster_path" field.
+func PosterPathHasPrefix(v string) predicate.Media {
+	return predicate.Media(sql.FieldHasPrefix(FieldPosterPath, v))
+}
+
+// PosterPathHasSuffix applies the HasSuffix predicate on the "poster_path" field.
+func PosterPathHasSuffix(v string) predicate.Media {
+	return predicate.Media(sql.FieldHasSuffix(FieldPosterPath, v))
+}
+
+// PosterPathEqualFold applies the EqualFold predicate on the "poster_path" field.
+func PosterPathEqualFold(v string) predicate.Media {
+	return predicate.Media(sql.FieldEqualFold(FieldPosterPath, v))
+}
+
+// PosterPathContainsFold applies the ContainsFold predicate on the "poster_path" field.
+func PosterPathContainsFold(v string) predicate.Media {
+	return predicate.Media(sql.FieldContainsFold(FieldPosterPath, v))
+}
+
 // MimeEQ applies the EQ predicate on the "mime" field.
 func MimeEQ(v string) predicate.Media {
 	return predicate.Media(sql.FieldEQ(FieldMime, v))
@@ -321,6 +466,46 @@ func MimeEqualFold(v string) predicate.Media {
 // MimeContainsFold applies the ContainsFold predicate on the "mime" field.
 func MimeContainsFold(v string) predicate.Media {
 	return predicate.Media(sql.FieldContainsFold(FieldMime, v))
+}
+
+// DurationSecondsEQ applies the EQ predicate on the "duration_seconds" field.
+func DurationSecondsEQ(v int) predicate.Media {
+	return predicate.Media(sql.FieldEQ(FieldDurationSeconds, v))
+}
+
+// DurationSecondsNEQ applies the NEQ predicate on the "duration_seconds" field.
+func DurationSecondsNEQ(v int) predicate.Media {
+	return predicate.Media(sql.FieldNEQ(FieldDurationSeconds, v))
+}
+
+// DurationSecondsIn applies the In predicate on the "duration_seconds" field.
+func DurationSecondsIn(vs ...int) predicate.Media {
+	return predicate.Media(sql.FieldIn(FieldDurationSeconds, vs...))
+}
+
+// DurationSecondsNotIn applies the NotIn predicate on the "duration_seconds" field.
+func DurationSecondsNotIn(vs ...int) predicate.Media {
+	return predicate.Media(sql.FieldNotIn(FieldDurationSeconds, vs...))
+}
+
+// DurationSecondsGT applies the GT predicate on the "duration_seconds" field.
+func DurationSecondsGT(v int) predicate.Media {
+	return predicate.Media(sql.FieldGT(FieldDurationSeconds, v))
+}
+
+// DurationSecondsGTE applies the GTE predicate on the "duration_seconds" field.
+func DurationSecondsGTE(v int) predicate.Media {
+	return predicate.Media(sql.FieldGTE(FieldDurationSeconds, v))
+}
+
+// DurationSecondsLT applies the LT predicate on the "duration_seconds" field.
+func DurationSecondsLT(v int) predicate.Media {
+	return predicate.Media(sql.FieldLT(FieldDurationSeconds, v))
+}
+
+// DurationSecondsLTE applies the LTE predicate on the "duration_seconds" field.
+func DurationSecondsLTE(v int) predicate.Media {
+	return predicate.Media(sql.FieldLTE(FieldDurationSeconds, v))
 }
 
 // WidthEQ applies the EQ predicate on the "width" field.

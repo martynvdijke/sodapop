@@ -21,6 +21,7 @@ import (
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
 	"sodapop/internal/db"
+	"sodapop/internal/integrations"
 	"sodapop/internal/social"
 )
 
@@ -288,7 +289,12 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That soda is not in the catalog yet."})
 		return
 	}
-	s.render(w, r, http.StatusOK, "drink", map[string]any{"Title": d.Drink.Name, "Drink": d})
+	lists, _ := s.Auth.Client.List.Query().
+		Where(list.UserID(UserFromContext(r).ID)).
+		Order(ent.Asc(list.FieldName)).All(r.Context())
+	s.render(w, r, http.StatusOK, "drink", map[string]any{
+		"Title": d.Drink.Name, "Drink": d, "Lists": lists,
+	})
 }
 
 func (s *Server) checkinPage(w http.ResponseWriter, r *http.Request) {
@@ -298,17 +304,57 @@ func (s *Server) checkinPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/search", http.StatusFound)
 		return
 	}
+	rows, _ := s.Auth.SQL.QueryContext(r.Context(), `
+		SELECT id, name, COALESCE(city,'') FROM venues
+		WHERE merged_into_id IS NULL ORDER BY updated_at DESC LIMIT 40`)
+	venues := []venueOption{}
+	if rows != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var v venueOption
+			if rows.Scan(&v.ID, &v.Name, &v.City) == nil {
+				venues = append(venues, v)
+			}
+		}
+	}
 	s.render(w, r, http.StatusOK, "checkin", map[string]any{
 		"Title": "Log " + d.Drink.Name, "Drink": d, "Ratings": ratingChoices(),
-		"Idempotency": auth.RandomToken(16),
+		"Idempotency": auth.RandomToken(16), "Venues": venues,
 	})
 }
 
+type venueOption struct {
+	ID   int
+	Name string
+	City string
+}
+
 func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 126<<20)
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+	}
 	if !s.csrfOK(w, r) {
 		return
 	}
 	u := UserFromContext(r)
+	photoID := ""
+	if file, header, err := r.FormFile("media"); err == nil {
+		defer file.Close()
+		row, err := s.Media.Store(r.Context(), u.ID, "checkin", file, header.Filename, header.Header.Get("Content-Type"))
+		if err != nil {
+			s.Log.Warn("media upload failed", "err", err)
+			http.Error(w, "could not store that photo or video: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		photoID = row.ID
+	} else if err != http.ErrMissingFile {
+		http.Error(w, "could not read upload", http.StatusBadRequest)
+		return
+	}
 	drinkID, _ := strconv.Atoi(r.FormValue("drink_id"))
 	var rating *int
 	if v := strings.TrimSpace(r.FormValue("rating")); v != "" {
@@ -320,18 +366,38 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		scaled := int(math.Round(f * 4))
 		rating = &scaled
 	}
-	_, _, err := s.Checkins.Create(r.Context(), u, checkins.CreateInput{
+	var venueID *int
+	if v, err := strconv.Atoi(r.FormValue("venue_id")); err == nil && v > 0 {
+		venueID = &v
+	}
+	c, created, err := s.Checkins.Create(r.Context(), u, checkins.CreateInput{
 		DrinkID:        drinkID,
+		VenueID:        venueID,
 		Rating:         rating,
 		Serving:        r.FormValue("serving"),
 		Note:           strings.TrimSpace(r.FormValue("note")),
 		Visibility:     r.FormValue("visibility"),
 		IdempotencyKey: r.FormValue("idempotency_key"),
+		PhotoMediaID:   photoID,
 	})
 	if err != nil {
 		s.Log.Warn("checkin failed", "err", err)
 		http.Error(w, "could not save check-in", http.StatusBadRequest)
 		return
+	}
+	if created {
+		earned, err := s.Badges.Evaluate(r.Context(), u.ID)
+		if err != nil {
+			s.Log.Warn("badge evaluation failed", "err", err)
+		}
+		for _, slug := range earned {
+			s.Integrations.Dispatch(r.Context(), integrations.Event{
+				UserID: u.ID, Kind: "badge", Text: "Earned the " + slug + " badge.", URL: s.Cfg.BaseURL + "/you",
+			})
+		}
+		s.Integrations.Dispatch(r.Context(), integrations.Event{
+			UserID: u.ID, Kind: "checkin", Text: "Logged a new soda.", URL: s.Cfg.BaseURL + "/checkins/" + c.ID,
+		})
 	}
 	http.Redirect(w, r, "/", http.StatusFound)
 }

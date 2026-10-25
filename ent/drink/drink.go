@@ -42,6 +42,10 @@ const (
 	FieldCarbonation = "carbonation"
 	// FieldAcid holds the string denoting the acid field in the database.
 	FieldAcid = "acid"
+	// FieldKind holds the string denoting the kind field in the database.
+	FieldKind = "kind"
+	// FieldRecipeJSON holds the string denoting the recipe_json field in the database.
+	FieldRecipeJSON = "recipe_json"
 	// FieldSource holds the string denoting the source field in the database.
 	FieldSource = "source"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -138,6 +142,8 @@ var Columns = []string{
 	FieldSweetener,
 	FieldCarbonation,
 	FieldAcid,
+	FieldKind,
+	FieldRecipeJSON,
 	FieldSource,
 	FieldStatus,
 	FieldCreatedBy,
@@ -171,6 +177,8 @@ var (
 	DefaultSugarGPer100ml float64
 	// DefaultCaloriesKcalPer100ml holds the default value on creation for the "calories_kcal_per_100ml" field.
 	DefaultCaloriesKcalPer100ml int
+	// DefaultRecipeJSON holds the default value on creation for the "recipe_json" field.
+	DefaultRecipeJSON string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() string
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -300,6 +308,32 @@ func AcidValidator(a Acid) error {
 		return nil
 	default:
 		return fmt.Errorf("drink: invalid enum value for acid field: %q", a)
+	}
+}
+
+// Kind defines the type for the "kind" enum field.
+type Kind string
+
+// KindPackaged is the default value of the Kind enum.
+const DefaultKind = KindPackaged
+
+// Kind values.
+const (
+	KindPackaged Kind = "packaged"
+	KindMix      Kind = "mix"
+)
+
+func (k Kind) String() string {
+	return string(k)
+}
+
+// KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
+func KindValidator(k Kind) error {
+	switch k {
+	case KindPackaged, KindMix:
+		return nil
+	default:
+		return fmt.Errorf("drink: invalid enum value for kind field: %q", k)
 	}
 }
 
@@ -433,6 +467,16 @@ func ByCarbonation(opts ...sql.OrderTermOption) OrderOption {
 // ByAcid orders the results by the acid field.
 func ByAcid(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAcid, opts...).ToFunc()
+}
+
+// ByKind orders the results by the kind field.
+func ByKind(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKind, opts...).ToFunc()
+}
+
+// ByRecipeJSON orders the results by the recipe_json field.
+func ByRecipeJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRecipeJSON, opts...).ToFunc()
 }
 
 // BySource orders the results by the source field.

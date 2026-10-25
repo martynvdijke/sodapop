@@ -1,0 +1,40 @@
+{{define "content"}}
+<section class="narrow">
+  <p class="eyebrow">Where soda lives</p>
+  <h1>Venues</h1>
+  <form method="get" action="/venues" class="searchbar">
+    <label class="sr-only" for="venue-q">Search venues</label>
+    <input id="venue-q" name="q" value="{{.Query}}" placeholder="Hotel, shop, café, vending machine…">
+    <button class="btn btn-primary" type="submit">Search</button>
+  </form>
+  {{if .Error}}<p class="banner warn">{{.Error}}</p>{{end}}
+  {{if .Venues}}
+  <div class="stack">
+    {{range .Venues}}
+    <a class="card row" href="/venues/{{.ID}}">
+      <div><strong>{{.Name}}</strong><div class="muted">{{container .Kind}}{{if .City}} · {{.City}}{{end}}{{if .Address}} · {{.Address}}{{end}}</div></div>
+    </a>
+    {{end}}
+  </div>
+  {{else if .Query}}<div class="empty"><p>No venues matched. Add it below.</p></div>{{end}}
+
+  <h2>Add a venue</h2>
+  <form method="post" action="/venues" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>Name <input name="name" required maxlength="160" placeholder="Hotel Minibar"></label>
+    <label>Kind
+      <select name="kind">{{range .Kinds}}<option value="{{.}}">{{container .}}</option>{{end}}</select>
+    </label>
+    <label>Address <input name="address" maxlength="200"></label>
+    <div class="row">
+      <label>City <input name="city" maxlength="120"></label>
+      <label>Country <input name="country" maxlength="120"></label>
+    </div>
+    <div class="row">
+      <label>Latitude <input name="lat" inputmode="decimal"></label>
+      <label>Longitude <input name="lng" inputmode="decimal"></label>
+    </div>
+    <button class="btn btn-primary" type="submit">Add venue</button>
+  </form>
+</section>
+{{end}}

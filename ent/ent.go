@@ -29,6 +29,7 @@ import (
 	"sodapop/ent/flavour"
 	"sodapop/ent/follow"
 	"sodapop/ent/friendship"
+	"sodapop/ent/integration"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
 	"sodapop/ent/loginattempt"
@@ -36,6 +37,7 @@ import (
 	"sodapop/ent/notification"
 	"sodapop/ent/offproduct"
 	"sodapop/ent/passwordresettoken"
+	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
@@ -134,6 +136,7 @@ func checkColumn(t, c string) error {
 			flavour.Table:                flavour.ValidColumn,
 			follow.Table:                 follow.ValidColumn,
 			friendship.Table:             friendship.ValidColumn,
+			integration.Table:            integration.ValidColumn,
 			list.Table:                   list.ValidColumn,
 			listitem.Table:               listitem.ValidColumn,
 			loginattempt.Table:           loginattempt.ValidColumn,
@@ -141,6 +144,7 @@ func checkColumn(t, c string) error {
 			notification.Table:           notification.ValidColumn,
 			offproduct.Table:             offproduct.ValidColumn,
 			passwordresettoken.Table:     passwordresettoken.ValidColumn,
+			pushsubscription.Table:       pushsubscription.ValidColumn,
 			report.Table:                 report.ValidColumn,
 			session.Table:                session.ValidColumn,
 			style.Table:                  style.ValidColumn,

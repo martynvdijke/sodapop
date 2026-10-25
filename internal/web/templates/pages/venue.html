@@ -1,0 +1,21 @@
+{{define "content"}}
+{{$v := .Venue}}
+<article class="narrow">
+  <p class="eyebrow">{{container $v.Kind}}{{if $v.City}} · {{$v.City}}{{end}}</p>
+  <h1>{{$v.Name}}</h1>
+  {{if $v.Address}}<p class="muted">{{$v.Address}}{{if $v.Country}} · {{$v.Country}}{{end}}</p>{{end}}
+  <div class="actions">
+    <form method="post" action="/venues/{{$v.ID}}/save" class="inline">
+      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+      <button class="btn btn-primary" type="submit">Save venue</button>
+    </form>
+    {{if $v.Website}}<a class="btn" href="{{$v.Website}}" rel="nofollow noopener" target="_blank">Website</a>{{end}}
+  </div>
+  <h2>Seen here</h2>
+  {{range .Drinks}}
+    <a class="card row" href="/drinks/{{.Slug}}">
+      <div><strong>{{.Name}}</strong><div class="muted">{{.Brand}}{{if .LastSeen}} · last seen {{.LastSeen}}{{end}}{{if .OnOffer}} · on offer{{end}}</div></div>
+    </a>
+  {{else}}<div class="empty"><p>No sodas logged here yet. Be the first.</p></div>{{end}}
+</article>
+{{end}}

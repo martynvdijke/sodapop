@@ -98,6 +98,8 @@ func (Drink) Fields() []ent.Field {
 		field.Enum("sweetener").Values("sugar", "hfcs", "aspartame", "sucralose", "acesulfame_k", "saccharin", "stevia", "monk_fruit", "allulose", "erythritol", "mixed", "none", "unknown").Default("unknown"),
 		field.Enum("carbonation").Values("still", "light", "standard", "extra", "unknown").Default("unknown"),
 		field.Enum("acid").Values("phosphoric", "citric", "malic", "tartaric", "none", "unknown").Default("unknown"),
+		field.Enum("kind").Values("packaged", "mix").Default("packaged"),
+		field.String("recipe_json").Default("{}"),
 		field.Enum("source").Values("local", "off", "user").Default("local"),
 		field.Enum("status").Values("provisional", "active", "merged").Default("active"),
 		field.String("created_by").Optional().Nillable(),

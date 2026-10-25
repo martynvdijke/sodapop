@@ -1,0 +1,51 @@
+{{define "content"}}
+<p class="eyebrow">You</p>
+<h1>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}@{{.User.Handle}}{{end}}</h1>
+<p class="muted">@{{.User.Handle}} · joined {{.User.CreatedAt}}{{if .User.Country}} · {{.User.Country}}{{end}}</p>
+
+<section class="stat-grid">
+  <div><strong>{{.Stats.Checkins}}</strong><span>check-ins</span></div>
+  <div><strong>{{.Stats.UniqueDrinks}}</strong><span>unique</span></div>
+  <div><strong>{{if .Stats.AvgRating}}{{printf "%.2f" (deref .Stats.AvgRating)}}{{else}}—{{end}}</strong><span>average</span></div>
+  <div><strong>{{.Stats.Toasts}}</strong><span>toasts</span></div>
+</section>
+
+<div class="pill-row" style="margin:1rem 0">
+  <a class="pill" href="/passport">Soda passport</a>
+  <a class="pill" href="/taste">Taste twin</a>
+  <a class="pill" href="/lists">Lists</a>
+  <a class="pill" href="/mix">Mix Lab</a>
+  <a class="pill" href="/integrations">Integrations</a>
+  <a class="pill" href="/export.json">Export JSON</a>
+</div>
+
+<h2>Badges</h2>
+<div class="badge-grid">
+{{range .Badges}}
+  <div class="badge-tile{{if .Earned}} earned{{end}}">
+    <strong>{{.Name}}</strong>
+    <div class="muted">{{.Description}}</div>
+    {{if .Earned}}<div class="pill" style="margin-top:.5rem">Earned {{.AwardedAt}}</div>
+    {{else}}
+      <div class="muted" style="margin-top:.5rem">{{.Progress}} / {{.Target}}</div>
+      <div class="progress"><span style="width:{{.Percent}}%"></span></div>
+    {{end}}
+  </div>
+{{else}}<div class="empty"><p>No badges defined yet.</p></div>{{end}}
+</div>
+
+<h2>Recent check-ins</h2>
+{{range .Recent}}
+  <div class="card list-row">
+    <div><strong><a href="/drinks/{{.DrinkSlug}}">{{.DrinkName}}</a></strong><div class="muted">{{.CreatedAt}} · {{.Visibility}}</div></div>
+    <span class="rating-pill">{{if .Rating}}{{stars .Rating}}{{else}}Not rated{{end}}</span>
+  </div>
+{{else}}<div class="empty"><p>No check-ins yet.</p></div>{{end}}
+
+<h2>Account</h2>
+<p class="muted">Email: {{.User.Email}}{{if .User.EmailVerifiedAt}} ✓ verified{{else}} · unverified{{end}}</p>
+<div class="actions">
+  <a class="btn" href="/settings/tokens">API tokens</a>
+  {{if .IsAdmin}}<a class="btn" href="/admin">Admin</a>{{end}}
+</div>
+{{end}}

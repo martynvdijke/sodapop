@@ -56,6 +56,8 @@ type Tx struct {
 	Follow *FollowClient
 	// Friendship is the client for interacting with the Friendship builders.
 	Friendship *FriendshipClient
+	// Integration is the client for interacting with the Integration builders.
+	Integration *IntegrationClient
 	// List is the client for interacting with the List builders.
 	List *ListClient
 	// ListItem is the client for interacting with the ListItem builders.
@@ -70,6 +72,8 @@ type Tx struct {
 	OffProduct *OffProductClient
 	// PasswordResetToken is the client for interacting with the PasswordResetToken builders.
 	PasswordResetToken *PasswordResetTokenClient
+	// PushSubscription is the client for interacting with the PushSubscription builders.
+	PushSubscription *PushSubscriptionClient
 	// Report is the client for interacting with the Report builders.
 	Report *ReportClient
 	// Session is the client for interacting with the Session builders.
@@ -245,6 +249,7 @@ func (tx *Tx) init() {
 	tx.Flavour = NewFlavourClient(tx.config)
 	tx.Follow = NewFollowClient(tx.config)
 	tx.Friendship = NewFriendshipClient(tx.config)
+	tx.Integration = NewIntegrationClient(tx.config)
 	tx.List = NewListClient(tx.config)
 	tx.ListItem = NewListItemClient(tx.config)
 	tx.LoginAttempt = NewLoginAttemptClient(tx.config)
@@ -252,6 +257,7 @@ func (tx *Tx) init() {
 	tx.Notification = NewNotificationClient(tx.config)
 	tx.OffProduct = NewOffProductClient(tx.config)
 	tx.PasswordResetToken = NewPasswordResetTokenClient(tx.config)
+	tx.PushSubscription = NewPushSubscriptionClient(tx.config)
 	tx.Report = NewReportClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Style = NewStyleClient(tx.config)

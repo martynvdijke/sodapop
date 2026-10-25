@@ -75,6 +75,34 @@ func (_u *MediaUpdate) SetNillablePath(v *string) *MediaUpdate {
 	return _u
 }
 
+// SetThumbPath sets the "thumb_path" field.
+func (_u *MediaUpdate) SetThumbPath(v string) *MediaUpdate {
+	_u.mutation.SetThumbPath(v)
+	return _u
+}
+
+// SetNillableThumbPath sets the "thumb_path" field if the given value is not nil.
+func (_u *MediaUpdate) SetNillableThumbPath(v *string) *MediaUpdate {
+	if v != nil {
+		_u.SetThumbPath(*v)
+	}
+	return _u
+}
+
+// SetPosterPath sets the "poster_path" field.
+func (_u *MediaUpdate) SetPosterPath(v string) *MediaUpdate {
+	_u.mutation.SetPosterPath(v)
+	return _u
+}
+
+// SetNillablePosterPath sets the "poster_path" field if the given value is not nil.
+func (_u *MediaUpdate) SetNillablePosterPath(v *string) *MediaUpdate {
+	if v != nil {
+		_u.SetPosterPath(*v)
+	}
+	return _u
+}
+
 // SetMime sets the "mime" field.
 func (_u *MediaUpdate) SetMime(v string) *MediaUpdate {
 	_u.mutation.SetMime(v)
@@ -86,6 +114,27 @@ func (_u *MediaUpdate) SetNillableMime(v *string) *MediaUpdate {
 	if v != nil {
 		_u.SetMime(*v)
 	}
+	return _u
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (_u *MediaUpdate) SetDurationSeconds(v int) *MediaUpdate {
+	_u.mutation.ResetDurationSeconds()
+	_u.mutation.SetDurationSeconds(v)
+	return _u
+}
+
+// SetNillableDurationSeconds sets the "duration_seconds" field if the given value is not nil.
+func (_u *MediaUpdate) SetNillableDurationSeconds(v *int) *MediaUpdate {
+	if v != nil {
+		_u.SetDurationSeconds(*v)
+	}
+	return _u
+}
+
+// AddDurationSeconds adds value to the "duration_seconds" field.
+func (_u *MediaUpdate) AddDurationSeconds(v int) *MediaUpdate {
+	_u.mutation.AddDurationSeconds(v)
 	return _u
 }
 
@@ -242,8 +291,20 @@ func (_u *MediaUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(media.FieldPath, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ThumbPath(); ok {
+		_spec.SetField(media.FieldThumbPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PosterPath(); ok {
+		_spec.SetField(media.FieldPosterPath, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Mime(); ok {
 		_spec.SetField(media.FieldMime, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DurationSeconds(); ok {
+		_spec.SetField(media.FieldDurationSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDurationSeconds(); ok {
+		_spec.AddField(media.FieldDurationSeconds, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Width(); ok {
 		_spec.SetField(media.FieldWidth, field.TypeInt, value)
@@ -334,6 +395,34 @@ func (_u *MediaUpdateOne) SetNillablePath(v *string) *MediaUpdateOne {
 	return _u
 }
 
+// SetThumbPath sets the "thumb_path" field.
+func (_u *MediaUpdateOne) SetThumbPath(v string) *MediaUpdateOne {
+	_u.mutation.SetThumbPath(v)
+	return _u
+}
+
+// SetNillableThumbPath sets the "thumb_path" field if the given value is not nil.
+func (_u *MediaUpdateOne) SetNillableThumbPath(v *string) *MediaUpdateOne {
+	if v != nil {
+		_u.SetThumbPath(*v)
+	}
+	return _u
+}
+
+// SetPosterPath sets the "poster_path" field.
+func (_u *MediaUpdateOne) SetPosterPath(v string) *MediaUpdateOne {
+	_u.mutation.SetPosterPath(v)
+	return _u
+}
+
+// SetNillablePosterPath sets the "poster_path" field if the given value is not nil.
+func (_u *MediaUpdateOne) SetNillablePosterPath(v *string) *MediaUpdateOne {
+	if v != nil {
+		_u.SetPosterPath(*v)
+	}
+	return _u
+}
+
 // SetMime sets the "mime" field.
 func (_u *MediaUpdateOne) SetMime(v string) *MediaUpdateOne {
 	_u.mutation.SetMime(v)
@@ -345,6 +434,27 @@ func (_u *MediaUpdateOne) SetNillableMime(v *string) *MediaUpdateOne {
 	if v != nil {
 		_u.SetMime(*v)
 	}
+	return _u
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (_u *MediaUpdateOne) SetDurationSeconds(v int) *MediaUpdateOne {
+	_u.mutation.ResetDurationSeconds()
+	_u.mutation.SetDurationSeconds(v)
+	return _u
+}
+
+// SetNillableDurationSeconds sets the "duration_seconds" field if the given value is not nil.
+func (_u *MediaUpdateOne) SetNillableDurationSeconds(v *int) *MediaUpdateOne {
+	if v != nil {
+		_u.SetDurationSeconds(*v)
+	}
+	return _u
+}
+
+// AddDurationSeconds adds value to the "duration_seconds" field.
+func (_u *MediaUpdateOne) AddDurationSeconds(v int) *MediaUpdateOne {
+	_u.mutation.AddDurationSeconds(v)
 	return _u
 }
 
@@ -531,8 +641,20 @@ func (_u *MediaUpdateOne) sqlSave(ctx context.Context) (_node *Media, err error)
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(media.FieldPath, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ThumbPath(); ok {
+		_spec.SetField(media.FieldThumbPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PosterPath(); ok {
+		_spec.SetField(media.FieldPosterPath, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Mime(); ok {
 		_spec.SetField(media.FieldMime, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DurationSeconds(); ok {
+		_spec.SetField(media.FieldDurationSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDurationSeconds(); ok {
+		_spec.AddField(media.FieldDurationSeconds, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Width(); ok {
 		_spec.SetField(media.FieldWidth, field.TypeInt, value)

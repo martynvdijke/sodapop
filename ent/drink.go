@@ -46,6 +46,10 @@ type Drink struct {
 	Carbonation drink.Carbonation `json:"carbonation,omitempty"`
 	// Acid holds the value of the "acid" field.
 	Acid drink.Acid `json:"acid,omitempty"`
+	// Kind holds the value of the "kind" field.
+	Kind drink.Kind `json:"kind,omitempty"`
+	// RecipeJSON holds the value of the "recipe_json" field.
+	RecipeJSON string `json:"recipe_json,omitempty"`
 	// Source holds the value of the "source" field.
 	Source drink.Source `json:"source,omitempty"`
 	// Status holds the value of the "status" field.
@@ -161,7 +165,7 @@ func (*Drink) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case drink.FieldID, drink.FieldBrandID, drink.FieldStyleID, drink.FieldVolumeMl, drink.FieldCaffeineMgPer100ml, drink.FieldCaloriesKcalPer100ml, drink.FieldMergedIntoID:
 			values[i] = new(sql.NullInt64)
-		case drink.FieldName, drink.FieldSlug, drink.FieldDescription, drink.FieldImageURL, drink.FieldContainer, drink.FieldSweetener, drink.FieldCarbonation, drink.FieldAcid, drink.FieldSource, drink.FieldStatus, drink.FieldCreatedBy, drink.FieldCreatedAt, drink.FieldUpdatedAt:
+		case drink.FieldName, drink.FieldSlug, drink.FieldDescription, drink.FieldImageURL, drink.FieldContainer, drink.FieldSweetener, drink.FieldCarbonation, drink.FieldAcid, drink.FieldKind, drink.FieldRecipeJSON, drink.FieldSource, drink.FieldStatus, drink.FieldCreatedBy, drink.FieldCreatedAt, drink.FieldUpdatedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -270,6 +274,18 @@ func (_m *Drink) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field acid", values[i])
 			} else if value.Valid {
 				_m.Acid = drink.Acid(value.String)
+			}
+		case drink.FieldKind:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field kind", values[i])
+			} else if value.Valid {
+				_m.Kind = drink.Kind(value.String)
+			}
+		case drink.FieldRecipeJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field recipe_json", values[i])
+			} else if value.Valid {
+				_m.RecipeJSON = value.String
 			}
 		case drink.FieldSource:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -427,6 +443,12 @@ func (_m *Drink) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("acid=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Acid))
+	builder.WriteString(", ")
+	builder.WriteString("kind=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Kind))
+	builder.WriteString(", ")
+	builder.WriteString("recipe_json=")
+	builder.WriteString(_m.RecipeJSON)
 	builder.WriteString(", ")
 	builder.WriteString("source=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Source))

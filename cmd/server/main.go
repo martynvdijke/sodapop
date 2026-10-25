@@ -10,15 +10,21 @@ import (
 	"syscall"
 	"time"
 
+	"sodapop/internal/ai"
 	"sodapop/internal/api"
 	"sodapop/internal/auth"
+	"sodapop/internal/badges"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/email"
+	"sodapop/internal/integrations"
+	"sodapop/internal/media"
+	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
 	"sodapop/internal/social"
+	"sodapop/internal/taste"
 	"sodapop/internal/telemetry"
 	"sodapop/internal/venues"
 	"sodapop/internal/web"
@@ -85,6 +91,12 @@ func run() error {
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
 	venueSvc := venues.New(database)
+	mediaSvc := media.New(database, cfg)
+	aiSvc := ai.New(database, cfg, cfg.Version, log)
+	integrationSvc := integrations.New(database, cfg, log)
+	badgeSvc := badges.New(database)
+	tasteSvc := taste.New(database)
+	mixSvc := mix.New(database)
 	limiter := ratelimit.New()
 
 	renderer, err := web.NewRenderer()
@@ -95,12 +107,15 @@ func run() error {
 	webSrv := &web.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
 		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
+		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
+		DB: database, Media: mediaSvc, AI: aiSvc, Integrations: integrationSvc,
 		Limiter: limiter, Render: renderer,
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
 		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
-		Limiter: limiter,
+		Limiter: limiter, DB: database, Media: mediaSvc, AI: aiSvc,
+		Integrations: integrationSvc, Badges: badgeSvc,
 	}
 
 	mux := http.NewServeMux()
@@ -125,6 +140,7 @@ func run() error {
 	defer stop()
 
 	go mailer.Run(ctx)
+	go integrationSvc.RunDigestScheduler(ctx)
 	go func() {
 		t := time.NewTicker(10 * time.Minute)
 		defer t.Stop()

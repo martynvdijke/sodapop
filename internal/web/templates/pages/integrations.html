@@ -1,0 +1,48 @@
+{{define "content"}}
+<p class="eyebrow">Integrations</p>
+<h1>Send the fizz elsewhere.</h1>
+<p class="lede">Optional, personal, and off by default. Targets are stored per account and never shown to anyone else.</p>
+
+{{if .Notice}}<p class="banner success">{{.Notice}}</p>{{end}}
+
+<h2>Home Assistant</h2>
+<form method="post" action="/integrations" class="field-grid card">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <input type="hidden" name="kind" value="home_assistant">
+  <input type="hidden" name="enabled" value="1">
+  <label>Webhook URL <input name="target" type="url" placeholder="https://ha.local/api/webhook/sodapop" value="{{.HomeAssistant.Target}}"></label>
+  <label>Shared secret <input name="secret" type="password" placeholder="optional bearer token"></label>
+  <div><button class="btn" type="submit">Save</button></div>
+</form>
+<p class="muted">Sends a JSON event when you check in. {{if .HomeAssistant.Enabled}}Enabled.{{else}}Not configured.{{end}}</p>
+
+<h2>Matrix</h2>
+<form method="post" action="/integrations" class="field-grid card">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <input type="hidden" name="kind" value="matrix">
+  <input type="hidden" name="enabled" value="1">
+  <label>Homeserver + room <input name="target" placeholder="https://matrix.org/_matrix/client/v3/rooms/!room/send/m.room.message"></label>
+  <label>Access token <input name="secret" type="password"></label>
+  <div><button class="btn" type="submit">Save</button></div>
+</form>
+<p class="muted">Posts plain-text check-in events. {{if .Matrix.Enabled}}Enabled.{{else}}Not configured.{{end}}</p>
+
+<h2>TRMNL / RSS</h2>
+<p>Your private feed: <code>{{.BaseURL}}/feeds/{{.FeedToken}}.xml</code></p>
+<p class="muted">Read-only, no catalog dump. Regenerate by saving any integration.</p>
+
+<h2>Web push</h2>
+<button class="btn" type="button" data-push-subscribe data-csrf="{{.CSRF}}" data-vapid-key="{{.VAPIDPublicKey}}">Enable notifications</button>
+<p class="muted" id="push-status">Friend requests, toasts, and badge awards. Requires HTTPS.</p>
+
+<h2>Import and export</h2>
+<div class="actions">
+  <a class="btn" href="/export.json">Download JSON</a>
+</div>
+<form method="post" action="/import.csv" enctype="multipart/form-data" class="card">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <label>Import check-ins from CSV <input type="file" name="file" accept=".csv,text/csv" required></label>
+  <p class="hint">Columns: drink_slug, rating, note, created_at. Unknown drinks are skipped.</p>
+  <button class="btn" type="submit">Import</button>
+</form>
+{{end}}

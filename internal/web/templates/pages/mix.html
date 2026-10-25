@@ -1,0 +1,43 @@
+{{define "content"}}
+<p class="eyebrow">Mix Lab</p>
+<h1>Make a soda that does not exist yet.</h1>
+<p class="lede">Two to six sodas, poured in parts. Mixes live in the catalog as drinks, so you can rate and log them like anything else.</p>
+
+<section class="card">
+  <h2>New mix</h2>
+  <form method="post" action="/mix" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>Name <input name="name" maxlength="80" required placeholder="Cherry ginger sunset"></label>
+    <label>Notes <textarea name="notes" rows="2" maxlength="500" placeholder="Half cherry cola, half ginger beer, lots of ice."></textarea></label>
+    <label>Visibility
+      <select name="visibility">
+        <option value="public">Anyone signed in</option>
+        <option value="friends">Friends</option>
+        <option value="private">Only me</option>
+      </select>
+    </label>
+    <fieldset>
+      <legend>Components</legend>
+      <p class="hint">Search the catalog for each soda. Parts are relative, e.g. 2 parts cola, 1 part orange.</p>
+      {{range $i := .ComponentSlots}}
+      <div class="field-grid">
+        <label>Drink {{$i}} <input name="drink_{{$i}}" list="drink-options" placeholder="Search name or slug"></label>
+        <label>Parts <input name="parts_{{$i}}" type="number" min="1" max="10" value="1"></label>
+      </div>
+      {{end}}
+      <datalist id="drink-options">{{range .DrinkOptions}}<option value="{{.Slug}}">{{.Name}} — {{.Brand}}</option>{{end}}</datalist>
+    </fieldset>
+    <button class="btn btn-primary" type="submit">Create mix</button>
+  </form>
+</section>
+
+<h2>Recent mixes</h2>
+{{range .Mixes}}
+  <a class="card list-row" href="/mix/{{.Slug}}">
+    <div><strong>{{.Name}}</strong><div class="muted">{{.Author}} · {{.Parts}} parts · {{.Visibility}}</div></div>
+    <span class="rating-pill">{{if .Rating}}{{.Rating}}{{else}}New{{end}}</span>
+  </a>
+{{else}}
+  <div class="empty"><p>No mixes yet. Be the first to commit a soda crime.</p></div>
+{{end}}
+{{end}}

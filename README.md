@@ -17,6 +17,14 @@ Self-hosted, single Go binary + SQLite (Ent ORM + versioned migrations), server-
 
 ## Highlights
 
+- **Check-ins that keep the moment:** JPEG/PNG/GIF/WebP photos are re-encoded to stripped, resized JPEG with thumbnails; MP4/WebM/QuickTime clips are stored as-is.
+- **Taste Twin:** friends with similar palates, scored from overlapping quarter-star ratings.
+- **Mix Lab:** publish soda mixes with up to six components and parts, then log them like any other drink.
+- **Soda Passport:** styles, venue kinds and countries collected, with recent pours.
+- **Badges, lists and Wishlist:** idempotent badge evaluation, curated lists, and a system Wishlist.
+- **PWA with a real build:** TypeScript sources compile through Vite to hashed assets; the Go binary serves the manifest-resolved bundle, service worker, offline queue and Web Push.
+- **Integrations without noise:** weekly email digest, Web Push, Home Assistant webhook, Matrix room notifications, TRMNL/RSS feed, and CSV/JSON import/export. No Discord.
+
 - **Barcode-first check-ins:** native `BarcodeDetector` where available plus a Web Worker ZXing-C++ WebAssembly fallback (`barcode-detector`) on iOS Safari and Firefox, and native CameraX/ML Kit (`mobile_scanner`) on Android; GTIN-14 normalization; local cache → Open Food Facts v3.6 (ODbL-isolated) → 20-second unknown-soda creation flow.
 - **Soda-native taxonomy:** 17 parent style families with substyles, intensity-scored flavour tags, sweetener/acid/carbonation descriptors, caffeine/sugar/calorie facts per 100 ml, and packaging presets.
 - **Venues that fit soda:** hotels (minibar & lobby fridge finds), corner shops, cafés, bars, restaurants, festivals, and vending machines, with Nominatim address lookup and 150 m deduplication.
@@ -28,7 +36,7 @@ Self-hosted, single Go binary + SQLite (Ent ORM + versioned migrations), server-
 ## Stack
 
 - **Backend:** Go 1.27, stdlib `net/http`, `html/template`, pure-Go SQLite (`modernc.org/sqlite`, WAL, FTS5), **Ent ORM (`entgo.io/ent v0.14.6`)** + versioned migration registry (`internal/db/migrations`)
-- **Web / PWA:** Vite 8, TypeScript 7, Tailwind 4, service worker + IndexedDB offline check-in queue
+- **Web / PWA:** Vite 8, TypeScript 7, hashed assets served by Go, service worker + offline check-in queue
 - **Android:** Flutter (`mobile/`, Material 3, Riverpod, GoRouter, Dio, `mobile_scanner`, `webview_flutter`, `flutter_secure_storage`)
 - **Observability & Analytics:** OpenTelemetry (`otelhttp`, `otelslog`, OTLP/Prometheus) + Umami
 

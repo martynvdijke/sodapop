@@ -1,0 +1,94 @@
+{{define "content"}}
+<p class="eyebrow">Admin</p>
+<h1>Keep the fridge tidy.</h1>
+{{if .Notice}}<p class="banner success">{{.Notice}}</p>{{end}}
+
+<section class="stat-grid">
+  <div><strong>{{.OpenReports}}</strong><span>open reports</span></div>
+  <div><strong>{{.Provisional}}</strong><span>provisional sodas</span></div>
+  <div><strong>{{.Users}}</strong><span>accounts</span></div>
+</section>
+
+<h2>Moderation queue</h2>
+{{range .Reports}}
+  <article class="card">
+    <div class="list-row">
+      <div><strong>{{.Entity}} #{{.EntityID}}</strong><div class="muted">{{.Reason}} · {{.CreatedAt}} · by {{.Reporter}}</div></div>
+      <span class="pill">{{.Status}}</span>
+    </div>
+    {{if .Details}}<p class="note">{{.Details}}</p>{{end}}
+    <div class="actions">
+      <form method="post" action="/admin/reports/{{.ID}}/resolve" class="inline">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <input type="hidden" name="action" value="resolved">
+        <button class="btn btn-small" type="submit">Resolve</button>
+      </form>
+      <form method="post" action="/admin/reports/{{.ID}}/resolve" class="inline">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <input type="hidden" name="action" value="dismissed">
+        <button class="btn btn-small" type="submit">Dismiss</button>
+      </form>
+      {{if eq .Entity "drink"}}<a class="btn btn-small" href="/drinks/{{.EntitySlug}}">Open soda</a>{{end}}
+    </div>
+  </article>
+{{else}}<div class="empty"><p>No open reports. Rare and pleasant.</p></div>{{end}}
+
+<h2>Provisional catalog rows</h2>
+<table class="admin-table">
+  <thead><tr><th>Soda</th><th>Brand</th><th>Created</th><th></th></tr></thead>
+  <tbody>
+  {{range .ProvisionalDrinks}}
+    <tr>
+      <td><a href="/drinks/{{.Slug}}">{{.Name}}</a></td>
+      <td>{{.Brand}}</td>
+      <td>{{.CreatedAt}}</td>
+      <td>
+        <form method="post" action="/admin/drinks/{{.ID}}/activate" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+          <button class="btn btn-small btn-primary" type="submit">Verify</button>
+        </form>
+      </td>
+    </tr>
+  {{else}}<tr><td colspan="4" class="muted">Nothing waiting.</td></tr>{{end}}
+  </tbody>
+</table>
+
+<h2>AI endpoints</h2>
+<p class="muted">Used for drink drafting and tasting-note polish. Keys are encrypted at rest and never returned.</p>
+<form method="post" action="/admin/ai" class="field-grid card">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <label>Name <input name="name" required placeholder="OpenCode Zen"></label>
+  <label>Base URL <input name="base_url" type="url" required placeholder="https://opencode.ai/zen/go/v1"></label>
+  <label>Model <input name="model" required placeholder="gpt-5.4-mini"></label>
+  <label>API key <input name="api_key" type="password" placeholder="sk-..."></label>
+  <label>Type
+    <select name="type"><option value="text">Text</option><option value="vision">Vision</option></select>
+  </label>
+  <div><button class="btn" type="submit">Save endpoint</button></div>
+</form>
+
+{{range .AIEndpoints}}
+  <div class="card list-row">
+    <div><strong>{{.Name}}</strong><div class="muted">{{.BaseURL}} · {{.Model}} · {{.Type}}{{if .Enabled}} · enabled{{else}} · disabled{{end}}</div></div>
+    <div class="inline-form">
+      <form method="post" action="/admin/ai/{{.ID}}/toggle" class="inline">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <button class="btn btn-small" type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+      </form>
+      <form method="post" action="/admin/ai/{{.ID}}/test" class="inline">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <button class="btn btn-small" type="submit">Test</button>
+      </form>
+    </div>
+  </div>
+{{else}}<p class="muted">No endpoints configured. AI stays off until you add one.</p>{{end}}
+
+<h2>Recent catalog edits</h2>
+<table class="admin-table">
+  <thead><tr><th>Entity</th><th>Action</th><th>By</th><th>When</th></tr></thead>
+  <tbody>
+  {{range .Revisions}}<tr><td>{{.Entity}} #{{.EntityID}}</td><td>{{.Action}}</td><td>{{.User}}</td><td>{{.CreatedAt}}</td></tr>
+  {{else}}<tr><td colspan="4" class="muted">No revisions yet.</td></tr>{{end}}
+  </tbody>
+</table>
+{{end}}

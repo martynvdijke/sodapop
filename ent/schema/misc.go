@@ -97,9 +97,12 @@ func (Media) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").DefaultFunc(newID).Immutable(),
 		field.String("user_id").Optional().Nillable(),
-		field.Enum("kind").Values("checkin", "avatar", "drink", "venue", "brand").Default("checkin"),
+		field.Enum("kind").Values("checkin", "avatar", "drink", "venue", "brand", "video").Default("checkin"),
 		field.String("path").NotEmpty(),
+		field.String("thumb_path").Default(""),
+		field.String("poster_path").Default(""),
 		field.String("mime").NotEmpty(),
+		field.Int("duration_seconds").Default(0),
 		field.Int("width").Default(0),
 		field.Int("height").Default(0),
 		field.Int("bytes").Default(0),

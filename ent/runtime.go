@@ -25,6 +25,7 @@ import (
 	"sodapop/ent/flavour"
 	"sodapop/ent/follow"
 	"sodapop/ent/friendship"
+	"sodapop/ent/integration"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
 	"sodapop/ent/loginattempt"
@@ -32,6 +33,7 @@ import (
 	"sodapop/ent/notification"
 	"sodapop/ent/offproduct"
 	"sodapop/ent/passwordresettoken"
+	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/schema"
 	"sodapop/ent/session"
@@ -336,12 +338,16 @@ func init() {
 	drinkDescCaloriesKcalPer100ml := drinkFields[11].Descriptor()
 	// drink.DefaultCaloriesKcalPer100ml holds the default value on creation for the calories_kcal_per_100ml field.
 	drink.DefaultCaloriesKcalPer100ml = drinkDescCaloriesKcalPer100ml.Default.(int)
+	// drinkDescRecipeJSON is the schema descriptor for recipe_json field.
+	drinkDescRecipeJSON := drinkFields[16].Descriptor()
+	// drink.DefaultRecipeJSON holds the default value on creation for the recipe_json field.
+	drink.DefaultRecipeJSON = drinkDescRecipeJSON.Default.(string)
 	// drinkDescCreatedAt is the schema descriptor for created_at field.
-	drinkDescCreatedAt := drinkFields[19].Descriptor()
+	drinkDescCreatedAt := drinkFields[21].Descriptor()
 	// drink.DefaultCreatedAt holds the default value on creation for the created_at field.
 	drink.DefaultCreatedAt = drinkDescCreatedAt.Default.(func() string)
 	// drinkDescUpdatedAt is the schema descriptor for updated_at field.
-	drinkDescUpdatedAt := drinkFields[20].Descriptor()
+	drinkDescUpdatedAt := drinkFields[22].Descriptor()
 	// drink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	drink.DefaultUpdatedAt = drinkDescUpdatedAt.Default.(func() string)
 	drinkaliasFields := schema.DrinkAlias{}.Fields()
@@ -492,6 +498,32 @@ func init() {
 	friendshipDescUpdatedAt := friendshipFields[5].Descriptor()
 	// friendship.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	friendship.DefaultUpdatedAt = friendshipDescUpdatedAt.Default.(func() string)
+	integrationFields := schema.Integration{}.Fields()
+	_ = integrationFields
+	// integrationDescUserID is the schema descriptor for user_id field.
+	integrationDescUserID := integrationFields[1].Descriptor()
+	// integration.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	integration.UserIDValidator = integrationDescUserID.Validators[0].(func(string) error)
+	// integrationDescTarget is the schema descriptor for target field.
+	integrationDescTarget := integrationFields[3].Descriptor()
+	// integration.DefaultTarget holds the default value on creation for the target field.
+	integration.DefaultTarget = integrationDescTarget.Default.(string)
+	// integrationDescSecret is the schema descriptor for secret field.
+	integrationDescSecret := integrationFields[4].Descriptor()
+	// integration.DefaultSecret holds the default value on creation for the secret field.
+	integration.DefaultSecret = integrationDescSecret.Default.(string)
+	// integrationDescEnabled is the schema descriptor for enabled field.
+	integrationDescEnabled := integrationFields[5].Descriptor()
+	// integration.DefaultEnabled holds the default value on creation for the enabled field.
+	integration.DefaultEnabled = integrationDescEnabled.Default.(bool)
+	// integrationDescCreatedAt is the schema descriptor for created_at field.
+	integrationDescCreatedAt := integrationFields[6].Descriptor()
+	// integration.DefaultCreatedAt holds the default value on creation for the created_at field.
+	integration.DefaultCreatedAt = integrationDescCreatedAt.Default.(func() string)
+	// integrationDescUpdatedAt is the schema descriptor for updated_at field.
+	integrationDescUpdatedAt := integrationFields[7].Descriptor()
+	// integration.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	integration.DefaultUpdatedAt = integrationDescUpdatedAt.Default.(func() string)
 	listFields := schema.List{}.Fields()
 	_ = listFields
 	// listDescUserID is the schema descriptor for user_id field.
@@ -556,24 +588,36 @@ func init() {
 	mediaDescPath := mediaFields[3].Descriptor()
 	// media.PathValidator is a validator for the "path" field. It is called by the builders before save.
 	media.PathValidator = mediaDescPath.Validators[0].(func(string) error)
+	// mediaDescThumbPath is the schema descriptor for thumb_path field.
+	mediaDescThumbPath := mediaFields[4].Descriptor()
+	// media.DefaultThumbPath holds the default value on creation for the thumb_path field.
+	media.DefaultThumbPath = mediaDescThumbPath.Default.(string)
+	// mediaDescPosterPath is the schema descriptor for poster_path field.
+	mediaDescPosterPath := mediaFields[5].Descriptor()
+	// media.DefaultPosterPath holds the default value on creation for the poster_path field.
+	media.DefaultPosterPath = mediaDescPosterPath.Default.(string)
 	// mediaDescMime is the schema descriptor for mime field.
-	mediaDescMime := mediaFields[4].Descriptor()
+	mediaDescMime := mediaFields[6].Descriptor()
 	// media.MimeValidator is a validator for the "mime" field. It is called by the builders before save.
 	media.MimeValidator = mediaDescMime.Validators[0].(func(string) error)
+	// mediaDescDurationSeconds is the schema descriptor for duration_seconds field.
+	mediaDescDurationSeconds := mediaFields[7].Descriptor()
+	// media.DefaultDurationSeconds holds the default value on creation for the duration_seconds field.
+	media.DefaultDurationSeconds = mediaDescDurationSeconds.Default.(int)
 	// mediaDescWidth is the schema descriptor for width field.
-	mediaDescWidth := mediaFields[5].Descriptor()
+	mediaDescWidth := mediaFields[8].Descriptor()
 	// media.DefaultWidth holds the default value on creation for the width field.
 	media.DefaultWidth = mediaDescWidth.Default.(int)
 	// mediaDescHeight is the schema descriptor for height field.
-	mediaDescHeight := mediaFields[6].Descriptor()
+	mediaDescHeight := mediaFields[9].Descriptor()
 	// media.DefaultHeight holds the default value on creation for the height field.
 	media.DefaultHeight = mediaDescHeight.Default.(int)
 	// mediaDescBytes is the schema descriptor for bytes field.
-	mediaDescBytes := mediaFields[7].Descriptor()
+	mediaDescBytes := mediaFields[10].Descriptor()
 	// media.DefaultBytes holds the default value on creation for the bytes field.
 	media.DefaultBytes = mediaDescBytes.Default.(int)
 	// mediaDescCreatedAt is the schema descriptor for created_at field.
-	mediaDescCreatedAt := mediaFields[8].Descriptor()
+	mediaDescCreatedAt := mediaFields[11].Descriptor()
 	// media.DefaultCreatedAt holds the default value on creation for the created_at field.
 	media.DefaultCreatedAt = mediaDescCreatedAt.Default.(func() string)
 	// mediaDescID is the schema descriptor for id field.
@@ -654,6 +698,28 @@ func init() {
 	passwordresettokenDescExpiresAt := passwordresettokenFields[3].Descriptor()
 	// passwordresettoken.ExpiresAtValidator is a validator for the "expires_at" field. It is called by the builders before save.
 	passwordresettoken.ExpiresAtValidator = passwordresettokenDescExpiresAt.Validators[0].(func(string) error)
+	pushsubscriptionFields := schema.PushSubscription{}.Fields()
+	_ = pushsubscriptionFields
+	// pushsubscriptionDescUserID is the schema descriptor for user_id field.
+	pushsubscriptionDescUserID := pushsubscriptionFields[1].Descriptor()
+	// pushsubscription.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	pushsubscription.UserIDValidator = pushsubscriptionDescUserID.Validators[0].(func(string) error)
+	// pushsubscriptionDescEndpoint is the schema descriptor for endpoint field.
+	pushsubscriptionDescEndpoint := pushsubscriptionFields[2].Descriptor()
+	// pushsubscription.EndpointValidator is a validator for the "endpoint" field. It is called by the builders before save.
+	pushsubscription.EndpointValidator = pushsubscriptionDescEndpoint.Validators[0].(func(string) error)
+	// pushsubscriptionDescP256dh is the schema descriptor for p256dh field.
+	pushsubscriptionDescP256dh := pushsubscriptionFields[3].Descriptor()
+	// pushsubscription.P256dhValidator is a validator for the "p256dh" field. It is called by the builders before save.
+	pushsubscription.P256dhValidator = pushsubscriptionDescP256dh.Validators[0].(func(string) error)
+	// pushsubscriptionDescAuth is the schema descriptor for auth field.
+	pushsubscriptionDescAuth := pushsubscriptionFields[4].Descriptor()
+	// pushsubscription.AuthValidator is a validator for the "auth" field. It is called by the builders before save.
+	pushsubscription.AuthValidator = pushsubscriptionDescAuth.Validators[0].(func(string) error)
+	// pushsubscriptionDescCreatedAt is the schema descriptor for created_at field.
+	pushsubscriptionDescCreatedAt := pushsubscriptionFields[5].Descriptor()
+	// pushsubscription.DefaultCreatedAt holds the default value on creation for the created_at field.
+	pushsubscription.DefaultCreatedAt = pushsubscriptionDescCreatedAt.Default.(func() string)
 	reportFields := schema.Report{}.Fields()
 	_ = reportFields
 	// reportDescReason is the schema descriptor for reason field.

@@ -1,0 +1,34 @@
+{{define "content"}}
+<h1>Lists</h1>
+<p class="lede">Wishlists, shopping lists, and the bottles you keep coming back to.</p>
+
+<section class="card">
+  <h2>New list</h2>
+  <form method="post" action="/lists" class="field-grid">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>Name <input name="name" maxlength="80" required placeholder="Weekend fridge"></label>
+    <label>Visibility
+      <select name="visibility">
+        <option value="private">Only me</option>
+        <option value="friends">Friends</option>
+        <option value="public">Anyone signed in</option>
+      </select>
+    </label>
+    <label>Description <input name="description" maxlength="280" placeholder="Optional"></label>
+    <div><button class="btn btn-primary" type="submit">Create list</button></div>
+  </form>
+</section>
+
+<h2>Your lists</h2>
+{{range .Lists}}
+  <a class="card list-row" href="/lists/{{.ID}}">
+    <div>
+      <strong>{{.Name}}</strong>
+      <div class="muted">{{.Visibility}} · {{.Count}} {{if eq .Count 1}}soda{{else}}sodas{{end}}{{if .IsSystem}} · built in{{end}}</div>
+    </div>
+    <span class="pill">{{.Visibility}}</span>
+  </a>
+{{else}}
+  <div class="empty"><p>No lists yet. A wishlist is created with your account.</p></div>
+{{end}}
+{{end}}
