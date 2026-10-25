@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/martynvdijke/sodapop/compare/v1.0.3...v1.1.0) (2026-10-25)
+
+
+### Features
+
+* complete v1 with photos, AI, PWA and integrations ([1779a5b](https://github.com/martynvdijke/sodapop/commit/1779a5bb7b50bf76c697f4ddfa92ff73f77910d6))
+
 ## [1.0.3](https://github.com/martynvdijke/sodapop/compare/v1.0.2...v1.0.3) (2026-10-25)
 
 
