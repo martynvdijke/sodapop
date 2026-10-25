@@ -23,6 +23,7 @@ backups/
 /dist/
 /sodapop
 /sodapop-server
+/seed
 *.test
 *.out
 coverage.out
@@ -86,3 +87,6 @@ tmp/
 # Local OpenSpec working notes (not published)
 openspec/
 internal/web/static/sw.js
+
+# Deepwork local progress state
+.slim/deepwork/

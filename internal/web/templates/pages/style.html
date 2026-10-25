@@ -1,0 +1,45 @@
+{{define "content"}}
+<article class="style-page">
+  <p class="browse-back"><a href="/styles">All styles</a></p>
+
+  <header class="style-header">
+    <p class="eyebrow">Style</p>
+    <h1>{{.Name}}</h1>
+    {{if .ParentName}}<p class="style-parent">Part of {{.ParentName}}</p>{{end}}
+    <p class="style-count">{{if .Count}}{{.Count}} {{if eq .Count 1}}soda{{else}}sodas{{end}} in the catalog{{else}}No sodas listed yet{{end}}</p>
+  </header>
+
+  {{if .Description}}<p class="style-description">{{.Description}}</p>{{end}}
+
+  {{if .Children}}
+    <section class="style-children-section" aria-labelledby="style-children">
+      <h2 id="style-children">Sub-styles</h2>
+      <ul class="style-children">
+        {{range .Children}}
+          <li>
+            <a class="style-child" href="/styles/{{.Slug}}">
+              <span class="style-child-name">{{.Name}}</span>
+              <span class="style-child-count">{{.DrinkCount}} {{if eq .DrinkCount 1}}soda{{else}}sodas{{end}}</span>
+            </a>
+          </li>
+        {{end}}
+      </ul>
+    </section>
+  {{end}}
+
+  <section class="style-drinks" aria-labelledby="style-drinks">
+    <h2 id="style-drinks">Sodas</h2>
+
+    {{if .Drinks}}
+      <div class="browse-grid">
+        {{range .Drinks}}{{template "drink_card" .}}{{end}}
+      </div>
+    {{else}}
+      <div class="style-empty">
+        <p>No sodas in this style yet. They appear here once they are added to the catalog.</p>
+        <p><a class="btn" href="/drinks">Browse drinks</a></p>
+      </div>
+    {{end}}
+  </section>
+</article>
+{{end}}

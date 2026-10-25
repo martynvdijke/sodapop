@@ -161,15 +161,46 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
 			feedURL = u
 		}
 	}
+	inboundTokens := []map[string]any{}
+	if rows, err := s.Integrations.ListInboundTokens(r.Context(), u.ID); err == nil {
+		for _, row := range rows {
+			lastUsed := ""
+			if row.LastUsedAt != nil {
+				lastUsed = *row.LastUsedAt
+			}
+			inboundTokens = append(inboundTokens, map[string]any{
+				"ID":         row.ID,
+				"Label":      row.Label,
+				"CreatedAt":  row.CreatedAt,
+				"LastUsedAt": lastUsed,
+				"Revoked":    row.RevokedAt != nil,
+			})
+		}
+	}
+	newToken := ""
+	if c, err := r.Cookie("sd_ha_token"); err == nil && c.Value != "" {
+		newToken = c.Value
+		http.SetCookie(w, &http.Cookie{
+			Name:     "sd_ha_token",
+			Value:    "",
+			Path:     "/integrations",
+			MaxAge:   -1,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   s.Cfg.Env == "production",
+		})
+	}
 	s.render(w, r, http.StatusOK, "integrations", map[string]any{
-		"Title":          "Integrations",
-		"HomeAssistant":  map[string]any{"Enabled": byKind["home_assistant"], "Target": targets["home_assistant"]},
-		"Matrix":         map[string]any{"Enabled": byKind["matrix"], "Target": targets["matrix"]},
-		"TRMNL":          map[string]any{"Enabled": byKind["trmnl"], "Target": targets["trmnl"]},
-		"FeedURL":        feedURL,
-		"FeedToken":      strings.TrimPrefix(feedURL, s.Cfg.BaseURL+"/feeds/"),
-		"BaseURL":        s.Cfg.BaseURL,
-		"VAPIDPublicKey": os.Getenv("VAPID_PUBLIC_KEY"),
+		"Title":           "Integrations",
+		"HomeAssistant":   map[string]any{"Enabled": byKind["home_assistant"], "Target": targets["home_assistant"]},
+		"Matrix":          map[string]any{"Enabled": byKind["matrix"], "Target": targets["matrix"]},
+		"TRMNL":           map[string]any{"Enabled": byKind["trmnl"], "Target": targets["trmnl"]},
+		"FeedURL":         feedURL,
+		"FeedToken":       strings.TrimPrefix(feedURL, s.Cfg.BaseURL+"/feeds/"),
+		"BaseURL":         s.Cfg.BaseURL,
+		"VAPIDPublicKey":  os.Getenv("VAPID_PUBLIC_KEY"),
+		"InboundTokens":   inboundTokens,
+		"NewInboundToken": newToken,
 	})
 }
 
@@ -198,6 +229,8 @@ func (s *Server) integrationTest(w http.ResponseWriter, r *http.Request) {
 		err = s.Integrations.HomeAssistant(r.Context(), u.ID)
 	case "matrix":
 		err = s.Integrations.Matrix(r.Context(), u.ID)
+	case "trmnl":
+		err = s.Integrations.TRMNL(r.Context(), u.ID)
 	default:
 		err = errors.New("unsupported integration")
 	}

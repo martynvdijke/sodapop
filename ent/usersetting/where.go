@@ -73,6 +73,16 @@ func PushEnabled(v bool) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldEQ(FieldPushEnabled, v))
 }
 
+// PublicProfile applies equality check predicate on the "public_profile" field. It's identical to PublicProfileEQ.
+func PublicProfile(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldPublicProfile, v))
+}
+
+// CaffeineBedtime applies equality check predicate on the "caffeine_bedtime" field. It's identical to CaffeineBedtimeEQ.
+func CaffeineBedtime(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldCaffeineBedtime, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v string) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -191,6 +201,101 @@ func ThemeIn(vs ...Theme) predicate.UserSetting {
 // ThemeNotIn applies the NotIn predicate on the "theme" field.
 func ThemeNotIn(vs ...Theme) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldNotIn(FieldTheme, vs...))
+}
+
+// PublicProfileEQ applies the EQ predicate on the "public_profile" field.
+func PublicProfileEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldPublicProfile, v))
+}
+
+// PublicProfileNEQ applies the NEQ predicate on the "public_profile" field.
+func PublicProfileNEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNEQ(FieldPublicProfile, v))
+}
+
+// UnitsEQ applies the EQ predicate on the "units" field.
+func UnitsEQ(v Units) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldUnits, v))
+}
+
+// UnitsNEQ applies the NEQ predicate on the "units" field.
+func UnitsNEQ(v Units) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNEQ(FieldUnits, v))
+}
+
+// UnitsIn applies the In predicate on the "units" field.
+func UnitsIn(vs ...Units) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldIn(FieldUnits, vs...))
+}
+
+// UnitsNotIn applies the NotIn predicate on the "units" field.
+func UnitsNotIn(vs ...Units) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNotIn(FieldUnits, vs...))
+}
+
+// CaffeineBedtimeEQ applies the EQ predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeEQ(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeNEQ applies the NEQ predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeNEQ(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNEQ(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeIn applies the In predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeIn(vs ...string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldIn(FieldCaffeineBedtime, vs...))
+}
+
+// CaffeineBedtimeNotIn applies the NotIn predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeNotIn(vs ...string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNotIn(FieldCaffeineBedtime, vs...))
+}
+
+// CaffeineBedtimeGT applies the GT predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeGT(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldGT(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeGTE applies the GTE predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeGTE(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldGTE(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeLT applies the LT predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeLT(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldLT(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeLTE applies the LTE predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeLTE(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldLTE(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeContains applies the Contains predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeContains(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldContains(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeHasPrefix applies the HasPrefix predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeHasPrefix(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldHasPrefix(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeHasSuffix applies the HasSuffix predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeHasSuffix(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldHasSuffix(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeEqualFold applies the EqualFold predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeEqualFold(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEqualFold(FieldCaffeineBedtime, v))
+}
+
+// CaffeineBedtimeContainsFold applies the ContainsFold predicate on the "caffeine_bedtime" field.
+func CaffeineBedtimeContainsFold(v string) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldContainsFold(FieldCaffeineBedtime, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

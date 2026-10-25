@@ -54,6 +54,10 @@ type Drink struct {
 	Source drink.Source `json:"source,omitempty"`
 	// Status holds the value of the "status" field.
 	Status drink.Status `json:"status,omitempty"`
+	// DiscontinuedAt holds the value of the "discontinued_at" field.
+	DiscontinuedAt *string `json:"discontinued_at,omitempty"`
+	// LimitedUntil holds the value of the "limited_until" field.
+	LimitedUntil *string `json:"limited_until,omitempty"`
 	// CreatedBy holds the value of the "created_by" field.
 	CreatedBy *string `json:"created_by,omitempty"`
 	// MergedIntoID holds the value of the "merged_into_id" field.
@@ -165,7 +169,7 @@ func (*Drink) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case drink.FieldID, drink.FieldBrandID, drink.FieldStyleID, drink.FieldVolumeMl, drink.FieldCaffeineMgPer100ml, drink.FieldCaloriesKcalPer100ml, drink.FieldMergedIntoID:
 			values[i] = new(sql.NullInt64)
-		case drink.FieldName, drink.FieldSlug, drink.FieldDescription, drink.FieldImageURL, drink.FieldContainer, drink.FieldSweetener, drink.FieldCarbonation, drink.FieldAcid, drink.FieldKind, drink.FieldRecipeJSON, drink.FieldSource, drink.FieldStatus, drink.FieldCreatedBy, drink.FieldCreatedAt, drink.FieldUpdatedAt:
+		case drink.FieldName, drink.FieldSlug, drink.FieldDescription, drink.FieldImageURL, drink.FieldContainer, drink.FieldSweetener, drink.FieldCarbonation, drink.FieldAcid, drink.FieldKind, drink.FieldRecipeJSON, drink.FieldSource, drink.FieldStatus, drink.FieldDiscontinuedAt, drink.FieldLimitedUntil, drink.FieldCreatedBy, drink.FieldCreatedAt, drink.FieldUpdatedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -298,6 +302,20 @@ func (_m *Drink) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = drink.Status(value.String)
+			}
+		case drink.FieldDiscontinuedAt:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field discontinued_at", values[i])
+			} else if value.Valid {
+				_m.DiscontinuedAt = new(string)
+				*_m.DiscontinuedAt = value.String
+			}
+		case drink.FieldLimitedUntil:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field limited_until", values[i])
+			} else if value.Valid {
+				_m.LimitedUntil = new(string)
+				*_m.LimitedUntil = value.String
 			}
 		case drink.FieldCreatedBy:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -455,6 +473,16 @@ func (_m *Drink) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.DiscontinuedAt; v != nil {
+		builder.WriteString("discontinued_at=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.LimitedUntil; v != nil {
+		builder.WriteString("limited_until=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.CreatedBy; v != nil {
 		builder.WriteString("created_by=")

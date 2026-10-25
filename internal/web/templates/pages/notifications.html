@@ -1,0 +1,51 @@
+{{define "content"}}
+<section class="narrow">
+  <p class="eyebrow">Activity</p>
+  <h1>Notifications</h1>
+  <p class="lede">Friend requests, toasts and badges. Newest first.</p>
+
+  {{if .Notifications}}
+    <div class="notif-toolbar">
+      <p class="muted">{{if .Unread}}{{.Unread}} unread{{else}}All caught up{{end}}</p>
+      {{if .Unread}}
+        <form method="post" action="/notifications/read" class="inline">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+          <button class="btn btn-primary" type="submit">Mark all read</button>
+        </form>
+      {{end}}
+    </div>
+
+    <ul class="notif-list">
+      {{range .Notifications}}
+        <li class="notif-item{{if not .Read}} unread{{end}}">
+          {{if .ActorInitial}}<span class="avatar" aria-hidden="true">{{.ActorInitial}}</span>{{else}}<span class="avatar avatar-system" aria-hidden="true">S</span>{{end}}
+          <div class="notif-body">
+            <p class="notif-kicker">
+              <span>{{if eq .Kind "friend_request"}}Friend request{{else if eq .Kind "friend_accept"}}New friend{{else if eq .Kind "toast"}}Toast{{else if eq .Kind "badge"}}Badge{{else if eq .Kind "comment"}}Comment{{else}}Notification{{end}}</span>
+              {{if not .Read}}<span class="unread-flag">Unread</span>{{end}}
+            </p>
+            <p class="notif-line">{{if .ActorName}}<strong>{{.ActorName}}</strong> {{end}}{{.Text}}</p>
+            <p class="notif-meta">{{if .ActorHandle}}@{{.ActorHandle}} · {{end}}{{.CreatedAt}}</p>
+            <div class="notif-actions">
+              {{if .Href}}<a class="btn" href="{{.Href}}" aria-label="Open notification: {{.Text}}">Open</a>{{end}}
+              {{if not .Read}}
+                <form method="post" action="/notifications/read">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                  <input type="hidden" name="id" value="{{.ID}}">
+                  <button class="btn" type="submit" aria-label="Mark read notification{{if .ActorName}} from {{.ActorName}}{{end}}">Mark read</button>
+                </form>
+              {{end}}
+            </div>
+          </div>
+        </li>
+      {{end}}
+    </ul>
+  {{else}}
+    <div class="empty">
+      <p><strong>No notifications yet</strong></p>
+      <p>When a friend toasts a check-in or asks to be friends, it shows up here.</p>
+      <a class="btn btn-primary" href="/drinks">Browse sodas</a>
+    </div>
+  {{end}}
+</section>
+{{end}}

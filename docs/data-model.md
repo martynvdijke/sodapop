@@ -16,6 +16,7 @@ Every domain table is declared as a strongly-typed Ent schema under `ent/schema/
 | **Social** | `Follow`, `Friendship`, `Block`, `Activity`, `Notification` |
 | **Badges & Lists** | `Badge`, `UserBadge`, `List`, `ListItem` |
 | **Moderation** | `Report`, `AdminNote` |
+| **Integrations** | `Integration`, `PushSubscription`, `InboundToken` |
 | **OpenCode AI** | `AppSetting`, `AIEndpoint`, `AIDraftSession` |
 
 Conventions in `ent/schema`:
@@ -37,16 +38,11 @@ Boot sequence in `internal/db.Init(dbPath)`:
 
 | Version | Migration Name | Responsibility |
 |---:|---|---|
-| `0001` | `0001_auth_indexes.sql` | Partial index `idx_outbox_due` (`WHERE sent_at IS NULL`) and auth constraints |
-| `0002` | `0002_catalog_fts.sql` | `drinks_fts` (`USING fts5(name, brand, style, aliases, tokenize='unicode61 remove_diacritics 2')`), partial unique indexes `idx_drinks_off`, `idx_drinks_merged`, `idx_drink_images_primary` |
-| `0003` | `0003_venues_indexes.sql` | Partial index `idx_venues_merged` (`WHERE merged_into_id IS NOT NULL`) |
-| `0004` | `0004_checkins_views.sql` | `drink_ratings` SQL view (`checkin_count`, `rater_count`, `avg_rating`) and active check-in partial indexes (`WHERE deleted_at IS NULL`) |
-| `0005` | `0005_social_constraints.sql` | `friendships` canonical ordering check (`CHECK (user_a < user_b)`), `follows` self-follow check, `idx_notifications_unread` (`WHERE read_at IS NULL`) |
-| `0006` | `0006_badges_seed.sql` | Core badge definitions upsert |
-| `0007` | `0007_lists_defaults.sql` | System Wishlist invariants |
-| `0008` | `0008_moderation_indexes.sql` | Open-reports partial index `idx_reports_open` (`WHERE status = 'open'`) |
-| `0009` | `0009_jobs_bookkeeping.sql` | Purge and backup bookkeeping indexes |
-| `0010` | `0010_ai_defaults.sql` | Seed default `app_settings('ai_enabled', '0')` |
+| `0001` | `0001_auth_indexes.sql` | Case-insensitive unique indexes for `users.handle`/`users.email`, session expiry, API-token owner |
+| `0002` | `0002_catalog_fts.sql` | `drinks_fts` FTS5 table, one-primary-image index, drink status and venue geo indexes, unread-notification and open-report partial indexes |
+| `0003` | `0003_checkin_ratings_view.sql` | `drink_ratings` SQL view (`checkin_count`, `rater_count`, `avg_rating`) |
+| `0004` | `0004_seed_defaults.sql` | Core badge definitions, idempotent seed |
+| `0005` | `0005_composite_indexes.sql` | Composite unique indexes for `venue_saves`, `venue_drinks`, `list_items` and `user_badges` |
 
 ### 1.3 Mechanical Schema Guard (`internal/db/schema_consistency_test.go`)
 Just like `dnd/db/schema_consistency_test.go`, `TestSchemaConsistency` initializes an in-memory database (`Init(":memory:")`) and asserts that every table in `sqlite_master` is either present in `ent/migrate.Tables` or listed in `rawOnlyTables` (`schema_migrations` and `drinks_fts*`). Any ad-hoc raw `CREATE TABLE` outside Ent + the migration registry fails CI immediately.
@@ -161,8 +157,45 @@ CREATE TABLE user_settings (
   email_weekly      INTEGER NOT NULL DEFAULT 0 CHECK (email_weekly IN (0,1)),
   push_enabled      INTEGER NOT NULL DEFAULT 0 CHECK (push_enabled IN (0,1)),
   theme             TEXT NOT NULL DEFAULT 'system' CHECK (theme IN ('system','light','dark')),
+  public_profile    INTEGER NOT NULL DEFAULT 0 CHECK (public_profile IN (0,1)),
+  units             TEXT NOT NULL DEFAULT 'metric' CHECK (units IN ('metric','imperial')),
+  caffeine_bedtime  TEXT NOT NULL DEFAULT '',   -- 'HH:MM' local clock, '' when unset
   updated_at        TEXT NOT NULL
 );
+
+CREATE TABLE inbound_tokens (            -- machine write access, e.g. Home Assistant
+  id           TEXT PRIMARY KEY,         -- 32-char hex
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind         TEXT NOT NULL DEFAULT 'home_assistant' CHECK (kind IN ('home_assistant')),
+  label        TEXT NOT NULL DEFAULT '',
+  token_hash   TEXT NOT NULL UNIQUE,     -- sha256 hex; plaintext shown once
+  last_used_at TEXT,
+  created_at   TEXT NOT NULL,
+  revoked_at   TEXT
+);
+CREATE INDEX idx_inbound_tokens_user ON inbound_tokens(user_id);
+
+CREATE TABLE integrations (              -- outbound delivery targets, one per user+kind
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL DEFAULT 'home_assistant' CHECK (kind IN ('home_assistant','matrix','trmnl')),
+  target     TEXT NOT NULL DEFAULT '',   -- webhook URL, homeserver|room, or TRMNL URL
+  secret     TEXT NOT NULL DEFAULT '',   -- Matrix access token; stored as supplied
+  enabled    INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0,1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX idx_integrations_user_kind ON integrations(user_id, kind);
+
+CREATE TABLE push_subscriptions (        -- browser Web Push registrations
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint   TEXT NOT NULL UNIQUE,
+  p256dh     TEXT NOT NULL,
+  auth       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_push_subscriptions_user ON push_subscriptions(user_id);
 
 CREATE TABLE login_attempts (           -- lightweight throttle aid, pruned hourly
   key         TEXT NOT NULL,            -- 'ip|identifier' or 'user:<id>'
@@ -209,42 +242,43 @@ CREATE TABLE flavours (
 
 CREATE TABLE drinks (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  brand_id        INTEGER NOT NULL REFERENCES brands(id) ON DELETE RESTRICT,
+  brand_id        INTEGER REFERENCES brands(id) ON DELETE SET NULL,
   style_id        INTEGER REFERENCES styles(id) ON DELETE SET NULL,
   name            TEXT NOT NULL,
   slug            TEXT NOT NULL UNIQUE,
   description     TEXT NOT NULL DEFAULT '',
-  sugar_g_per_100ml    REAL,
-  caffeine_mg_per_100ml REAL,
-  calories_kcal_per_100ml REAL,
-  ingredients     TEXT,
-  is_diet         INTEGER NOT NULL DEFAULT 0 CHECK (is_diet IN (0,1)),
-  is_caffeine_free INTEGER NOT NULL DEFAULT 0 CHECK (is_caffeine_free IN (0,1)),
-  sweetener       TEXT CHECK (sweetener IS NULL OR sweetener IN ('cane_sugar','beet_sugar','hfcs','agave','honey','aspartame','sucralose','ace_k','saccharin','stevia','monk_fruit','allulose','erythritol','mixed','other')),
-  carbonation     TEXT CHECK (carbonation IS NULL OR carbonation IN ('still','light','standard','extra')),
-  acid            TEXT CHECK (acid IS NULL OR acid IN ('phosphoric','citric','malic','tartaric','none')),
-  country         TEXT,
-  default_volume_ml INTEGER,
-  default_packaging TEXT CHECK (default_packaging IN ('can','glass_bottle','plastic_bottle','fountain','carton','other')),
+  image_url       TEXT,
+  container       TEXT NOT NULL DEFAULT 'can' CHECK (container IN ('can','glass','pet','fountain','carton','other')),
+  volume_ml       INTEGER NOT NULL DEFAULT 355,
+  caffeine_mg_per_100ml INTEGER NOT NULL DEFAULT 0,
+  sugar_g_per_100ml     REAL NOT NULL DEFAULT 0,
+  calories_kcal_per_100ml INTEGER NOT NULL DEFAULT 0,
+  sweetener       TEXT NOT NULL DEFAULT 'unknown' CHECK (sweetener IN ('sugar','hfcs','aspartame','sucralose','acesulfame_k','saccharin','stevia','monk_fruit','allulose','erythritol','mixed','none','unknown')),
+  carbonation     TEXT NOT NULL DEFAULT 'unknown' CHECK (carbonation IN ('still','light','standard','extra','unknown')),
+  acid            TEXT NOT NULL DEFAULT 'unknown' CHECK (acid IN ('phosphoric','citric','malic','tartaric','none','unknown')),
+  kind            TEXT NOT NULL DEFAULT 'packaged' CHECK (kind IN ('packaged','mix')),
+  recipe_json     TEXT NOT NULL DEFAULT '{}',  -- Mix Lab components for kind = 'mix'
   source          TEXT NOT NULL DEFAULT 'local' CHECK (source IN ('local','off','user')),
-  off_id          TEXT,
-  verified        INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0,1)),
-  merged_into_id  INTEGER REFERENCES drinks(id) ON DELETE SET NULL,
+  status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('provisional','active','merged','limited','seasonal','discontinued')),
+  discontinued_at TEXT,                        -- RFC 3339, set with status = 'discontinued'
+  limited_until   TEXT,                        -- RFC 3339, only for limited/seasonal
   created_by      TEXT REFERENCES users(id) ON DELETE SET NULL,
+  merged_into_id  INTEGER REFERENCES drinks(id) ON DELETE SET NULL,
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL
 );
 CREATE INDEX idx_drinks_brand ON drinks(brand_id);
 CREATE INDEX idx_drinks_style ON drinks(style_id);
-CREATE UNIQUE INDEX idx_drinks_off ON drinks(off_id) WHERE off_id IS NOT NULL;
+CREATE INDEX idx_drinks_status ON drinks(status);
 CREATE INDEX idx_drinks_merged ON drinks(merged_into_id) WHERE merged_into_id IS NOT NULL;
 
 CREATE TABLE drink_barcodes (
-  barcode     TEXT PRIMARY KEY,              -- GTIN-8/12/13/14, digits only
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
   drink_id    INTEGER NOT NULL REFERENCES drinks(id) ON DELETE CASCADE,
-  packaging   TEXT CHECK (packaging IN ('can','glass_bottle','plastic_bottle','fountain','carton','other')),
-  volume_ml   INTEGER,
-  source      TEXT NOT NULL DEFAULT 'user' CHECK (source IN ('user','off','admin')),
+  gtin14      TEXT NOT NULL UNIQUE,          -- canonical 14-digit GTIN
+  raw_code    TEXT NOT NULL DEFAULT '',      -- what the scanner read
+  symbology   TEXT NOT NULL DEFAULT '',
+  source      TEXT NOT NULL DEFAULT 'user' CHECK (source IN ('scan','off','user','brand')),
   created_at  TEXT NOT NULL
 );
 CREATE INDEX idx_barcodes_drink ON drink_barcodes(drink_id);
@@ -257,11 +291,10 @@ CREATE TABLE drink_flavours (
 );
 
 CREATE TABLE drink_aliases (           -- alternate names, localisations, "Coke" → Coca-Cola
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
   drink_id INTEGER NOT NULL REFERENCES drinks(id) ON DELETE CASCADE,
-  alias    TEXT NOT NULL COLLATE NOCASE,
-  PRIMARY KEY (drink_id, alias)
+  alias    TEXT NOT NULL
 );
-CREATE INDEX idx_drink_aliases_alias ON drink_aliases(alias);
 
 CREATE TABLE drink_images (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -303,6 +336,8 @@ CREATE VIRTUAL TABLE drinks_fts USING fts5(
   tokenize = 'unicode61 remove_diacritics 2'
 );
 ```
+
+`drink_aliases` is the alias table used by FTS indexing and lookup; there is no separate alias relation. Alias writes refresh the FTS row in the same transaction.
 
 Seed data (in `cmd/seed`, not a migration): styles such as cola, diet cola, lemon-lime, root beer, cream soda, ginger ale, ginger beer, orange, grape, pineapple, fruit punch, tonic, seltzer/sparkling water, energy, iced tea, kombucha, malta, other; flavours as listed; a handful of drinks for e2e only.
 
@@ -445,11 +480,12 @@ CREATE INDEX idx_activities_user_time ON activities(user_id, created_at DESC, id
 CREATE INDEX idx_activities_time ON activities(created_at DESC, id DESC);
 
 CREATE TABLE notifications (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  id         TEXT PRIMARY KEY,       -- 32-char hex
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  kind       TEXT NOT NULL,          -- friend_request, friend_accept, badge, comment
-  subject_type TEXT, subject_id TEXT,
+  kind       TEXT NOT NULL,          -- friend_request, friend_accept, toast, badge, comment (unused), system
   actor_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  subject_id TEXT NOT NULL DEFAULT '',
+  text       TEXT NOT NULL DEFAULT '',
   read_at    TEXT,
   created_at TEXT NOT NULL
 );

@@ -97,6 +97,48 @@ func (_u *UserSettingUpdate) SetNillableTheme(v *usersetting.Theme) *UserSetting
 	return _u
 }
 
+// SetPublicProfile sets the "public_profile" field.
+func (_u *UserSettingUpdate) SetPublicProfile(v bool) *UserSettingUpdate {
+	_u.mutation.SetPublicProfile(v)
+	return _u
+}
+
+// SetNillablePublicProfile sets the "public_profile" field if the given value is not nil.
+func (_u *UserSettingUpdate) SetNillablePublicProfile(v *bool) *UserSettingUpdate {
+	if v != nil {
+		_u.SetPublicProfile(*v)
+	}
+	return _u
+}
+
+// SetUnits sets the "units" field.
+func (_u *UserSettingUpdate) SetUnits(v usersetting.Units) *UserSettingUpdate {
+	_u.mutation.SetUnits(v)
+	return _u
+}
+
+// SetNillableUnits sets the "units" field if the given value is not nil.
+func (_u *UserSettingUpdate) SetNillableUnits(v *usersetting.Units) *UserSettingUpdate {
+	if v != nil {
+		_u.SetUnits(*v)
+	}
+	return _u
+}
+
+// SetCaffeineBedtime sets the "caffeine_bedtime" field.
+func (_u *UserSettingUpdate) SetCaffeineBedtime(v string) *UserSettingUpdate {
+	_u.mutation.SetCaffeineBedtime(v)
+	return _u
+}
+
+// SetNillableCaffeineBedtime sets the "caffeine_bedtime" field if the given value is not nil.
+func (_u *UserSettingUpdate) SetNillableCaffeineBedtime(v *string) *UserSettingUpdate {
+	if v != nil {
+		_u.SetCaffeineBedtime(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *UserSettingUpdate) SetUpdatedAt(v string) *UserSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -155,6 +197,11 @@ func (_u *UserSettingUpdate) check() error {
 			return &ValidationError{Name: "theme", err: fmt.Errorf(`ent: validator failed for field "UserSetting.theme": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Units(); ok {
+		if err := usersetting.UnitsValidator(v); err != nil {
+			return &ValidationError{Name: "units", err: fmt.Errorf(`ent: validator failed for field "UserSetting.units": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -184,6 +231,15 @@ func (_u *UserSettingUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Theme(); ok {
 		_spec.SetField(usersetting.FieldTheme, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PublicProfile(); ok {
+		_spec.SetField(usersetting.FieldPublicProfile, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Units(); ok {
+		_spec.SetField(usersetting.FieldUnits, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.CaffeineBedtime(); ok {
+		_spec.SetField(usersetting.FieldCaffeineBedtime, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(usersetting.FieldUpdatedAt, field.TypeString, value)
@@ -278,6 +334,48 @@ func (_u *UserSettingUpdateOne) SetNillableTheme(v *usersetting.Theme) *UserSett
 	return _u
 }
 
+// SetPublicProfile sets the "public_profile" field.
+func (_u *UserSettingUpdateOne) SetPublicProfile(v bool) *UserSettingUpdateOne {
+	_u.mutation.SetPublicProfile(v)
+	return _u
+}
+
+// SetNillablePublicProfile sets the "public_profile" field if the given value is not nil.
+func (_u *UserSettingUpdateOne) SetNillablePublicProfile(v *bool) *UserSettingUpdateOne {
+	if v != nil {
+		_u.SetPublicProfile(*v)
+	}
+	return _u
+}
+
+// SetUnits sets the "units" field.
+func (_u *UserSettingUpdateOne) SetUnits(v usersetting.Units) *UserSettingUpdateOne {
+	_u.mutation.SetUnits(v)
+	return _u
+}
+
+// SetNillableUnits sets the "units" field if the given value is not nil.
+func (_u *UserSettingUpdateOne) SetNillableUnits(v *usersetting.Units) *UserSettingUpdateOne {
+	if v != nil {
+		_u.SetUnits(*v)
+	}
+	return _u
+}
+
+// SetCaffeineBedtime sets the "caffeine_bedtime" field.
+func (_u *UserSettingUpdateOne) SetCaffeineBedtime(v string) *UserSettingUpdateOne {
+	_u.mutation.SetCaffeineBedtime(v)
+	return _u
+}
+
+// SetNillableCaffeineBedtime sets the "caffeine_bedtime" field if the given value is not nil.
+func (_u *UserSettingUpdateOne) SetNillableCaffeineBedtime(v *string) *UserSettingUpdateOne {
+	if v != nil {
+		_u.SetCaffeineBedtime(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *UserSettingUpdateOne) SetUpdatedAt(v string) *UserSettingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -349,6 +447,11 @@ func (_u *UserSettingUpdateOne) check() error {
 			return &ValidationError{Name: "theme", err: fmt.Errorf(`ent: validator failed for field "UserSetting.theme": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Units(); ok {
+		if err := usersetting.UnitsValidator(v); err != nil {
+			return &ValidationError{Name: "units", err: fmt.Errorf(`ent: validator failed for field "UserSetting.units": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -395,6 +498,15 @@ func (_u *UserSettingUpdateOne) sqlSave(ctx context.Context) (_node *UserSetting
 	}
 	if value, ok := _u.mutation.Theme(); ok {
 		_spec.SetField(usersetting.FieldTheme, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PublicProfile(); ok {
+		_spec.SetField(usersetting.FieldPublicProfile, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Units(); ok {
+		_spec.SetField(usersetting.FieldUnits, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.CaffeineBedtime(); ok {
+		_spec.SetField(usersetting.FieldCaffeineBedtime, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(usersetting.FieldUpdatedAt, field.TypeString, value)

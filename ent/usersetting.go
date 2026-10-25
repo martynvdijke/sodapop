@@ -26,6 +26,12 @@ type UserSetting struct {
 	PushEnabled bool `json:"push_enabled,omitempty"`
 	// Theme holds the value of the "theme" field.
 	Theme usersetting.Theme `json:"theme,omitempty"`
+	// PublicProfile holds the value of the "public_profile" field.
+	PublicProfile bool `json:"public_profile,omitempty"`
+	// Units holds the value of the "units" field.
+	Units usersetting.Units `json:"units,omitempty"`
+	// CaffeineBedtime holds the value of the "caffeine_bedtime" field.
+	CaffeineBedtime string `json:"caffeine_bedtime,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt    string `json:"updated_at,omitempty"`
 	selectValues sql.SelectValues
@@ -36,11 +42,11 @@ func (*UserSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usersetting.FieldEmailFriendReq, usersetting.FieldEmailWeekly, usersetting.FieldPushEnabled:
+		case usersetting.FieldEmailFriendReq, usersetting.FieldEmailWeekly, usersetting.FieldPushEnabled, usersetting.FieldPublicProfile:
 			values[i] = new(sql.NullBool)
 		case usersetting.FieldID:
 			values[i] = new(sql.NullInt64)
-		case usersetting.FieldUserID, usersetting.FieldTheme, usersetting.FieldUpdatedAt:
+		case usersetting.FieldUserID, usersetting.FieldTheme, usersetting.FieldUnits, usersetting.FieldCaffeineBedtime, usersetting.FieldUpdatedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -92,6 +98,24 @@ func (_m *UserSetting) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field theme", values[i])
 			} else if value.Valid {
 				_m.Theme = usersetting.Theme(value.String)
+			}
+		case usersetting.FieldPublicProfile:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field public_profile", values[i])
+			} else if value.Valid {
+				_m.PublicProfile = value.Bool
+			}
+		case usersetting.FieldUnits:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field units", values[i])
+			} else if value.Valid {
+				_m.Units = usersetting.Units(value.String)
+			}
+		case usersetting.FieldCaffeineBedtime:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field caffeine_bedtime", values[i])
+			} else if value.Valid {
+				_m.CaffeineBedtime = value.String
 			}
 		case usersetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -149,6 +173,15 @@ func (_m *UserSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("theme=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Theme))
+	builder.WriteString(", ")
+	builder.WriteString("public_profile=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PublicProfile))
+	builder.WriteString(", ")
+	builder.WriteString("units=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Units))
+	builder.WriteString(", ")
+	builder.WriteString("caffeine_bedtime=")
+	builder.WriteString(_m.CaffeineBedtime)
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt)

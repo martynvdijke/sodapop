@@ -262,6 +262,34 @@ func (_c *DrinkCreate) SetNillableStatus(v *drink.Status) *DrinkCreate {
 	return _c
 }
 
+// SetDiscontinuedAt sets the "discontinued_at" field.
+func (_c *DrinkCreate) SetDiscontinuedAt(v string) *DrinkCreate {
+	_c.mutation.SetDiscontinuedAt(v)
+	return _c
+}
+
+// SetNillableDiscontinuedAt sets the "discontinued_at" field if the given value is not nil.
+func (_c *DrinkCreate) SetNillableDiscontinuedAt(v *string) *DrinkCreate {
+	if v != nil {
+		_c.SetDiscontinuedAt(*v)
+	}
+	return _c
+}
+
+// SetLimitedUntil sets the "limited_until" field.
+func (_c *DrinkCreate) SetLimitedUntil(v string) *DrinkCreate {
+	_c.mutation.SetLimitedUntil(v)
+	return _c
+}
+
+// SetNillableLimitedUntil sets the "limited_until" field if the given value is not nil.
+func (_c *DrinkCreate) SetNillableLimitedUntil(v *string) *DrinkCreate {
+	if v != nil {
+		_c.SetLimitedUntil(*v)
+	}
+	return _c
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_c *DrinkCreate) SetCreatedBy(v string) *DrinkCreate {
 	_c.mutation.SetCreatedBy(v)
@@ -699,6 +727,14 @@ func (_c *DrinkCreate) createSpec() (*Drink, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(drink.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.DiscontinuedAt(); ok {
+		_spec.SetField(drink.FieldDiscontinuedAt, field.TypeString, value)
+		_node.DiscontinuedAt = &value
+	}
+	if value, ok := _c.mutation.LimitedUntil(); ok {
+		_spec.SetField(drink.FieldLimitedUntil, field.TypeString, value)
+		_node.LimitedUntil = &value
 	}
 	if value, ok := _c.mutation.CreatedBy(); ok {
 		_spec.SetField(drink.FieldCreatedBy, field.TypeString, value)

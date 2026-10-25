@@ -43,6 +43,32 @@
     <div><dt>Barcodes</dt><dd>{{$d.BarcodeNum}}</dd></div>
   </dl>
 
+  {{if .CanManage}}
+  <details class="card manage-card">
+    <summary class="manage-summary">Lifecycle</summary>
+    <form method="post" action="/admin/drinks/{{$d.Drink.ID}}/status" class="stack">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <label>Status
+        <select name="status">
+          {{if and (ne $d.Drink.Status "active") (ne $d.Drink.Status "limited") (ne $d.Drink.Status "seasonal") (ne $d.Drink.Status "discontinued")}}
+            <option value="" selected disabled>Current: {{$d.Drink.Status}}</option>
+          {{end}}
+          <option value="active"{{if eq $d.Drink.Status "active"}} selected{{end}}>Active</option>
+          <option value="limited"{{if eq $d.Drink.Status "limited"}} selected{{end}}>Limited</option>
+          <option value="seasonal"{{if eq $d.Drink.Status "seasonal"}} selected{{end}}>Seasonal</option>
+          <option value="discontinued"{{if eq $d.Drink.Status "discontinued"}} selected{{end}}>Discontinued</option>
+        </select>
+      </label>
+      <label>Limited until <span class="hint">optional · used for limited and seasonal</span>
+        <input type="date" name="limited_until" value="{{with $d.Drink.LimitedUntil}}{{if ge (len .) 10}}{{slice . 0 10}}{{end}}{{end}}">
+      </label>
+      <div class="form-actions">
+        <button class="btn btn-small" type="submit">Update status</button>
+      </div>
+    </form>
+  </details>
+  {{end}}
+
   {{if $d.Flavours}}
   <h2>Flavours</h2>
   <ul class="chips">

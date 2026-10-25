@@ -292,8 +292,10 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 	lists, _ := s.Auth.Client.List.Query().
 		Where(list.UserID(UserFromContext(r).ID)).
 		Order(ent.Asc(list.FieldName)).All(r.Context())
+	u := UserFromContext(r)
 	s.render(w, r, http.StatusOK, "drink", map[string]any{
 		"Title": d.Drink.Name, "Drink": d, "Lists": lists,
+		"CanManage": u != nil && (u.Role == "admin" || u.Role == "moderator"),
 	})
 }
 
@@ -317,9 +319,16 @@ func (s *Server) checkinPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	defaultVisibility := "public"
+	if u := UserFromContext(r); u != nil {
+		if v := string(u.DefaultVisibility); v != "" {
+			defaultVisibility = v
+		}
+	}
 	s.render(w, r, http.StatusOK, "checkin", map[string]any{
 		"Title": "Log " + d.Drink.Name, "Drink": d, "Ratings": ratingChoices(),
 		"Idempotency": auth.RandomToken(16), "Venues": venues,
+		"DefaultVisibility": defaultVisibility,
 	})
 }
 
@@ -418,10 +427,23 @@ func (s *Server) friendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	u := UserFromContext(r)
 	handle := strings.TrimSpace(r.FormValue("handle"))
-	_, err := s.Social.Request(r.Context(), u.ID, handle)
+	fr, err := s.Social.Request(r.Context(), u.ID, handle)
 	if err != nil && !errors.Is(err, social.ErrSelfAction) {
 		s.fail(w, r, err)
 		return
+	}
+	if err == nil && fr != nil && string(fr.Status) == "pending" && s.Mailer != nil {
+		ctx := r.Context()
+		target, terr := s.Auth.Client.User.Query().
+			Where(user.HandleEqualFold(strings.ToLower(strings.TrimSpace(handle))), user.DeletedAtIsNil()).
+			Only(ctx)
+		if terr == nil && target.Email != "" {
+			if settings, serr := s.Auth.GetOrCreateSettings(ctx, target.ID); serr == nil && settings.EmailFriendReq {
+				if merr := s.Mailer.FriendRequest(ctx, target.Email, target.DisplayName, u.Handle); merr != nil {
+					s.Log.Warn("friend request email failed", "err", merr)
+				}
+			}
+		}
 	}
 	http.Redirect(w, r, "/friends", http.StatusFound)
 }

@@ -18,6 +18,10 @@ import (
 
 const defaultVAPIDSubject = "mailto:admin@sodapop.local"
 
+// pushDeliveryHook lets tests observe push delivery without VAPID keys. It is
+// nil in production.
+var pushDeliveryHook func(ctx context.Context, subs []*ent.PushSubscription, title, body, url string) error
+
 type pushPayload struct {
 	Title string `json:"title"`
 	Body  string `json:"body"`
@@ -81,6 +85,9 @@ func (s *Service) SendPush(ctx context.Context, userID, title, body, url string)
 }
 
 func (s *Service) sendPushToSubscriptions(ctx context.Context, subs []*ent.PushSubscription, title, body, url string) error {
+	if pushDeliveryHook != nil {
+		return pushDeliveryHook(ctx, subs, title, body, url)
+	}
 	if len(subs) == 0 {
 		return nil
 	}

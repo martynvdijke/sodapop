@@ -1,0 +1,239 @@
+{{define "content"}}
+<section class="narrow settings-page">
+  <p class="eyebrow">Settings</p>
+  <h1>Your account</h1>
+  <p class="lede">Change how Sodapop looks, who can see your check-ins, and how you sign in.</p>
+
+  {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+  {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+  <section class="settings-section" aria-labelledby="settings-profile">
+    <h2 id="settings-profile">Profile</h2>
+    <p class="settings-intro">How you appear to friends.</p>
+
+    <form method="post" action="/settings/profile" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <div class="field-row">
+        <div class="static-field">
+          <span class="static-label">Handle</span>
+          <p class="readout">@{{.Profile.Handle}}</p>
+        </div>
+        <div class="static-field">
+          <span class="static-label">Email</span>
+          <p class="readout">{{.Profile.Email}}</p>
+        </div>
+      </div>
+      <p class="hint">Your handle and email identify the account and cannot be edited here.</p>
+      <label>Display name
+        <input name="display_name" value="{{.Profile.DisplayName}}" autocomplete="nickname">
+      </label>
+      <label>Bio
+        <textarea name="bio" rows="4" placeholder="What do you look for in a soda?">{{.Profile.Bio}}</textarea>
+      </label>
+      <div class="form-actions">
+        <button class="btn" type="submit">Save profile</button>
+      </div>
+    </form>
+
+    <div class="settings-sub">
+      <h3>Profile photo</h3>
+      <form method="post" action="/settings/avatar" enctype="multipart/form-data" class="settings-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <label>Photo
+          <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" required>
+          <span class="hint">JPEG, PNG, WebP or GIF. Square images look best.</span>
+        </label>
+        <div class="form-actions">
+          <button class="btn" type="submit">Upload photo</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="settings-section" aria-labelledby="settings-preferences">
+    <h2 id="settings-preferences">Preferences</h2>
+    <p class="settings-intro">How Sodapop looks and measures things.</p>
+
+    <form method="post" action="/settings/preferences" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <div class="field-row">
+        <label>Theme
+          <select name="theme">
+            <option value="system"{{if eq .Prefs.Theme "system"}} selected{{end}}>System</option>
+            <option value="light"{{if eq .Prefs.Theme "light"}} selected{{end}}>Light</option>
+            <option value="dark"{{if eq .Prefs.Theme "dark"}} selected{{end}}>Dark</option>
+          </select>
+          <span class="hint">System follows your device setting.</span>
+        </label>
+        <label>Units
+          <select name="units">
+            <option value="metric"{{if eq .Prefs.Units "metric"}} selected{{end}}>Metric (ml)</option>
+            <option value="imperial"{{if eq .Prefs.Units "imperial"}} selected{{end}}>Imperial (fl oz)</option>
+          </select>
+          <span class="hint">Used for volumes on cards and detail pages.</span>
+        </label>
+      </div>
+      <label>Caffeine bedtime
+        <input type="time" name="caffeine_bedtime" value="{{.Prefs.CaffeineBedtime}}">
+        <span class="hint">Optional. Used to show caffeine totals against the time you go to bed.</span>
+      </label>
+      <div class="form-actions">
+        <button class="btn" type="submit">Save preferences</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="settings-section" aria-labelledby="settings-notifications">
+    <h2 id="settings-notifications">Notifications</h2>
+    <p class="settings-intro">Choose what reaches you outside the app.</p>
+
+    <form method="post" action="/settings/preferences" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <label class="check-row">
+        <input type="checkbox" name="email_weekly" value="1"{{if .Prefs.EmailWeekly}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Weekly email digest</strong>
+          <span class="hint">One summary of friends' check-ins each week.</span>
+        </span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" name="email_friend_req" value="1"{{if .Prefs.EmailFriendReq}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Friend request emails</strong>
+          <span class="hint">Send an email when someone asks to be friends.</span>
+        </span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" name="push_enabled" value="1"{{if .Prefs.PushEnabled}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Push notifications</strong>
+          <span class="hint">Toasts, friend requests and badges. Needs HTTPS and a browser that supports web push.</span>
+        </span>
+      </label>
+      <div class="form-actions">
+        <button class="btn" type="submit">Save notification settings</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="settings-section" aria-labelledby="settings-privacy">
+    <h2 id="settings-privacy">Privacy</h2>
+    <p class="settings-intro">Who sees your check-ins, and what analytics we keep.</p>
+
+    <form method="post" action="/settings/privacy" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <label>Default visibility for new check-ins
+        <select name="default_visibility" required>
+          <option value="public"{{if or (eq .DefaultVisibility "public") (eq .DefaultVisibility "")}} selected{{end}}>Anyone</option>
+          <option value="friends"{{if eq .DefaultVisibility "friends"}} selected{{end}}>Friends</option>
+          <option value="private"{{if eq .DefaultVisibility "private"}} selected{{end}}>Only you</option>
+        </select>
+        <span class="hint">You can change this on each check-in.</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" name="public_profile" value="1"{{if .Prefs.PublicProfile}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Public profile</strong>
+          <span class="hint">When this is on, anonymous visitors with the link see your handle, bio and public check-ins. Friends-only and private check-ins stay hidden.</span>
+        </span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" name="analytics_opt_out" value="1"{{if .Prefs.AnalyticsOptOut}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Opt out of analytics</strong>
+          <span class="hint">Do not include my visits in site analytics.</span>
+        </span>
+      </label>
+      <div class="form-actions">
+        <button class="btn" type="submit">Save privacy settings</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="settings-section" aria-labelledby="settings-security">
+    <h2 id="settings-security">Security</h2>
+    <p class="settings-intro">Change your password and manage API access.</p>
+
+    <form method="post" action="/settings/password" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <label>Current password
+        <input type="password" name="current_password" autocomplete="current-password" required>
+      </label>
+      <div class="field-row">
+        <label>New password
+          <input type="password" name="new_password" autocomplete="new-password" minlength="10" aria-describedby="password-hint" required>
+        </label>
+        <label>Confirm new password
+          <input type="password" name="confirm_password" autocomplete="new-password" minlength="10" required>
+        </label>
+      </div>
+      <p class="hint" id="password-hint">At least 10 characters.</p>
+      <div class="form-actions">
+        <button class="btn" type="submit">Update password</button>
+      </div>
+    </form>
+
+    <div class="settings-sub">
+      <h3>API tokens</h3>
+      <p class="settings-note">
+        {{if .TokenCount}}{{.TokenCount}} personal token{{if ne .TokenCount 1}}s{{end}}. <a href="/settings/tokens">Manage tokens</a>.{{else}}No personal tokens yet. <a href="/settings/tokens">Create one</a>.{{end}}
+      </p>
+    </div>
+  </section>
+
+  <section class="settings-section" aria-labelledby="settings-sessions">
+    <h2 id="settings-sessions">Sessions</h2>
+    <p class="settings-intro">Devices signed in to your account.</p>
+
+    {{if .Sessions}}
+      <ul class="session-list">
+        {{range .Sessions}}
+          <li class="session-row">
+            <div class="session-info">
+              <p class="session-agent">
+                {{if .UserAgent}}{{.UserAgent}}{{else}}Session{{end}}{{if .Current}}<span class="pill pill-current">This device</span>{{end}}
+              </p>
+              <p class="session-meta">{{if .IP}}{{.IP}} · {{end}}Signed in {{.CreatedAt}}{{if .LastSeenAt}} · last seen {{.LastSeenAt}}{{end}}</p>
+            </div>
+            <form method="post" action="/settings/sessions/{{.ID}}/revoke">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <button class="btn" type="submit" aria-label="Revoke session {{if .Current}}on this device{{else}}{{if .IP}}from {{.IP}}{{else}}signed in {{.CreatedAt}}{{end}}{{end}}">Revoke</button>
+            </form>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <p class="muted">No active sessions.</p>
+    {{end}}
+
+    <form method="post" action="/settings/logout-all">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <button class="btn" type="submit">Sign out everywhere</button>
+    </form>
+    <p class="hint">Ends every session, including this device. You will need to sign in again.</p>
+  </section>
+
+  <section class="settings-section" aria-labelledby="settings-data">
+    <h2 id="settings-data">Data</h2>
+    <p class="settings-intro">Take your data with you, or close the account.</p>
+
+    <p><a class="btn" href="/export.json">Download your data</a></p>
+    <p class="hint">JSON with your check-ins, ratings, lists and settings.</p>
+
+    <div class="danger-zone">
+      <h3>Delete your account</h3>
+      <p>This removes your check-ins, photos, lists and tokens. Your profile disappears. It cannot be undone.</p>
+      <form method="post" action="/settings/delete" class="settings-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <label>Type your handle to confirm
+          <input name="confirm" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="{{.Profile.Handle}}" aria-describedby="delete-hint" required>
+          <span class="hint" id="delete-hint">Type {{.Profile.Handle}} exactly.</span>
+        </label>
+        <div class="form-actions">
+          <button class="btn btn-danger" type="submit">Delete my account</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</section>
+{{end}}

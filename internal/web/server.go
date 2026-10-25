@@ -66,6 +66,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /search", s.requireUser(s.searchPage))
 	mux.HandleFunc("GET /drinks/{slug}", s.requireUser(s.drinkPage))
+	mux.HandleFunc("GET /scan", s.requireVerified(s.scanPage))
 	mux.HandleFunc("GET /checkins/new", s.requireVerified(s.checkinPage))
 	mux.HandleFunc("POST /checkins", s.requireVerified(s.checkinSubmit))
 	mux.HandleFunc("POST /checkins/{id}/toast", s.requireVerified(s.checkinToast))
@@ -112,6 +113,36 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /import.csv", s.requireUser(s.importCSV))
 	mux.HandleFunc("GET /feeds/{token}", s.rssFeed)
 
+	mux.HandleFunc("GET /notifications", s.requireUser(s.notificationsPage))
+	mux.HandleFunc("POST /notifications/read", s.requireUser(s.notificationsRead))
+	mux.HandleFunc("GET /checkins/{id}", s.checkinDetailPage)
+	mux.HandleFunc("POST /checkins/{id}/delete", s.requireVerified(s.checkinDelete))
+	mux.HandleFunc("GET /settings", s.requireUser(s.settingsPage))
+	mux.HandleFunc("POST /settings/profile", s.requireUser(s.settingsProfile))
+	mux.HandleFunc("POST /settings/preferences", s.requireUser(s.settingsPreferences))
+	mux.HandleFunc("POST /settings/privacy", s.requireUser(s.settingsPrivacy))
+	mux.HandleFunc("POST /settings/password", s.requireUser(s.settingsPassword))
+	mux.HandleFunc("POST /settings/avatar", s.requireUser(s.settingsAvatar))
+	mux.HandleFunc("POST /settings/sessions/{id}/revoke", s.requireUser(s.settingsSessionRevoke))
+	mux.HandleFunc("POST /settings/logout-all", s.requireUser(s.settingsLogoutAll))
+	mux.HandleFunc("POST /settings/delete", s.requireUser(s.settingsDelete))
+	mux.HandleFunc("GET /forgot", s.forgotPage)
+	mux.HandleFunc("POST /forgot", s.forgotSubmit)
+	mux.HandleFunc("GET /reset/{token}", s.resetPage)
+	mux.HandleFunc("POST /reset/{token}", s.resetSubmit)
+	mux.HandleFunc("GET /drinks", s.requireUser(s.browseDrinksPage))
+	mux.HandleFunc("GET /brands", s.requireUser(s.browseBrandsPage))
+	mux.HandleFunc("GET /brands/{slug}", s.requireUser(s.brandPage))
+	mux.HandleFunc("GET /styles", s.requireUser(s.browseStylesPage))
+	mux.HandleFunc("GET /styles/{slug}", s.requireUser(s.stylePage))
+	mux.HandleFunc("GET /drops", s.requireUser(s.dropsPage))
+	mux.HandleFunc("GET /u/{handle}", s.profilePage)
+	mux.HandleFunc("GET /insights", s.requireUser(s.insightsPage))
+	mux.HandleFunc("POST /admin/drinks/{id}/status", s.requireAdmin(s.adminDrinkStatus))
+	mux.HandleFunc("POST /integrations/ha-token", s.requireUser(s.haTokenCreate))
+	mux.HandleFunc("POST /integrations/ha-token/{id}/revoke", s.requireUser(s.haTokenRevoke))
+	mux.HandleFunc("POST /hooks/ha/{token}", s.haInbound)
+
 	mux.HandleFunc("GET /admin", s.requireAdmin(s.adminPage))
 	mux.HandleFunc("POST /admin/ai", s.requireAdmin(s.adminAISave))
 	mux.HandleFunc("POST /admin/ai/{id}/toggle", s.requireAdmin(s.adminAIToggle))
@@ -137,18 +168,24 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")
 		} else {
-			csp := "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			csp := "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 			if s.Cfg.UmamiURL != "" {
 				csp = strings.Replace(csp, "script-src 'self'", "script-src 'self' "+s.Cfg.UmamiURL, 1)
 				csp = strings.Replace(csp, "connect-src 'self'", "connect-src 'self' "+s.Cfg.UmamiURL, 1)
 			}
 			w.Header().Set("Content-Security-Policy", csp)
 		}
-		if r.URL.Path != "/" {
+		if !indexablePath(r.URL.Path) {
 			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// indexablePath reports whether a route may be indexed. Public catalog pages and
+// opt-in profiles opt in; everything else stays noindex.
+func indexablePath(p string) bool {
+	return p == "/" || strings.HasPrefix(p, "/u/")
 }
 
 func (s *Server) base(r *http.Request) map[string]any {
@@ -161,9 +198,24 @@ func (s *Server) base(r *http.Request) map[string]any {
 		"OIDC":        s.Auth.OIDCStatus(),
 		"AssetScript": uiAssets.Script,
 		"Year":        time.Now().Year(),
+		"NavUnread":   0,
+		"Theme":       "system",
 	}
 	if u := UserFromContext(r); u != nil {
 		d["User"] = u
+		n, _ := s.Social.UnreadCount(r.Context(), u.ID)
+		d["NavUnread"] = n
+		if prefs, err := s.Auth.GetOrCreateSettings(r.Context(), u.ID); err == nil {
+			if prefs.Theme != "" {
+				d["Theme"] = prefs.Theme
+			}
+			d["Units"] = prefs.Units
+		}
+		if u.AnalyticsOptOut {
+			// The opt-out removes the analytics script entirely.
+			d["UmamiURL"] = ""
+			d["UmamiID"] = ""
+		}
 	}
 	if sess := SessionFromContext(r); sess != nil {
 		d["CSRF"] = sess.CsrfToken

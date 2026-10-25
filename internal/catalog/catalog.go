@@ -180,7 +180,7 @@ func (s *Service) detail(ctx context.Context, d *ent.Drink) (*DrinkDetail, error
 	if d.Edges.Style != nil {
 		out.StyleName = d.Edges.Style.Name
 	}
-	aliases, err := s.SQL.QueryContext(ctx, `SELECT alias FROM drink_aliases WHERE drink_id = ? ORDER BY alias`, d.ID)
+	aliases, err := s.SQL.QueryContext(ctx, `SELECT alias FROM drink_alias WHERE drink_id = ? ORDER BY alias`, d.ID)
 	if err == nil {
 		defer aliases.Close()
 		for aliases.Next() {

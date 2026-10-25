@@ -196,8 +196,10 @@ func (s *Service) CanView(ctx context.Context, viewerID, id string) (bool, error
 const canViewQuery = `
 SELECT EXISTS (
 	SELECT 1 FROM checkins c
+	JOIN users u ON u.id = c.user_id
 	WHERE c.photo_media_id = ?
 	  AND c.deleted_at IS NULL
+	  AND u.deleted_at IS NULL AND u.status <> 'deleted'
 	  AND (
 		c.visibility = 'public'
 		OR (

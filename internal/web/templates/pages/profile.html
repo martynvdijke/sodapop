@@ -1,0 +1,82 @@
+{{define "content"}}
+<section class="narrow profile-page">
+  <header class="profile-header">
+    <span class="profile-avatar" aria-hidden="true">{{.Profile.Initial}}</span>
+    <div class="profile-identity">
+      <h1 class="profile-name">{{.Profile.DisplayName}}</h1>
+      <p class="profile-handle">
+        <span class="profile-handle-text">@{{.Profile.Handle}}</span>
+        {{if .Profile.PublicProfile}}<span class="profile-pill">Public profile</span>{{end}}
+      </p>
+      {{with .Profile.JoinedAt}}
+        <p class="profile-joined">Joined {{if ge (len .) 10}}{{slice . 0 10}}{{else}}{{.}}{{end}}</p>
+      {{end}}
+    </div>
+  </header>
+
+  {{if .Profile.Bio}}<p class="profile-bio">{{.Profile.Bio}}</p>{{end}}
+
+  {{if .IsOwner}}
+    <p class="profile-owner"><a class="btn btn-small" href="/settings">Edit profile</a></p>
+  {{end}}
+
+  <dl class="profile-stats" aria-label="Profile totals">
+    <div class="profile-stat">
+      <dt>Pours</dt>
+      <dd>{{.Stats.Pours}}</dd>
+    </div>
+    <div class="profile-stat">
+      <dt>Styles</dt>
+      <dd>{{.Stats.Styles}}</dd>
+    </div>
+    <div class="profile-stat">
+      <dt>Venues</dt>
+      <dd>{{.Stats.Venues}}</dd>
+    </div>
+    <div class="profile-stat">
+      <dt>Badges</dt>
+      <dd>{{.Stats.Badges}}</dd>
+    </div>
+  </dl>
+
+  <section class="profile-section" aria-labelledby="profile-checkins">
+    <h2 id="profile-checkins" class="section-heading">Check-ins</h2>
+
+    {{range .Checkins}}{{template "feed_item" .}}{{else}}
+      <div class="empty profile-empty">
+        {{if .IsOwner}}
+          <p>No check-ins yet. Scan a soda to start your log.</p>
+          <p class="empty-actions"><a class="btn btn-primary" href="/scan">Scan a soda</a></p>
+        {{else}}
+          <p>No visible check-ins yet.</p>
+        {{end}}
+      </div>
+    {{end}}
+
+    {{if .HasMore}}
+      <p class="pagination">
+        <a class="btn" href="/u/{{.Profile.Handle}}?before={{.NextBefore}}" rel="next">Load older check-ins</a>
+      </p>
+    {{end}}
+  </section>
+
+  {{if .Lists}}
+    <section class="profile-section" aria-labelledby="profile-lists">
+      <h2 id="profile-lists" class="section-heading">Lists</h2>
+      <ul class="list-stack">
+        {{range .Lists}}
+          <li>
+            <a class="card list-card" href="/lists/{{.ID}}">
+              <span class="list-card-body">
+                <strong class="list-card-name">{{.Name}}</strong>
+                {{if .Description}}<span class="muted list-card-note">{{.Description}}</span>{{end}}
+              </span>
+              <span class="pill">{{.Items}} {{if eq .Items 1}}soda{{else}}sodas{{end}}</span>
+            </a>
+          </li>
+        {{end}}
+      </ul>
+    </section>
+  {{end}}
+</section>
+{{end}}

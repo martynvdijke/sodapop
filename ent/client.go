@@ -33,6 +33,7 @@ import (
 	"sodapop/ent/flavour"
 	"sodapop/ent/follow"
 	"sodapop/ent/friendship"
+	"sodapop/ent/inboundtoken"
 	"sodapop/ent/integration"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
@@ -109,6 +110,8 @@ type Client struct {
 	Follow *FollowClient
 	// Friendship is the client for interacting with the Friendship builders.
 	Friendship *FriendshipClient
+	// InboundToken is the client for interacting with the InboundToken builders.
+	InboundToken *InboundTokenClient
 	// Integration is the client for interacting with the Integration builders.
 	Integration *IntegrationClient
 	// List is the client for interacting with the List builders.
@@ -182,6 +185,7 @@ func (c *Client) init() {
 	c.Flavour = NewFlavourClient(c.config)
 	c.Follow = NewFollowClient(c.config)
 	c.Friendship = NewFriendshipClient(c.config)
+	c.InboundToken = NewInboundTokenClient(c.config)
 	c.Integration = NewIntegrationClient(c.config)
 	c.List = NewListClient(c.config)
 	c.ListItem = NewListItemClient(c.config)
@@ -316,6 +320,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Flavour:                NewFlavourClient(cfg),
 		Follow:                 NewFollowClient(cfg),
 		Friendship:             NewFriendshipClient(cfg),
+		InboundToken:           NewInboundTokenClient(cfg),
 		Integration:            NewIntegrationClient(cfg),
 		List:                   NewListClient(cfg),
 		ListItem:               NewListItemClient(cfg),
@@ -377,6 +382,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Flavour:                NewFlavourClient(cfg),
 		Follow:                 NewFollowClient(cfg),
 		Friendship:             NewFriendshipClient(cfg),
+		InboundToken:           NewInboundTokenClient(cfg),
 		Integration:            NewIntegrationClient(cfg),
 		List:                   NewListClient(cfg),
 		ListItem:               NewListItemClient(cfg),
@@ -430,10 +436,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
 		c.CheckinLike, c.Drink, c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour,
 		c.DrinkImage, c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow,
-		c.Friendship, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
-		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushSubscription,
-		c.Report, c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity,
-		c.UserSetting, c.Venue, c.VenueDrink, c.VenueName, c.VenueSave,
+		c.Friendship, c.InboundToken, c.Integration, c.List, c.ListItem,
+		c.LoginAttempt, c.Media, c.Notification, c.OffProduct, c.PasswordResetToken,
+		c.PushSubscription, c.Report, c.Session, c.Style, c.User, c.UserBadge,
+		c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueName, c.VenueSave,
 	} {
 		n.Use(hooks...)
 	}
@@ -447,10 +453,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
 		c.CheckinLike, c.Drink, c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour,
 		c.DrinkImage, c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow,
-		c.Friendship, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
-		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushSubscription,
-		c.Report, c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity,
-		c.UserSetting, c.Venue, c.VenueDrink, c.VenueName, c.VenueSave,
+		c.Friendship, c.InboundToken, c.Integration, c.List, c.ListItem,
+		c.LoginAttempt, c.Media, c.Notification, c.OffProduct, c.PasswordResetToken,
+		c.PushSubscription, c.Report, c.Session, c.Style, c.User, c.UserBadge,
+		c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueName, c.VenueSave,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -503,6 +509,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Follow.mutate(ctx, m)
 	case *FriendshipMutation:
 		return c.Friendship.mutate(ctx, m)
+	case *InboundTokenMutation:
+		return c.InboundToken.mutate(ctx, m)
 	case *IntegrationMutation:
 		return c.Integration.mutate(ctx, m)
 	case *ListMutation:
@@ -3762,6 +3770,139 @@ func (c *FriendshipClient) mutate(ctx context.Context, m *FriendshipMutation) (V
 	}
 }
 
+// InboundTokenClient is a client for the InboundToken schema.
+type InboundTokenClient struct {
+	config
+}
+
+// NewInboundTokenClient returns a client for the InboundToken from the given config.
+func NewInboundTokenClient(c config) *InboundTokenClient {
+	return &InboundTokenClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `inboundtoken.Hooks(f(g(h())))`.
+func (c *InboundTokenClient) Use(hooks ...Hook) {
+	c.hooks.InboundToken = append(c.hooks.InboundToken, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `inboundtoken.Intercept(f(g(h())))`.
+func (c *InboundTokenClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InboundToken = append(c.inters.InboundToken, interceptors...)
+}
+
+// Create returns a builder for creating a InboundToken entity.
+func (c *InboundTokenClient) Create() *InboundTokenCreate {
+	mutation := newInboundTokenMutation(c.config, OpCreate)
+	return &InboundTokenCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InboundToken entities.
+func (c *InboundTokenClient) CreateBulk(builders ...*InboundTokenCreate) *InboundTokenCreateBulk {
+	return &InboundTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InboundTokenClient) MapCreateBulk(slice any, setFunc func(*InboundTokenCreate, int)) *InboundTokenCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InboundTokenCreateBulk{err: fmt.Errorf("calling to InboundTokenClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InboundTokenCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InboundTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InboundToken.
+func (c *InboundTokenClient) Update() *InboundTokenUpdate {
+	mutation := newInboundTokenMutation(c.config, OpUpdate)
+	return &InboundTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InboundTokenClient) UpdateOne(_m *InboundToken) *InboundTokenUpdateOne {
+	mutation := newInboundTokenMutation(c.config, OpUpdateOne, withInboundToken(_m))
+	return &InboundTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InboundTokenClient) UpdateOneID(id string) *InboundTokenUpdateOne {
+	mutation := newInboundTokenMutation(c.config, OpUpdateOne, withInboundTokenID(id))
+	return &InboundTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InboundToken.
+func (c *InboundTokenClient) Delete() *InboundTokenDelete {
+	mutation := newInboundTokenMutation(c.config, OpDelete)
+	return &InboundTokenDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InboundTokenClient) DeleteOne(_m *InboundToken) *InboundTokenDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InboundTokenClient) DeleteOneID(id string) *InboundTokenDeleteOne {
+	builder := c.Delete().Where(inboundtoken.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InboundTokenDeleteOne{builder}
+}
+
+// Query returns a query builder for InboundToken.
+func (c *InboundTokenClient) Query() *InboundTokenQuery {
+	return &InboundTokenQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInboundToken},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InboundToken entity by its id.
+func (c *InboundTokenClient) Get(ctx context.Context, id string) (*InboundToken, error) {
+	return c.Query().Where(inboundtoken.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InboundTokenClient) GetX(ctx context.Context, id string) *InboundToken {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InboundTokenClient) Hooks() []Hook {
+	return c.hooks.InboundToken
+}
+
+// Interceptors returns the client interceptors.
+func (c *InboundTokenClient) Interceptors() []Interceptor {
+	return c.inters.InboundToken
+}
+
+func (c *InboundTokenClient) mutate(ctx context.Context, m *InboundTokenMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InboundTokenCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InboundTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InboundTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InboundTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InboundToken mutation op: %q", m.Op())
+	}
+}
+
 // IntegrationClient is a client for the Integration schema.
 type IntegrationClient struct {
 	config
@@ -6684,18 +6825,18 @@ type (
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
 		Block, Brand, CatalogRevision, Checkin, CheckinLike, Drink, DrinkAlias,
 		DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox, EmailVerificationToken,
-		Flavour, Follow, Friendship, Integration, List, ListItem, LoginAttempt, Media,
-		Notification, OffProduct, PasswordResetToken, PushSubscription, Report,
-		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
-		VenueName, VenueSave []ent.Hook
+		Flavour, Follow, Friendship, InboundToken, Integration, List, ListItem,
+		LoginAttempt, Media, Notification, OffProduct, PasswordResetToken,
+		PushSubscription, Report, Session, Style, User, UserBadge, UserIdentity,
+		UserSetting, Venue, VenueDrink, VenueName, VenueSave []ent.Hook
 	}
 	inters struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
 		Block, Brand, CatalogRevision, Checkin, CheckinLike, Drink, DrinkAlias,
 		DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox, EmailVerificationToken,
-		Flavour, Follow, Friendship, Integration, List, ListItem, LoginAttempt, Media,
-		Notification, OffProduct, PasswordResetToken, PushSubscription, Report,
-		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
-		VenueName, VenueSave []ent.Interceptor
+		Flavour, Follow, Friendship, InboundToken, Integration, List, ListItem,
+		LoginAttempt, Media, Notification, OffProduct, PasswordResetToken,
+		PushSubscription, Report, Session, Style, User, UserBadge, UserIdentity,
+		UserSetting, Venue, VenueDrink, VenueName, VenueSave []ent.Interceptor
 	}
 )

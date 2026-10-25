@@ -1,0 +1,75 @@
+{{define "content"}}
+{{$c := .Checkin}}
+<article class="checkin-detail narrow">
+  <p class="eyebrow">Check-in</p>
+
+  <header class="detail-author">
+    {{if $c.Initial}}<span class="avatar" aria-hidden="true">{{$c.Initial}}</span>{{end}}
+    <div>
+      <strong>{{if $c.UserName}}{{$c.UserName}}{{else}}@{{$c.UserHandle}}{{end}}</strong>
+      <div class="muted">{{if $c.UserHandle}}@{{$c.UserHandle}} · {{end}}{{$c.CreatedAt}}</div>
+    </div>
+  </header>
+
+  {{if $c.MediaID}}
+    {{if hasPrefix $c.MediaMime "video/"}}
+      <video class="detail-media" controls preload="metadata" poster="/media/{{$c.MediaID}}/poster">
+        <source src="/media/{{$c.MediaID}}"{{if $c.MediaMime}} type="{{$c.MediaMime}}"{{end}}>
+        <a href="/media/{{$c.MediaID}}">Download video</a>
+      </video>
+    {{else}}
+      <img class="detail-media" src="/media/{{$c.MediaID}}" alt="Photo of {{$c.DrinkName}}" decoding="async">
+    {{end}}
+  {{end}}
+
+  <h1 class="detail-title"><a href="/drinks/{{$c.DrinkSlug}}">{{$c.DrinkName}}</a></h1>
+  <p class="detail-brand">{{$c.Brand}}{{if $c.Style}} · {{$c.Style}}{{end}}</p>
+
+  <div class="detail-rating{{if not $c.Rating}} unrated{{end}}">
+    <span class="detail-rating-label">Rating</span>
+    <strong>{{stars $c.Rating}}</strong>
+  </div>
+
+  {{if $c.Note}}<p class="detail-note">{{$c.Note}}</p>{{end}}
+
+  <div class="detail-meta">
+    {{if $c.Visibility}}
+      <span class="pill">{{if eq $c.Visibility "friends"}}Friends{{else if eq $c.Visibility "private"}}Only you{{else if eq $c.Visibility "public"}}Anyone{{end}}</span>
+    {{end}}
+    {{if $c.VenueName}}
+      {{if $c.VenueID}}<a class="pill" href="/venues/{{$c.VenueID}}">{{$c.VenueName}}</a>{{else}}<span class="pill">{{$c.VenueName}}</span>{{end}}
+    {{end}}
+  </div>
+
+  <div class="detail-actions">
+    {{if .Authenticated}}
+      {{if .CanToast}}
+        {{if $c.Toasted}}
+          <button class="btn btn-toasted" type="button" disabled aria-disabled="true"><span aria-hidden="true">✓</span> Toasted</button>
+        {{else}}
+          <form method="post" action="/checkins/{{$c.ID}}/toast">
+            <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+            <button class="btn btn-primary" type="submit">Toast</button>
+          </form>
+        {{end}}
+      {{end}}
+    {{else}}
+      <p class="detail-signin">Sign in to toast this check-in. <a href="/login?next=/checkins/{{$c.ID}}">Sign in</a>.</p>
+    {{end}}
+    <p class="detail-toasts muted">{{if $c.Toasts}}{{if eq $c.Toasts 1}}1 toast{{else}}{{$c.Toasts}} toasts{{end}}{{else}}No toasts yet{{end}}</p>
+  </div>
+
+  {{if .Authenticated}}
+    {{if .CanDelete}}
+      <div class="danger-zone">
+        <h2>Delete this check-in</h2>
+        <p>This removes the photo, note and rating for everyone. It cannot be undone.</p>
+        <form method="post" action="/checkins/{{$c.ID}}/delete">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+          <button class="btn btn-danger" type="submit">Delete check-in</button>
+        </form>
+      </div>
+    {{end}}
+  {{end}}
+</article>
+{{end}}

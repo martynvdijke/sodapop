@@ -1,0 +1,26 @@
+{{define "content"}}
+<article class="brand-page">
+  <p class="browse-back"><a href="/brands">All brands</a></p>
+
+  <header class="brand-header">
+    <p class="eyebrow">Brand</p>
+    <h1>{{.Name}}</h1>
+    <p class="brand-count">{{if .Count}}{{.Count}} {{if eq .Count 1}}soda{{else}}sodas{{end}} in the catalog{{else}}No sodas listed yet{{end}}</p>
+  </header>
+
+  {{if .Description}}<p class="brand-description">{{.Description}}</p>{{end}}
+
+  <h2 class="brand-section-title">Sodas</h2>
+
+  {{if .Drinks}}
+    <div class="browse-grid">
+      {{range .Drinks}}{{template "drink_card" .}}{{end}}
+    </div>
+  {{else}}
+    <div class="brand-empty">
+      <p>Nothing from {{.Name}} yet. Sodas appear here once they are added to the catalog.</p>
+      <p><a class="btn" href="/drinks">Browse drinks</a></p>
+    </div>
+  {{end}}
+</article>
+{{end}}

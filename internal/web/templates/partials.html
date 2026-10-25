@@ -22,10 +22,12 @@
   {{end}}
   {{if .Note}}<p class="note">{{.Note}}</p>{{end}}
   <div class="checkin-actions">
+    {{if .CSRF}}
     <form method="post" action="/checkins/{{.ID}}/toast" class="inline">
-      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
       <button class="chip{{if .Toasted}} on{{end}}" type="submit">Toast {{.Toasts}}</button>
     </form>
+    {{end}}
   </div>
 </article>
 {{end}}

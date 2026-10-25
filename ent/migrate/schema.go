@@ -297,7 +297,9 @@ var (
 		{Name: "kind", Type: field.TypeEnum, Enums: []string{"packaged", "mix"}, Default: "packaged"},
 		{Name: "recipe_json", Type: field.TypeString, Default: "{}"},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"local", "off", "user"}, Default: "local"},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"provisional", "active", "merged"}, Default: "active"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"provisional", "active", "merged", "limited", "seasonal", "discontinued"}, Default: "active"},
+		{Name: "discontinued_at", Type: field.TypeString, Nullable: true},
+		{Name: "limited_until", Type: field.TypeString, Nullable: true},
 		{Name: "created_by", Type: field.TypeString, Nullable: true},
 		{Name: "merged_into_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeString},
@@ -313,13 +315,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "drinks_brands_drinks",
-				Columns:    []*schema.Column{DrinksColumns[21]},
+				Columns:    []*schema.Column{DrinksColumns[23]},
 				RefColumns: []*schema.Column{BrandsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "drinks_styles_drinks",
-				Columns:    []*schema.Column{DrinksColumns[22]},
+				Columns:    []*schema.Column{DrinksColumns[24]},
 				RefColumns: []*schema.Column{StylesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -333,12 +335,12 @@ var (
 			{
 				Name:    "drink_brand_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[21]},
+				Columns: []*schema.Column{DrinksColumns[23]},
 			},
 			{
 				Name:    "drink_style_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[22]},
+				Columns: []*schema.Column{DrinksColumns[24]},
 			},
 		},
 	}
@@ -530,6 +532,30 @@ var (
 				Name:    "friendship_user_a_user_b",
 				Unique:  true,
 				Columns: []*schema.Column{FriendshipsColumns[1], FriendshipsColumns[2]},
+			},
+		},
+	}
+	// InboundTokensColumns holds the columns for the "inbound_tokens" table.
+	InboundTokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"home_assistant"}, Default: "home_assistant"},
+		{Name: "label", Type: field.TypeString, Default: ""},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "last_used_at", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeString},
+		{Name: "revoked_at", Type: field.TypeString, Nullable: true},
+	}
+	// InboundTokensTable holds the schema information for the "inbound_tokens" table.
+	InboundTokensTable = &schema.Table{
+		Name:       "inbound_tokens",
+		Columns:    InboundTokensColumns,
+		PrimaryKey: []*schema.Column{InboundTokensColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "inboundtoken_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{InboundTokensColumns[1]},
 			},
 		},
 	}
@@ -895,6 +921,9 @@ var (
 		{Name: "email_weekly", Type: field.TypeBool, Default: false},
 		{Name: "push_enabled", Type: field.TypeBool, Default: false},
 		{Name: "theme", Type: field.TypeEnum, Enums: []string{"system", "light", "dark"}, Default: "system"},
+		{Name: "public_profile", Type: field.TypeBool, Default: false},
+		{Name: "units", Type: field.TypeEnum, Enums: []string{"metric", "imperial"}, Default: "metric"},
+		{Name: "caffeine_bedtime", Type: field.TypeString, Default: ""},
 		{Name: "updated_at", Type: field.TypeString},
 	}
 	// UserSettingsTable holds the schema information for the "user_settings" table.
@@ -1006,6 +1035,7 @@ var (
 		FlavoursTable,
 		FollowsTable,
 		FriendshipsTable,
+		InboundTokensTable,
 		IntegrationsTable,
 		ListsTable,
 		ListItemsTable,

@@ -2,6 +2,21 @@
 
 Twelve phases, dependency-ordered. Estimates assume one experienced Go developer working alone, part-time at ~30 h/week. Each phase ends with a demoable slice, tests, and a green CI run — not a branch full of scaffolding.
 
+Status: P0–P11 have shipped for v1.0. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
+
+| Shipped surface | Phase |
+|---|---|
+| `/scan?gtin=`, native `BarcodeDetector` + self-hosted ZXing-C++ wasm, wasm CSP/MIME | P3 |
+| Catalog browse `/drinks`, `/brands`, `/brands/{slug}`, `/styles`, `/styles/{slug}` with filters, sorts, 24/page | P2 |
+| Drink lifecycle `limited`/`seasonal`/`discontinued`, `/drops`, admin status action, wishlist notification | P2 |
+| Notification centre `/notifications`, unread nav badge, per-item and mark-all read, notifications API | P5 |
+| Check-in detail `/checkins/{id}` with toast and soft-delete, plus `GET /api/v1/checkins/{id}` | P4/P5 |
+| Settings `/settings` covering profile, preferences, notifications, privacy, security and data; password reset end to end | P1/P9 |
+| Opt-in public profiles `/u/{handle}` with friend-aware visibility and indexability rules | P7/P9 |
+| Insights `/insights` and `GET /api/v1/stats/me/insights` with `range=7`, `30` or `90` | P4 |
+| Home Assistant inbound webhook and `/integrations` token management; TRMNL dispatch; `push_enabled` gating | P9/P10 |
+
+
 ## Dependency graph
 
 ```

@@ -5,16 +5,65 @@
 
 {{if .Notice}}<p class="banner success">{{.Notice}}</p>{{end}}
 
-<h2>Home Assistant</h2>
-<form method="post" action="/integrations" class="field-grid card">
-  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
-  <input type="hidden" name="kind" value="home_assistant">
-  <input type="hidden" name="enabled" value="1">
-  <label>Webhook URL <input name="target" type="url" placeholder="https://ha.local/api/webhook/sodapop" value="{{.HomeAssistant.Target}}"></label>
-  <label>Shared secret <input name="secret" type="password" placeholder="optional bearer token"></label>
-  <div><button class="btn" type="submit">Save</button></div>
-</form>
-<p class="muted">Sends a JSON event when you check in. {{if .HomeAssistant.Enabled}}Enabled.{{else}}Not configured.{{end}}</p>
+<section id="home-assistant" aria-labelledby="home-assistant-title">
+  <h2 id="home-assistant-title">Home Assistant</h2>
+  <p class="muted">Two directions. Sodapop can post to a webhook when you check in, and an automation can post a pour back with a token.</p>
+
+  <h3>Inbound token</h3>
+  <p class="muted">An automation can post a pour to <code>POST /hooks/ha/{token}</code> with a JSON body. Send <code>gtin</code> or <code>slug</code> to pick the soda, and an optional <code>rating</code> from 0 to 20 in quarter stars. The token is shown once, when you create it, and only a hash is kept.</p>
+
+  <form method="post" action="/integrations/ha-token" class="field-grid card">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>Label <span class="hint">optional · defaults to Home Assistant</span>
+      <input name="label" maxlength="60" autocomplete="off" placeholder="Kitchen tablet">
+    </label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Create token</button></div>
+  </form>
+
+  {{if .NewInboundToken}}
+    <div class="token-box">
+      <p><strong>Your new token</strong></p>
+      <code>{{.NewInboundToken}}</code>
+      <p class="hint">Post to <code>{{.BaseURL}}/hooks/ha/{{.NewInboundToken}}</code>. This token is shown once and cannot be recovered, so copy it now.</p>
+    </div>
+  {{end}}
+
+  {{if .InboundTokens}}
+    <ul class="list-stack">
+      {{range .InboundTokens}}
+        <li class="card">
+          <div class="list-row">
+            <strong>{{.Label}}</strong>
+            {{if .Revoked}}<span class="pill">Revoked</span>{{else}}<span class="pill">Active</span>{{end}}
+          </div>
+          <p class="muted">
+            Created <time datetime="{{.CreatedAt}}">{{if ge (len .CreatedAt) 10}}{{slice .CreatedAt 0 10}}{{else}}{{.CreatedAt}}{{end}}</time>
+            · Last used {{if .LastUsedAt}}<time datetime="{{.LastUsedAt}}">{{if ge (len .LastUsedAt) 10}}{{slice .LastUsedAt 0 10}}{{else}}{{.LastUsedAt}}{{end}}</time>{{else}}Never{{end}}
+          </p>
+          {{if not .Revoked}}
+            <form method="post" action="/integrations/ha-token/{{.ID}}/revoke" class="form-actions">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <button class="btn btn-small" type="submit" aria-label="Revoke the token labelled {{.Label}}">Revoke</button>
+            </form>
+          {{end}}
+        </li>
+      {{end}}
+    </ul>
+  {{else}}
+    <p class="empty">No tokens yet. Create one to let an automation log pours for you.</p>
+  {{end}}
+
+  <h3>Outbound webhook</h3>
+  <form method="post" action="/integrations" class="field-grid card">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <input type="hidden" name="kind" value="home_assistant">
+    <input type="hidden" name="enabled" value="1">
+    <label>Webhook URL <input name="target" type="url" placeholder="https://ha.local/api/webhook/sodapop" value="{{.HomeAssistant.Target}}"></label>
+    <label>Shared secret <input name="secret" type="password" placeholder="optional bearer token"></label>
+    <div><button class="btn" type="submit">Save</button></div>
+  </form>
+  <p class="muted">Sends a JSON event when you check in. {{if .HomeAssistant.Enabled}}Enabled.{{else}}Not configured.{{end}}</p>
+</section>
 
 <h2>Matrix</h2>
 <form method="post" action="/integrations" class="field-grid card">

@@ -8,10 +8,14 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/crypto/bcrypt"
+
 	brandpkg "sodapop/ent/brand"
 	drinkpkg "sodapop/ent/drink"
 	"sodapop/ent/flavour"
 	"sodapop/ent/style"
+	"sodapop/ent/user"
+	"sodapop/internal/catalog"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 )
@@ -116,6 +120,9 @@ func main() {
 		if err := seedDemo(ctx, database); err != nil {
 			log.Fatal(err)
 		}
+		if err := seedDemoAdmin(ctx, database); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	count, _ := database.Client.Style.Query().Count(ctx)
@@ -163,6 +170,29 @@ func slugify(s string) string {
 		out = out[:len(out)-1]
 	}
 	return string(out)
+}
+
+// seedDemoAdmin adds a known administrator so E2E tests can exercise the
+// moderator-only surface (drink lifecycle changes). Demo only — SEED_DEMO=1.
+func seedDemoAdmin(ctx context.Context, database *db.DB) error {
+	const handle = "e2e_admin"
+	exists, err := database.Client.User.Query().Where(user.Handle(handle)).Exist(ctx)
+	if err != nil || exists {
+		return err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte("correct-horse-battery"), 12)
+	if err != nil {
+		return err
+	}
+	_, err = database.Client.User.Create().
+		SetHandle(handle).
+		SetEmail("e2e_admin@example.com").
+		SetEmailVerifiedAt(db.Now()).
+		SetPasswordHash(string(hash)).
+		SetDisplayName("E2E admin").
+		SetRole(user.RoleAdmin).
+		Save(ctx)
+	return err
 }
 
 // seedDemo adds a small, barcode-complete catalog used by E2E tests and local
@@ -222,8 +252,12 @@ func seedDemo(ctx context.Context, database *db.DB) error {
 		if err != nil {
 			return err
 		}
+		normalized, err := catalog.NormalizeGTIN(d.GTIN)
+		if err != nil {
+			return fmt.Errorf("seed barcode %s: %w", d.GTIN, err)
+		}
 		if _, err := database.Client.DrinkBarcode.Create().
-			SetDrinkID(row.ID).SetGtin14(d.GTIN).SetRawCode(d.GTIN).
+			SetDrinkID(row.ID).SetGtin14(normalized).SetRawCode(d.GTIN).
 			SetSource("brand").Save(ctx); err != nil {
 			return err
 		}

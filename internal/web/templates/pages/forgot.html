@@ -1,0 +1,20 @@
+{{define "content"}}
+<section class="narrow">
+  <p class="eyebrow">Account</p>
+  <h1>Reset your password</h1>
+  <p class="lede">Enter the email on your account and we will send a link to choose a new password. The link expires in one hour.</p>
+
+  {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+  {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+  <form method="post" action="/forgot" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>Email
+      <input type="email" name="email" autocomplete="email" autofocus required>
+    </label>
+    <button class="btn btn-primary btn-block" type="submit">Send reset link</button>
+  </form>
+
+  <p class="auth-note">Remembered it? <a href="/login">Sign in</a>.</p>
+</section>
+{{end}}

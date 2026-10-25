@@ -56,6 +56,8 @@ type Tx struct {
 	Follow *FollowClient
 	// Friendship is the client for interacting with the Friendship builders.
 	Friendship *FriendshipClient
+	// InboundToken is the client for interacting with the InboundToken builders.
+	InboundToken *InboundTokenClient
 	// Integration is the client for interacting with the Integration builders.
 	Integration *IntegrationClient
 	// List is the client for interacting with the List builders.
@@ -249,6 +251,7 @@ func (tx *Tx) init() {
 	tx.Flavour = NewFlavourClient(tx.config)
 	tx.Follow = NewFollowClient(tx.config)
 	tx.Friendship = NewFriendshipClient(tx.config)
+	tx.InboundToken = NewInboundTokenClient(tx.config)
 	tx.Integration = NewIntegrationClient(tx.config)
 	tx.List = NewListClient(tx.config)
 	tx.ListItem = NewListItemClient(tx.config)

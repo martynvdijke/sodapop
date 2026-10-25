@@ -1,0 +1,24 @@
+{{define "content"}}
+<section class="narrow">
+  <p class="eyebrow">Account</p>
+  <h1>Choose a new password</h1>
+  <p class="lede">Use at least 10 characters. The reset link expires in one hour.</p>
+
+  {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+  {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+  <form method="post" action="/reset/{{.Token}}" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>New password
+      <input type="password" name="new_password" autocomplete="new-password" minlength="10" aria-describedby="password-hint" required>
+    </label>
+    <label>Confirm new password
+      <input type="password" name="confirm_password" autocomplete="new-password" minlength="10" required>
+    </label>
+    <p class="hint" id="password-hint">At least 10 characters.</p>
+    <button class="btn btn-primary btn-block" type="submit">Save new password</button>
+  </form>
+
+  <p class="auth-note"><a href="/login">Back to sign in</a></p>
+</section>
+{{end}}

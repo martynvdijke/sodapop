@@ -72,6 +72,9 @@ type Follow func(*sql.Selector)
 // Friendship is the predicate function for friendship builders.
 type Friendship func(*sql.Selector)
 
+// InboundToken is the predicate function for inboundtoken builders.
+type InboundToken func(*sql.Selector)
+
 // Integration is the predicate function for integration builders.
 type Integration func(*sql.Selector)
 

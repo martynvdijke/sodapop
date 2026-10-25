@@ -29,6 +29,7 @@ import (
 	"sodapop/ent/flavour"
 	"sodapop/ent/follow"
 	"sodapop/ent/friendship"
+	"sodapop/ent/inboundtoken"
 	"sodapop/ent/integration"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
@@ -136,6 +137,7 @@ func checkColumn(t, c string) error {
 			flavour.Table:                flavour.ValidColumn,
 			follow.Table:                 follow.ValidColumn,
 			friendship.Table:             friendship.ValidColumn,
+			inboundtoken.Table:           inboundtoken.ValidColumn,
 			integration.Table:            integration.ValidColumn,
 			list.Table:                   list.ValidColumn,
 			listitem.Table:               listitem.ValidColumn,

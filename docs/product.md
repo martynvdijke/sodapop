@@ -22,10 +22,10 @@ Self-hosted, single binary, SQLite. No cloud account, no feed algorithm, no ads.
 ## 2. Scope
 
 ### v1 (must ship)
-Barcode scanning with manual fallback · shared drink catalog with styles and flavours · check-ins with quarter-star ratings, serving, venue, photo, notes · search and filters · friends and follows · chronological feed with toasts · venues including hotels, shops, cafés, vending · personal stats · lists and wishlist · badges · Authelia OIDC login + local email verification & password reset · OpenCode ("opencode2") AI drink drafting, tasting-note polish & recommendations · admin moderation & AI endpoint settings · Umami analytics · OTel traces/metrics/logs · PWA install + offline check-in queue · Flutter Android companion app (`mobile/`).
+Barcode scanning with manual fallback · shared drink catalog with styles and flavours · catalog browse with filters and lifecycle statuses including drops · check-ins with quarter-star ratings, serving, venue, photo, notes · check-in detail with toasts · search and filters · friends and follows · chronological feed with toasts · in-app notifications with an unread badge · venues including hotels, shops, cafés, vending · personal stats and nutrition insights · lists and wishlist · badges · Authelia OIDC login + local email verification & password reset · account settings with profile, preferences, privacy, security and data controls · opt-in public profiles · Home Assistant inbound and outbound integrations · OpenCode ("opencode2") AI drink drafting, tasting-note polish & recommendations · admin moderation, drink lifecycle and AI endpoint settings · Umami analytics · OTel traces/metrics/logs · PWA install + offline check-in queue · Flutter Android companion app (`mobile/`).
 
 ### v1.1 (fast follow)
-Comments on check-ins · user-submitted venue photos and menus · weekly email digest · web push · CSV/JSON export · public profile pages with SEO metadata · drink comparison view.
+Comments on check-ins · user-submitted venue photos and menus · weekly email digest · drink comparison view · richer public-profile metadata.
 
 ### Explicit non-goals
 Native iOS app · real-time chat · ActivityPub federation · paid business accounts · advertising · video · multi-tenant hosting · Postgres.
@@ -91,21 +91,20 @@ Packaging/volume presets: can 355 ml (12 oz), mini can 222 ml, tall can 473 ml, 
 
 ### 5.2 Scan → resolve
 
-Entry points: center nav scan button, header search → “Scan instead”, venue page “Check in here”.
+Entry points: the scan tab in the bottom bar, the check-in page, and `GET /scan` directly.
 
-1. Scanner opens as a full-screen dark overlay. Camera permission is requested at that moment, never on page load.
-2. Native `BarcodeDetector` if available; otherwise dynamically import the `barcode-detector` ponyfill (ZXing-C++ compiled to WebAssembly, ~1 MiB, cached after first use) inside a worker. Decode frames at 8–12 fps, cropped to the viewfinder band.
-3. Formats: EAN-13, EAN-8, UPC-A, UPC-E, Code 128. Normalize every result to GTIN-14; validate the GS1 check digit; UPC-A arrives as EAN-13 with a leading zero — strip/normalize deterministically.
-4. Debounce identical codes for 1.5 s. Haptic tick on detection; freeze frame; announce via live region.
-5. Resolution ladder, all server-side and local-cache-aware:
-   - **Local hit** → product line + “Check in” (≤300 ms).
-   - **OFF hit** → show imported fields, allow immediate check-in, mark `source=off`, unverified.
-   - **Miss** → “No match for {code}” with “Add this soda” and “Scan again”.
-6. No camera or denied permission: “Camera unavailable”, explanation, and a prominent “Enter barcode” button. Manual entry is never hidden.
-7. Manual entry accepts 8–14 digits, validates the check digit, and follows the same ladder.
-8. After 8 seconds without a decode, offer manual entry in place.
+1. The scanner asks for camera access only when the visitor opens it. The module binds to a `[data-scanner]` overlay and never requests permission on page load.
+2. Native `BarcodeDetector` is used when the browser exposes it, with the supported subset of EAN-13, EAN-8, UPC-A, UPC-E, GTIN-13 and GTIN-14. Otherwise the page lazy-imports the `barcode-detector` ponyfill (ZXing-C++ compiled to WebAssembly) and points it at the self-hosted `zxing_reader.wasm`, so CSP only needs `self` and the service worker can cache the binary.
+3. Frames are decoded at about 10 fps. The torch button appears only when `getCapabilities().torch` exists; it is hidden on iOS Safari.
+4. A decode stops the loop and every camera track, then navigates to `/scan?gtin={code}`. Closing the overlay, hiding the tab or `pagehide` also stops the tracks.
+5. `GET /scan?gtin=` normalizes the value to GTIN-14 and validates the GS1 check digit (invalid input returns 400). It then resolves the barcode:
+   - **Local hit** → the check-in page for that drink.
+   - **OFF hit** → the imported fields are used for the check-in and the row stays marked unverified.
+   - **Miss** → the pre-filled “Add a soda” form with the barcode attached.
+6. Manual GTIN entry stays available alongside the camera: `GET /scan?gtin=` accepts a typed code, so a blocked camera never blocks a check-in. The Flutter app uses its native ML Kit scanner for the same flow.
+7. Camera-denied and unsupported-browser states keep the rest of the check-in page usable and name the reason.
 
-**Unknown barcode create flow** (prefilled): barcode (read-only), brand with typeahead + “new brand”, name, style (parent then substyle), volume, packaging, optional sugar/caffeine/photo. Creates a provisional drink (`verified=0`, `source=user`, `created_by`) and immediately opens the check-in sheet. If a soft-key match exists (normalized brand + name + volume + packaging, or trigram similarity), show “Is this the same soda?” with both records side by side before creating. Never auto-merge.
+**Unknown barcode create flow** (prefilled): barcode (read-only), brand with typeahead + “new brand”, name, style (parent then substyle), volume, packaging, optional sugar/caffeine/photo. Creates a provisional drink (`status=provisional`, `source=user`, `created_by`) and immediately opens the check-in sheet. If a soft-key match exists (normalized brand + name + volume + packaging), show “Is this the same soda?” with both records side by side before creating. Never auto-merge.
 
 Barcode resolution results are cached locally and server-side: positive 30 days, negative 7 days, keyed by GTIN.
 
@@ -116,27 +115,27 @@ Single bottom sheet, one screen, no wizard.
 | Field | Required | Behaviour |
 |---|---|---|
 | Drink | yes | Fixed from scan/search; “Change” reopens search |
-| Rating | no | Quarter-star slider + tap; numeral always visible; “Not rated” default |
-| Serving | no | Can / glass bottle / plastic bottle / fountain / carton / other |
-| Volume | no | Prefilled from barcode/product; editable |
-| Venue | no | Typeahead, “near me” sorted by distance; create-inline allowed |
-| Date | no | Defaults now; backdating up to 30 days |
-| Photo | no | One image, 10 MiB cap, camera or library |
-| Notes | no | 2000 chars, plain text |
-| Visibility | yes | Defaults to profile default: public / friends / private |
-| Price | no | Optional, local currency |
+| Rating | no | Quarter-star choice; numeral always visible; “Not rated” default |
+| Serving | no | Can / bottle / glass / fountain / other |
+| Venue | no | Dropdown of known venues; no venue is fine |
+| Photo or clip | no | One image or MP4/WebM/QuickTime clip |
+| Notes | no | 1000 chars, plain text |
+| Visibility | yes | Defaults to the profile default: public / friends / private |
 
 Rules:
 - Repeat check-ins of the same drink are allowed; the drink page shows “You: 3 check-ins · 2.7 average”.
 - Posting writes the check-in, activity row, venue link, badge evaluation, and stats invalidation in one transaction.
-- Duplicate submit protection via an idempotency key (client-generated UUID) so offline retries never double-post.
-- Success: sheet closes, confirmation bar appears, and the feed row is inserted at the top.
+- Duplicate submit protection via an idempotency key so offline retries never double-post.
+- Success: the form returns to the feed and the new row appears at the top.
 - Editing a check-in updates `updated_at` and the activity row; editing a rating recomputes aggregates asynchronously (immediate on read via view).
+
+**Check-in detail** (`/checkins/{id}`) renders one check-in with author, drink, rating, note, venue, photo or clip, visibility and toast count. The owner sees delete; a signed-in non-owner sees the toast action; an anonymous visitor sees a sign-in prompt. Visibility follows the same rule as the API: owner, then `public` for anyone, then `friends` for accepted friends, otherwise a 404. `GET /api/v1/checkins/{id}` returns the same record with the same 404 behaviour. Delete is a soft delete and returns to `/you`.
 
 ### 5.4 Discover
 
 - **Search** (`/search?q=`): FTS5 over drink name, brand, style, aliases; grouped results (Drinks, Brands, Venues, Users). Debounced 250 ms, keyboard-navigable, empty state offers “Add a soda”.
-- **Browse** (`/drinks`): filters for style (parent/sub), flavour, brand, country, diet, caffeine-free, packaging, and minimum rating; sorts for name, newest, rating, check-in count. Filters live in the URL.
+- **Browse** (`/drinks`): filters for style (a parent also matches its children), brand, flavour, caffeine-free, sugar-free, and lifecycle status (active, limited, seasonal, discontinued); sorts for name, rated and newest; 24 per page with a next-page link. Filters live in the URL and are plain HTML, with no collection API behind them. `/brands` and `/styles` index every brand and style family, and their detail pages list the drinks in each.
+- **Drops** (`/drops`): limited editions with a `limited_until` date, seasonal sodas, and discontinued sodas with `discontinued_at`. Admins move a drink between active, limited, seasonal and discontinued from the drink page or admin view; wishlist owners get one in-app notification when a wishlisted soda is discontinued.
 - **Drink page**: image, brand, style chips, flavour chips, nutrition facts, average rating with count (hidden below 3 ratings, “Not enough ratings yet”), your history, friend ratings, “Found at” venue list, similar drinks by style, actions “Check in” and “Add to list”.
 - **Brand page**: drinks grid, country, description, top-rated.
 - **Style page**: description, top drinks, your count, badge progress.
@@ -148,9 +147,9 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 - **Friend request** from a profile or search row. Pending → accepted. Blocking removes friendship and follows in both directions and hides content both ways.
 - **Follow** is one-way and separate: following someone adds their public check-ins to the feed without a request.
 - **Feed** (`/`): own activity plus accepted friends plus followed users, newest first, keyset paginated 20 at a time, `visibility` respected. Tabs: Following / You / Nearby (venue check-ins within 25 km, requires location permission on demand).
-- **Toast**: one tap on the check-in icon; optimistic UI; undo within 5 s; the author gets a notification (in-app, batched per check-in).
-- **Notifications**: friend request, friend accepted, toast on your check-in, badge earned, report outcome. Unread count in the nav; mark-all-read.
-- No public like counts on profiles. Check-in detail shows who toasted.
+- **Toast**: one tap on the check-in icon; optimistic UI; undo while the page is open; the author gets a notification (in-app, and push when enabled).
+- **Notifications**: kinds are friend request, friend accepted, toast on your check-in, badge earned, and system (a wishlist drop, for example). The nav shows an unread count. `/notifications` lists the newest 50 with an actor, text, time and link; each row can be marked read, and “Mark all read” clears the rest. The same personal list is available at `GET /api/v1/notifications`, with `POST /api/v1/notifications/read` accepting an `id` or marking everything.
+- No public like counts on profiles. Check-in detail shows the toast count and the viewer's own toast state.
 
 ### 5.6 Venues and locations
 
@@ -169,11 +168,28 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 - **Badges**: count milestones (first check-in, 10, 50, 100, 250, 500), style explorer (5/15/30 distinct styles), brand explorer (10/25/50 brands), country explorer (3/10/25 countries), venue kinds (hotel, vending, festival), streak (7/30/90 days), social (first friend, 10 friends), special (first soda added to catalog). Three levels per badge where it makes sense. Earned badges appear in the profile grid; locked ones show progress.
 - Badge evaluation is idempotent and retroactive-safe: a backfill command can re-evaluate a user or all users.
 
-### 5.8 Profile and stats
+### 5.8 Profile, stats and insights
 
-Public profile: avatar, handle, display name, bio, member since, counts, favourite style, recent check-ins, badges, lists (visibility-filtered), friends count.
+A profile is opt-in public (`user_settings.public_profile`). The page lives at `/u/{handle}` and shows avatar, handle, display name, bio, member since, counts, recent check-ins, badges, lists and friend state.
 
-Personal stats: total check-ins, unique drinks, distinct styles, distinct brands, distinct countries, average rating, top-rated drink, most-checked drink, current streak, longest streak, venues visited, money spent (if prices logged), monthly histogram.
+Access rules:
+- Account deleted → 404.
+- Public profile → anyone, signed in or not, sees the profile and its `public` check-ins.
+- Not public, anonymous visitor → redirect to `/login` with a return path.
+- Not public, signed-in non-friend → 404, never 403, so handles cannot be enumerated.
+- Owner and accepted friends see `public`, `friends` and `private` check-ins; lists follow their own visibility.
+
+Only an opted-in public profile is indexable (`index,follow` with canonical and Open Graph metadata); everything else is `noindex,nofollow`. The API stays friend-scoped regardless: `GET /api/v1/users/{handle}` does not become a public profile endpoint.
+
+Personal stats: total check-ins, unique drinks, average rating, toasts received and badges. The profile summary shows pours, styles, venues and badges; `/you` shows totals, badge progress and recent pours.
+
+**Insights** (`/insights`) is self-only and reads the last 7, 30 or 90 calendar days:
+- Sugar, caffeine and calories come from the drink's per-100 ml facts multiplied by the logged volume. Logged check-ins without nutrition facts contribute zero.
+- The daily series is zero-filled so every day in the window is present with `sugar_g`, `caffeine_mg`, `calories_kcal` and `pours`.
+- Caffeine clearance halves the last dose every 5 hours until it drops below 20 mg, and reports when that happens.
+- With a `caffeine_bedtime` set, the page flags a late-caffeine day when the last dose plus 8 hours falls after bedtime.
+- The top-drinks list excludes merged and provisional rows; health totals still include what was logged.
+- The same data is available at `GET /api/v1/stats/me/insights?range=7|30|90`.
 
 ### 5.9 Admin
 
@@ -189,12 +205,15 @@ Role-gated (`moderator`, `admin`):
 
 ### 5.10 Settings
 
-- **Profile**: display name, bio, avatar, country, default visibility.
-- **Security**: change password, active sessions with revoke, API tokens (create with scopes, revoke), OIDC link/unlink.
-- **Notifications**: email on friend requests, weekly digest opt-in, push (v1.1).
-- **Appearance**: system/light/dark.
-- **Privacy**: analytics opt-out, export my data (JSON), delete account.
-- **Blocked users** list.
+All account controls live on one page at `/settings`:
+
+- **Profile**: display name, bio, avatar upload (JPEG, PNG, WebP or GIF, 5 MB cap). Handle and email are read-only here.
+- **Preferences**: theme system/light/dark, units metric or imperial, and an optional caffeine bedtime (`HH:MM`) used by insights.
+- **Notifications**: weekly email digest, friend-request email, and push (HTTPS and a supporting browser required).
+- **Privacy**: default visibility for new check-ins, opt-in public profile, and an analytics opt-out that removes the Umami script entirely.
+- **Security**: change password (current password required; the form asks for at least 10 characters and other sessions are revoked), API token management at `/settings/tokens`, active session list with per-session revoke, and “Sign out everywhere”.
+- **Data**: JSON export of the account's data and soft-delete account closure (type the handle to confirm). Deletion marks the row deleted, removes sessions and revokes tokens.
+- **Password reset**: `/forgot` always shows the same anti-enumerated response, and `/reset/{token}` accepts a 1-hour, single-use link that revokes every session on success.
 
 ### 5.11 OpenCode ("opencode2") AI assistant
 
@@ -209,6 +228,16 @@ Companion Android client modeled on `board-games/mobile` and `dnd/mobile` (full 
 - **Onboarding**: starts with an empty server URL field (zero hardcoded default URL), validates and normalizes `http(s)` URLs, probes `GET /api/v1/auth/oidc/status`, and offers **“Sign in with Authelia”** (in-app WebView + native cookie capture + `sd_` device token exchange) alongside personal API token (`sd_…`) and optional password fallback.
 - **Native barcode scanner**: uses `mobile_scanner` (CameraX + ML Kit) with hardware torch and pinch-to-zoom, normalizing scans to GTIN-14 and resolving against the same local cache → `/api/v1/barcodes/{gtin}` ladder.
 - **Feature parity**: 5-slot bottom navigation (`Feed`, `Discover`, lifted lime `Scan` button, `Venues`, `Profile`), quarter-star check-in sheet with photo upload and AI tasting-note polish, offline check-in queue with idempotency keys, and lime/forest Material 3 theme (`#B4E32C` / `#16241A` / `#F2F4E6` / `#0C130E`).
+
+### 5.13 Integrations
+
+Outbound integrations are configured per user at `/integrations`: Home Assistant webhook, Matrix room (`homeserver|room_id` plus a token) and TRMNL. A test button sends a sample event. TRMNL receives `merge_variables` JSON from the latest public or friends-visible check-in, and push delivery only happens when `push_enabled` is on.
+
+**Home Assistant inbound** lets a motion sensor or NFC tag log a soda:
+- Create a token at `/integrations` (one active token per user; creating a new one revokes the previous). Only metadata is listed afterwards; the token is stored as a SHA-256 hash.
+- `POST /hooks/ha/{token}` with `gtin` or `slug`, plus optional `rating` (0–20), `note`, `venue_id` and `serving`. Send an `Idempotency-Key` header (or `idempotency_key` body field) so a retrying automation does not log twice.
+- The route is rate limited to 10 requests per minute per token and returns a generic 401 for unknown, revoked or malformed tokens.
+- `GET /api/v1/integrations/home-assistant` returns outbound wiring plus inbound token metadata for a sensor or diagnostic card.
 
 ## 6. Barcode scanning requirements
 
@@ -316,6 +345,23 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 - Creating a venue with an exact name+city match is blocked with a link to the existing venue.
 - A check-in at a hotel appears on the hotel's page with kind `hotel`.
 
+**Notifications, profiles and settings**
+- An unread notification increments the nav badge; marking one read decrements it, and mark-all-read clears the badge.
+- A non-public profile redirects an anonymous visitor to `/login` and returns 404 to a signed-in stranger.
+- An opted-in public profile renders only `public` check-ins to an anonymous visitor.
+- Password reset from `/forgot` to `/reset/{token}` changes the password once, expires after 1 hour, and revokes every session.
+- The analytics opt-out removes the Umami script even when `UMAMI_URL` is configured.
+
+**Catalog, drops and insights**
+- `/scan?gtin=` rejects a bad check digit with 400 and resolves a known GTIN to its drink.
+- `/drinks` filters compose in the URL and page 24 rows at a time; the same data is not available from a collection API.
+- Discontinuing a wishlisted drink notifies each owner once, even if the status action is retried.
+- `/insights` returns a zero-filled series for each day in the selected 7, 30 or 90-day window and is scoped to the signed-in user.
+
+**Home Assistant inbound**
+- A valid token creates an idempotent check-in from `gtin` or `slug`; a revoked or unknown token returns the same 401.
+- A retry with the same `Idempotency-Key` returns 200 and the original check-in instead of a second row.
+
 **Ops**
 - `/healthz` returns 200 with no collector configured; `OTEL_*` unset means no outbound telemetry.
 - `OTEL_EXPORTER_OTLP_ENDPOINT` points at the collector profile; traces, metrics, and logs arrive with `service.name=sodapop`.
@@ -333,7 +379,7 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 | SQLite write contention from badge/stats writes | Single writer, WAL, short transactions; stats from views at read time |
 | Self-hosted SMTP deliverability | Clear setup docs, test-email button, outbox visibility, optional relay |
 
-Open: whether to seed a starter catalog (e.g. 500 common sodas) to make first-run useful; whether to support imperial units by locale; whether to expose a public read-only API.
+Open: whether to seed a starter catalog (e.g. 500 common sodas) to make first-run useful; whether to default units by locale now that a metric/imperial toggle exists; whether to expose a public read-only API without weakening the friend-scoped `/api/v1` contract.
 
 ## 13. Success signals
 

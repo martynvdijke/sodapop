@@ -156,6 +156,9 @@ func (UserSetting) Fields() []ent.Field {
 		field.Bool("email_weekly").Default(false),
 		field.Bool("push_enabled").Default(false),
 		field.Enum("theme").Values("system", "light", "dark").Default("system"),
+		field.Bool("public_profile").Default(false),
+		field.Enum("units").Values("metric", "imperial").Default("metric"),
+		field.String("caffeine_bedtime").Default(""),
 		field.String("updated_at").DefaultFunc(now),
 	}
 }

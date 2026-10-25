@@ -17,6 +17,7 @@ import (
 	"sodapop/ent"
 	"sodapop/ent/integration"
 	"sodapop/ent/pushsubscription"
+	"sodapop/ent/usersetting"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 )
@@ -81,17 +82,32 @@ func (s *Service) Dispatch(ctx context.Context, e Event) {
 			s.logger().Warn("load integrations failed", "user_id", e.UserID, "err", err)
 		}
 		for _, row := range rows {
+			sendCtx := dctx
+			cancelSend := func() {}
+			if row.Kind == integration.KindTrmnl {
+				sendCtx, cancelSend = context.WithTimeout(context.Background(), 12*time.Second)
+			}
 			var sendErr error
 			switch row.Kind {
 			case integration.KindHomeAssistant:
-				sendErr = s.sendHomeAssistant(dctx, row, e)
+				sendErr = s.sendHomeAssistant(sendCtx, row, e)
 			case integration.KindMatrix:
-				sendErr = s.sendMatrix(dctx, row, e)
+				sendErr = s.sendMatrix(sendCtx, row, e)
+			case integration.KindTrmnl:
+				sendErr = s.sendTRMNL(sendCtx, row)
 			}
+			cancelSend()
 			if sendErr != nil {
 				s.logger().Warn("integration delivery failed",
 					"user_id", e.UserID, "kind", row.Kind, "err", sendErr)
 			}
+		}
+
+		settings, err := s.Client.UserSetting.Query().
+			Where(usersetting.UserID(e.UserID)).
+			Only(dctx)
+		if err != nil || settings == nil || !settings.PushEnabled {
+			return
 		}
 
 		subs, err := s.Client.PushSubscription.Query().

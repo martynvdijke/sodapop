@@ -3,7 +3,14 @@ package web
 import (
 	"encoding/json"
 	"io/fs"
+	"mime"
 )
+
+func init() {
+	// The barcode fallback compiles a self-hosted WebAssembly module; browsers
+	// require the canonical type for instantiateStreaming.
+	_ = mime.AddExtensionType(".wasm", "application/wasm")
+}
 
 // assetManifest is the subset of Vite's manifest we need. Styles stay at a
 // stable path so they can be cached by the service worker; scripts are hashed.

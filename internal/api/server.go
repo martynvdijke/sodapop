@@ -65,6 +65,11 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/me", s.protect("read", false, s.me))
 	mux.HandleFunc("GET /api/v1/me/checkins", s.protect("read", false, s.myCheckins))
 	mux.HandleFunc("GET /api/v1/stats/me", s.protect("read", false, s.myStats))
+	mux.HandleFunc("GET /api/v1/notifications", s.protect("read", false, s.notifications))
+	mux.HandleFunc("POST /api/v1/notifications/read", s.protect("write", false, s.notificationsRead))
+	mux.HandleFunc("GET /api/v1/checkins/{id}", s.protect("read", false, s.getCheckin))
+	mux.HandleFunc("GET /api/v1/stats/me/insights", s.protect("read", false, s.myInsights))
+	mux.HandleFunc("GET /api/v1/integrations/home-assistant", s.protect("read", false, s.integrationHAStatus))
 
 	mux.HandleFunc("GET /api/v1/feed", s.protect("feed", false, s.feed))
 	mux.HandleFunc("GET /api/v1/friends", s.protect("feed", false, s.friends))

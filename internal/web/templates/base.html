@@ -4,13 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="robots" content="noindex, nofollow">
+  {{if .MetaRobots}}<meta name="robots" content="{{.MetaRobots}}">{{else}}<meta name="robots" content="noindex, nofollow">{{end}}
   <title>{{.Title}} · {{.AppName}}</title>
+  {{if .MetaDescription}}<meta name="description" content="{{.MetaDescription}}">{{end}}
+  {{if .CanonicalURL}}<link rel="canonical" href="{{.CanonicalURL}}">{{end}}
+  {{if .MetaTitle}}<meta property="og:title" content="{{.MetaTitle}}">{{end}}
+  {{if .MetaDescription}}<meta property="og:description" content="{{.MetaDescription}}">{{end}}
+  {{if .OGType}}<meta property="og:type" content="{{.OGType}}">{{else if .Profile}}<meta property="og:type" content="profile">{{end}}
+  {{if .CanonicalURL}}<meta property="og:url" content="{{.CanonicalURL}}">{{end}}
+  {{if .MetaTitle}}<meta name="twitter:title" content="{{.MetaTitle}}">{{end}}
+  {{if .MetaDescription}}<meta name="twitter:description" content="{{.MetaDescription}}">{{end}}
+  <meta name="twitter:card" content="summary">
   <meta name="theme-color" content="#B4E32C">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" href="/static/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icon-180.png">
   <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/browse.css">
   <script defer src="{{.AssetScript}}"></script>
   {{if .UmamiURL}}<script defer src="{{.UmamiURL}}/script.js" data-website-id="{{.UmamiID}}"></script>{{end}}
 </head>
@@ -20,16 +30,26 @@
     <a class="brand" href="/"><span class="brand-dot" aria-hidden="true"></span> Sodapop</a>
     <nav aria-label="Primary">
       {{if .User}}
-        <a href="/search">Discover</a>
-        <a href="/friends">Friends</a>
-        <a href="/lists">Lists</a>
-        <a href="/passport">Passport</a>
-        <a href="/mix">Mix Lab</a>
-        <a href="/you">You</a>
-        <form method="post" action="/logout" class="inline">
-          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
-          <button class="link" type="submit">Sign out</button>
-        </form>
+        <a class="nav-main" href="/drinks">Browse</a>
+        <a class="nav-main" href="/search">Discover</a>
+        <a class="nav-main" href="/friends">Friends</a>
+        <a class="nav-notif" href="/notifications">Notifications{{if .NavUnread}}<span class="nav-badge" aria-hidden="true">{{.NavUnread}}</span><span class="sr-only">, {{.NavUnread}} unread</span>{{end}}</a>
+        <a class="nav-main" href="/you">You</a>
+        <details class="nav-more">
+          <summary>More</summary>
+          <div class="nav-more-panel">
+            <a class="nav-mobile-only" href="/drinks">Browse</a>
+            <a href="/lists">Lists</a>
+            <a href="/passport">Passport</a>
+            <a href="/mix">Mix Lab</a>
+            <a href="/insights">Insights</a>
+            <a href="/settings">Settings</a>
+            <form method="post" action="/logout">
+              <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+              <button class="link" type="submit">Sign out</button>
+            </form>
+          </div>
+        </details>
       {{else}}
         <a href="/login">Sign in</a>
         <a class="btn btn-small" href="/register">Join</a>
@@ -48,7 +68,14 @@
   <nav class="tabbar" aria-label="Sections">
     <a href="/">Feed</a>
     <a href="/search">Search</a>
-    <a class="scan" href="/search" aria-label="Scan or search a soda">＋</a>
+    <a class="scan" href="/scan" aria-label="Scan a soda">
+      <span class="scan-circle" aria-hidden="true">
+        <svg class="scan-icon" viewBox="0 0 24 24" focusable="false">
+          <path d="M4 5v14M8 5v14M12 5v14M16 5v10M20 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="scan-label" aria-hidden="true">Scan</span>
+    </a>
     <a href="/friends">Friends</a>
     <a href="/you">You <span class="pending-count" data-pending-count hidden></span></a>
   </nav>

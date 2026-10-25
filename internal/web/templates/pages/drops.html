@@ -1,0 +1,102 @@
+{{define "content"}}
+<section class="drops-page">
+  <header class="drops-header">
+    <p class="eyebrow">Catalog</p>
+    <h1>{{.Title}}</h1>
+    <p class="drops-lead">Limited runs, seasonal releases, and sodas that are no longer made.</p>
+  </header>
+
+  <section class="drops-section" aria-labelledby="drops-limited">
+    <div class="drops-heading">
+      <h2 id="drops-limited">Limited</h2>
+      <span class="drops-tally">{{len .Limited}} {{if eq (len .Limited) 1}}soda{{else}}sodas{{end}}</span>
+    </div>
+    <p class="drops-intro">Short runs with an end date. When the date passes, they leave this list.</p>
+
+    {{if .Limited}}
+      <div class="drops-grid">
+        {{range .Limited}}
+          <a class="card drops-card" href="/drinks/{{.Slug}}">
+            <span class="drops-bottle" aria-hidden="true">{{initial .Name}}</span>
+            <span class="drops-body">
+              <strong class="drops-name">{{.Name}}</strong>
+              <span class="drops-meta">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</span>
+              <span class="drops-meta">{{.VolumeML}} ml {{container .Container}}</span>
+            </span>
+            <span class="drops-side">
+              {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{else}}<span class="drops-unrated">Not rated</span>{{end}}
+              <span class="drops-status">{{if eq .Status "limited"}}Limited{{else if eq .Status "seasonal"}}Seasonal{{else if eq .Status "discontinued"}}Discontinued{{else}}{{.Status}}{{end}}</span>
+            </span>
+          </a>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="drops-empty">
+        <p>No limited sodas right now. A new run will show up here when it starts.</p>
+      </div>
+    {{end}}
+  </section>
+
+  <section class="drops-section" aria-labelledby="drops-seasonal">
+    <div class="drops-heading">
+      <h2 id="drops-seasonal">Seasonal</h2>
+      <span class="drops-tally">{{len .Seasonal}} {{if eq (len .Seasonal) 1}}soda{{else}}sodas{{end}}</span>
+    </div>
+    <p class="drops-intro">Sodas that come back around the same time each year.</p>
+
+    {{if .Seasonal}}
+      <div class="drops-grid">
+        {{range .Seasonal}}
+          <a class="card drops-card" href="/drinks/{{.Slug}}">
+            <span class="drops-bottle" aria-hidden="true">{{initial .Name}}</span>
+            <span class="drops-body">
+              <strong class="drops-name">{{.Name}}</strong>
+              <span class="drops-meta">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</span>
+              <span class="drops-meta">{{.VolumeML}} ml {{container .Container}}</span>
+            </span>
+            <span class="drops-side">
+              {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{else}}<span class="drops-unrated">Not rated</span>{{end}}
+              <span class="drops-status">{{if eq .Status "limited"}}Limited{{else if eq .Status "seasonal"}}Seasonal{{else if eq .Status "discontinued"}}Discontinued{{else}}{{.Status}}{{end}}</span>
+            </span>
+          </a>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="drops-empty">
+        <p>No seasonal sodas at the moment. They come back on their own schedule.</p>
+      </div>
+    {{end}}
+  </section>
+
+  <section class="drops-section" aria-labelledby="drops-discontinued">
+    <div class="drops-heading">
+      <h2 id="drops-discontinued">Discontinued</h2>
+      <span class="drops-tally">{{len .Discontinued}} {{if eq (len .Discontinued) 1}}soda{{else}}sodas{{end}}</span>
+    </div>
+    <p class="drops-intro">Sodas that are no longer produced. They stay in the catalog so old check-ins keep their home, and the memory of a good can stays put.</p>
+
+    {{if .Discontinued}}
+      <div class="drops-grid">
+        {{range .Discontinued}}
+          <a class="card drops-card" href="/drinks/{{.Slug}}">
+            <span class="drops-bottle" aria-hidden="true">{{initial .Name}}</span>
+            <span class="drops-body">
+              <strong class="drops-name">{{.Name}}</strong>
+              <span class="drops-meta">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</span>
+              <span class="drops-meta">{{.VolumeML}} ml {{container .Container}}</span>
+            </span>
+            <span class="drops-side">
+              {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{else}}<span class="drops-unrated">Not rated</span>{{end}}
+              <span class="drops-status">{{if eq .Status "limited"}}Limited{{else if eq .Status "seasonal"}}Seasonal{{else if eq .Status "discontinued"}}Discontinued{{else}}{{.Status}}{{end}}</span>
+            </span>
+          </a>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="drops-empty">
+        <p>Nothing here yet. This list fills in as sodas leave production.</p>
+      </div>
+    {{end}}
+  </section>
+</section>
+{{end}}

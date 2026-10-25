@@ -1,0 +1,670 @@
+/* Browse, brand, style and drops pages. Tokens live in app.css. */
+
+/* --- Shared page chrome ------------------------------------------------- */
+
+.browse-header h1,
+.brand-header h1,
+.style-header h1,
+.drops-header h1 {
+  margin: 0 0 .35rem;
+}
+
+.browse-lead,
+.drops-lead {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 1.02rem;
+}
+
+.browse-back {
+  margin: 0 0 .75rem;
+  font-size: .85rem;
+}
+
+.browse-back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- Mode switcher ------------------------------------------------------ */
+
+.browse-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin: 1.25rem 0 0;
+}
+
+.browse-modes a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 .9rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.browse-modes a:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.browse-modes a[aria-current="page"] {
+  background: var(--primary-tint);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  font-weight: 700;
+}
+
+/* --- Filter form -------------------------------------------------------- */
+
+.browse-filters {
+  margin: 1.25rem 0 0;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.browse-filters-title {
+  margin: 0 0 .85rem;
+  font-size: 1rem;
+  letter-spacing: -.01em;
+}
+
+.browse-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .85rem;
+}
+
+.browse-field {
+  display: grid;
+  gap: .35rem;
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.browse-field input,
+.browse-field select {
+  width: 100%;
+  min-width: 0;
+}
+
+.browse-field .hint {
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.browse-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.25rem;
+  margin-top: 1rem;
+}
+
+.browse-check {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  min-height: 44px;
+  font-size: .9rem;
+  font-weight: 600;
+}
+
+.browse-check input[type="checkbox"] {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--primary-press);
+}
+
+.browse-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+  margin-top: 1rem;
+}
+
+.browse-reset {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- Result count and grid --------------------------------------------- */
+
+.browse-count {
+  margin: 1.5rem 0 .75rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.browse-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .75rem;
+}
+
+.browse-grid .drink-card {
+  height: 100%;
+  margin-bottom: 0;
+}
+
+.browse-grid .drink-card > div:not(.bottle) {
+  flex: 1;
+  min-width: 0;
+}
+
+.browse-grid .drink-card strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.browse-grid .drink-card .muted {
+  overflow-wrap: anywhere;
+}
+
+.browse-grid .drink-card .rating-pill {
+  margin-inline-start: auto;
+}
+
+@media (hover: hover) {
+  .browse-grid .drink-card {
+    transition: transform 120ms ease, border-color 120ms ease;
+  }
+
+  .browse-grid .drink-card:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* --- Pagination --------------------------------------------------------- */
+
+.browse-pager {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 1.5rem 0 .5rem;
+}
+
+.browse-page-label {
+  flex: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.browse-page-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.browse-page-link:hover {
+  border-color: var(--text);
+}
+
+/* --- Empty states ------------------------------------------------------- */
+
+.browse-empty,
+.brand-empty,
+.style-empty {
+  padding: 1.5rem 1.25rem;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.browse-empty h2 {
+  margin: 0 0 .35rem;
+  font-size: 1.05rem;
+}
+
+.browse-empty p,
+.brand-empty p,
+.style-empty p {
+  max-width: 34ch;
+  margin: 0 auto .75rem;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+.browse-empty p:last-child,
+.brand-empty p:last-child,
+.style-empty p:last-child {
+  margin-bottom: 0;
+}
+
+/* --- Brands index ------------------------------------------------------- */
+
+.browse-brands {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .6rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.browse-brand {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  height: 100%;
+  min-height: 72px;
+  padding: .8rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+
+.browse-brand:hover {
+  border-color: var(--border-strong);
+}
+
+.browse-brand-logo {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--primary-tint);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text);
+  font-weight: 750;
+}
+
+.browse-brand-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.browse-brand-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.browse-brand-count {
+  display: block;
+  color: var(--text-muted);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Styles index ------------------------------------------------------- */
+
+.browse-styles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.browse-family {
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.browse-family-name {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.browse-family-name a {
+  text-decoration: none;
+}
+
+.browse-family-name a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.browse-family-count {
+  margin: .2rem 0 0;
+  color: var(--text-muted);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.browse-family-desc {
+  margin: .5rem 0 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+  max-width: 46ch;
+}
+
+.browse-children {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin: .75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.browse-child {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 44px;
+  padding: 0 .85rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: .85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.browse-child:hover {
+  background: var(--surface-sunken);
+}
+
+.browse-child-count {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Brand page --------------------------------------------------------- */
+
+.brand-count,
+.style-count {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.brand-description,
+.style-description {
+  max-width: 62ch;
+  margin: 1rem 0 0;
+  color: var(--text-muted);
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.brand-section-title,
+.style-drinks h2 {
+  margin: 2rem 0 .75rem;
+  font-size: 1.2rem;
+}
+
+/* --- Style page --------------------------------------------------------- */
+
+.style-parent {
+  margin: 0 0 .25rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+.style-children-section {
+  margin-top: 2rem;
+}
+
+.style-children-section h2 {
+  margin: 0 0 .75rem;
+  font-size: 1.2rem;
+}
+
+.style-children {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.style-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  min-height: 52px;
+  padding: .65rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.style-child:hover {
+  border-color: var(--border-strong);
+}
+
+.style-child-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.style-child-count {
+  color: var(--text-muted);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Drops -------------------------------------------------------------- */
+
+.drops-section {
+  margin-top: 2.25rem;
+}
+
+.drops-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .5rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.drops-heading h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.drops-tally {
+  color: var(--text-muted);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.drops-intro {
+  max-width: 62ch;
+  margin: .75rem 0 1rem;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+.drops-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .75rem;
+}
+
+.drops-card {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  height: 100%;
+  text-decoration: none;
+}
+
+.drops-bottle {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  width: 44px;
+  height: 56px;
+  background: var(--surface-sunken);
+  border-radius: 12px 12px 10px 10px;
+  font-weight: 750;
+}
+
+.drops-body {
+  display: grid;
+  flex: 1;
+  gap: .1rem;
+  min-width: 0;
+}
+
+.drops-name {
+  overflow-wrap: anywhere;
+}
+
+.drops-meta {
+  color: var(--text-muted);
+  font-size: .82rem;
+  overflow-wrap: anywhere;
+}
+
+.drops-side {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: .3rem;
+  text-align: right;
+}
+
+.drops-unrated {
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+
+.drops-status {
+  display: inline-flex;
+  align-items: center;
+  padding: .15rem .5rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.drops-empty {
+  padding: 1.25rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+.drops-empty p {
+  margin: 0;
+}
+
+@media (hover: hover) {
+  .drops-card {
+    transition: border-color 120ms ease;
+  }
+
+  .drops-card:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+/* --- Focus ------------------------------------------------------------- */
+
+.browse-brand:focus-visible,
+.browse-child:focus-visible,
+.browse-page-link:focus-visible,
+.browse-family-name a:focus-visible,
+.browse-back a:focus-visible,
+.style-child:focus-visible,
+.drops-card:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* --- Breakpoints ------------------------------------------------------- */
+
+@media (min-width: 640px) {
+  .browse-filter-grid {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+
+  .browse-brands,
+  .style-children {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .browse-grid,
+  .drops-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .browse-styles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .browse-brands {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+  }
+
+  .browse-grid,
+  .drops-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Dark mode: the lime edge and inset rings are only needed on cream. */
+
+@media (prefers-color-scheme: dark) {
+  .browse-modes a[aria-current="page"] {
+    box-shadow: none;
+  }
+
+  .browse-brand-logo {
+    border-color: var(--border);
+  }
+}

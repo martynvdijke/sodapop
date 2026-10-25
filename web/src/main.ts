@@ -1,6 +1,8 @@
 /* Sodapop progressive enhancement: service worker, offline check-ins,
    optional AI polishing and Web Push. Core pages work without this file. */
 
+import { initScanner } from './scanner'
+
 const QUEUE_KEY = 'sodapop.offline.checkins.v1'
 
 type QueuedCheckin = { data: Record<string, string>; at: number }
@@ -224,3 +226,5 @@ document.addEventListener('DOMContentLoaded', () => {
   renderPending()
   void flushQueue()
 })
+
+initScanner()

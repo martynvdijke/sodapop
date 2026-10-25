@@ -25,6 +25,7 @@ import (
 	"sodapop/ent/flavour"
 	"sodapop/ent/follow"
 	"sodapop/ent/friendship"
+	"sodapop/ent/inboundtoken"
 	"sodapop/ent/integration"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
@@ -343,11 +344,11 @@ func init() {
 	// drink.DefaultRecipeJSON holds the default value on creation for the recipe_json field.
 	drink.DefaultRecipeJSON = drinkDescRecipeJSON.Default.(string)
 	// drinkDescCreatedAt is the schema descriptor for created_at field.
-	drinkDescCreatedAt := drinkFields[21].Descriptor()
+	drinkDescCreatedAt := drinkFields[23].Descriptor()
 	// drink.DefaultCreatedAt holds the default value on creation for the created_at field.
 	drink.DefaultCreatedAt = drinkDescCreatedAt.Default.(func() string)
 	// drinkDescUpdatedAt is the schema descriptor for updated_at field.
-	drinkDescUpdatedAt := drinkFields[22].Descriptor()
+	drinkDescUpdatedAt := drinkFields[24].Descriptor()
 	// drink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	drink.DefaultUpdatedAt = drinkDescUpdatedAt.Default.(func() string)
 	drinkaliasFields := schema.DrinkAlias{}.Fields()
@@ -498,6 +499,28 @@ func init() {
 	friendshipDescUpdatedAt := friendshipFields[5].Descriptor()
 	// friendship.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	friendship.DefaultUpdatedAt = friendshipDescUpdatedAt.Default.(func() string)
+	inboundtokenFields := schema.InboundToken{}.Fields()
+	_ = inboundtokenFields
+	// inboundtokenDescUserID is the schema descriptor for user_id field.
+	inboundtokenDescUserID := inboundtokenFields[1].Descriptor()
+	// inboundtoken.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	inboundtoken.UserIDValidator = inboundtokenDescUserID.Validators[0].(func(string) error)
+	// inboundtokenDescLabel is the schema descriptor for label field.
+	inboundtokenDescLabel := inboundtokenFields[3].Descriptor()
+	// inboundtoken.DefaultLabel holds the default value on creation for the label field.
+	inboundtoken.DefaultLabel = inboundtokenDescLabel.Default.(string)
+	// inboundtokenDescTokenHash is the schema descriptor for token_hash field.
+	inboundtokenDescTokenHash := inboundtokenFields[4].Descriptor()
+	// inboundtoken.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	inboundtoken.TokenHashValidator = inboundtokenDescTokenHash.Validators[0].(func(string) error)
+	// inboundtokenDescCreatedAt is the schema descriptor for created_at field.
+	inboundtokenDescCreatedAt := inboundtokenFields[6].Descriptor()
+	// inboundtoken.DefaultCreatedAt holds the default value on creation for the created_at field.
+	inboundtoken.DefaultCreatedAt = inboundtokenDescCreatedAt.Default.(func() string)
+	// inboundtokenDescID is the schema descriptor for id field.
+	inboundtokenDescID := inboundtokenFields[0].Descriptor()
+	// inboundtoken.DefaultID holds the default value on creation for the id field.
+	inboundtoken.DefaultID = inboundtokenDescID.Default.(func() string)
 	integrationFields := schema.Integration{}.Fields()
 	_ = integrationFields
 	// integrationDescUserID is the schema descriptor for user_id field.
@@ -866,8 +889,16 @@ func init() {
 	usersettingDescPushEnabled := usersettingFields[3].Descriptor()
 	// usersetting.DefaultPushEnabled holds the default value on creation for the push_enabled field.
 	usersetting.DefaultPushEnabled = usersettingDescPushEnabled.Default.(bool)
+	// usersettingDescPublicProfile is the schema descriptor for public_profile field.
+	usersettingDescPublicProfile := usersettingFields[5].Descriptor()
+	// usersetting.DefaultPublicProfile holds the default value on creation for the public_profile field.
+	usersetting.DefaultPublicProfile = usersettingDescPublicProfile.Default.(bool)
+	// usersettingDescCaffeineBedtime is the schema descriptor for caffeine_bedtime field.
+	usersettingDescCaffeineBedtime := usersettingFields[7].Descriptor()
+	// usersetting.DefaultCaffeineBedtime holds the default value on creation for the caffeine_bedtime field.
+	usersetting.DefaultCaffeineBedtime = usersettingDescCaffeineBedtime.Default.(string)
 	// usersettingDescUpdatedAt is the schema descriptor for updated_at field.
-	usersettingDescUpdatedAt := usersettingFields[5].Descriptor()
+	usersettingDescUpdatedAt := usersettingFields[8].Descriptor()
 	// usersetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	usersetting.DefaultUpdatedAt = usersettingDescUpdatedAt.Default.(func() string)
 	venueFields := schema.Venue{}.Fields()

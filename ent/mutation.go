@@ -28,6 +28,7 @@ import (
 	"sodapop/ent/flavour"
 	"sodapop/ent/follow"
 	"sodapop/ent/friendship"
+	"sodapop/ent/inboundtoken"
 	"sodapop/ent/integration"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
@@ -86,6 +87,7 @@ const (
 	TypeFlavour                = "Flavour"
 	TypeFollow                 = "Follow"
 	TypeFriendship             = "Friendship"
+	TypeInboundToken           = "InboundToken"
 	TypeIntegration            = "Integration"
 	TypeList                   = "List"
 	TypeListItem               = "ListItem"
@@ -8526,6 +8528,8 @@ type DrinkMutation struct {
 	recipe_json                *string
 	source                     *drink.Source
 	status                     *drink.Status
+	discontinued_at            *string
+	limited_until              *string
 	created_by                 *string
 	merged_into_id             *int
 	addmerged_into_id          *int
@@ -9427,6 +9431,104 @@ func (m *DrinkMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetDiscontinuedAt sets the "discontinued_at" field.
+func (m *DrinkMutation) SetDiscontinuedAt(s string) {
+	m.discontinued_at = &s
+}
+
+// DiscontinuedAt returns the value of the "discontinued_at" field in the mutation.
+func (m *DrinkMutation) DiscontinuedAt() (r string, exists bool) {
+	v := m.discontinued_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscontinuedAt returns the old "discontinued_at" field's value of the Drink entity.
+// If the Drink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DrinkMutation) OldDiscontinuedAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscontinuedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscontinuedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscontinuedAt: %w", err)
+	}
+	return oldValue.DiscontinuedAt, nil
+}
+
+// ClearDiscontinuedAt clears the value of the "discontinued_at" field.
+func (m *DrinkMutation) ClearDiscontinuedAt() {
+	m.discontinued_at = nil
+	m.clearedFields[drink.FieldDiscontinuedAt] = struct{}{}
+}
+
+// DiscontinuedAtCleared returns if the "discontinued_at" field was cleared in this mutation.
+func (m *DrinkMutation) DiscontinuedAtCleared() bool {
+	_, ok := m.clearedFields[drink.FieldDiscontinuedAt]
+	return ok
+}
+
+// ResetDiscontinuedAt resets all changes to the "discontinued_at" field.
+func (m *DrinkMutation) ResetDiscontinuedAt() {
+	m.discontinued_at = nil
+	delete(m.clearedFields, drink.FieldDiscontinuedAt)
+}
+
+// SetLimitedUntil sets the "limited_until" field.
+func (m *DrinkMutation) SetLimitedUntil(s string) {
+	m.limited_until = &s
+}
+
+// LimitedUntil returns the value of the "limited_until" field in the mutation.
+func (m *DrinkMutation) LimitedUntil() (r string, exists bool) {
+	v := m.limited_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLimitedUntil returns the old "limited_until" field's value of the Drink entity.
+// If the Drink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DrinkMutation) OldLimitedUntil(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLimitedUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLimitedUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLimitedUntil: %w", err)
+	}
+	return oldValue.LimitedUntil, nil
+}
+
+// ClearLimitedUntil clears the value of the "limited_until" field.
+func (m *DrinkMutation) ClearLimitedUntil() {
+	m.limited_until = nil
+	m.clearedFields[drink.FieldLimitedUntil] = struct{}{}
+}
+
+// LimitedUntilCleared returns if the "limited_until" field was cleared in this mutation.
+func (m *DrinkMutation) LimitedUntilCleared() bool {
+	_, ok := m.clearedFields[drink.FieldLimitedUntil]
+	return ok
+}
+
+// ResetLimitedUntil resets all changes to the "limited_until" field.
+func (m *DrinkMutation) ResetLimitedUntil() {
+	m.limited_until = nil
+	delete(m.clearedFields, drink.FieldLimitedUntil)
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (m *DrinkMutation) SetCreatedBy(s string) {
 	m.created_by = &s
@@ -9976,7 +10078,7 @@ func (m *DrinkMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DrinkMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 24)
 	if m.brand != nil {
 		fields = append(fields, drink.FieldBrandID)
 	}
@@ -10030,6 +10132,12 @@ func (m *DrinkMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, drink.FieldStatus)
+	}
+	if m.discontinued_at != nil {
+		fields = append(fields, drink.FieldDiscontinuedAt)
+	}
+	if m.limited_until != nil {
+		fields = append(fields, drink.FieldLimitedUntil)
 	}
 	if m.created_by != nil {
 		fields = append(fields, drink.FieldCreatedBy)
@@ -10087,6 +10195,10 @@ func (m *DrinkMutation) Field(name string) (ent.Value, bool) {
 		return m.Source()
 	case drink.FieldStatus:
 		return m.Status()
+	case drink.FieldDiscontinuedAt:
+		return m.DiscontinuedAt()
+	case drink.FieldLimitedUntil:
+		return m.LimitedUntil()
 	case drink.FieldCreatedBy:
 		return m.CreatedBy()
 	case drink.FieldMergedIntoID:
@@ -10140,6 +10252,10 @@ func (m *DrinkMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSource(ctx)
 	case drink.FieldStatus:
 		return m.OldStatus(ctx)
+	case drink.FieldDiscontinuedAt:
+		return m.OldDiscontinuedAt(ctx)
+	case drink.FieldLimitedUntil:
+		return m.OldLimitedUntil(ctx)
 	case drink.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
 	case drink.FieldMergedIntoID:
@@ -10283,6 +10399,20 @@ func (m *DrinkMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case drink.FieldDiscontinuedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscontinuedAt(v)
+		return nil
+	case drink.FieldLimitedUntil:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLimitedUntil(v)
+		return nil
 	case drink.FieldCreatedBy:
 		v, ok := value.(string)
 		if !ok {
@@ -10413,6 +10543,12 @@ func (m *DrinkMutation) ClearedFields() []string {
 	if m.FieldCleared(drink.FieldImageURL) {
 		fields = append(fields, drink.FieldImageURL)
 	}
+	if m.FieldCleared(drink.FieldDiscontinuedAt) {
+		fields = append(fields, drink.FieldDiscontinuedAt)
+	}
+	if m.FieldCleared(drink.FieldLimitedUntil) {
+		fields = append(fields, drink.FieldLimitedUntil)
+	}
 	if m.FieldCleared(drink.FieldCreatedBy) {
 		fields = append(fields, drink.FieldCreatedBy)
 	}
@@ -10441,6 +10577,12 @@ func (m *DrinkMutation) ClearField(name string) error {
 		return nil
 	case drink.FieldImageURL:
 		m.ClearImageURL()
+		return nil
+	case drink.FieldDiscontinuedAt:
+		m.ClearDiscontinuedAt()
+		return nil
+	case drink.FieldLimitedUntil:
+		m.ClearLimitedUntil()
 		return nil
 	case drink.FieldCreatedBy:
 		m.ClearCreatedBy()
@@ -10509,6 +10651,12 @@ func (m *DrinkMutation) ResetField(name string) error {
 		return nil
 	case drink.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case drink.FieldDiscontinuedAt:
+		m.ResetDiscontinuedAt()
+		return nil
+	case drink.FieldLimitedUntil:
+		m.ResetLimitedUntil()
 		return nil
 	case drink.FieldCreatedBy:
 		m.ResetCreatedBy()
@@ -15999,6 +16147,703 @@ func (m *FriendshipMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *FriendshipMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Friendship edge %s", name)
+}
+
+// InboundTokenMutation represents an operation that mutates the InboundToken nodes in the graph.
+type InboundTokenMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	user_id       *string
+	kind          *inboundtoken.Kind
+	label         *string
+	token_hash    *string
+	last_used_at  *string
+	created_at    *string
+	revoked_at    *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*InboundToken, error)
+	predicates    []predicate.InboundToken
+}
+
+var _ ent.Mutation = (*InboundTokenMutation)(nil)
+
+// inboundtokenOption allows management of the mutation configuration using functional options.
+type inboundtokenOption func(*InboundTokenMutation)
+
+// newInboundTokenMutation creates new mutation for the InboundToken entity.
+func newInboundTokenMutation(c config, op Op, opts ...inboundtokenOption) *InboundTokenMutation {
+	m := &InboundTokenMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeInboundToken,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withInboundTokenID sets the ID field of the mutation.
+func withInboundTokenID(id string) inboundtokenOption {
+	return func(m *InboundTokenMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *InboundToken
+		)
+		m.oldValue = func(ctx context.Context) (*InboundToken, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().InboundToken.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withInboundToken sets the old InboundToken of the mutation.
+func withInboundToken(node *InboundToken) inboundtokenOption {
+	return func(m *InboundTokenMutation) {
+		m.oldValue = func(context.Context) (*InboundToken, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m InboundTokenMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m InboundTokenMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of InboundToken entities.
+func (m *InboundTokenMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *InboundTokenMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *InboundTokenMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().InboundToken.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *InboundTokenMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *InboundTokenMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the InboundToken entity.
+// If the InboundToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InboundTokenMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *InboundTokenMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *InboundTokenMutation) SetKind(i inboundtoken.Kind) {
+	m.kind = &i
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *InboundTokenMutation) Kind() (r inboundtoken.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the InboundToken entity.
+// If the InboundToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InboundTokenMutation) OldKind(ctx context.Context) (v inboundtoken.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *InboundTokenMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetLabel sets the "label" field.
+func (m *InboundTokenMutation) SetLabel(s string) {
+	m.label = &s
+}
+
+// Label returns the value of the "label" field in the mutation.
+func (m *InboundTokenMutation) Label() (r string, exists bool) {
+	v := m.label
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLabel returns the old "label" field's value of the InboundToken entity.
+// If the InboundToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InboundTokenMutation) OldLabel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLabel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLabel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLabel: %w", err)
+	}
+	return oldValue.Label, nil
+}
+
+// ResetLabel resets all changes to the "label" field.
+func (m *InboundTokenMutation) ResetLabel() {
+	m.label = nil
+}
+
+// SetTokenHash sets the "token_hash" field.
+func (m *InboundTokenMutation) SetTokenHash(s string) {
+	m.token_hash = &s
+}
+
+// TokenHash returns the value of the "token_hash" field in the mutation.
+func (m *InboundTokenMutation) TokenHash() (r string, exists bool) {
+	v := m.token_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenHash returns the old "token_hash" field's value of the InboundToken entity.
+// If the InboundToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InboundTokenMutation) OldTokenHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenHash: %w", err)
+	}
+	return oldValue.TokenHash, nil
+}
+
+// ResetTokenHash resets all changes to the "token_hash" field.
+func (m *InboundTokenMutation) ResetTokenHash() {
+	m.token_hash = nil
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (m *InboundTokenMutation) SetLastUsedAt(s string) {
+	m.last_used_at = &s
+}
+
+// LastUsedAt returns the value of the "last_used_at" field in the mutation.
+func (m *InboundTokenMutation) LastUsedAt() (r string, exists bool) {
+	v := m.last_used_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastUsedAt returns the old "last_used_at" field's value of the InboundToken entity.
+// If the InboundToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InboundTokenMutation) OldLastUsedAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastUsedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastUsedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastUsedAt: %w", err)
+	}
+	return oldValue.LastUsedAt, nil
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (m *InboundTokenMutation) ClearLastUsedAt() {
+	m.last_used_at = nil
+	m.clearedFields[inboundtoken.FieldLastUsedAt] = struct{}{}
+}
+
+// LastUsedAtCleared returns if the "last_used_at" field was cleared in this mutation.
+func (m *InboundTokenMutation) LastUsedAtCleared() bool {
+	_, ok := m.clearedFields[inboundtoken.FieldLastUsedAt]
+	return ok
+}
+
+// ResetLastUsedAt resets all changes to the "last_used_at" field.
+func (m *InboundTokenMutation) ResetLastUsedAt() {
+	m.last_used_at = nil
+	delete(m.clearedFields, inboundtoken.FieldLastUsedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *InboundTokenMutation) SetCreatedAt(s string) {
+	m.created_at = &s
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *InboundTokenMutation) CreatedAt() (r string, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the InboundToken entity.
+// If the InboundToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InboundTokenMutation) OldCreatedAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *InboundTokenMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (m *InboundTokenMutation) SetRevokedAt(s string) {
+	m.revoked_at = &s
+}
+
+// RevokedAt returns the value of the "revoked_at" field in the mutation.
+func (m *InboundTokenMutation) RevokedAt() (r string, exists bool) {
+	v := m.revoked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevokedAt returns the old "revoked_at" field's value of the InboundToken entity.
+// If the InboundToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InboundTokenMutation) OldRevokedAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevokedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevokedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevokedAt: %w", err)
+	}
+	return oldValue.RevokedAt, nil
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (m *InboundTokenMutation) ClearRevokedAt() {
+	m.revoked_at = nil
+	m.clearedFields[inboundtoken.FieldRevokedAt] = struct{}{}
+}
+
+// RevokedAtCleared returns if the "revoked_at" field was cleared in this mutation.
+func (m *InboundTokenMutation) RevokedAtCleared() bool {
+	_, ok := m.clearedFields[inboundtoken.FieldRevokedAt]
+	return ok
+}
+
+// ResetRevokedAt resets all changes to the "revoked_at" field.
+func (m *InboundTokenMutation) ResetRevokedAt() {
+	m.revoked_at = nil
+	delete(m.clearedFields, inboundtoken.FieldRevokedAt)
+}
+
+// Where appends a list predicates to the InboundTokenMutation builder.
+func (m *InboundTokenMutation) Where(ps ...predicate.InboundToken) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the InboundTokenMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *InboundTokenMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.InboundToken, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *InboundTokenMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *InboundTokenMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (InboundToken).
+func (m *InboundTokenMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *InboundTokenMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.user_id != nil {
+		fields = append(fields, inboundtoken.FieldUserID)
+	}
+	if m.kind != nil {
+		fields = append(fields, inboundtoken.FieldKind)
+	}
+	if m.label != nil {
+		fields = append(fields, inboundtoken.FieldLabel)
+	}
+	if m.token_hash != nil {
+		fields = append(fields, inboundtoken.FieldTokenHash)
+	}
+	if m.last_used_at != nil {
+		fields = append(fields, inboundtoken.FieldLastUsedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, inboundtoken.FieldCreatedAt)
+	}
+	if m.revoked_at != nil {
+		fields = append(fields, inboundtoken.FieldRevokedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *InboundTokenMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case inboundtoken.FieldUserID:
+		return m.UserID()
+	case inboundtoken.FieldKind:
+		return m.Kind()
+	case inboundtoken.FieldLabel:
+		return m.Label()
+	case inboundtoken.FieldTokenHash:
+		return m.TokenHash()
+	case inboundtoken.FieldLastUsedAt:
+		return m.LastUsedAt()
+	case inboundtoken.FieldCreatedAt:
+		return m.CreatedAt()
+	case inboundtoken.FieldRevokedAt:
+		return m.RevokedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *InboundTokenMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case inboundtoken.FieldUserID:
+		return m.OldUserID(ctx)
+	case inboundtoken.FieldKind:
+		return m.OldKind(ctx)
+	case inboundtoken.FieldLabel:
+		return m.OldLabel(ctx)
+	case inboundtoken.FieldTokenHash:
+		return m.OldTokenHash(ctx)
+	case inboundtoken.FieldLastUsedAt:
+		return m.OldLastUsedAt(ctx)
+	case inboundtoken.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case inboundtoken.FieldRevokedAt:
+		return m.OldRevokedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown InboundToken field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *InboundTokenMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case inboundtoken.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case inboundtoken.FieldKind:
+		v, ok := value.(inboundtoken.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case inboundtoken.FieldLabel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLabel(v)
+		return nil
+	case inboundtoken.FieldTokenHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenHash(v)
+		return nil
+	case inboundtoken.FieldLastUsedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastUsedAt(v)
+		return nil
+	case inboundtoken.FieldCreatedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case inboundtoken.FieldRevokedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevokedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown InboundToken field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *InboundTokenMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *InboundTokenMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *InboundTokenMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown InboundToken numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *InboundTokenMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(inboundtoken.FieldLastUsedAt) {
+		fields = append(fields, inboundtoken.FieldLastUsedAt)
+	}
+	if m.FieldCleared(inboundtoken.FieldRevokedAt) {
+		fields = append(fields, inboundtoken.FieldRevokedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *InboundTokenMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *InboundTokenMutation) ClearField(name string) error {
+	switch name {
+	case inboundtoken.FieldLastUsedAt:
+		m.ClearLastUsedAt()
+		return nil
+	case inboundtoken.FieldRevokedAt:
+		m.ClearRevokedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown InboundToken nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *InboundTokenMutation) ResetField(name string) error {
+	switch name {
+	case inboundtoken.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case inboundtoken.FieldKind:
+		m.ResetKind()
+		return nil
+	case inboundtoken.FieldLabel:
+		m.ResetLabel()
+		return nil
+	case inboundtoken.FieldTokenHash:
+		m.ResetTokenHash()
+		return nil
+	case inboundtoken.FieldLastUsedAt:
+		m.ResetLastUsedAt()
+		return nil
+	case inboundtoken.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case inboundtoken.FieldRevokedAt:
+		m.ResetRevokedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown InboundToken field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *InboundTokenMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *InboundTokenMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *InboundTokenMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *InboundTokenMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *InboundTokenMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *InboundTokenMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *InboundTokenMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown InboundToken unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *InboundTokenMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown InboundToken edge %s", name)
 }
 
 // IntegrationMutation represents an operation that mutates the Integration nodes in the graph.
@@ -27237,6 +28082,9 @@ type UserSettingMutation struct {
 	email_weekly     *bool
 	push_enabled     *bool
 	theme            *usersetting.Theme
+	public_profile   *bool
+	units            *usersetting.Units
+	caffeine_bedtime *string
 	updated_at       *string
 	clearedFields    map[string]struct{}
 	done             bool
@@ -27522,6 +28370,114 @@ func (m *UserSettingMutation) ResetTheme() {
 	m.theme = nil
 }
 
+// SetPublicProfile sets the "public_profile" field.
+func (m *UserSettingMutation) SetPublicProfile(b bool) {
+	m.public_profile = &b
+}
+
+// PublicProfile returns the value of the "public_profile" field in the mutation.
+func (m *UserSettingMutation) PublicProfile() (r bool, exists bool) {
+	v := m.public_profile
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicProfile returns the old "public_profile" field's value of the UserSetting entity.
+// If the UserSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSettingMutation) OldPublicProfile(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicProfile is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicProfile requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicProfile: %w", err)
+	}
+	return oldValue.PublicProfile, nil
+}
+
+// ResetPublicProfile resets all changes to the "public_profile" field.
+func (m *UserSettingMutation) ResetPublicProfile() {
+	m.public_profile = nil
+}
+
+// SetUnits sets the "units" field.
+func (m *UserSettingMutation) SetUnits(u usersetting.Units) {
+	m.units = &u
+}
+
+// Units returns the value of the "units" field in the mutation.
+func (m *UserSettingMutation) Units() (r usersetting.Units, exists bool) {
+	v := m.units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnits returns the old "units" field's value of the UserSetting entity.
+// If the UserSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSettingMutation) OldUnits(ctx context.Context) (v usersetting.Units, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnits: %w", err)
+	}
+	return oldValue.Units, nil
+}
+
+// ResetUnits resets all changes to the "units" field.
+func (m *UserSettingMutation) ResetUnits() {
+	m.units = nil
+}
+
+// SetCaffeineBedtime sets the "caffeine_bedtime" field.
+func (m *UserSettingMutation) SetCaffeineBedtime(s string) {
+	m.caffeine_bedtime = &s
+}
+
+// CaffeineBedtime returns the value of the "caffeine_bedtime" field in the mutation.
+func (m *UserSettingMutation) CaffeineBedtime() (r string, exists bool) {
+	v := m.caffeine_bedtime
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCaffeineBedtime returns the old "caffeine_bedtime" field's value of the UserSetting entity.
+// If the UserSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSettingMutation) OldCaffeineBedtime(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCaffeineBedtime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCaffeineBedtime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCaffeineBedtime: %w", err)
+	}
+	return oldValue.CaffeineBedtime, nil
+}
+
+// ResetCaffeineBedtime resets all changes to the "caffeine_bedtime" field.
+func (m *UserSettingMutation) ResetCaffeineBedtime() {
+	m.caffeine_bedtime = nil
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *UserSettingMutation) SetUpdatedAt(s string) {
 	m.updated_at = &s
@@ -27592,7 +28548,7 @@ func (m *UserSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSettingMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 9)
 	if m.user_id != nil {
 		fields = append(fields, usersetting.FieldUserID)
 	}
@@ -27607,6 +28563,15 @@ func (m *UserSettingMutation) Fields() []string {
 	}
 	if m.theme != nil {
 		fields = append(fields, usersetting.FieldTheme)
+	}
+	if m.public_profile != nil {
+		fields = append(fields, usersetting.FieldPublicProfile)
+	}
+	if m.units != nil {
+		fields = append(fields, usersetting.FieldUnits)
+	}
+	if m.caffeine_bedtime != nil {
+		fields = append(fields, usersetting.FieldCaffeineBedtime)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, usersetting.FieldUpdatedAt)
@@ -27629,6 +28594,12 @@ func (m *UserSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.PushEnabled()
 	case usersetting.FieldTheme:
 		return m.Theme()
+	case usersetting.FieldPublicProfile:
+		return m.PublicProfile()
+	case usersetting.FieldUnits:
+		return m.Units()
+	case usersetting.FieldCaffeineBedtime:
+		return m.CaffeineBedtime()
 	case usersetting.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -27650,6 +28621,12 @@ func (m *UserSettingMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldPushEnabled(ctx)
 	case usersetting.FieldTheme:
 		return m.OldTheme(ctx)
+	case usersetting.FieldPublicProfile:
+		return m.OldPublicProfile(ctx)
+	case usersetting.FieldUnits:
+		return m.OldUnits(ctx)
+	case usersetting.FieldCaffeineBedtime:
+		return m.OldCaffeineBedtime(ctx)
 	case usersetting.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -27695,6 +28672,27 @@ func (m *UserSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTheme(v)
+		return nil
+	case usersetting.FieldPublicProfile:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicProfile(v)
+		return nil
+	case usersetting.FieldUnits:
+		v, ok := value.(usersetting.Units)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnits(v)
+		return nil
+	case usersetting.FieldCaffeineBedtime:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCaffeineBedtime(v)
 		return nil
 	case usersetting.FieldUpdatedAt:
 		v, ok := value.(string)
@@ -27766,6 +28764,15 @@ func (m *UserSettingMutation) ResetField(name string) error {
 		return nil
 	case usersetting.FieldTheme:
 		m.ResetTheme()
+		return nil
+	case usersetting.FieldPublicProfile:
+		m.ResetPublicProfile()
+		return nil
+	case usersetting.FieldUnits:
+		m.ResetUnits()
+		return nil
+	case usersetting.FieldCaffeineBedtime:
+		m.ResetCaffeineBedtime()
 		return nil
 	case usersetting.FieldUpdatedAt:
 		m.ResetUpdatedAt()

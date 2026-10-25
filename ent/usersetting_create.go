@@ -81,6 +81,48 @@ func (_c *UserSettingCreate) SetNillableTheme(v *usersetting.Theme) *UserSetting
 	return _c
 }
 
+// SetPublicProfile sets the "public_profile" field.
+func (_c *UserSettingCreate) SetPublicProfile(v bool) *UserSettingCreate {
+	_c.mutation.SetPublicProfile(v)
+	return _c
+}
+
+// SetNillablePublicProfile sets the "public_profile" field if the given value is not nil.
+func (_c *UserSettingCreate) SetNillablePublicProfile(v *bool) *UserSettingCreate {
+	if v != nil {
+		_c.SetPublicProfile(*v)
+	}
+	return _c
+}
+
+// SetUnits sets the "units" field.
+func (_c *UserSettingCreate) SetUnits(v usersetting.Units) *UserSettingCreate {
+	_c.mutation.SetUnits(v)
+	return _c
+}
+
+// SetNillableUnits sets the "units" field if the given value is not nil.
+func (_c *UserSettingCreate) SetNillableUnits(v *usersetting.Units) *UserSettingCreate {
+	if v != nil {
+		_c.SetUnits(*v)
+	}
+	return _c
+}
+
+// SetCaffeineBedtime sets the "caffeine_bedtime" field.
+func (_c *UserSettingCreate) SetCaffeineBedtime(v string) *UserSettingCreate {
+	_c.mutation.SetCaffeineBedtime(v)
+	return _c
+}
+
+// SetNillableCaffeineBedtime sets the "caffeine_bedtime" field if the given value is not nil.
+func (_c *UserSettingCreate) SetNillableCaffeineBedtime(v *string) *UserSettingCreate {
+	if v != nil {
+		_c.SetCaffeineBedtime(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *UserSettingCreate) SetUpdatedAt(v string) *UserSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -146,6 +188,18 @@ func (_c *UserSettingCreate) defaults() {
 		v := usersetting.DefaultTheme
 		_c.mutation.SetTheme(v)
 	}
+	if _, ok := _c.mutation.PublicProfile(); !ok {
+		v := usersetting.DefaultPublicProfile
+		_c.mutation.SetPublicProfile(v)
+	}
+	if _, ok := _c.mutation.Units(); !ok {
+		v := usersetting.DefaultUnits
+		_c.mutation.SetUnits(v)
+	}
+	if _, ok := _c.mutation.CaffeineBedtime(); !ok {
+		v := usersetting.DefaultCaffeineBedtime
+		_c.mutation.SetCaffeineBedtime(v)
+	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := usersetting.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -178,6 +232,20 @@ func (_c *UserSettingCreate) check() error {
 		if err := usersetting.ThemeValidator(v); err != nil {
 			return &ValidationError{Name: "theme", err: fmt.Errorf(`ent: validator failed for field "UserSetting.theme": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.PublicProfile(); !ok {
+		return &ValidationError{Name: "public_profile", err: errors.New(`ent: missing required field "UserSetting.public_profile"`)}
+	}
+	if _, ok := _c.mutation.Units(); !ok {
+		return &ValidationError{Name: "units", err: errors.New(`ent: missing required field "UserSetting.units"`)}
+	}
+	if v, ok := _c.mutation.Units(); ok {
+		if err := usersetting.UnitsValidator(v); err != nil {
+			return &ValidationError{Name: "units", err: fmt.Errorf(`ent: validator failed for field "UserSetting.units": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.CaffeineBedtime(); !ok {
+		return &ValidationError{Name: "caffeine_bedtime", err: errors.New(`ent: missing required field "UserSetting.caffeine_bedtime"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "UserSetting.updated_at"`)}
@@ -227,6 +295,18 @@ func (_c *UserSettingCreate) createSpec() (*UserSetting, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Theme(); ok {
 		_spec.SetField(usersetting.FieldTheme, field.TypeEnum, value)
 		_node.Theme = value
+	}
+	if value, ok := _c.mutation.PublicProfile(); ok {
+		_spec.SetField(usersetting.FieldPublicProfile, field.TypeBool, value)
+		_node.PublicProfile = value
+	}
+	if value, ok := _c.mutation.Units(); ok {
+		_spec.SetField(usersetting.FieldUnits, field.TypeEnum, value)
+		_node.Units = value
+	}
+	if value, ok := _c.mutation.CaffeineBedtime(); ok {
+		_spec.SetField(usersetting.FieldCaffeineBedtime, field.TypeString, value)
+		_node.CaffeineBedtime = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(usersetting.FieldUpdatedAt, field.TypeString, value)

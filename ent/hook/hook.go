@@ -272,6 +272,18 @@ func (f FriendshipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FriendshipMutation", m)
 }
 
+// The InboundTokenFunc type is an adapter to allow the use of ordinary
+// function as InboundToken mutator.
+type InboundTokenFunc func(context.Context, *ent.InboundTokenMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InboundTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InboundTokenMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InboundTokenMutation", m)
+}
+
 // The IntegrationFunc type is an adapter to allow the use of ordinary
 // function as Integration mutator.
 type IntegrationFunc func(context.Context, *ent.IntegrationMutation) (ent.Value, error)

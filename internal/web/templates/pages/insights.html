@@ -1,0 +1,104 @@
+{{define "content"}}
+<section class="narrow insights-page">
+  <p class="eyebrow">Insights</p>
+  <h1>What your sodas add up to.</h1>
+  <p class="lede">Totals from the check-ins in this range. Nutrition is stated, not scored.</p>
+
+  <nav class="range-tabs" aria-label="Date range">
+    {{range .Ranges}}
+      <a class="range-tab" href="/insights?range={{.}}"{{if eq . $.Range}} aria-current="page"{{end}}>{{.}} days</a>
+    {{end}}
+  </nav>
+
+  {{if .Empty}}
+    <div class="empty insights-empty">
+      <p class="empty-title">Nothing logged in this range</p>
+      <p>Totals appear once you check in a soda. Sugar, caffeine, and calories come from the drink itself.</p>
+      <p class="empty-actions"><a class="btn btn-primary" href="/checkins/new">Log a soda</a></p>
+    </div>
+  {{else}}
+    <section class="insight-cards" aria-label="Totals for this range">
+      <article class="insight-card">
+        <h2 class="insight-label">Sugar</h2>
+        <p class="insight-value">{{.Sugar.TotalG}}<span class="insight-unit">g</span></p>
+        <p class="insight-note">{{.Sugar.AvgPerDay}} g a day on average</p>
+      </article>
+      <article class="insight-card">
+        <h2 class="insight-label">Caffeine</h2>
+        <p class="insight-value">{{.Caffeine.TotalMg}}<span class="insight-unit">mg</span></p>
+        <p class="insight-note">{{if .Caffeine.LastCaffeineAt}}Last caffeine {{.Caffeine.LastCaffeineAt}}{{else}}No caffeine in this range{{end}}</p>
+      </article>
+      <article class="insight-card">
+        <h2 class="insight-label">Calories</h2>
+        <p class="insight-value">{{.Calories.TotalKcal}}<span class="insight-unit">kcal</span></p>
+        <p class="insight-note">{{.Pours}} {{if eq .Pours 1}}pour{{else}}pours{{end}} in this range</p>
+      </article>
+    </section>
+
+    <section class="caffeine-clock" aria-labelledby="caffeine-clock-title">
+      <h2 id="caffeine-clock-title" class="caffeine-clock-title">
+        <svg class="caffeine-clock-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M12 7.5V12l3.25 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Caffeine clock
+      </h2>
+      <p class="caffeine-clock-intro">When your last caffeinated pour should clear, using a five-hour half-life.</p>
+      <dl class="clock-rows">
+        <div class="clock-row">
+          <dt>Bedtime</dt>
+          <dd>{{if .Caffeine.Bedtime}}{{.Caffeine.Bedtime}}{{else}}Not set · <a href="/settings">Set a bedtime</a>{{end}}</dd>
+        </div>
+        <div class="clock-row">
+          <dt>Last caffeine</dt>
+          <dd>{{if .Caffeine.LastCaffeineAt}}{{.Caffeine.LastCaffeineAt}}{{else}}None in this range{{end}}</dd>
+        </div>
+        <div class="clock-row">
+          <dt>Clears by</dt>
+          <dd>{{if .Caffeine.ClearBy}}{{.Caffeine.ClearBy}}{{else}}—{{end}}</dd>
+        </div>
+      </dl>
+      {{if .Caffeine.LateCaffeine}}
+        <p class="caffeine-note">Your last caffeine was within eight hours of bedtime. The clear time is an estimate, not a rule.</p>
+      {{end}}
+    </section>
+
+    {{if .TopDrinks}}
+      <section class="insights-section" aria-labelledby="top-drinks-title">
+        <h2 id="top-drinks-title" class="section-heading">Top drinks</h2>
+        <ol class="top-list">
+          {{range .TopDrinks}}
+            <li class="top-item">
+              <a class="top-link" href="/drinks/{{.Slug}}">
+                <span class="top-name">{{.Name}}</span>
+                {{if .Brand}}<span class="top-brand">{{.Brand}}</span>{{end}}
+              </a>
+              <span class="top-meta">{{.Pours}} {{if eq .Pours 1}}pour{{else}}pours{{end}} · {{printf "%.1f" .SugarG}} g sugar · {{printf "%.0f" .CaffeineMg}} mg caffeine</span>
+            </li>
+          {{end}}
+        </ol>
+      </section>
+    {{end}}
+
+    <details class="card series-card"{{if le .Range 30}} open{{end}}>
+      <summary class="series-summary">Daily breakdown · {{.Range}} days</summary>
+      <ol class="day-list">
+        {{range .Sugar.Series}}
+          <li class="day-row{{if not .Pours}} day-empty{{end}}">
+            <time class="day-date" datetime="{{.Date}}">{{.Date}}</time>
+            {{if .Pours}}
+              <span class="day-values">
+                <span class="day-value"><span class="day-number">{{printf "%.1f" .SugarG}}</span> g sugar</span>
+                <span class="day-value"><span class="day-number">{{printf "%.0f" .CaffeineMg}}</span> mg caffeine</span>
+                <span class="day-value"><span class="day-number">{{.CaloriesKcal}}</span> kcal</span>
+              </span>
+            {{else}}
+              <span class="day-values day-values-empty">No pour</span>
+            {{end}}
+          </li>
+        {{end}}
+      </ol>
+    </details>
+  {{end}}
+</section>
+{{end}}

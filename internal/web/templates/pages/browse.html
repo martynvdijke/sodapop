@@ -1,0 +1,157 @@
+{{define "content"}}
+<section class="browse-page">
+  <header class="browse-header">
+    <p class="eyebrow">Catalog</p>
+    <h1>{{.Title}}</h1>
+    {{if eq .Mode "drinks"}}
+      <p class="browse-lead">Every soda in the catalog, in one list. Narrow it down here, or start from a brand or style.</p>
+    {{else if eq .Mode "brands"}}
+      <p class="browse-lead">Every brand with sodas in the catalog, and how many each one has.</p>
+    {{else}}
+      <p class="browse-lead">Style families, and the sub-styles inside them.</p>
+    {{end}}
+  </header>
+
+  <nav class="browse-modes" aria-label="Catalog">
+    <a href="/drinks"{{if eq .Mode "drinks"}} aria-current="page"{{end}}>Drinks</a>
+    <a href="/brands"{{if eq .Mode "brands"}} aria-current="page"{{end}}>Brands</a>
+    <a href="/styles"{{if eq .Mode "styles"}} aria-current="page"{{end}}>Styles</a>
+    <a href="/drops">Drops</a>
+  </nav>
+
+  {{if eq .Mode "drinks"}}
+    <form class="browse-filters" method="get" action="/drinks">
+      <h2 class="browse-filters-title">Narrow the list</h2>
+
+      <div class="browse-filter-grid">
+        <label class="browse-field">Style
+          <input name="style" value="{{.Filters.Style}}" autocomplete="off" spellcheck="false">
+          <span class="hint">Style slug, for example cream-soda.</span>
+        </label>
+        <label class="browse-field">Brand
+          <input name="brand" value="{{.Filters.Brand}}" autocomplete="off" spellcheck="false">
+          <span class="hint">Brand slug, for example fentimans.</span>
+        </label>
+        <label class="browse-field">Flavour
+          <input name="flavour" value="{{.Filters.Flavour}}" autocomplete="off" spellcheck="false">
+          <span class="hint">Flavour slug, for example ginger.</span>
+        </label>
+        <label class="browse-field">Status
+          <select name="status">
+            <option value=""{{if not .Filters.Status}} selected{{end}}>Any status</option>
+            <option value="active"{{if eq .Filters.Status "active"}} selected{{end}}>Active</option>
+            <option value="limited"{{if eq .Filters.Status "limited"}} selected{{end}}>Limited</option>
+            <option value="seasonal"{{if eq .Filters.Status "seasonal"}} selected{{end}}>Seasonal</option>
+            <option value="discontinued"{{if eq .Filters.Status "discontinued"}} selected{{end}}>Discontinued</option>
+          </select>
+          <span class="hint">Discontinued sodas stay out of the list unless you pick them.</span>
+        </label>
+        <label class="browse-field">Sort
+          <select name="sort">
+            <option value="name"{{if or (not .Filters.Sort) (eq .Filters.Sort "name")}} selected{{end}}>Name</option>
+            <option value="rated"{{if eq .Filters.Sort "rated"}} selected{{end}}>Top rated</option>
+            <option value="newest"{{if eq .Filters.Sort "newest"}} selected{{end}}>Newest</option>
+          </select>
+          <span class="hint">Top rated needs at least three ratings.</span>
+        </label>
+      </div>
+
+      <div class="browse-toggles">
+        <label class="browse-check">
+          <input type="checkbox" name="caffeine_free" value="1"{{if .Filters.CaffeineFree}} checked{{end}}>
+          Caffeine free
+        </label>
+        <label class="browse-check">
+          <input type="checkbox" name="sugar_free" value="1"{{if .Filters.SugarFree}} checked{{end}}>
+          Sugar free
+        </label>
+      </div>
+
+      <div class="browse-filter-actions">
+        <button class="btn btn-primary" type="submit">Apply filters</button>
+        <a class="browse-reset" href="/drinks">Clear filters</a>
+      </div>
+    </form>
+
+    <p class="browse-count">{{.TotalLabel}}</p>
+
+    {{if .Drinks}}
+      <div class="browse-grid">
+        {{range .Drinks}}{{template "drink_card" .}}{{end}}
+      </div>
+    {{else}}
+      <div class="browse-empty">
+        <h2>No sodas match these filters</h2>
+        <p>Try a different style, brand or flavour, or clear the filters to see the whole catalog.</p>
+        <p><a class="btn" href="/drinks">Clear filters</a></p>
+      </div>
+    {{end}}
+
+    {{if or (gt .Filters.Page 1) .HasNext}}
+      <nav class="browse-pager" aria-label="Pagination">
+        {{if gt .Filters.Page 1}}
+          <a class="browse-page-link" href="/drinks?page=1{{if .Filters.Style}}&amp;style={{.Filters.Style}}{{end}}{{if .Filters.Brand}}&amp;brand={{.Filters.Brand}}{{end}}{{if .Filters.Flavour}}&amp;flavour={{.Filters.Flavour}}{{end}}{{if .Filters.Status}}&amp;status={{.Filters.Status}}{{end}}{{if .Filters.Sort}}&amp;sort={{.Filters.Sort}}{{end}}{{if .Filters.CaffeineFree}}&amp;caffeine_free=1{{end}}{{if .Filters.SugarFree}}&amp;sugar_free=1{{end}}">First page</a>
+        {{end}}
+        <p class="browse-page-label">Page {{.Filters.Page}}</p>
+        {{if .HasNext}}
+          <a class="browse-page-link" href="/drinks?page={{.NextPage}}{{if .Filters.Style}}&amp;style={{.Filters.Style}}{{end}}{{if .Filters.Brand}}&amp;brand={{.Filters.Brand}}{{end}}{{if .Filters.Flavour}}&amp;flavour={{.Filters.Flavour}}{{end}}{{if .Filters.Status}}&amp;status={{.Filters.Status}}{{end}}{{if .Filters.Sort}}&amp;sort={{.Filters.Sort}}{{end}}{{if .Filters.CaffeineFree}}&amp;caffeine_free=1{{end}}{{if .Filters.SugarFree}}&amp;sugar_free=1{{end}}" rel="next">Next page</a>
+        {{end}}
+      </nav>
+    {{end}}
+
+  {{else if eq .Mode "brands"}}
+
+    {{if .Brands}}
+      <ul class="browse-brands">
+        {{range .Brands}}
+          <li>
+            <a class="browse-brand" href="/brands/{{.Slug}}">
+              <span class="browse-brand-logo" aria-hidden="true">{{initial .Name}}</span>
+              <span class="browse-brand-body">
+                <strong class="browse-brand-name">{{.Name}}</strong>
+                <span class="browse-brand-count">{{if .DrinkCount}}{{.DrinkCount}} {{if eq .DrinkCount 1}}soda{{else}}sodas{{end}}{{else}}No sodas listed{{end}}</span>
+              </span>
+            </a>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <div class="browse-empty">
+        <h2>No brands yet</h2>
+        <p>Brands show up here once their sodas are in the catalog.</p>
+        <p><a class="btn" href="/drinks">Browse drinks</a></p>
+      </div>
+    {{end}}
+
+  {{else}}
+
+    {{if .Styles}}
+      <ul class="browse-styles">
+        {{range .Styles}}
+          <li class="browse-family">
+            <h2 class="browse-family-name"><a href="/styles/{{.Slug}}">{{.Name}}</a></h2>
+            <p class="browse-family-count">{{if .DrinkCount}}{{.DrinkCount}} {{if eq .DrinkCount 1}}soda{{else}}sodas{{end}}{{else}}No sodas listed{{end}}</p>
+            {{if .Description}}<p class="browse-family-desc">{{.Description}}</p>{{end}}
+            {{if .Children}}
+              <ul class="browse-children">
+                {{range .Children}}
+                  <li>
+                    <a class="browse-child" href="/styles/{{.Slug}}">{{.Name}} <span class="browse-child-count">{{.DrinkCount}}</span></a>
+                  </li>
+                {{end}}
+              </ul>
+            {{end}}
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <div class="browse-empty">
+        <h2>No styles yet</h2>
+        <p>Style families show up here once the catalog has them.</p>
+        <p><a class="btn" href="/drinks">Browse drinks</a></p>
+      </div>
+    {{end}}
+
+  {{end}}
+</section>
+{{end}}

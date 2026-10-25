@@ -23,6 +23,12 @@ const (
 	FieldPushEnabled = "push_enabled"
 	// FieldTheme holds the string denoting the theme field in the database.
 	FieldTheme = "theme"
+	// FieldPublicProfile holds the string denoting the public_profile field in the database.
+	FieldPublicProfile = "public_profile"
+	// FieldUnits holds the string denoting the units field in the database.
+	FieldUnits = "units"
+	// FieldCaffeineBedtime holds the string denoting the caffeine_bedtime field in the database.
+	FieldCaffeineBedtime = "caffeine_bedtime"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// Table holds the table name of the usersetting in the database.
@@ -37,6 +43,9 @@ var Columns = []string{
 	FieldEmailWeekly,
 	FieldPushEnabled,
 	FieldTheme,
+	FieldPublicProfile,
+	FieldUnits,
+	FieldCaffeineBedtime,
 	FieldUpdatedAt,
 }
 
@@ -59,6 +68,10 @@ var (
 	DefaultEmailWeekly bool
 	// DefaultPushEnabled holds the default value on creation for the "push_enabled" field.
 	DefaultPushEnabled bool
+	// DefaultPublicProfile holds the default value on creation for the "public_profile" field.
+	DefaultPublicProfile bool
+	// DefaultCaffeineBedtime holds the default value on creation for the "caffeine_bedtime" field.
+	DefaultCaffeineBedtime string
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() string
 )
@@ -87,6 +100,32 @@ func ThemeValidator(t Theme) error {
 		return nil
 	default:
 		return fmt.Errorf("usersetting: invalid enum value for theme field: %q", t)
+	}
+}
+
+// Units defines the type for the "units" enum field.
+type Units string
+
+// UnitsMetric is the default value of the Units enum.
+const DefaultUnits = UnitsMetric
+
+// Units values.
+const (
+	UnitsMetric   Units = "metric"
+	UnitsImperial Units = "imperial"
+)
+
+func (u Units) String() string {
+	return string(u)
+}
+
+// UnitsValidator is a validator for the "units" field enum values. It is called by the builders before save.
+func UnitsValidator(u Units) error {
+	switch u {
+	case UnitsMetric, UnitsImperial:
+		return nil
+	default:
+		return fmt.Errorf("usersetting: invalid enum value for units field: %q", u)
 	}
 }
 
@@ -121,6 +160,21 @@ func ByPushEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByTheme orders the results by the theme field.
 func ByTheme(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTheme, opts...).ToFunc()
+}
+
+// ByPublicProfile orders the results by the public_profile field.
+func ByPublicProfile(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublicProfile, opts...).ToFunc()
+}
+
+// ByUnits orders the results by the units field.
+func ByUnits(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUnits, opts...).ToFunc()
+}
+
+// ByCaffeineBedtime orders the results by the caffeine_bedtime field.
+func ByCaffeineBedtime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCaffeineBedtime, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

@@ -50,6 +50,10 @@ const (
 	FieldSource = "source"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldDiscontinuedAt holds the string denoting the discontinued_at field in the database.
+	FieldDiscontinuedAt = "discontinued_at"
+	// FieldLimitedUntil holds the string denoting the limited_until field in the database.
+	FieldLimitedUntil = "limited_until"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
 	// FieldMergedIntoID holds the string denoting the merged_into_id field in the database.
@@ -146,6 +150,8 @@ var Columns = []string{
 	FieldRecipeJSON,
 	FieldSource,
 	FieldStatus,
+	FieldDiscontinuedAt,
+	FieldLimitedUntil,
 	FieldCreatedBy,
 	FieldMergedIntoID,
 	FieldCreatedAt,
@@ -372,9 +378,12 @@ const DefaultStatus = StatusActive
 
 // Status values.
 const (
-	StatusProvisional Status = "provisional"
-	StatusActive      Status = "active"
-	StatusMerged      Status = "merged"
+	StatusProvisional  Status = "provisional"
+	StatusActive       Status = "active"
+	StatusMerged       Status = "merged"
+	StatusLimited      Status = "limited"
+	StatusSeasonal     Status = "seasonal"
+	StatusDiscontinued Status = "discontinued"
 )
 
 func (s Status) String() string {
@@ -384,7 +393,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusProvisional, StatusActive, StatusMerged:
+	case StatusProvisional, StatusActive, StatusMerged, StatusLimited, StatusSeasonal, StatusDiscontinued:
 		return nil
 	default:
 		return fmt.Errorf("drink: invalid enum value for status field: %q", s)
@@ -487,6 +496,16 @@ func BySource(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByDiscontinuedAt orders the results by the discontinued_at field.
+func ByDiscontinuedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscontinuedAt, opts...).ToFunc()
+}
+
+// ByLimitedUntil orders the results by the limited_until field.
+func ByLimitedUntil(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLimitedUntil, opts...).ToFunc()
 }
 
 // ByCreatedBy orders the results by the created_by field.

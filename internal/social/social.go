@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"sodapop/ent"
 	"sodapop/ent/activity"
@@ -180,10 +181,16 @@ func (s *Service) Request(ctx context.Context, fromID, handle string) (*ent.Frie
 	if !ent.IsNotFound(err) {
 		return nil, err
 	}
-	return s.Client.Friendship.Create().
+	f, err := s.Client.Friendship.Create().
 		SetUserA(a).SetUserB(b).
 		SetStatus(friendship.StatusPending).
 		SetRequestedBy(fromID).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Best effort: a failed notification must not fail the friend request.
+	_ = s.Notify(ctx, target.ID, "friend_request", fromID, strconv.Itoa(f.ID), "wants to be friends")
+	return f, nil
 }
 
 // Accept accepts a pending request addressed to userID.
@@ -206,7 +213,22 @@ func (s *Service) Accept(ctx context.Context, userID, friendshipID string) error
 		return nil
 	}
 	_, err = f.Update().SetStatus(friendship.StatusAccepted).SetUpdatedAt(db.Now()).Save(ctx)
-	return err
+	if err != nil {
+		return err
+	}
+	// Notify the original requester; failures are never surfaced to the accepter.
+	requester := f.RequestedBy
+	if requester == "" {
+		if f.UserA == userID {
+			requester = f.UserB
+		} else {
+			requester = f.UserA
+		}
+	}
+	if requester != "" && requester != userID {
+		_ = s.Notify(ctx, requester, "friend_accept", userID, strconv.Itoa(f.ID), "accepted your friend request")
+	}
+	return nil
 }
 
 // Remove deletes an accepted or pending friendship.
@@ -350,10 +372,32 @@ func (s *Service) Feed(ctx context.Context, userID string, limit int, before str
 	return out, rows.Err()
 }
 
-// Toast adds a like. Self-toasting is ignored.
+// Toast adds a like. Self-toasting is ignored. The check-in must be visible to
+// the toaster and its author must still be an active account.
 func (s *Service) Toast(ctx context.Context, userID, checkinID string) error {
 	var ownerID string
-	if err := s.SQL.QueryRowContext(ctx, `SELECT user_id FROM checkins WHERE id = ? AND deleted_at IS NULL`, checkinID).Scan(&ownerID); err != nil {
+	if err := s.SQL.QueryRowContext(ctx, `
+		SELECT c.user_id
+		FROM checkins c
+		JOIN users u ON u.id = c.user_id
+		WHERE c.id = ? AND c.deleted_at IS NULL
+		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
+		  AND (
+			c.visibility = 'public'
+			OR c.user_id = ?
+			OR (
+				c.visibility = 'friends'
+				AND ? <> ''
+				AND EXISTS (
+					SELECT 1 FROM friendships f
+					WHERE f.status = 'accepted'
+					  AND (
+						(f.user_a = ? AND f.user_b = c.user_id)
+						OR (f.user_b = ? AND f.user_a = c.user_id)
+					  )
+				)
+			)
+		  )`, checkinID, userID, userID, userID, userID).Scan(&ownerID); err != nil {
 		return ErrNotFound
 	}
 	exists, err := s.Client.CheckinLike.Query().
@@ -396,6 +440,42 @@ func (s *Service) Notifications(ctx context.Context, userID string, limit int) (
 		Where(notification.UserID(userID)).
 		Order(ent.Desc(notification.FieldCreatedAt)).
 		Limit(limit).All(ctx)
+}
+
+// Notify records a notification for userID. actorID/subjectID may be empty.
+func (s *Service) Notify(ctx context.Context, userID, kind, actorID, subjectID, text string) error {
+	k := notification.Kind(kind)
+	if notification.KindValidator(k) != nil {
+		k = notification.KindSystem
+	}
+	b := s.Client.Notification.Create().
+		SetUserID(userID).
+		SetKind(k).
+		SetSubjectID(subjectID).
+		SetText(text)
+	if actorID != "" {
+		b = b.SetActorID(actorID)
+	}
+	_, err := b.Save(ctx)
+	return err
+}
+
+// UnreadCount returns the number of unread notifications for userID.
+func (s *Service) UnreadCount(ctx context.Context, userID string) (int, error) {
+	return s.Client.Notification.Query().
+		Where(notification.UserID(userID), notification.ReadAtIsNil()).
+		Count(ctx)
+}
+
+// MarkRead marks one notification (owned by userID) as read; empty id marks all.
+func (s *Service) MarkRead(ctx context.Context, userID, id string) error {
+	q := s.Client.Notification.Update().
+		Where(notification.UserID(userID), notification.ReadAtIsNil())
+	if id != "" {
+		q = q.Where(notification.ID(id))
+	}
+	_, err := q.SetReadAt(time.Now().UTC().Format(time.RFC3339)).Save(ctx)
+	return err
 }
 
 // LogActivity writes a feed activity row inside an existing transaction.

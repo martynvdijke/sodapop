@@ -109,6 +109,16 @@ func RecipeJSON(v string) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldRecipeJSON, v))
 }
 
+// DiscontinuedAt applies equality check predicate on the "discontinued_at" field. It's identical to DiscontinuedAtEQ.
+func DiscontinuedAt(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldDiscontinuedAt, v))
+}
+
+// LimitedUntil applies equality check predicate on the "limited_until" field. It's identical to LimitedUntilEQ.
+func LimitedUntil(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldLimitedUntil, v))
+}
+
 // CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
 func CreatedBy(v string) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldCreatedBy, v))
@@ -822,6 +832,156 @@ func StatusIn(vs ...Status) predicate.Drink {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.Drink {
 	return predicate.Drink(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// DiscontinuedAtEQ applies the EQ predicate on the "discontinued_at" field.
+func DiscontinuedAtEQ(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtNEQ applies the NEQ predicate on the "discontinued_at" field.
+func DiscontinuedAtNEQ(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldNEQ(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtIn applies the In predicate on the "discontinued_at" field.
+func DiscontinuedAtIn(vs ...string) predicate.Drink {
+	return predicate.Drink(sql.FieldIn(FieldDiscontinuedAt, vs...))
+}
+
+// DiscontinuedAtNotIn applies the NotIn predicate on the "discontinued_at" field.
+func DiscontinuedAtNotIn(vs ...string) predicate.Drink {
+	return predicate.Drink(sql.FieldNotIn(FieldDiscontinuedAt, vs...))
+}
+
+// DiscontinuedAtGT applies the GT predicate on the "discontinued_at" field.
+func DiscontinuedAtGT(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldGT(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtGTE applies the GTE predicate on the "discontinued_at" field.
+func DiscontinuedAtGTE(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldGTE(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtLT applies the LT predicate on the "discontinued_at" field.
+func DiscontinuedAtLT(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldLT(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtLTE applies the LTE predicate on the "discontinued_at" field.
+func DiscontinuedAtLTE(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldLTE(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtContains applies the Contains predicate on the "discontinued_at" field.
+func DiscontinuedAtContains(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldContains(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtHasPrefix applies the HasPrefix predicate on the "discontinued_at" field.
+func DiscontinuedAtHasPrefix(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldHasPrefix(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtHasSuffix applies the HasSuffix predicate on the "discontinued_at" field.
+func DiscontinuedAtHasSuffix(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldHasSuffix(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtIsNil applies the IsNil predicate on the "discontinued_at" field.
+func DiscontinuedAtIsNil() predicate.Drink {
+	return predicate.Drink(sql.FieldIsNull(FieldDiscontinuedAt))
+}
+
+// DiscontinuedAtNotNil applies the NotNil predicate on the "discontinued_at" field.
+func DiscontinuedAtNotNil() predicate.Drink {
+	return predicate.Drink(sql.FieldNotNull(FieldDiscontinuedAt))
+}
+
+// DiscontinuedAtEqualFold applies the EqualFold predicate on the "discontinued_at" field.
+func DiscontinuedAtEqualFold(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEqualFold(FieldDiscontinuedAt, v))
+}
+
+// DiscontinuedAtContainsFold applies the ContainsFold predicate on the "discontinued_at" field.
+func DiscontinuedAtContainsFold(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldContainsFold(FieldDiscontinuedAt, v))
+}
+
+// LimitedUntilEQ applies the EQ predicate on the "limited_until" field.
+func LimitedUntilEQ(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldLimitedUntil, v))
+}
+
+// LimitedUntilNEQ applies the NEQ predicate on the "limited_until" field.
+func LimitedUntilNEQ(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldNEQ(FieldLimitedUntil, v))
+}
+
+// LimitedUntilIn applies the In predicate on the "limited_until" field.
+func LimitedUntilIn(vs ...string) predicate.Drink {
+	return predicate.Drink(sql.FieldIn(FieldLimitedUntil, vs...))
+}
+
+// LimitedUntilNotIn applies the NotIn predicate on the "limited_until" field.
+func LimitedUntilNotIn(vs ...string) predicate.Drink {
+	return predicate.Drink(sql.FieldNotIn(FieldLimitedUntil, vs...))
+}
+
+// LimitedUntilGT applies the GT predicate on the "limited_until" field.
+func LimitedUntilGT(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldGT(FieldLimitedUntil, v))
+}
+
+// LimitedUntilGTE applies the GTE predicate on the "limited_until" field.
+func LimitedUntilGTE(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldGTE(FieldLimitedUntil, v))
+}
+
+// LimitedUntilLT applies the LT predicate on the "limited_until" field.
+func LimitedUntilLT(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldLT(FieldLimitedUntil, v))
+}
+
+// LimitedUntilLTE applies the LTE predicate on the "limited_until" field.
+func LimitedUntilLTE(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldLTE(FieldLimitedUntil, v))
+}
+
+// LimitedUntilContains applies the Contains predicate on the "limited_until" field.
+func LimitedUntilContains(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldContains(FieldLimitedUntil, v))
+}
+
+// LimitedUntilHasPrefix applies the HasPrefix predicate on the "limited_until" field.
+func LimitedUntilHasPrefix(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldHasPrefix(FieldLimitedUntil, v))
+}
+
+// LimitedUntilHasSuffix applies the HasSuffix predicate on the "limited_until" field.
+func LimitedUntilHasSuffix(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldHasSuffix(FieldLimitedUntil, v))
+}
+
+// LimitedUntilIsNil applies the IsNil predicate on the "limited_until" field.
+func LimitedUntilIsNil() predicate.Drink {
+	return predicate.Drink(sql.FieldIsNull(FieldLimitedUntil))
+}
+
+// LimitedUntilNotNil applies the NotNil predicate on the "limited_until" field.
+func LimitedUntilNotNil() predicate.Drink {
+	return predicate.Drink(sql.FieldNotNull(FieldLimitedUntil))
+}
+
+// LimitedUntilEqualFold applies the EqualFold predicate on the "limited_until" field.
+func LimitedUntilEqualFold(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldEqualFold(FieldLimitedUntil, v))
+}
+
+// LimitedUntilContainsFold applies the ContainsFold predicate on the "limited_until" field.
+func LimitedUntilContainsFold(v string) predicate.Drink {
+	return predicate.Drink(sql.FieldContainsFold(FieldLimitedUntil, v))
 }
 
 // CreatedByEQ applies the EQ predicate on the "created_by" field.

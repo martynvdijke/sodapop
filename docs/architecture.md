@@ -35,7 +35,7 @@ sodapop/
 ├── internal/
 │   ├── config/            # typed env config + Validate + redacted LogValue
 │   ├── db/                # sql.DB + ent.Client init, pragmas, TraceQueryEx, schema_consistency_test.go
-│   │   └── migrations/    # versioned migration registry + SQL/Go migrations (0001_initial … 0010_ai)
+│   │   └── migrations/    # versioned migration registry + SQL/Go migrations (0001_auth_indexes … 0005_composite_indexes)
 │   ├── auth/              # OIDC (PKCE/JWKS), local signup/login, sessions, CSRF, tokens, verification
 │   ├── ai/                # OpenCode ("opencode2") client, endpoint crypto, URL normalization, drink drafting
 │   ├── email/             # SMTP sender, templates, outbox retry
@@ -67,7 +67,7 @@ Rules: handlers stay thin (parse → service → render); all business logic in 
 
 ### Data access seam: Ent ORM + versioned migrations (`ent/` + `internal/db/`)
 Adopted directly from `dnd` (`dnd/docs/adr-data-access.md`, `dnd/db/db.go`, `dnd/db/migrations/registry.go`, `dnd/db/schema_consistency_test.go`):
-1. **Ent (`entgo.io/ent v0.14.6`) is canonical for entity schema and CRUD:** `ent/schema/*.go` defines all domain entities (`User`, `UserIdentity`, `Session`, `APIToken`, `EmailVerificationToken`, `PasswordResetToken`, `EmailOutbox`, `UserSetting`, `Media`, `Brand`, `Style`, `Flavour`, `Drink`, `DrinkBarcode`, `DrinkFlavour`, `DrinkAlias`, `DrinkImage`, `OffProduct`, `CatalogRevision`, `Venue`, `VenueDrink`, `VenueName`, `VenueSave`, `Checkin`, `CheckinLike`, `Follow`, `Friendship`, `Block`, `Activity`, `Notification`, `Badge`, `UserBadge`, `List`, `ListItem`, `Report`, `AdminNote`, `AppSetting`, `AIEndpoint`, `AIDraftSession`). `go generate ./ent` produces `ent/migrate/schema.go` (`migrate.Tables`).
+1. **Ent (`entgo.io/ent v0.14.6`) is canonical for entity schema and CRUD:** `ent/schema/*.go` defines all domain entities (`User`, `UserIdentity`, `Session`, `APIToken`, `EmailVerificationToken`, `PasswordResetToken`, `EmailOutbox`, `UserSetting`, `Media`, `Brand`, `Style`, `Flavour`, `Drink`, `DrinkBarcode`, `DrinkFlavour`, `DrinkAlias`, `DrinkImage`, `OffProduct`, `CatalogRevision`, `Venue`, `VenueDrink`, `VenueName`, `VenueSave`, `Checkin`, `CheckinLike`, `Follow`, `Friendship`, `Block`, `Activity`, `Notification`, `Badge`, `UserBadge`, `List`, `ListItem`, `Report`, `AdminNote`, `AppSetting`, `AIEndpoint`, `AIDraftSession`, `Integration`, `PushSubscription`, `InboundToken`). `go generate ./ent` produces `ent/migrate/schema.go` (`migrate.Tables`).
 2. **Shared connection pool:** `internal/db.Init(dbPath)` opens `modernc.org/sqlite` with connection-level `_pragma` params (`busy_timeout(10000)`, `synchronous(NORMAL)`, `cache_size(-64000)`, `temp_store(MEMORY)`, `mmap_size`, `foreign_keys(ON)`), runs `PRAGMA journal_mode=WAL` and `PRAGMA auto_vacuum=INCREMENTAL`, and wraps the same `*sql.DB` with `entsql.OpenDB(dialect.SQLite, DB)` → `ent.NewClient(ent.Driver(drv))`.
 3. **Two-stage deterministic migration pipeline on boot:**
    - **Stage 1 — Ent schema migration (`Client.Schema.Create(ctx)`):** idempotently creates/updates all Ent-managed tables, columns, foreign keys, and indexes from `ent/migrate/schema.go`.
@@ -83,36 +83,66 @@ Server-rendered pages plus a Bearer-authenticated JSON API. No SPA, no client-si
 
 ```
 GET  /                          feed (friends + own activity)
-GET  /drinks                    catalog search/browse (FTS + filters)
+GET  /scan?gtin=                resolve a scanned GTIN and open the check-in page
+GET  /drinks                    catalog browse with filters and paging (HTML only)
 GET  /drinks/{slug}             drink detail, ratings, where found
+GET  /brands                    brand index
 GET  /brands/{slug}             brand detail
+GET  /styles                    style index
 GET  /styles/{slug}             style landing page
-GET  /checkin/new               scanner + search + manual entry
+GET  /drops                     limited, seasonal and discontinued sodas
+GET  /checkins/new              check-in form for a drink (?slug=)
 POST /checkins                  create check-in
+GET  /checkins/{id}             check-in detail (owner, friend, or public)
+POST /checkins/{id}/toast       toast or undo
+POST /checkins/{id}/delete      soft-delete (owner only)
 GET  /venues/{slug}             venue page + menu/on-offer list
-GET  /users/{handle}            profile, badges, recent
+GET  /u/{handle}                profile, badges, recent (opt-in public profiles)
 GET  /friends                   friends + requests
-GET  /settings/{profile,security,notifications,tokens}
+GET  /notifications             notification centre
+POST /notifications/read        mark one or all read
+GET  /settings                  profile, preferences, privacy, security, data
+POST /settings/{profile,avatar,preferences,privacy,password,delete}
+POST /settings/sessions/{id}/revoke   revoke one session
+POST /settings/logout-all       revoke every session including this device
+GET  /integrations              outbound integrations + Home Assistant tokens
+POST /integrations/ha-token     mint a Home Assistant inbound token
+POST /integrations/ha-token/{id}/revoke
+POST /hooks/ha/{token}          machine check-in (capability token, no session/CSRF)
+GET  /insights                  personal sugar, caffeine and calorie summary
+GET  /forgot  GET/POST /reset/{token}  password reset (anti-enumerated)
 GET  /auth/oidc/login           start OIDC Authorization Code + PKCE S256
 GET  /auth/oidc/callback        verify state/nonce/PKCE + JWKS ID token
 POST /auth/oidc/logout          clear session + redirect to OIDC end-session
 GET  /admin/{drinks,venues,users,reports,email,ai}   # role-gated
+POST /admin/drinks/{id}/status  lifecycle change (active/limited/seasonal/discontinued)
 GET  /healthz /readyz /metrics
 GET  /api/openapi.json /api/docs
 GET  /api/v1/auth/oidc/status   public OIDC discovery for web + Flutter onboarding
+GET  /api/v1/notifications      personal notifications (friend-scoped, no firehose)
+POST /api/v1/notifications/read mark one notification or all
+GET  /api/v1/checkins/{id}      one check-in, visibility-scoped (404 when private)
+GET  /api/v1/stats/me/insights  personal sugar/caffeine/calorie series (?range=7|30|90)
+GET  /api/v1/integrations/home-assistant  integration wiring state for a sensor
 POST /api/v1/ai/drafts          conversational drink/venue AI drafting ("opencode2")
 POST /api/v1/ai/tasting-note    polish rough flavour impressions into tasting note
 POST /api/v1/ai/recommend       personalized soda sommelier recommendations
 /api/v1/...                     JSON mirror of the above + Flutter Android/CLI
 ```
 
+Public HTML surfaces are `/` and `/u/{handle}` when the owner opted into a public profile. Catalog browse (`/drinks`, `/brands`, `/styles`, `/drops` and the brand/style detail pages), search, drink pages, notifications, settings and insights all require a signed-in member. Every `/api/v1` route remains Bearer-authenticated and friend-scoped, so crawlable HTML never widens the API boundary.
+
 Middleware order: `requestID → otelhttp → securityHeaders → LoadSession → RequireCSRF → mux`; API mux: `AuthenticateBearer → rateLimit → mux`.
 
-Security headers: CSP `default-src 'self'`, `img-src 'self' data: blob:`, `frame-ancestors 'none'`, nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self)`, HSTS in production. CSP must allow the configured Umami origin and `wasm-unsafe-eval` for the barcode decoder.
+Security headers: CSP `default-src 'self'`, `img-src 'self' data: blob:`, `media-src 'self' blob:`, `worker-src 'self' blob:`, `frame-ancestors 'none'`, nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self)`, HSTS in production. The page CSP includes `script-src 'self' 'wasm-unsafe-eval'` so the ZXing-C++ WebAssembly reader can instantiate; the API CSP is separate and keeps `'unsafe-eval'` scoped to JSON responses. `.wasm` is registered as `application/wasm` in `internal/web/assets.go` so streaming instantiation and service-worker caching work. CSP must also allow the configured Umami origin.
+
+**Indexability:** the middleware sets `X-Robots-Tag: noindex, nofollow` unless the path is `/` or starts with `/u/`. Catalog browse, drink pages and all member surfaces are `noindex`. A profile page is indexable only when `user_settings.public_profile` is on; the handler otherwise sets `X-Robots-Tag: noindex, nofollow` and supplies `index,follow` plus canonical/Open Graph metadata only for opted-in profiles. The API is deliberately excluded from this rule: crawlable HTML never exposes a collection endpoint, and `/api/v1` stays Bearer-authenticated and friend-scoped.
+
+**Home Assistant inbound webhook:** `POST /hooks/ha/{token}` is mounted outside the session and CSRF middleware. The capability token in the path is the credential (a `Bearer` header is also accepted); it is looked up by SHA-256 hash, must be unrevoked, and is scoped to one user. Unknown, revoked and malformed tokens all return the same generic `401 {"error":"unauthorized"}`. The body is capped at 64 KiB, accepts `gtin` or `slug` but not both, plus optional `rating` (0–20), `note`, `venue_id` and `serving`; `Idempotency-Key` is honoured from the header or the JSON body. The route is limited to 10 requests per minute per token. Errors never echo the token, and it is never logged.
 
 CSRF: token stored per session, accepted as `X-CSRF-Token` or `csrf_token` form field, constant-time compare plus `Origin` check against `BASE_URL`; Bearer requests exempt; GET/HEAD/OPTIONS exempt.
 
-Rate limits (in-process token buckets, per IP + per user): login 5/60s, signup 3/h, verification resend 3/h, password reset 5/15m, check-in create 60/min, API 120/min. Return 429 with `Retry-After`.
+Rate limits (in-process token buckets, per IP + per user): login 5/60s, signup 3/h, verification resend 3/h, password reset 5/h, check-in create 60/min, API 120/min, Home Assistant inbound 10/min per token. Return 429 with `Retry-After`.
 
 ## 4. Authentication and accounts
 
@@ -146,7 +176,7 @@ The API is deliberately **not a public catalog dump**. There is no endpoint that
 
 ## 5. Email
 
-Hand-rolled `net/smtp` sender (house style), supporting implicit TLS 465, STARTTLS, and plain, with `SMTP_HOST/PORT/USER/PASS`, `SMTP_FROM`, `SMTP_TLS`, 15s timeout. HTML + plain-text templates for: verify address, reset password, friend request, weekly digest (opt-in), venue/drink report outcome.
+Hand-rolled `net/smtp` sender (house style), supporting implicit TLS 465, STARTTLS, and plain, with `SMTP_HOST/PORT/USER/PASS`, `SMTP_FROM`, `SMTP_TLS`, 15s timeout. HTML + plain-text templates for: verify address, reset password, friend request (sent only when the recipient's `email_friend_req` setting is on), weekly digest (opt-in), venue/drink report outcome.
 
 Delivery is queued in `email_outbox(id, to, template, payload_json, attempts, next_attempt_at, sent_at, last_error)`. A worker ticks every 30s, exponential backoff 1m→1h, max 8 attempts, then marks failed and surfaces in `/admin/email`. This keeps signup fast and survives SMTP outages. Dev mode writes messages to `data/mail/` instead of sending.
 
@@ -155,9 +185,11 @@ Delivery is queued in `email_outbox(id, to, template, payload_json, attempts, ne
 `drinks` holds the canonical product; `drink_barcodes` maps many GTINs to one drink (multipacks, regional packaging); `brands`, `styles`, `drink_images` support it. Barcode is the primary key for scanning but never the identity of a drink.
 
 Client-side decoding:
-- `BarcodeDetector` when `'BarcodeDetector' in globalThis` and `getSupportedFormats()` includes the needed formats. Reality: Chrome/Edge on Android and ChromeOS/macOS only; **not** iOS Safari, not Firefox. Hence the fallback is mandatory.
-- Fallback: dynamically imported `barcode-detector` (API-compatible ponyfill over `zxing-wasm` v3.1.x, ~1 MiB wasm reader) in a Web Worker, cached by the service worker after first use. Never in the initial bundle.
-- Decode at 8–12 fps via `requestVideoFrameCallback`, cropped to the viewfinder band; try center band then full frame. Torch/zoom only when `getCapabilities().torch` exists (not on iOS).
+- `BarcodeDetector` when `'BarcodeDetector' in globalThis` and `getSupportedFormats()` returns a usable subset. Reality: Chrome/Edge on Android and ChromeOS/macOS only; **not** iOS Safari, not Firefox. Hence the fallback is mandatory.
+- Fallback: dynamically imported `barcode-detector` ponyfill (API-compatible over `zxing-wasm` reader, ~1 MiB wasm) with `zxing_reader.wasm` served from our own build rather than a CDN, cached by the service worker after first use. Never in the initial bundle.
+- Decode at about 10 fps (`requestAnimationFrame` with a 100 ms frame interval) across EAN-13, EAN-8, UPC-A, UPC-E and GTIN-13/14. Torch/zoom only when `getCapabilities().torch` exists (not on iOS).
+- `GET /scan?gtin=` normalizes the query value, validates the check digit, resolves the barcode and either opens the check-in page for the match or the pre-filled create form for a miss. An invalid GTIN returns 400.
+- Stop the decode loop and every `MediaStreamTrack` when the overlay closes, the page is hidden, or `pagehide` fires. Camera permission is requested only from the open gesture.
 - Normalize every result to GTIN-14, validate the GS1 check digit, dedupe identical codes for 1.5 s. UPC-A typically arrives as EAN-13 with a leading zero — normalize deterministically so both forms hit the same row.
 
 Lookup ladder (server, with client cache):
@@ -169,18 +201,26 @@ Cache TTLs: positive 30 days, negative 7 days, keyed by GTIN. The client stores 
 
 Merge rules: exact GTIN wins. A new GTIN with a matching normalized brand+name+volume+packaging suggests the existing drink ("Is this the same soda?"), never auto-merges. Conflicting data opens a moderation report. Community edits are audited in `catalog_revisions`.
 
+Catalog browse (`BrowseDrinks`) is HTML-only. Filters are style (a parent slug also matches its children), brand slug, flavour slug, `caffeine_free=1`, `sugar_free=1`, and lifecycle `status`; sorts are `name`, `rated` and `newest` from a fixed SQL whitelist; the page size is 24 with one extra row fetched for `HasNext`. Merged and provisional rows are never browsable, and the default visibility set is `active`, `limited`, `seasonal`. There is no API endpoint that lists the catalog.
+
+Drink lifecycle is `provisional | active | merged | limited | seasonal | discontinued`. `limited` and `seasonal` may carry `limited_until`; `discontinued` carries `discontinued_at`. The `/drops` page groups limited rows that have a date, seasonal rows, and discontinued rows. Admins change status with `POST /admin/drinks/{id}/status`; when an admin moves a drink to `discontinued` from another status, each distinct owner of a system wishlist containing it receives one `system` notification, idempotent per user and drink.
+
 Open Food Facts client: mandatory contact User-Agent (`Sodapop/1.0 (contact@…)`), 15 s timeout, ≥1 req/s global spacing with a hard 15/min budget guard, retry 429/500/503 with `Retry-After` + jittered backoff, 8 MiB cap, OTel span per call.
 
 Licensing boundary (non-negotiable): OFF data is ODbL 1.0 (contents DbCL, images CC BY-SA). OFF rows live in `off_products` and are surfaced read-only with attribution; user-created or edited rows never absorb OFF fields into the same record. OFF images are proxied and cached, never hot-linked, with attribution on the drink page. Export/share-alike obligations are documented in the deployment docs.
 
 ## 7. Social model
 
-- Friendship is symmetric: `friendships(user_a, user_b, status, requested_by, created_at)` with `user_a < user_b`. Status `pending|accepted|blocked`.
+- Friendship is symmetric: `friendships(user_a, user_b, status, requested_by, created_at)` with `user_a < user_b`. Status `pending|accepted|declined`; blocking is a separate `blocks` row.
 - Follow is one-way: `follows(follower_id, followee_id)`; friendship implies mutual follow for feed purposes but is stored separately.
-- `activities` rows are written in the same transaction as the action: `checkin`, `badge_earned`, `friend_added`, `venue_checkin`, `list_created`. Columns: `id, user_id, kind, subject_type, subject_id, visibility, created_at`.
+- `activities` rows are written in the same transaction as the action: kinds `checkin`, `badge`, `list`, `venue`, `friend`. Columns: `id, user_id, kind, subject_id, visibility, created_at`.
 - Feed query: own + accepted friends' + followed users' activities, `visibility IN ('public','friends')`, keyset paginated on `(created_at, id)`, 20 per page. Materialized fan-out is deliberately avoided; SQLite handles this at self-hosted scale.
 - Privacy: `public | friends | private` per check-in and per profile default; private check-ins still count for personal stats, never appear in feeds.
-- Notifications: in-app table + optional web push (later). No email per like; friend requests and weekly digest only.
+- Notifications: in-app table with kinds `friend_request`, `friend_accept`, `toast`, `badge` and `system` (`comment` exists in the enum but has no producer yet). The nav shows an unread count, `/notifications` lists the newest 50, and `POST /notifications/read` marks one item (with `id`) or all. `GET /api/v1/notifications` and `POST /api/v1/notifications/read` expose the same personal scope. Friend-request email is sent only when the target's `email_friend_req` setting is on.
+- Check-in visibility is enforced by `checkins.Service.Get`: owner sees everything, a friend sees `public` and `friends`, an anonymous or non-friend viewer sees only `public`. Everything else returns `ErrNotFound`, which the web and API layers map to 404.
+- Public profiles are opt-in through `user_settings.public_profile`. A deleted account is always hidden. When public, anonymous visitors see the profile and only `public` check-ins; a signed-in stranger sees the same; the owner and accepted friends see `public`, `friends` and `private` rows. When not public, anonymous visitors are redirected to `/login` and a signed-in non-friend gets a 404.
+- Insights are self-only. Sugar, caffeine and calories are derived from the drink's per-100 ml facts multiplied by the logged volume; merged and provisional drinks are excluded from the top-drinks list but still counted in totals. The series is zero-filled for each of the 7, 30 or 90 calendar days, caffeine clearance halves the last dose every 5 hours until it falls below 20 mg, and `late_caffeine` is true when the last dose plus 8 hours lands after `caffeine_bedtime`.
+- Outbound integrations are stored one row per user and kind (`home_assistant`, `matrix`, `trmnl`) with an optional secret and an enabled flag. Event dispatch is fire-and-forget: Home Assistant receives `{event,text,url}`, Matrix receives an `m.text` message, TRMNL receives a `merge_variables` JSON body, and push delivery is skipped unless `user_settings.push_enabled` is on. The shared HTTP client has a 10 s timeout and each dispatched event runs under a 5 s context. Integration failures are logged and never block the check-in write.
 
 ## 8. Media
 

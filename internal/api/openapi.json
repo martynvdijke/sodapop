@@ -366,6 +366,74 @@
         }
       }
     },
+    "/api/v1/stats/me/insights": {
+      "get": {
+        "summary": "Your sugar, caffeine and calorie insights",
+        "description": "Derived from your own non-deleted check-ins and the drink nutrition facts per 100 ml. Self only.",
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [7, 30, 90],
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Insights for the window"
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "Your notifications",
+        "description": "Most recent 50 notifications for the token owner.",
+        "responses": {
+          "200": {
+            "description": "Notifications plus unread count"
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read": {
+      "post": {
+        "summary": "Mark notifications read",
+        "description": "Omit `id` to mark everything read.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Number marked"
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          }
+        }
+      }
+    },
     "/api/v1/feed": {
       "get": {
         "summary": "Friend-scoped feed",
@@ -511,6 +579,28 @@
       }
     },
     "/api/v1/checkins/{id}": {
+      "get": {
+        "summary": "Read one check-in",
+        "description": "Owner, accepted friends (for `friends` check-ins) or anyone (for `public` check-ins). Other users' private rows return 404.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The check-in"
+          },
+          "404": {
+            "description": "Missing or not visible"
+          }
+        }
+      },
       "delete": {
         "summary": "Soft-delete your check-in",
         "parameters": [
@@ -786,6 +876,20 @@
           },
           "200": {
             "description": "Existing equivalent returned"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/home-assistant": {
+      "get": {
+        "summary": "Your Home Assistant integration state",
+        "description": "Reports the outbound webhook configuration and inbound token metadata for your account. Never returns a token or a shared secret.",
+        "responses": {
+          "200": {
+            "description": "Integration state, including the inbound webhook path and active token metadata"
+          },
+          "401": {
+            "description": "Missing or invalid token"
           }
         }
       }

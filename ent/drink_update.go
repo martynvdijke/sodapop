@@ -332,6 +332,46 @@ func (_u *DrinkUpdate) SetNillableStatus(v *drink.Status) *DrinkUpdate {
 	return _u
 }
 
+// SetDiscontinuedAt sets the "discontinued_at" field.
+func (_u *DrinkUpdate) SetDiscontinuedAt(v string) *DrinkUpdate {
+	_u.mutation.SetDiscontinuedAt(v)
+	return _u
+}
+
+// SetNillableDiscontinuedAt sets the "discontinued_at" field if the given value is not nil.
+func (_u *DrinkUpdate) SetNillableDiscontinuedAt(v *string) *DrinkUpdate {
+	if v != nil {
+		_u.SetDiscontinuedAt(*v)
+	}
+	return _u
+}
+
+// ClearDiscontinuedAt clears the value of the "discontinued_at" field.
+func (_u *DrinkUpdate) ClearDiscontinuedAt() *DrinkUpdate {
+	_u.mutation.ClearDiscontinuedAt()
+	return _u
+}
+
+// SetLimitedUntil sets the "limited_until" field.
+func (_u *DrinkUpdate) SetLimitedUntil(v string) *DrinkUpdate {
+	_u.mutation.SetLimitedUntil(v)
+	return _u
+}
+
+// SetNillableLimitedUntil sets the "limited_until" field if the given value is not nil.
+func (_u *DrinkUpdate) SetNillableLimitedUntil(v *string) *DrinkUpdate {
+	if v != nil {
+		_u.SetLimitedUntil(*v)
+	}
+	return _u
+}
+
+// ClearLimitedUntil clears the value of the "limited_until" field.
+func (_u *DrinkUpdate) ClearLimitedUntil() *DrinkUpdate {
+	_u.mutation.ClearLimitedUntil()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *DrinkUpdate) SetCreatedBy(v string) *DrinkUpdate {
 	_u.mutation.SetCreatedBy(v)
@@ -765,6 +805,18 @@ func (_u *DrinkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(drink.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DiscontinuedAt(); ok {
+		_spec.SetField(drink.FieldDiscontinuedAt, field.TypeString, value)
+	}
+	if _u.mutation.DiscontinuedAtCleared() {
+		_spec.ClearField(drink.FieldDiscontinuedAt, field.TypeString)
+	}
+	if value, ok := _u.mutation.LimitedUntil(); ok {
+		_spec.SetField(drink.FieldLimitedUntil, field.TypeString, value)
+	}
+	if _u.mutation.LimitedUntilCleared() {
+		_spec.ClearField(drink.FieldLimitedUntil, field.TypeString)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(drink.FieldCreatedBy, field.TypeString, value)
@@ -1388,6 +1440,46 @@ func (_u *DrinkUpdateOne) SetNillableStatus(v *drink.Status) *DrinkUpdateOne {
 	return _u
 }
 
+// SetDiscontinuedAt sets the "discontinued_at" field.
+func (_u *DrinkUpdateOne) SetDiscontinuedAt(v string) *DrinkUpdateOne {
+	_u.mutation.SetDiscontinuedAt(v)
+	return _u
+}
+
+// SetNillableDiscontinuedAt sets the "discontinued_at" field if the given value is not nil.
+func (_u *DrinkUpdateOne) SetNillableDiscontinuedAt(v *string) *DrinkUpdateOne {
+	if v != nil {
+		_u.SetDiscontinuedAt(*v)
+	}
+	return _u
+}
+
+// ClearDiscontinuedAt clears the value of the "discontinued_at" field.
+func (_u *DrinkUpdateOne) ClearDiscontinuedAt() *DrinkUpdateOne {
+	_u.mutation.ClearDiscontinuedAt()
+	return _u
+}
+
+// SetLimitedUntil sets the "limited_until" field.
+func (_u *DrinkUpdateOne) SetLimitedUntil(v string) *DrinkUpdateOne {
+	_u.mutation.SetLimitedUntil(v)
+	return _u
+}
+
+// SetNillableLimitedUntil sets the "limited_until" field if the given value is not nil.
+func (_u *DrinkUpdateOne) SetNillableLimitedUntil(v *string) *DrinkUpdateOne {
+	if v != nil {
+		_u.SetLimitedUntil(*v)
+	}
+	return _u
+}
+
+// ClearLimitedUntil clears the value of the "limited_until" field.
+func (_u *DrinkUpdateOne) ClearLimitedUntil() *DrinkUpdateOne {
+	_u.mutation.ClearLimitedUntil()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *DrinkUpdateOne) SetCreatedBy(v string) *DrinkUpdateOne {
 	_u.mutation.SetCreatedBy(v)
@@ -1851,6 +1943,18 @@ func (_u *DrinkUpdateOne) sqlSave(ctx context.Context) (_node *Drink, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(drink.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DiscontinuedAt(); ok {
+		_spec.SetField(drink.FieldDiscontinuedAt, field.TypeString, value)
+	}
+	if _u.mutation.DiscontinuedAtCleared() {
+		_spec.ClearField(drink.FieldDiscontinuedAt, field.TypeString)
+	}
+	if value, ok := _u.mutation.LimitedUntil(); ok {
+		_spec.SetField(drink.FieldLimitedUntil, field.TypeString, value)
+	}
+	if _u.mutation.LimitedUntilCleared() {
+		_spec.ClearField(drink.FieldLimitedUntil, field.TypeString)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(drink.FieldCreatedBy, field.TypeString, value)

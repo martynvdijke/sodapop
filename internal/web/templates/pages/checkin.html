@@ -1,57 +1,103 @@
 {{define "content"}}
-<section class="narrow">
-  {{$d := .Drink}}
-  <p class="eyebrow">Log a soda</p>
-  <h1>{{$d.Drink.Name}}</h1>
-  <p class="muted">{{$d.BrandName}} · {{$d.Drink.VolumeMl}} ml {{container $d.Drink.Container}}</p>
+{{$d := .Drink}}
+<section class="narrow checkin-page">
+  {{if $d}}
+    <p class="eyebrow">Log a soda</p>
+    <h1>{{$d.Drink.Name}}</h1>
+    <p class="muted">{{$d.BrandName}} · {{$d.Drink.VolumeMl}} ml {{container $d.Drink.Container}}</p>
+    <p class="checkin-scan">
+      <button class="btn btn-small" type="button" data-scanner-open>Scan barcode</button>
+    </p>
 
-  <form method="post" action="/checkins" class="stack" enctype="multipart/form-data" data-offline-checkin>
-    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
-    <input type="hidden" name="drink_id" value="{{$d.Drink.ID}}">
-    <input type="hidden" name="idempotency_key" value="{{.Idempotency}}">
+    <form method="post" action="/checkins" class="stack" enctype="multipart/form-data" data-offline-checkin>
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="drink_id" value="{{$d.Drink.ID}}">
+      <input type="hidden" name="idempotency_key" value="{{.Idempotency}}">
 
-    <label>Rating
-      <select name="rating">
-        <option value="">Not rated</option>
-        {{range .Ratings}}<option value="{{.}}">{{.}} / 5</option>{{end}}
-      </select>
-    </label>
+      <label>Rating
+        <select name="rating">
+          <option value="">Not rated</option>
+          {{range .Ratings}}<option value="{{.}}">{{.}} / 5</option>{{end}}
+        </select>
+      </label>
 
-    <label>Serving
-      <select name="serving">
-        <option value="can">Can</option>
-        <option value="bottle">Bottle</option>
-        <option value="glass">Glass</option>
-        <option value="fountain">Fountain</option>
-        <option value="other">Other</option>
-      </select>
-    </label>
+      <label>Serving
+        <select name="serving">
+          <option value="can">Can</option>
+          <option value="bottle">Bottle</option>
+          <option value="glass">Glass</option>
+          <option value="fountain">Fountain</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
 
-    <label>Where? <span class="hint">optional</span>
-      <select name="venue_id">
-        <option value="">No venue</option>
-        {{range .Venues}}<option value="{{.ID}}">{{.Name}}{{if .City}} · {{.City}}{{end}}</option>{{end}}
-      </select>
-    </label>
+      <label>Where? <span class="hint">optional</span>
+        <select name="venue_id">
+          <option value="">No venue</option>
+          {{range .Venues}}<option value="{{.ID}}">{{.Name}}{{if .City}} · {{.City}}{{end}}</option>{{end}}
+        </select>
+      </label>
 
-    <label>Photo or short video <span class="hint">optional · JPEG, PNG, WebP, GIF, MP4, WebM</span>
-      <input type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
-    </label>
+      <label>Photo or short video <span class="hint">optional · JPEG, PNG, WebP, GIF, MP4, WebM</span>
+        <input type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+      </label>
 
-    <label>Note <span class="hint">optional</span>
-      <textarea name="note" rows="3" maxlength="1000" placeholder="Sharp ginger, low sweetness, would buy again." data-ai-note></textarea>
-    </label>
-    <button class="btn btn-small" type="button" data-ai-polish data-csrf="{{.CSRF}}">Polish note with AI</button>
+      <label>Note <span class="hint">optional</span>
+        <textarea name="note" rows="3" maxlength="1000" placeholder="Sharp ginger, low sweetness, would buy again." data-ai-note></textarea>
+      </label>
+      <button class="btn btn-small" type="button" data-ai-polish data-csrf="{{.CSRF}}">Polish note with AI</button>
 
-    <label>Who can see this?
-      <select name="visibility">
-        <option value="public">Anyone (still only visible in friends' feeds)</option>
-        <option value="friends">Friends</option>
-        <option value="private">Only me</option>
-      </select>
-    </label>
+      <label>Who can see this?
+        <select name="visibility">
+          <option value="public"{{if eq .DefaultVisibility "public"}} selected{{end}}>Anyone (still only visible in friends' feeds)</option>
+          <option value="friends"{{if eq .DefaultVisibility "friends"}} selected{{end}}>Friends</option>
+          <option value="private"{{if eq .DefaultVisibility "private"}} selected{{end}}>Only me</option>
+        </select>
+      </label>
 
-    <button class="btn btn-primary btn-block" type="submit">Save check-in</button>
-  </form>
+      <button class="btn btn-primary btn-block" type="submit">Save check-in</button>
+    </form>
+  {{else}}
+    <p class="eyebrow">Scan</p>
+    <h1>Scan or enter a barcode</h1>
+    <p class="lede">Point the camera at the barcode on the can or bottle, or type the digits below. A new soda can be added in about twenty seconds.</p>
+
+    <div class="scan-launch">
+      <a class="btn btn-primary" href="/scan">Open the scanner</a>
+    </div>
+
+    <form class="card manual-form" method="get" action="/scan">
+      <label for="page-gtin">Barcode digits</label>
+      <input id="page-gtin" name="gtin" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0123456789012">
+      <p class="hint" id="page-gtin-hint">The number under the barcode. 8 to 14 digits.</p>
+      <button class="btn" type="submit">Look up barcode</button>
+    </form>
+  {{end}}
+</section>
+
+<section class="scanner" data-scanner{{if .AutoScan}} data-scanner-autostart="true"{{end}} hidden aria-labelledby="scanner-title">
+  <div class="scanner-panel">
+    <div class="scanner-bar">
+      <h2 class="scanner-title" id="scanner-title">Scan a barcode</h2>
+      <button class="scanner-close" type="button" data-scanner-close>Close scanner</button>
+    </div>
+
+    <div class="scanner-view">
+      <video class="scanner-video" data-scanner-video playsinline muted></video>
+      <p class="scanner-status" data-scanner-status role="status" aria-live="polite">Point the camera at the barcode.</p>
+    </div>
+
+    <div class="scanner-actions">
+      {{if .AutoScan}}<button class="btn scanner-start" type="button" data-scanner-open>Scan barcode</button>{{end}}
+      <button class="scanner-torch" type="button" data-scanner-torch hidden>Torch</button>
+    </div>
+
+    <form class="scanner-manual" method="get" action="/scan">
+      <label class="scanner-field" for="scanner-gtin">Barcode digits</label>
+      <input id="scanner-gtin" name="gtin" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0123456789012" aria-describedby="scanner-gtin-hint">
+      <p class="hint" id="scanner-gtin-hint">The number under the barcode. 8 to 14 digits.</p>
+      <button class="btn scanner-submit" type="submit" data-scanner-manual>Look up barcode</button>
+    </form>
+  </div>
 </section>
 {{end}}
