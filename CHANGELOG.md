@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/martynvdijke/sodapop/compare/v1.0.0...v1.0.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **ci:** keep release green without optional integrations ([49b5b84](https://github.com/martynvdijke/sodapop/commit/49b5b84fb5ea10c0a3bfe3ddff8972c041c59e69))
+
 # 1.0.0 (2026-10-25)
 
 
