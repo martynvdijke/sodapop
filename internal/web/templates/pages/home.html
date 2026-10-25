@@ -1,0 +1,46 @@
+{{define "content"}}
+{{if .User}}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Fresh from the fridge</p>
+      <h1>What are you drinking?</h1>
+      <p class="lede">Scan a barcode, pick the can, and log it in quarter-stars. Your friends see it. Nobody else does.</p>
+    </div>
+    <a class="btn btn-primary" href="/search">Find or scan a soda</a>
+  </section>
+
+  {{if .Stats}}
+  <section class="stats" aria-label="Your stats">
+    <div><strong>{{.Stats.Checkins}}</strong><span>check-ins</span></div>
+    <div><strong>{{.Stats.UniqueDrinks}}</strong><span>unique sodas</span></div>
+    <div><strong>{{if .Stats.AvgRating}}{{printf "%.2f" (deref .Stats.AvgRating)}}{{else}}—{{end}}</strong><span>average</span></div>
+    <div><strong>{{.Stats.Toasts}}</strong><span>toasts</span></div>
+  </section>
+  {{end}}
+
+  <h2 class="section-title">Your feed</h2>
+  {{range .Feed}}{{template "feed_item" .}}{{else}}
+    <div class="empty">
+      <p>No check-ins yet. Your first can is waiting.</p>
+      <a class="btn btn-primary" href="/search">Find a soda</a>
+    </div>
+  {{end}}
+{{else}}
+  <section class="hero landing">
+    <p class="eyebrow">Untappd, but for soda</p>
+    <h1>A quiet place for loud fizz.</h1>
+    <p class="lede">Scan a can, remember the good ones, and see what your friends are drinking. Colas, ginger beers, root beers, sparkling water, energy drinks, iced tea, kombucha — all of it.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="/register">Create an account</a>
+      <a class="btn" href="/login">Sign in</a>
+    </div>
+  </section>
+
+  <section class="features">
+    <article class="card"><h2>Scan first</h2><p>Point your camera at a barcode. If the soda is new, add it in about twenty seconds.</p></article>
+    <article class="card"><h2>Rate honestly</h2><p>Quarter-stars, no decimals theatre. Averages only appear once three people have rated a drink.</p></article>
+    <article class="card"><h2>Keep it small</h2><p>Friends, not followers-for-hire. There is no public feed and no way to scrape the catalog.</p></article>
+    <article class="card"><h2>Remember where</h2><p>Hotel minibar, corner shop, vending machine, festival. Venues include the places soda actually lives.</p></article>
+  </section>
+{{end}}
+{{end}}

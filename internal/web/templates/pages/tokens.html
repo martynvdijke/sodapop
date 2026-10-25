@@ -1,0 +1,34 @@
+{{define "content"}}
+<h1>API tokens</h1>
+<p class="lede">Tokens can read your own data, your friends' feeds, and write check-ins. They cannot enumerate the catalog, list users, or export venues.</p>
+
+{{if .Notice}}<p class="banner success">{{.Notice}}</p>{{end}}
+{{if .NewToken}}
+  <div class="token-box">
+    <code class="token-value">{{.NewToken}}</code>
+    <p class="hint">Use it as <code>Authorization: Bearer …</code>.</p>
+  </div>
+{{end}}
+
+<h2>Create a token</h2>
+<form method="post" action="/settings/tokens" class="searchbar">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <label class="sr-only" for="name">Token name</label>
+  <input id="name" name="name" placeholder="Pixel phone" maxlength="80">
+  <button class="btn btn-primary" type="submit">Create token</button>
+</form>
+
+<h2>Your tokens</h2>
+{{range .Tokens}}
+  <div class="card row">
+    <div>
+      <strong>{{.Name}}</strong>
+      <div class="muted">{{.Scopes}} · created {{.CreatedAt}}{{if .LastUsedAt}} · last used {{.LastUsedAt}}{{end}}</div>
+    </div>
+  </div>
+{{else}}
+  <div class="empty"><p>No personal tokens yet.</p></div>
+{{end}}
+
+<p class="muted">Interactive API reference: <a href="/api/docs/">/api/docs/</a> · OpenAPI: <a href="/api/openapi.json">/api/openapi.json</a></p>
+{{end}}

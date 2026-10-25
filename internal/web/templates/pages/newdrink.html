@@ -1,0 +1,81 @@
+{{define "content"}}
+<section class="narrow">
+  <p class="eyebrow">Community catalog</p>
+  <h1>Add a soda</h1>
+  <p class="muted">Scan the barcode first if you have it. New entries start provisional until a moderator confirms them.</p>
+  {{if .Error}}<p class="banner warn">{{.Error}}</p>{{end}}
+
+  <form method="post" action="/new" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>Barcode <span class="hint">EAN/UPC, optional</span>
+      <input name="barcode" value="{{.Barcode}}" inputmode="numeric" autocomplete="off" placeholder="5449000000996">
+    </label>
+    <label>Name
+      <input name="name" required maxlength="120" placeholder="Cherry Cola">
+    </label>
+    <label>Brand
+      <input name="brand" maxlength="120" placeholder="Fentimans">
+    </label>
+    <label>Style
+      <select name="style">
+        <option value="">Choose a style</option>
+        {{range .Styles}}<option value="{{.Slug}}">{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <div class="row">
+      <label>Container
+        <select name="container">
+          <option value="can">Can</option>
+          <option value="bottle">Bottle</option>
+          <option value="glass">Glass</option>
+          <option value="fountain">Fountain</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Volume (ml)
+        <input name="volume_ml" type="number" min="1" max="5000" value="355">
+      </label>
+    </div>
+    <div class="row">
+      <label>Sweetener
+        <select name="sweetener">
+          <option value="">Unknown</option>
+          <option value="cane_sugar">Cane sugar</option>
+          <option value="hfcs">HFCS</option>
+          <option value="aspartame">Aspartame</option>
+          <option value="sucralose">Sucralose</option>
+          <option value="stevia">Stevia</option>
+          <option value="agave">Agave</option>
+          <option value="honey">Honey</option>
+          <option value="monk_fruit">Monk fruit</option>
+          <option value="allulose">Allulose</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Carbonation
+        <select name="carbonation">
+          <option value="">Unknown</option>
+          <option value="still">Still</option>
+          <option value="light">Light</option>
+          <option value="standard">Standard</option>
+          <option value="extra">Extra</option>
+        </select>
+      </label>
+      <label>Acid
+        <select name="acid">
+          <option value="">Unknown</option>
+          <option value="phosphoric">Phosphoric</option>
+          <option value="citric">Citric</option>
+          <option value="malic">Malic</option>
+          <option value="tartaric">Tartaric</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+    </div>
+    <label>Notes <span class="hint">optional</span>
+      <textarea name="description" rows="3" maxlength="1000" placeholder="What makes it worth trying?"></textarea>
+    </label>
+    <button class="btn btn-primary btn-block" type="submit">Add to catalog</button>
+  </form>
+</section>
+{{end}}

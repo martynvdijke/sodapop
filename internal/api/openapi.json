@@ -1,0 +1,356 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sodapop API",
+    "version": "1.0.0",
+    "summary": "Authenticated, friend-scoped soda check-in API.",
+    "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. All data endpoints require a personal `sd_` bearer token; requests are rate limited per token.",
+    "license": { "name": "MIT", "identifier": "MIT" }
+  },
+  "servers": [{ "url": "/" }],
+  "security": [{ "bearerAuth": [] }],
+  "x-sodapop-anti-scraping": {
+    "catalog-enumeration": "not exposed",
+    "search-min-query": 2,
+    "search-max-results": 10,
+    "search-rate-limit": "30 requests/minute/token",
+    "barcode-rate-limit": "30 requests/minute/token",
+    "new-drinks": "20/hour/token",
+    "new-venues": "10/hour/token",
+    "friend-requests": "20/hour/token"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "sd_<opaque token>",
+        "description": "Personal API token created in Settings, or exchanged by the Android app via `/api/v1/auth/mobile-token`. Scopes: read, write, feed."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            },
+            "required": ["code", "message"]
+          }
+        }
+      },
+      "Rating": {
+        "type": "object",
+        "properties": {
+          "avg_rating": { "type": ["number", "null"] },
+          "rater_count": { "type": "integer" },
+          "rating_shown": { "type": "boolean", "description": "Averages are shown only after 3 distinct raters." }
+        }
+      },
+      "Drink": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "slug": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "brand": { "type": "string" },
+          "style": { "type": "string" },
+          "container": { "type": "string", "enum": ["can", "glass", "pet", "fountain", "carton", "other"] },
+          "volume_ml": { "type": "integer" },
+          "sweetener": { "type": "string" },
+          "carbonation": { "type": "string" },
+          "acid": { "type": "string" },
+          "status": { "type": "string", "enum": ["provisional", "active", "merged"] },
+          "avg_rating": { "type": ["number", "null"] },
+          "rater_count": { "type": "integer" }
+        }
+      },
+      "CheckinInput": {
+        "type": "object",
+        "required": ["drink_id"],
+        "properties": {
+          "drink_id": { "type": "integer" },
+          "venue_id": { "type": ["integer", "null"] },
+          "rating": { "type": ["number", "null"], "minimum": 0, "maximum": 5, "multipleOf": 0.25 },
+          "serving": { "type": "string", "enum": ["can", "bottle", "glass", "fountain", "other"] },
+          "note": { "type": "string", "maxLength": 1000 },
+          "visibility": { "type": "string", "enum": ["public", "friends", "private"] },
+          "idempotency_key": { "type": "string", "maxLength": 100, "description": "Replaying the same key returns the original check-in." }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/openapi.json": {
+      "get": {
+        "summary": "This OpenAPI document",
+        "security": [],
+        "responses": { "200": { "description": "OpenAPI 3.1 JSON" } }
+      }
+    },
+    "/api/docs/": {
+      "get": {
+        "summary": "Swagger UI",
+        "security": [],
+        "responses": { "200": { "description": "Interactive API documentation" } }
+      }
+    },
+    "/api/v1/auth/oidc/status": {
+      "get": {
+        "summary": "Discover whether Authelia OIDC is enabled",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OIDC status",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "enabled": { "type": "boolean" }, "issuer": { "type": "string" } } } } } } }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mobile-token": {
+      "post": {
+        "summary": "Exchange a browser session for a personal token",
+        "description": "Requires the `sd_session` cookie and the per-session CSRF token. Used by the Flutter Android app after Authelia WebView sign-in.",
+        "security": [],
+        "parameters": [{ "name": "X-CSRF-Token", "in": "header", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "201": { "description": "Token created (shown once)" },
+          "403": { "description": "CSRF failure or unverified email" }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "summary": "Current identity and token scopes",
+        "responses": {
+          "200": { "description": "Profile" },
+          "401": { "description": "Missing or invalid token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/v1/me/checkins": {
+      "get": {
+        "summary": "List your own check-ins",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 50 } },
+          { "name": "before", "in": "query", "schema": { "type": "string" }, "description": "RFC3339 cursor" }
+        ],
+        "responses": { "200": { "description": "Check-ins" } }
+      }
+    },
+    "/api/v1/stats/me": {
+      "get": {
+        "summary": "Your check-in statistics",
+        "responses": { "200": { "description": "Totals" } }
+      }
+    },
+    "/api/v1/feed": {
+      "get": {
+        "summary": "Friend-scoped feed",
+        "description": "Returns check-ins from you and accepted friends only. There is no global or public feed.",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 50 } },
+          { "name": "before", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Feed" } }
+      }
+    },
+    "/api/v1/friends": {
+      "get": {
+        "summary": "Accepted friends and pending requests",
+        "responses": { "200": { "description": "Friend graph" } }
+      }
+    },
+    "/api/v1/friends/requests": {
+      "post": {
+        "summary": "Request a friendship by handle",
+        "description": "Always returns 202, including for unknown handles, to prevent account enumeration.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["handle"], "properties": { "handle": { "type": "string" } } } } }
+        },
+        "responses": {
+          "202": { "description": "Request recorded" },
+          "429": { "description": "Too many requests" }
+        }
+      }
+    },
+    "/api/v1/friends/requests/{id}/accept": {
+      "post": {
+        "summary": "Accept a pending request",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Accepted" }, "403": { "description": "Not addressed to you" } }
+      }
+    },
+    "/api/v1/friends/{id}": {
+      "delete": {
+        "summary": "Remove a friend or pending request",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Removed" } }
+      }
+    },
+    "/api/v1/checkins": {
+      "post": {
+        "summary": "Log a check-in",
+        "description": "Requires the write scope and a verified email. Ratings are quarter-stars (0.25 steps).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckinInput" } } } },
+        "responses": {
+          "201": { "description": "Created" },
+          "200": { "description": "Idempotent replay returned the original" },
+          "400": { "description": "Invalid rating or body" },
+          "403": { "description": "Unverified email or insufficient scope" }
+        }
+      }
+    },
+    "/api/v1/checkins/{id}": {
+      "delete": {
+        "summary": "Soft-delete your check-in",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Deleted" }, "403": { "description": "Not yours" } }
+      }
+    },
+    "/api/v1/checkins/{id}/toast": {
+      "post": {
+        "summary": "Toast a check-in",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Toasted" } }
+      },
+      "delete": {
+        "summary": "Remove your toast",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Untoasted" } }
+      }
+    },
+    "/api/v1/users/{handle}": {
+      "get": {
+        "summary": "Narrow public profile",
+        "description": "Handle, display name and bio only. Never returns an email address. There is no user directory.",
+        "parameters": [{ "name": "handle", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Profile" }, "404": { "description": "Unknown handle" } }
+      }
+    },
+    "/api/v1/users/{handle}/checkins": {
+      "get": {
+        "summary": "A friend's check-ins",
+        "description": "Only your own account or an accepted friend is readable; anything else returns 404.",
+        "parameters": [
+          { "name": "handle", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 50 } }
+        ],
+        "responses": { "200": { "description": "Check-ins" }, "404": { "description": "Not a friend or unknown user" } }
+      }
+    },
+    "/api/v1/drinks/{slug}": {
+      "get": {
+        "summary": "Read one drink",
+        "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Drink detail" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "summary": "Search the catalog (capped)",
+        "description": "Requires at least 2 characters. Returns at most 10 results, with no cursor or total. This is the only catalog discovery endpoint and it cannot be paginated.",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string", "minLength": 2 } },
+          { "name": "style", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10, "maximum": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "At most 10 results" },
+          "400": { "description": "Query too short" },
+          "429": { "description": "Rate limited (30/min/token)" }
+        }
+      }
+    },
+    "/api/v1/barcodes/{gtin}": {
+      "get": {
+        "summary": "Resolve a barcode",
+        "description": "Normalizes to GTIN-14, then checks the local catalog, the Open Food Facts cache, and finally Open Food Facts itself. OFF data is returned as an attributed suggestion, never merged into the catalog automatically.",
+        "parameters": [{ "name": "gtin", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[0-9]{8,14}$" } }],
+        "responses": {
+          "200": { "description": "matched | off | unknown" },
+          "400": { "description": "Invalid GTIN check digit" },
+          "429": { "description": "Rate limited" }
+        }
+      }
+    },
+    "/api/v1/drinks": {
+      "post": {
+        "summary": "Create a provisional community drink",
+        "description": "Soft-key deduplication means submitting an equivalent soda returns the existing drink with 200 instead of creating a duplicate. Capped at 20/hour/token.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "properties": {
+            "name": { "type": "string" },
+            "brand": { "type": "string" },
+            "style_slug": { "type": "string" },
+            "container": { "type": "string", "enum": ["can", "glass", "pet", "fountain", "carton", "other"] },
+            "volume_ml": { "type": "integer" },
+            "sweetener": { "type": "string" },
+            "carbonation": { "type": "string" },
+            "acid": { "type": "string" },
+            "barcode": { "type": "string" },
+            "description": { "type": "string" }
+          } } } }
+        },
+        "responses": { "201": { "description": "Created" }, "200": { "description": "Existing equivalent returned" } }
+      }
+    },
+    "/api/v1/venues/search": {
+      "get": {
+        "summary": "Search venues (capped)",
+        "description": "Requires 2+ characters and returns at most 20 results; no directory export.",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string", "minLength": 2 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10, "maximum": 20 } }
+        ],
+        "responses": { "200": { "description": "Venues" }, "400": { "description": "Query too short" } }
+      }
+    },
+    "/api/v1/venues/{id}": {
+      "get": {
+        "summary": "Read one venue and recently seen drinks",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Venue" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/venues": {
+      "post": {
+        "summary": "Submit a venue",
+        "description": "Deduplicated within 150 metres or by identical name+city. Capped at 10/hour/token.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "properties": {
+            "name": { "type": "string" },
+            "kind": { "type": "string", "enum": ["bar", "restaurant", "cafe", "shop", "hotel", "festival", "vending", "other"] },
+            "address": { "type": "string" },
+            "city": { "type": "string" },
+            "region": { "type": "string" },
+            "country": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "website": { "type": "string" }
+          } } } }
+        },
+        "responses": { "201": { "description": "Created" }, "200": { "description": "Nearby duplicate returned" } }
+      }
+    },
+    "/api/v1/venues/{id}/save": {
+      "post": {
+        "summary": "Save a venue",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Saved" } }
+      },
+      "delete": {
+        "summary": "Unsave a venue",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Unsaved" } }
+      }
+    }
+  }
+}

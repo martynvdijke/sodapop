@@ -1,0 +1,45 @@
+{{define "content"}}
+<h1>Friends</h1>
+
+<form method="post" action="/friends/request" class="searchbar">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <label class="sr-only" for="handle">Friend handle</label>
+  <input id="handle" name="handle" placeholder="Add a friend by handle" required>
+  <button class="btn btn-primary" type="submit">Send request</button>
+</form>
+
+{{if .Friends.Incoming}}
+<h2>Waiting for you</h2>
+{{range .Friends.Incoming}}
+  <div class="card row">
+    <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+    <div><strong>{{.DisplayName}}</strong><div class="muted">@{{.Handle}}</div></div>
+    <form method="post" action="/friends/{{.ID}}/accept" class="inline">
+      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+      <button class="btn btn-small btn-primary" type="submit">Accept</button>
+    </form>
+  </div>
+{{end}}
+{{end}}
+
+<h2>Your friends</h2>
+{{range .Friends.Friends}}
+  <div class="card row">
+    <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+    <div><strong>{{.DisplayName}}</strong><div class="muted">@{{.Handle}}</div></div>
+    <a class="btn btn-small" href="/search">Find a soda together</a>
+  </div>
+{{else}}
+  <div class="empty"><p>No friends yet. Soda is better shared.</p></div>
+{{end}}
+
+{{if .Friends.Outgoing}}
+<h2>Sent requests</h2>
+{{range .Friends.Outgoing}}
+  <div class="card row">
+    <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+    <div><strong>{{.DisplayName}}</strong><div class="muted">@{{.Handle}} · pending</div></div>
+  </div>
+{{end}}
+{{end}}
+{{end}}

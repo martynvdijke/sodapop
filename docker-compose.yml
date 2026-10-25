@@ -1,0 +1,23 @@
+services:
+  sodapop:
+    image: ghcr.io/martynvdijke/sodapop:latest
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-0.0.0-dev}
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:8097:8097"
+    volumes:
+      - sodapop-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8097/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 20s
+
+volumes:
+  sodapop-data:

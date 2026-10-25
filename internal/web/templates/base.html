@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{.Title}} · {{.AppName}}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  {{if .UmamiURL}}<script defer src="{{.UmamiURL}}/script.js" data-website-id="{{.UmamiID}}"></script>{{end}}
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="/"><span class="brand-dot" aria-hidden="true"></span> Sodapop</a>
+    <nav aria-label="Primary">
+      {{if .User}}
+        <a href="/search">Search</a>
+        <a href="/friends">Friends</a>
+        <a href="/settings/tokens">API</a>
+        <form method="post" action="/logout" class="inline">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+          <button class="link" type="submit">Sign out</button>
+        </form>
+      {{else}}
+        <a href="/login">Sign in</a>
+        <a class="btn btn-small" href="/register">Join</a>
+      {{end}}
+    </nav>
+  </header>
+
+  <main id="main" class="wrap">
+    {{if .User}}{{if not .User.EmailVerifiedAt}}
+      <p class="banner warn">Your email is not verified yet. You can browse, but check-ins and friends are disabled. <a href="/verify">Verify email</a>.</p>
+    {{end}}{{end}}
+    {{template "content" .}}
+  </main>
+
+  <nav class="tabbar" aria-label="Sections">
+    <a href="/">Feed</a>
+    <a href="/search">Search</a>
+    <a class="scan" href="/search" aria-label="Scan or search a soda">＋</a>
+    <a href="/friends">Friends</a>
+    <a href="/settings/tokens">You</a>
+  </nav>
+
+  <footer class="site-footer wrap">
+    <p>{{.AppName}} {{.Version}} · Built for soda, not beer.</p>
+  </footer>
+</body>
+</html>

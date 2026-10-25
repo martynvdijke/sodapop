@@ -1,0 +1,15 @@
+{{define "content"}}
+<section class="narrow">
+  <h1>{{.Title}}</h1>
+  {{if .Success}}
+    <p class="banner success">Your email is confirmed. You can log sodas now.</p>
+    <a class="btn btn-primary" href="/search">Find a soda</a>
+  {{else if .Pending}}
+    <p class="lede">We sent a verification link to <strong>{{.Email}}</strong>. It expires in 24 hours.</p>
+    {{if .DevLink}}<p class="banner warn">Development mode: <a href="{{.DevLink}}">open the verification link</a>.</p>{{end}}
+  {{else}}
+    {{if .Error}}<p class="banner error">{{.Error}}</p>{{end}}
+    <p class="lede">Open the link from your verification email. If it expired, sign in and request a new one from your account page.</p>
+  {{end}}
+</section>
+{{end}}

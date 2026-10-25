@@ -1,0 +1,25 @@
+{{define "content"}}
+<section class="narrow">
+  <h1>Sign in</h1>
+  {{if .Error}}<p class="banner error">{{.Error}}</p>{{end}}
+
+  {{if .OIDC.enabled}}
+    <a class="btn btn-primary btn-block" href="/auth/oidc/login?next={{.Next}}">Sign in with Authelia</a>
+    {{if .Fallback}}<p class="divider">or use a local account</p>{{end}}
+  {{end}}
+
+  {{if .Fallback}}
+  <form method="post" action="/login" class="stack">
+    <input type="hidden" name="next" value="{{.Next}}">
+    <label>Email or handle
+      <input name="identifier" autocomplete="username" required autofocus>
+    </label>
+    <label>Password
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+  </form>
+  <p class="muted">New here? <a href="/register">Create an account</a>.</p>
+  {{end}}
+</section>
+{{end}}

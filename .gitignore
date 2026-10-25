@@ -1,0 +1,84 @@
+# --- Secrets & local configuration -------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/testdata/**/*.key
+
+# --- Runtime data -------------------------------------------------------------
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+backups/
+.eml-outbox/
+
+# --- Go ----------------------------------------------------------------------
+/bin/
+/dist/
+/sodapop
+/sodapop-server
+*.test
+*.out
+coverage.out
+coverage.html
+profile.cov
+
+# --- Node / frontend ----------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+*.tsbuildinfo
+
+# Vite output is embedded at build time and is not committed.
+internal/web/static/assets/
+internal/web/static/.vite/
+
+# --- Playwright / E2E ---------------------------------------------------------
+.e2e/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# --- Flutter / Android --------------------------------------------------------
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/macos/Pods/
+mobile/**/*.iml
+mobile/**/.idea/
+mobile/**/*.keystore
+mobile/**/*.jks
+mobile/key.properties
+mobile/android/key.properties
+
+# --- Tooling / OS -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+tmp/

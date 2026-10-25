@@ -1,0 +1,206 @@
+name: Release
+
+on:
+  push:
+    branches: ['main']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yaml
+    secrets: inherit
+    permissions:
+      contents: read
+
+  release:
+    needs: ci
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    name: Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+      attestations: write
+      id-token: write
+
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@d9bf53a078bd2f86aaffaec796dbb3d28f1b6f34 # v8.1.3
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/exec
+            @semantic-release/git
+            @semantic-release/github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: steps.semantic.outputs.new_release_published == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        if: steps.semantic.outputs.new_release_published == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the Docker image
+        if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          VERSION: ${{ steps.semantic.outputs.new_release_version }}
+        run: |
+          docker build . \
+            --file Dockerfile \
+            --build-arg VERSION="$VERSION" \
+            --tag martynvandijke/sodapop:latest \
+            --tag martynvandijke/sodapop:"$VERSION" \
+            --tag ghcr.io/martynvdijke/sodapop:latest \
+            --tag ghcr.io/martynvdijke/sodapop:"$VERSION"
+
+      - name: Push Docker image
+        if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          VERSION: ${{ steps.semantic.outputs.new_release_version }}
+        run: |
+          docker push martynvandijke/sodapop:latest
+          docker push martynvandijke/sodapop:"$VERSION"
+          docker push ghcr.io/martynvdijke/sodapop:latest
+          docker push ghcr.io/martynvdijke/sodapop:"$VERSION"
+
+  android:
+    name: Build Android APK
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true' && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: Install Android dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Configure release signing
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > upload-keystore.jks
+          cat > key.properties <<PROPERTIES
+          storeFile=$GITHUB_WORKSPACE/mobile/android/upload-keystore.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          PROPERTIES
+
+      - name: Build APK
+        working-directory: mobile
+        env:
+          VERSION: ${{ needs.release.outputs.new_release_version }}
+        run: |
+          flutter build apk --release \
+            --build-name="$VERSION" \
+            --build-number="${{ github.run_number }}" \
+            --dart-define=APP_VERSION="$VERSION"
+
+      - name: Attach APK to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release.outputs.new_release_version }}
+        run: |
+          mv mobile/build/app/outputs/flutter-apk/app-release.apk "sodapop-${VERSION}-android.apk"
+          gh release upload "v${VERSION}" "sodapop-${VERSION}-android.apk" --clobber
+
+  notify:
+    needs: [ci, release, android]
+    if: ${{ always() }}
+    name: Gotify Notification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release Published Notification
+        if: needs.ci.result == 'success' && needs.release.result == 'success' && needs.android.result == 'success' && needs.release.outputs.new_release_published == 'true'
+        uses: eikendev/gotify-action@cb63800546f25c393ab96f09d12a094138c514f4 # master
+        with:
+          gotify_api_base: ${{ secrets.GOTIFY_API_BASE }}
+          gotify_app_token: ${{ secrets.GOTIFY_APP_TOKEN }}
+          notification_title: '${{ github.repository }} Release Published - ${{ needs.release.outputs.new_release_version }}'
+          notification_message: '${{ github.repository }}: Version ${{ needs.release.outputs.new_release_version }} was successfully released.'
+
+      - name: No Release Needed Notification
+        if: needs.ci.result == 'success' && needs.release.result == 'success' && needs.release.outputs.new_release_published != 'true'
+        uses: eikendev/gotify-action@cb63800546f25c393ab96f09d12a094138c514f4 # master
+        with:
+          gotify_api_base: ${{ secrets.GOTIFY_API_BASE }}
+          gotify_app_token: ${{ secrets.GOTIFY_APP_TOKEN }}
+          notification_title: '${{ github.repository }} Release - Up to Date'
+          notification_message: 'Workflow passed but no new release was published.'
+
+      - name: Failure Notification
+        if: needs.ci.result != 'success' || needs.release.result != 'success' || (needs.android.result != 'success' && needs.android.result != 'skipped')
+        uses: eikendev/gotify-action@cb63800546f25c393ab96f09d12a094138c514f4 # master
+        with:
+          gotify_api_base: ${{ secrets.GOTIFY_API_BASE }}
+          gotify_app_token: ${{ secrets.GOTIFY_APP_TOKEN }}
+          notification_title: 'Release Failed'
+          notification_message: 'The release workflow has failed. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          notification_priority: 5
+
+  otel:
+    name: OpenTelemetry Export Trace
+    runs-on: ubuntu-latest
+    needs: [release]
+    if: ${{ always() }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      checks: read
+    steps:
+      - name: Export workflow
+        uses: corentinmusard/otel-cicd-action@4826b79d63662fa91657272e7711420cb6aea543 # v4.2.0
+        with:
+          otlpEndpoint: ${{ secrets.OTLP_ENDPOINT }}
+          otlpHeaders: ${{ secrets.OTLP_HEADERS }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,46 @@
+{{define "content"}}
+{{$d := .Drink}}
+<article class="drink-detail">
+  <p class="eyebrow">{{$d.BrandName}}{{if $d.StyleName}} · {{$d.StyleName}}{{end}}</p>
+  <h1>{{$d.Drink.Name}}</h1>
+  <p class="muted">{{$d.Drink.VolumeMl}} ml {{container $d.Drink.Container}} · {{$d.Drink.Status}}</p>
+
+  <div class="rating-block">
+    {{if $d.Rating.Shown}}
+      <strong class="big-rating">{{printf "%.2f" (deref $d.Rating.Avg)}}</strong>
+      <span>/ 5 from {{$d.Rating.RaterCount}} people</span>
+    {{else}}
+      <strong class="big-rating">—</strong>
+      <span>Not enough ratings yet ({{$d.Rating.RaterCount}} of 3)</span>
+    {{end}}
+  </div>
+
+  <div class="actions">
+    <a class="btn btn-primary" href="/checkins/new?slug={{$d.Drink.Slug}}">Log this soda</a>
+    <a class="btn" href="/search">Back to search</a>
+  </div>
+
+  {{if $d.Drink.Description}}<p class="note">{{$d.Drink.Description}}</p>{{end}}
+
+  <dl class="facts">
+    <div><dt>Sweetener</dt><dd>{{$d.Drink.Sweetener}}</dd></div>
+    <div><dt>Carbonation</dt><dd>{{$d.Drink.Carbonation}}</dd></div>
+    <div><dt>Acid</dt><dd>{{$d.Drink.Acid}}</dd></div>
+    <div><dt>Caffeine</dt><dd>{{$d.Drink.CaffeineMgPer100ml}} mg / 100 ml</dd></div>
+    <div><dt>Sugar</dt><dd>{{printf "%.1f" $d.Drink.SugarGPer100ml}} g / 100 ml</dd></div>
+    <div><dt>Barcodes</dt><dd>{{$d.BarcodeNum}}</dd></div>
+  </dl>
+
+  {{if $d.Flavours}}
+  <h2>Flavours</h2>
+  <ul class="chips">
+    {{range $d.Flavours}}<li class="chip">{{.Name}} · {{.Intensity}}/5</li>{{end}}
+  </ul>
+  {{end}}
+
+  {{if $d.Aliases}}
+  <h2>Also known as</h2>
+  <p class="muted">{{range $i, $a := $d.Aliases}}{{if $i}}, {{end}}{{$a}}{{end}}</p>
+  {{end}}
+</article>
+{{end}}

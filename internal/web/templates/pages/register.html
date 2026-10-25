@@ -1,0 +1,24 @@
+{{define "content"}}
+<section class="narrow">
+  <h1>Create an account</h1>
+  <p class="lede">Local accounts need email verification before they can write. If your instance uses Authelia, <a href="/login">sign in there instead</a>.</p>
+  {{if .Error}}<p class="banner error">{{.Error}}</p>{{end}}
+  <form method="post" action="/register" class="stack">
+    <label>Handle
+      <input name="handle" value="{{.Handle}}" pattern="[a-z0-9_]{3,24}" autocomplete="username" required>
+      <span class="hint">3–24 characters: lowercase letters, numbers, underscore.</span>
+    </label>
+    <label>Email
+      <input type="email" name="email" value="{{.Email}}" autocomplete="email" required>
+    </label>
+    <label>Display name <span class="hint">optional</span>
+      <input name="display_name" value="{{.DisplayName}}" autocomplete="nickname">
+    </label>
+    <label>Password
+      <input id="password" type="password" name="password" autocomplete="new-password" minlength="10" aria-describedby="password-hint" required>
+    </label>
+    <p class="hint" id="password-hint">At least 10 characters.</p>
+    <button class="btn btn-primary btn-block" type="submit">Create account</button>
+  </form>
+</section>
+{{end}}

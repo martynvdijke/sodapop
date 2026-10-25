@@ -1,0 +1,78 @@
+version: '3'
+
+vars:
+  BIN: bin/sodapop
+  DB: data/sodapop.db
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list-all
+
+  generate:
+    desc: Regenerate Ent ORM code
+    cmds:
+      - go generate ./ent
+
+  build:
+    desc: Build the server binary
+    cmds:
+      - go build -trimpath -o {{.BIN}} ./cmd/server
+
+  run:
+    desc: Run the dev server
+    dotenv: ['.env']
+    cmds:
+      - go run ./cmd/server
+
+  seed:
+    desc: Seed styles, flavours, badges and demo drinks
+    cmds:
+      - go run ./cmd/seed
+
+  test:
+    desc: Run Go tests
+    cmds:
+      - go test ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  fmt:
+    desc: Format Go code
+    cmds:
+      - gofmt -w ./cmd ./internal ./ent
+
+  e2e:
+    desc: Run Playwright end-to-end tests
+    cmds:
+      - npx playwright test
+
+  ci:
+    desc: Everything CI runs
+    cmds:
+      - task fmt
+      - task vet
+      - task test
+      - task e2e
+
+  mobile-analyze:
+    desc: Analyze the Flutter Android app
+    dir: mobile
+    cmds:
+      - flutter analyze
+
+  mobile-test:
+    desc: Run Flutter tests
+    dir: mobile
+    cmds:
+      - flutter test
+
+  mobile-apk:
+    desc: Build a release APK
+    dir: mobile
+    cmds:
+      - flutter build apk --release

@@ -1,0 +1,33 @@
+{{define "feed_item"}}
+<article class="card checkin">
+  <div class="checkin-head">
+    <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+    <div>
+      <strong>{{.DisplayName}}</strong>
+      <div class="muted">@{{.Handle}} · {{.CreatedAt}}</div>
+    </div>
+    <span class="rating-pill">{{if .Rating}}{{stars .Rating}}{{else}}Not rated{{end}}</span>
+  </div>
+  <h3><a href="/drinks/{{.DrinkSlug}}">{{.DrinkName}}</a></h3>
+  <p class="muted">{{.Brand}}{{if .VenueName}} · at {{.VenueName}}{{end}} · {{.VolumeML}} ml {{container .Container}}</p>
+  {{if .Note}}<p class="note">{{.Note}}</p>{{end}}
+  <div class="checkin-actions">
+    <form method="post" action="/checkins/{{.ID}}/toast" class="inline">
+      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+      <button class="chip{{if .Toasted}} on{{end}}" type="submit">Toast {{.Toasts}}</button>
+    </form>
+  </div>
+</article>
+{{end}}
+
+{{define "drink_card"}}
+<a class="card drink-card" href="/drinks/{{.Slug}}">
+  <div class="bottle" aria-hidden="true">{{initial .Name}}</div>
+  <div>
+    <strong>{{.Name}}</strong>
+    <div class="muted">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</div>
+    <div class="muted">{{.VolumeML}} ml {{container .Container}}</div>
+  </div>
+  {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{end}}
+</a>
+{{end}}

@@ -1,0 +1,45 @@
+{{define "content"}}
+<section class="narrow">
+  {{$d := .Drink}}
+  <p class="eyebrow">Log a soda</p>
+  <h1>{{$d.Drink.Name}}</h1>
+  <p class="muted">{{$d.BrandName}} · {{$d.Drink.VolumeMl}} ml {{container $d.Drink.Container}}</p>
+
+  <form method="post" action="/checkins" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <input type="hidden" name="drink_id" value="{{$d.Drink.ID}}">
+    <input type="hidden" name="idempotency_key" value="{{.Idempotency}}">
+
+    <label>Rating
+      <select name="rating">
+        <option value="">Not rated</option>
+        {{range .Ratings}}<option value="{{.}}">{{.}} / 5</option>{{end}}
+      </select>
+    </label>
+
+    <label>Serving
+      <select name="serving">
+        <option value="can">Can</option>
+        <option value="bottle">Bottle</option>
+        <option value="glass">Glass</option>
+        <option value="fountain">Fountain</option>
+        <option value="other">Other</option>
+      </select>
+    </label>
+
+    <label>Note <span class="hint">optional</span>
+      <textarea name="note" rows="3" maxlength="1000" placeholder="Sharp ginger, low sweetness, would buy again."></textarea>
+    </label>
+
+    <label>Who can see this?
+      <select name="visibility">
+        <option value="public">Anyone (still only visible in friends' feeds)</option>
+        <option value="friends">Friends</option>
+        <option value="private">Only me</option>
+      </select>
+    </label>
+
+    <button class="btn btn-primary btn-block" type="submit">Save check-in</button>
+  </form>
+</section>
+{{end}}

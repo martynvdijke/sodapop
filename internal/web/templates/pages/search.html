@@ -1,0 +1,22 @@
+{{define "content"}}
+<h1>Search</h1>
+<form method="get" action="/search" class="searchbar">
+  <label class="sr-only" for="q">Search sodas</label>
+  <input id="q" name="q" value="{{.Query}}" placeholder="Cola, ginger beer, Fever-Tree…" autofocus minlength="2">
+  <button class="btn btn-primary" type="submit">Search</button>
+</form>
+<p class="hint">Two characters minimum. Results are capped at ten and there is no way to browse the whole catalog.</p>
+
+{{if .Error}}<p class="banner error">{{.Error}}</p>{{end}}
+
+{{if .Query}}{{if .Results}}
+  <section class="results">
+    {{range .Results}}{{template "drink_card" .}}{{end}}
+  </section>
+{{else}}{{if not .Error}}
+  <div class="empty">
+    <p>No soda matched “{{.Query}}”.</p>
+    <a class="btn" href="/new?name={{.Query}}">Add it to the catalog</a>
+  </div>
+{{end}}{{end}}{{end}}
+{{end}}
