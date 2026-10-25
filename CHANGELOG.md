@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/martynvdijke/sodapop/compare/v1.0.2...v1.0.3) (2026-10-25)
+
+
+### Bug Fixes
+
+* **ci:** allow manual release runs ([043ff68](https://github.com/martynvdijke/sodapop/commit/043ff687ba890531abeb81314ff29b861cc0314b))
+
 ## [1.0.2](https://github.com/martynvdijke/sodapop/compare/v1.0.1...v1.0.2) (2026-10-25)
 
 
