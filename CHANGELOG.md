@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/martynvdijke/sodapop/compare/v1.1.0...v1.2.0) (2026-10-25)
+
+
+### Features
+
+* ship v1.1 member surfaces ([cdbf748](https://github.com/martynvdijke/sodapop/commit/cdbf748ae47041f229a0fc59702e3e52db7c2c95))
+
 # [1.1.0](https://github.com/martynvdijke/sodapop/compare/v1.0.3...v1.1.0) (2026-10-25)
 
 
