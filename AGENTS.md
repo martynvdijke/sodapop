@@ -58,4 +58,4 @@ Not using Task? The underlying commands are in `Taskfile.yml`. Always run `go te
 
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`). `feat` bumps minor; `fix` patches. Releases are cut by semantic-release on `main`, which also builds the Docker image and attaches the Android APK.
 - Do not commit `data/`, `*.db`, `.env`, Playwright output, `node_modules/`, Flutter build output, or signing keys. `.gitignore` covers these.
-- Keep `README.md`, `docs/`, and `openspec/specs/` in sync with behaviour. The OpenSpec change under `openspec/changes/add-sodapop-v1/` is the v1 plan.
+- Keep `README.md` and `docs/` in sync with behaviour. OpenSpec working notes are local-only and ignored by git.

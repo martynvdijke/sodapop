@@ -14,7 +14,6 @@ Self-hosted, single Go binary + SQLite (Ent ORM + versioned migrations), server-
 | [docs/design-direction.md](docs/design-direction.md) | Fresh lime visual system (`#B4E32C` fill, `#16241A` forest ink, `#F2F4E6` cream / `#0C130E` dark), typography, components, scanner overlay, accessibility |
 | [docs/mobile.md](docs/mobile.md) | Flutter Android app (`mobile/`): zero-default server onboarding, Authelia OIDC WebView + `sd_` token exchange, `mobile_scanner` ML Kit, offline check-in outbox, APK CI/release |
 | [docs/roadmap.md](docs/roadmap.md) | Dependency graph and phases `P0`–`P11` with build lists, exit criteria, and definition of done |
-| [openspec/](openspec/) | Spec-driven canonical requirements (`openspec/specs/*/spec.md`) and v1 change plan (`openspec/changes/add-sodapop-v1/`) |
 
 ## Highlights
 

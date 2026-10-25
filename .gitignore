@@ -82,3 +82,6 @@ Thumbs.db
 *.swp
 *.swo
 tmp/
+
+# Local OpenSpec working notes (not published)
+openspec/

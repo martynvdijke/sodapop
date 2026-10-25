@@ -52,7 +52,6 @@ sodapop/
 ├── templates/             # base, pages, partials
 ├── web/                   # TS entrypoints, styles, manifest, sw.ts
 ├── mobile/                # Flutter Android app (Riverpod, GoRouter, Dio, mobile_scanner)
-├── openspec/              # Spec-driven canonical specs + change proposals
 ├── e2e/                   # Playwright specs + a11y
 ├── data/                  # runtime volume (gitignored)
 ├── docs/
