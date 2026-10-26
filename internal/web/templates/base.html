@@ -22,7 +22,7 @@
   <link rel="apple-touch-icon" href="/static/icon-180.png">
   <link rel="stylesheet" href="/static/app.css">
   <link rel="stylesheet" href="/static/browse.css">
-  <script defer src="{{.AssetScript}}"></script>
+  <script type="module" src="{{.AssetScript}}"></script>
   {{if .UmamiURL}}<script defer src="{{.UmamiURL}}/script.js" data-website-id="{{.UmamiID}}"></script>{{end}}
 </head>
 <body>
