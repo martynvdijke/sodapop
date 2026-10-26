@@ -56,7 +56,7 @@
           <a class="nav-setup" href="/setup">Finish setup</a>
         {{else}}
           <a href="/login">Sign in</a>
-          <a class="btn btn-small" href="/register">Join</a>
+          {{if .RegistrationOpen}}<a class="btn btn-small" href="/register">Join</a>{{end}}
         {{end}}
       {{end}}
     </nav>

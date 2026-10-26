@@ -17,6 +17,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -26,29 +27,35 @@ import (
 
 // Config is resolved from the environment.
 type Config struct {
-	Enabled        bool
-	Endpoint       string
-	ServiceName    string
-	ServiceVersion string
-	Sampler        string
-	SamplerArg     float64
+	Enabled         bool
+	Disabled        bool
+	Endpoint        string
+	MetricsEndpoint string
+	ServiceName     string
+	ServiceVersion  string
+	Environment     string
+	Sampler         string
+	SamplerArg      float64
 }
 
 // FromEnv reads the standard OTEL variables. The Go SDK does not apply the
 // sampler or propagator variables automatically, so they are parsed here.
 func FromEnv(version string) Config {
+	disabled := strings.EqualFold(os.Getenv("OTEL_SDK_DISABLED"), "true")
 	cfg := Config{
-		ServiceName:    env("OTEL_SERVICE_NAME", "sodapop"),
-		ServiceVersion: env("OTEL_SERVICE_VERSION", version),
-		Sampler:        env("OTEL_TRACES_SAMPLER", "parentbased_always_on"),
-		Endpoint:       env("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", env("OTEL_EXPORTER_OTLP_ENDPOINT", "")),
+		Disabled:        disabled,
+		ServiceName:     env("OTEL_SERVICE_NAME", "sodapop"),
+		ServiceVersion:  env("OTEL_SERVICE_VERSION", version),
+		Environment:     env("ENV", "development"),
+		Sampler:         env("OTEL_TRACES_SAMPLER", "parentbased_always_on"),
+		Endpoint:        env("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", env("OTEL_EXPORTER_OTLP_ENDPOINT", "")),
+		MetricsEndpoint: env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", env("OTEL_EXPORTER_OTLP_ENDPOINT", "")),
 	}
 	if v := os.Getenv("OTEL_TRACES_SAMPLER_ARG"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			cfg.SamplerArg = f
 		}
 	}
-	disabled := strings.EqualFold(os.Getenv("OTEL_SDK_DISABLED"), "true")
 	cfg.Enabled = !disabled && cfg.Endpoint != ""
 	return cfg
 }
@@ -58,13 +65,9 @@ func Setup(ctx context.Context, cfg Config) (func(context.Context) error, error)
 	if !cfg.Enabled {
 		return func(context.Context) error { return nil }, nil
 	}
-	res, err := resource.Merge(resource.Default(), resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceName(cfg.ServiceName),
-		semconv.ServiceVersion(cfg.ServiceVersion),
-	))
+	res, err := resourceFor(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("telemetry resource: %w", err)
+		return nil, err
 	}
 	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(cfg.Endpoint))
 	if err != nil {
@@ -93,6 +96,21 @@ func Handler(next http.Handler) http.Handler {
 			return true
 		}),
 	)
+}
+
+func resourceFor(cfg Config) (*resource.Resource, error) {
+	attrs := []attribute.KeyValue{
+		semconv.ServiceName(cfg.ServiceName),
+		semconv.ServiceVersion(cfg.ServiceVersion),
+	}
+	if cfg.Environment != "" {
+		attrs = append(attrs, semconv.DeploymentEnvironmentName(cfg.Environment))
+	}
+	res, err := resource.Merge(resource.Default(), resource.NewWithAttributes(semconv.SchemaURL, attrs...))
+	if err != nil {
+		return nil, fmt.Errorf("telemetry resource: %w", err)
+	}
+	return res, nil
 }
 
 func sampler(name string, arg float64) sdktrace.Sampler {

@@ -28,6 +28,10 @@ const (
 	KeyAllowPasswordFallback = "allow_password_fallback"
 	KeyAllowedEmails         = "allowed_emails"
 	KeyAllowedDomains        = "allowed_domains"
+	KeyOTELEndpoint          = "otel_exporter_otlp_endpoint"
+	KeyOTELServiceName       = "otel_service_name"
+	KeyOTELSampler           = "otel_sampler"
+	KeyOTELDisabled          = "otel_sdk_disabled"
 )
 
 // Errors returned by validation and write paths.
@@ -51,10 +55,8 @@ var envOnlyKeys = map[string]bool{
 	"seed_demo":      true,
 }
 
-// isEnvOnlyKey also matches the OTEL_* family.
 func isEnvOnlyKey(key string) bool {
-	key = strings.ToLower(key)
-	return envOnlyKeys[key] || strings.HasPrefix(key, "otel_")
+	return envOnlyKeys[strings.ToLower(key)]
 }
 
 // Validate checks a non-secret value against the same rules Set applies. It is
@@ -95,6 +97,10 @@ var specs = map[string]keySpec{
 	KeyAllowPasswordFallback: {},
 	KeyAllowedEmails:         {},
 	KeyAllowedDomains:        {},
+	KeyOTELEndpoint:          {},
+	KeyOTELServiceName:       {},
+	KeyOTELSampler:           {},
+	KeyOTELDisabled:          {},
 }
 
 const (
@@ -106,6 +112,7 @@ const (
 	defaultRegistrationOpen      = true
 	defaultAIEnabled             = false
 	defaultAllowPasswordFallback = true
+	defaultOTELSampler           = "parentbased_traceidratio"
 )
 
 func builtinDefaults() map[string]string {
@@ -125,6 +132,10 @@ func builtinDefaults() map[string]string {
 		KeyAllowPasswordFallback: boolString(defaultAllowPasswordFallback),
 		KeyAllowedEmails:         "",
 		KeyAllowedDomains:        "",
+		KeyOTELEndpoint:          "",
+		KeyOTELServiceName:       "",
+		KeyOTELSampler:           defaultOTELSampler,
+		KeyOTELDisabled:          "0",
 	}
 }
 
@@ -217,6 +228,36 @@ func normalizeValue(key, raw string) (string, error) {
 
 	case KeyAllowedDomains:
 		return normalizeList(raw, false)
+
+	case KeyOTELEndpoint:
+		return normalizeOTELEndpoint(raw)
+
+	case KeyOTELServiceName:
+		v := strings.TrimSpace(raw)
+		if v == "" {
+			return "", nil
+		}
+		if len(v) > 100 || hasControl(v) {
+			return "", invalid("%s must be 1-100 characters without control characters", key)
+		}
+		return v, nil
+
+	case KeyOTELSampler:
+		v := strings.ToLower(strings.TrimSpace(raw))
+		switch v {
+		case "always_on", "always_off", "traceidratio",
+			"parentbased_always_on", "parentbased_always_off", "parentbased_traceidratio":
+			return v, nil
+		default:
+			return "", invalid("%s must be a supported sampler", key)
+		}
+
+	case KeyOTELDisabled:
+		v, err := parseBool(raw)
+		if err != nil {
+			return "", invalid("%s must be a boolean", key)
+		}
+		return boolString(v), nil
 	}
 	return "", fmt.Errorf("%w: %s", ErrUnknownKey, key)
 }
@@ -239,6 +280,28 @@ func normalizeBaseURL(raw string) (string, error) {
 	}
 	out := scheme + "://" + strings.ToLower(u.Host) + u.EscapedPath()
 	return strings.TrimRight(out, "/"), nil
+}
+
+// normalizeOTELEndpoint accepts an empty value (export disabled) or an
+// absolute http(s) URL. OTLP endpoints may include a path but never credentials
+// or fragment markers.
+func normalizeOTELEndpoint(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", nil
+	}
+	if hasControl(v) {
+		return "", invalid("%s contains control characters", KeyOTELEndpoint)
+	}
+	u, err := url.Parse(v)
+	if err != nil || u.Host == "" || u.User != nil || u.Fragment != "" {
+		return "", invalid("%s must be an absolute http(s) URL", KeyOTELEndpoint)
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return "", invalid("%s must be http or https", KeyOTELEndpoint)
+	}
+	return u.String(), nil
 }
 
 // normalizeOrigin accepts only an http(s) origin: no credentials, path, query

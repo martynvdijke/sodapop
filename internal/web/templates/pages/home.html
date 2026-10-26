@@ -72,7 +72,7 @@
     <h1>A quiet place for loud fizz.</h1>
     <p class="lede">Scan a can, remember the good ones, and see what your friends are drinking. Colas, ginger beers, root beers, sparkling water, energy drinks, iced tea, kombucha — all of it.</p>
     <div class="actions">
-      <a class="btn btn-primary" href="/register">Create an account</a>
+      {{if .RegistrationOpen}}<a class="btn btn-primary" href="/register">Create an account</a>{{end}}
       <a class="btn" href="/login">Sign in</a>
     </div>
   </section>

@@ -38,6 +38,8 @@ type Tx struct {
 	CheckinLike *CheckinLikeClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
+	// DeliveryOutbox is the client for interacting with the DeliveryOutbox builders.
+	DeliveryOutbox *DeliveryOutboxClient
 	// Drink is the client for interacting with the Drink builders.
 	Drink *DrinkClient
 	// DrinkAlias is the client for interacting with the DrinkAlias builders.
@@ -82,6 +84,8 @@ type Tx struct {
 	Report *ReportClient
 	// RuntimeSetting is the client for interacting with the RuntimeSetting builders.
 	RuntimeSetting *RuntimeSettingClient
+	// SchedulerState is the client for interacting with the SchedulerState builders.
+	SchedulerState *SchedulerStateClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Style is the client for interacting with the Style builders.
@@ -248,6 +252,7 @@ func (tx *Tx) init() {
 	tx.Checkin = NewCheckinClient(tx.config)
 	tx.CheckinLike = NewCheckinLikeClient(tx.config)
 	tx.Comment = NewCommentClient(tx.config)
+	tx.DeliveryOutbox = NewDeliveryOutboxClient(tx.config)
 	tx.Drink = NewDrinkClient(tx.config)
 	tx.DrinkAlias = NewDrinkAliasClient(tx.config)
 	tx.DrinkBarcode = NewDrinkBarcodeClient(tx.config)
@@ -270,6 +275,7 @@ func (tx *Tx) init() {
 	tx.PushSubscription = NewPushSubscriptionClient(tx.config)
 	tx.Report = NewReportClient(tx.config)
 	tx.RuntimeSetting = NewRuntimeSettingClient(tx.config)
+	tx.SchedulerState = NewSchedulerStateClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Style = NewStyleClient(tx.config)
 	tx.User = NewUserClient(tx.config)

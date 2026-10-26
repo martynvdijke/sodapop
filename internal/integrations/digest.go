@@ -188,32 +188,3 @@ func digestMessage(handle, baseURL string, items []digestItem) (string, string) 
 	b.WriteString("\n")
 	return subject, b.String()
 }
-
-// RunDigestScheduler queues the weekly digest every Monday at 09:00 UTC until
-// the context is cancelled. Restarting the process simply schedules the next
-// Monday; it never replays a missed digest.
-func (s *Service) RunDigestScheduler(ctx context.Context) {
-	next := nextDigestTime(time.Now().UTC())
-	timer := time.NewTimer(time.Until(next))
-	defer timer.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			if err := s.WeeklyDigest(ctx); err != nil {
-				s.logger().Warn("weekly digest failed", "err", err)
-			}
-			next = next.AddDate(0, 0, 7)
-			timer.Reset(time.Until(next))
-		}
-	}
-}
-
-func nextDigestTime(now time.Time) time.Time {
-	next := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, time.UTC)
-	for next.Weekday() != time.Monday || !next.After(now) {
-		next = next.AddDate(0, 0, 1)
-	}
-	return next
-}

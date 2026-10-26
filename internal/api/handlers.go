@@ -20,6 +20,7 @@ import (
 	"sodapop/internal/checkins"
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
+	"sodapop/internal/search"
 	"sodapop/internal/social"
 	"sodapop/internal/venues"
 )
@@ -250,8 +251,28 @@ func (s *Server) getDrink(w http.ResponseWriter, r *http.Request, tok *auth.APIT
 
 // search returns at most ten results. There is no cursor, page count or total,
 // and an empty query is rejected: the endpoint cannot be walked as a catalog.
+// With type=all the data envelope holds grouped drinks, brands and styles.
 func (s *Server) search(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
 	q := r.URL.Query().Get("q")
+	if strings.EqualFold(r.URL.Query().Get("type"), "all") {
+		if len([]rune(strings.TrimSpace(q))) < catalog.MinSearchLen {
+			return catalog.ErrQueryTooShort
+		}
+		results, err := search.New(s.Catalog).Search(r.Context(), q, 0)
+		if err != nil {
+			return err
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"data": map[string]any{
+				"drinks": results.Drinks,
+				"brands": results.Brands,
+				"styles": results.Styles,
+			},
+			"meta": map[string]any{"count": results.Total, "limit": 10, "note": "results are capped; the catalog cannot be enumerated"},
+		})
+		return nil
+	}
+
 	results, err := s.Catalog.Search(r.Context(), q, r.URL.Query().Get("style"), queryInt(r, "limit", 10, 10))
 	if err != nil {
 		return err

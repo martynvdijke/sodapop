@@ -164,6 +164,18 @@ func (f CommentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommentMutation", m)
 }
 
+// The DeliveryOutboxFunc type is an adapter to allow the use of ordinary
+// function as DeliveryOutbox mutator.
+type DeliveryOutboxFunc func(context.Context, *ent.DeliveryOutboxMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeliveryOutboxFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeliveryOutboxMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeliveryOutboxMutation", m)
+}
+
 // The DrinkFunc type is an adapter to allow the use of ordinary
 // function as Drink mutator.
 type DrinkFunc func(context.Context, *ent.DrinkMutation) (ent.Value, error)
@@ -426,6 +438,18 @@ func (f RuntimeSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RuntimeSettingMutation", m)
+}
+
+// The SchedulerStateFunc type is an adapter to allow the use of ordinary
+// function as SchedulerState mutator.
+type SchedulerStateFunc func(context.Context, *ent.SchedulerStateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SchedulerStateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SchedulerStateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SchedulerStateMutation", m)
 }
 
 // The SessionFunc type is an adapter to allow the use of ordinary

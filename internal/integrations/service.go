@@ -16,8 +16,6 @@ import (
 
 	"sodapop/ent"
 	"sodapop/ent/integration"
-	"sodapop/ent/pushsubscription"
-	"sodapop/ent/usersetting"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/settings"
@@ -63,73 +61,6 @@ func New(database *db.DB, cfg *config.Config, log *slog.Logger, runtime ...*sett
 		s.Settings = runtime[0]
 	}
 	return s
-}
-
-// Dispatch fans an event out asynchronously. Callers never block on remote
-// services, and a panic in delivery cannot escape the goroutine.
-func (s *Service) Dispatch(ctx context.Context, e Event) {
-	if s == nil || s.Client == nil || e.UserID == "" {
-		return
-	}
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				s.logger().Error("integration dispatch panic", "user_id", e.UserID, "kind", e.Kind, "err", r)
-			}
-		}()
-
-		dctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		rows, err := s.Client.Integration.Query().
-			Where(integration.UserID(e.UserID), integration.Enabled(true)).
-			All(dctx)
-		if err != nil {
-			s.logger().Warn("load integrations failed", "user_id", e.UserID, "err", err)
-		}
-		for _, row := range rows {
-			sendCtx := dctx
-			cancelSend := func() {}
-			if row.Kind == integration.KindTrmnl {
-				sendCtx, cancelSend = context.WithTimeout(context.Background(), 12*time.Second)
-			}
-			var sendErr error
-			switch row.Kind {
-			case integration.KindHomeAssistant:
-				sendErr = s.sendHomeAssistant(sendCtx, row, e)
-			case integration.KindMatrix:
-				sendErr = s.sendMatrix(sendCtx, row, e)
-			case integration.KindTrmnl:
-				sendErr = s.sendTRMNL(sendCtx, row)
-			}
-			cancelSend()
-			if sendErr != nil {
-				s.logger().Warn("integration delivery failed",
-					"user_id", e.UserID, "kind", row.Kind, "err", sendErr)
-			}
-		}
-
-		settings, err := s.Client.UserSetting.Query().
-			Where(usersetting.UserID(e.UserID)).
-			Only(dctx)
-		if err != nil || settings == nil || !settings.PushEnabled {
-			return
-		}
-
-		subs, err := s.Client.PushSubscription.Query().
-			Where(pushsubscription.UserID(e.UserID)).
-			All(dctx)
-		if err != nil {
-			s.logger().Warn("load push subscriptions failed", "user_id", e.UserID, "err", err)
-			return
-		}
-		if len(subs) == 0 {
-			return
-		}
-		if err := s.sendPushToSubscriptions(dctx, subs, eventTitle(e.Kind), e.Text, e.URL); err != nil {
-			s.logger().Warn("push delivery failed", "user_id", e.UserID, "err", err)
-		}
-	}()
 }
 
 // Save creates or updates the integration for a user and kind.

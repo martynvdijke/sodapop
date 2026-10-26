@@ -16,6 +16,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/comment"
+	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
 	"sodapop/ent/drinkalias"
 	"sodapop/ent/drinkbarcode"
@@ -38,6 +39,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/schedulerstate"
 	"sodapop/ent/schema"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
@@ -348,6 +350,36 @@ func init() {
 	commentDescID := commentFields[0].Descriptor()
 	// comment.DefaultID holds the default value on creation for the id field.
 	comment.DefaultID = commentDescID.Default.(func() string)
+	deliveryoutboxFields := schema.DeliveryOutbox{}.Fields()
+	_ = deliveryoutboxFields
+	// deliveryoutboxDescUserID is the schema descriptor for user_id field.
+	deliveryoutboxDescUserID := deliveryoutboxFields[1].Descriptor()
+	// deliveryoutbox.DefaultUserID holds the default value on creation for the user_id field.
+	deliveryoutbox.DefaultUserID = deliveryoutboxDescUserID.Default.(string)
+	// deliveryoutboxDescTarget is the schema descriptor for target field.
+	deliveryoutboxDescTarget := deliveryoutboxFields[3].Descriptor()
+	// deliveryoutbox.DefaultTarget holds the default value on creation for the target field.
+	deliveryoutbox.DefaultTarget = deliveryoutboxDescTarget.Default.(string)
+	// deliveryoutboxDescPayloadJSON is the schema descriptor for payload_json field.
+	deliveryoutboxDescPayloadJSON := deliveryoutboxFields[4].Descriptor()
+	// deliveryoutbox.DefaultPayloadJSON holds the default value on creation for the payload_json field.
+	deliveryoutbox.DefaultPayloadJSON = deliveryoutboxDescPayloadJSON.Default.(string)
+	// deliveryoutboxDescAttempts is the schema descriptor for attempts field.
+	deliveryoutboxDescAttempts := deliveryoutboxFields[5].Descriptor()
+	// deliveryoutbox.DefaultAttempts holds the default value on creation for the attempts field.
+	deliveryoutbox.DefaultAttempts = deliveryoutboxDescAttempts.Default.(int)
+	// deliveryoutboxDescNextAttemptAt is the schema descriptor for next_attempt_at field.
+	deliveryoutboxDescNextAttemptAt := deliveryoutboxFields[6].Descriptor()
+	// deliveryoutbox.NextAttemptAtValidator is a validator for the "next_attempt_at" field. It is called by the builders before save.
+	deliveryoutbox.NextAttemptAtValidator = deliveryoutboxDescNextAttemptAt.Validators[0].(func(string) error)
+	// deliveryoutboxDescLastError is the schema descriptor for last_error field.
+	deliveryoutboxDescLastError := deliveryoutboxFields[7].Descriptor()
+	// deliveryoutbox.DefaultLastError holds the default value on creation for the last_error field.
+	deliveryoutbox.DefaultLastError = deliveryoutboxDescLastError.Default.(string)
+	// deliveryoutboxDescCreatedAt is the schema descriptor for created_at field.
+	deliveryoutboxDescCreatedAt := deliveryoutboxFields[9].Descriptor()
+	// deliveryoutbox.DefaultCreatedAt holds the default value on creation for the created_at field.
+	deliveryoutbox.DefaultCreatedAt = deliveryoutboxDescCreatedAt.Default.(func() string)
 	drinkFields := schema.Drink{}.Fields()
 	_ = drinkFields
 	// drinkDescName is the schema descriptor for name field.
@@ -822,6 +854,20 @@ func init() {
 	runtimesettingDescUpdatedAt := runtimesettingFields[6].Descriptor()
 	// runtimesetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	runtimesetting.DefaultUpdatedAt = runtimesettingDescUpdatedAt.Default.(func() string)
+	schedulerstateFields := schema.SchedulerState{}.Fields()
+	_ = schedulerstateFields
+	// schedulerstateDescName is the schema descriptor for name field.
+	schedulerstateDescName := schedulerstateFields[1].Descriptor()
+	// schedulerstate.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	schedulerstate.NameValidator = schedulerstateDescName.Validators[0].(func(string) error)
+	// schedulerstateDescLockOwner is the schema descriptor for lock_owner field.
+	schedulerstateDescLockOwner := schedulerstateFields[4].Descriptor()
+	// schedulerstate.DefaultLockOwner holds the default value on creation for the lock_owner field.
+	schedulerstate.DefaultLockOwner = schedulerstateDescLockOwner.Default.(string)
+	// schedulerstateDescUpdatedAt is the schema descriptor for updated_at field.
+	schedulerstateDescUpdatedAt := schedulerstateFields[5].Descriptor()
+	// schedulerstate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	schedulerstate.DefaultUpdatedAt = schedulerstateDescUpdatedAt.Default.(func() string)
 	sessionFields := schema.Session{}.Fields()
 	_ = sessionFields
 	// sessionDescTokenHash is the schema descriptor for token_hash field.

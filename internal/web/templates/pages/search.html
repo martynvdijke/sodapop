@@ -1,22 +1,80 @@
 {{define "content"}}
 <h1>Search</h1>
 <form method="get" action="/search" class="searchbar">
+  {{if .All}}<input type="hidden" name="type" value="all">{{end}}
   <label class="sr-only" for="q">Search sodas</label>
   <input id="q" name="q" value="{{.Query}}" placeholder="Cola, ginger beer, Fever-Tree…" autofocus minlength="2">
   <button class="btn btn-primary" type="submit">Search</button>
 </form>
-<p class="hint">Two characters minimum. Results are capped at ten and there is no way to browse the whole catalog.</p>
+<p class="hint">Two characters minimum. Results are capped at ten and there is no way to browse the whole catalog.
+  {{if .All}}<a href="/search?q={{.Query}}">Drinks only</a>{{else}}<a href="/search?q={{.Query}}&amp;type=all">Include brands and styles</a>{{end}}
+</p>
 
 {{if .Error}}<p class="banner error">{{.Error}}</p>{{end}}
 
-{{if .Query}}{{if .Results}}
-  <section class="results">
-    {{range .Results}}{{template "drink_card" .}}{{end}}
-  </section>
-{{else}}{{if not .Error}}
-  <div class="empty">
-    <p>No soda matched “{{.Query}}”.</p>
-    <a class="btn" href="/new?name={{.Query}}">Add it to the catalog</a>
-  </div>
-{{end}}{{end}}{{end}}
+{{if .Query}}
+  {{if .All}}
+    {{if .Unified.Total}}
+      <section class="results">
+        {{if .Unified.Drinks}}
+          <h2>Drinks</h2>
+          {{range .Unified.Drinks}}
+          <a class="card drink-card" href="/drinks/{{.Slug}}">
+            <div class="bottle" aria-hidden="true">{{initial .Name}}</div>
+            <div>
+              <strong>{{.Name}}</strong>
+              {{if .Subtitle}}<div class="muted">{{.Subtitle}}</div>{{end}}
+            </div>
+          </a>
+          {{end}}
+        {{end}}
+
+        {{if .Unified.Brands}}
+          <h2>Brands</h2>
+          <ul class="browse-brands">
+            {{range .Unified.Brands}}
+            <li>
+              <a class="browse-brand" href="/brands/{{.Slug}}">
+                <span class="browse-brand-logo" aria-hidden="true">{{initial .Name}}</span>
+                <span class="browse-brand-body">
+                  <strong class="browse-brand-name">{{.Name}}</strong>
+                  {{if .Subtitle}}<span class="browse-brand-count">{{.Subtitle}}</span>{{end}}
+                </span>
+              </a>
+            </li>
+            {{end}}
+          </ul>
+        {{end}}
+
+        {{if .Unified.Styles}}
+          <h2>Styles</h2>
+          <ul class="browse-styles">
+            {{range .Unified.Styles}}
+            <li class="browse-family">
+              <h3 class="browse-family-name"><a href="/styles/{{.Slug}}">{{.Name}}</a></h3>
+              {{if .Subtitle}}<p class="browse-family-count">{{.Subtitle}}</p>{{end}}
+            </li>
+            {{end}}
+          </ul>
+        {{end}}
+      </section>
+    {{else}}{{if not .Error}}
+      <div class="empty">
+        <p>No soda matched “{{.Query}}”.</p>
+        <a class="btn" href="/new?name={{.Query}}">Add it to the catalog</a>
+      </div>
+    {{end}}{{end}}
+  {{else}}
+    {{if .Results}}
+      <section class="results">
+        {{range .Results}}{{template "drink_card" .}}{{end}}
+      </section>
+    {{else}}{{if not .Error}}
+      <div class="empty">
+        <p>No soda matched “{{.Query}}”.</p>
+        <a class="btn" href="/new?name={{.Query}}">Add it to the catalog</a>
+      </div>
+    {{end}}{{end}}
+  {{end}}
+{{end}}
 {{end}}

@@ -417,8 +417,11 @@ func TestKeyValidation(t *testing.T) {
 	if err := s.Set(ctx, "SESSION_SECRET", "x", false, "admin-1"); !errors.Is(err, ErrEnvOnlyKey) {
 		t.Fatalf("SESSION_SECRET err = %v, want ErrEnvOnlyKey", err)
 	}
-	if err := s.Set(ctx, "otel_exporter_otlp_endpoint", "x", false, "admin-1"); !errors.Is(err, ErrEnvOnlyKey) {
-		t.Fatalf("otel key err = %v, want ErrEnvOnlyKey", err)
+	if err := s.Set(ctx, KeyOTELEndpoint, "not a url", false, "admin-1"); !errors.Is(err, ErrInvalidValue) {
+		t.Fatalf("otel endpoint err = %v, want ErrInvalidValue", err)
+	}
+	if err := s.Set(ctx, "otel_exporter_otlp_endpoint", "https://otel.example.test/v1/traces", false, "admin-1"); err != nil {
+		t.Fatalf("otel key should be runtime-editable: %v", err)
 	}
 	if err := s.Set(ctx, "nonsense", "x", false, "admin-1"); !errors.Is(err, ErrUnknownKey) {
 		t.Fatalf("unknown key err = %v, want ErrUnknownKey", err)
@@ -428,6 +431,142 @@ func TestKeyValidation(t *testing.T) {
 	}
 	if err := s.Delete(ctx, "PORT", "admin-1"); !errors.Is(err, ErrEnvOnlyKey) {
 		t.Fatalf("delete PORT err = %v, want ErrEnvOnlyKey", err)
+	}
+}
+
+func TestOTELDefaultsEditingAndDelete(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	t.Setenv("OTEL_SERVICE_NAME", "")
+	t.Setenv("OTEL_TRACES_SAMPLER", "")
+	t.Setenv("OTEL_SDK_DISABLED", "")
+	ctx := context.Background()
+	s, _ := newTestService(t, testConfig(), "", nil)
+
+	snap := s.Snapshot()
+	if snap.OTELEndpoint() != "" || snap.OTELServiceName() != "" {
+		t.Fatalf("otel defaults = %q/%q, want empty", snap.OTELEndpoint(), snap.OTELServiceName())
+	}
+	if snap.OTELSampler() != defaultOTELSampler {
+		t.Fatalf("otel sampler default = %q, want %q", snap.OTELSampler(), defaultOTELSampler)
+	}
+	if snap.OTELDisabled() {
+		t.Fatal("otel should default to enabled")
+	}
+	for _, key := range []string{KeyOTELEndpoint, KeyOTELServiceName, KeyOTELSampler, KeyOTELDisabled} {
+		if got := snap.Source(key); got != "default" {
+			t.Fatalf("%s source = %q, want default", key, got)
+		}
+	}
+
+	cases := map[string]string{
+		KeyOTELEndpoint:    "https://otel.example.test/v1/traces",
+		KeyOTELServiceName: "sodapop-web",
+		KeyOTELSampler:     "always_on",
+		KeyOTELDisabled:    "true",
+	}
+	for key, value := range cases {
+		if err := s.Set(ctx, key, value, false, "admin-1"); err != nil {
+			t.Fatalf("Set(%s): %v", key, err)
+		}
+	}
+	snap = s.Snapshot()
+	if snap.OTELEndpoint() != cases[KeyOTELEndpoint] || snap.OTELServiceName() != cases[KeyOTELServiceName] {
+		t.Fatalf("otel endpoint/service = %q/%q", snap.OTELEndpoint(), snap.OTELServiceName())
+	}
+	if snap.OTELSampler() != "always_on" || !snap.OTELDisabled() {
+		t.Fatalf("otel sampler/disabled = %q/%v", snap.OTELSampler(), snap.OTELDisabled())
+	}
+	for key := range cases {
+		if got := snap.Source(key); got != "db" {
+			t.Fatalf("%s source = %q, want db", key, got)
+		}
+	}
+
+	for key := range cases {
+		if err := s.Delete(ctx, key, "admin-1"); err != nil {
+			t.Fatalf("Delete(%s): %v", key, err)
+		}
+	}
+	snap = s.Snapshot()
+	if snap.OTELEndpoint() != "" || snap.OTELServiceName() != "" || snap.OTELSampler() != defaultOTELSampler || snap.OTELDisabled() {
+		t.Fatalf("otel delete did not restore defaults: %+v", snap)
+	}
+}
+
+func TestOTELValidation(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestService(t, testConfig(), "", nil)
+
+	bad := []struct {
+		key   string
+		value string
+	}{
+		{KeyOTELEndpoint, "otel.example.test"},
+		{KeyOTELEndpoint, "ftp://otel.example.test"},
+		{KeyOTELEndpoint, "https://user:pass@otel.example.test"},
+		{KeyOTELEndpoint, "https://otel.example.test/v1#frag"},
+		{KeyOTELServiceName, strings.Repeat("a", 101)},
+		{KeyOTELServiceName, "bad\x00name"},
+		{KeyOTELSampler, "sometimes"},
+		{KeyOTELSampler, ""},
+		{KeyOTELDisabled, "maybe"},
+	}
+	for _, tc := range bad {
+		if err := s.Set(ctx, tc.key, tc.value, false, "admin-1"); !errors.Is(err, ErrInvalidValue) {
+			t.Fatalf("Set(%s, %q) err = %v, want ErrInvalidValue", tc.key, tc.value, err)
+		}
+	}
+
+	// Empty endpoint and service name are valid and mean "unset".
+	for _, tc := range []struct{ key, value string }{
+		{KeyOTELEndpoint, ""},
+		{KeyOTELServiceName, ""},
+		{KeyOTELEndpoint, "http://127.0.0.1:4318/v1/traces"},
+		{KeyOTELSampler, "parentbased_always_off"},
+		{KeyOTELDisabled, "off"},
+	} {
+		if err := s.Set(ctx, tc.key, tc.value, false, "admin-1"); err != nil {
+			t.Fatalf("Set(%s, %q): %v", tc.key, tc.value, err)
+		}
+	}
+}
+
+func TestOTELEnvironmentPrecedence(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://env-otel.example.test/v1/traces")
+	t.Setenv("OTEL_SERVICE_NAME", "env-service")
+	t.Setenv("OTEL_TRACES_SAMPLER", "always_on")
+	t.Setenv("OTEL_SDK_DISABLED", "true")
+
+	ctx := context.Background()
+	s, _ := newTestService(t, testConfig(), "", nil)
+	snap := s.Snapshot()
+	if snap.OTELEndpoint() != "https://env-otel.example.test/v1/traces" || snap.OTELServiceName() != "env-service" {
+		t.Fatalf("env otel endpoint/service = %q/%q", snap.OTELEndpoint(), snap.OTELServiceName())
+	}
+	if snap.OTELSampler() != "always_on" || !snap.OTELDisabled() {
+		t.Fatalf("env otel sampler/disabled = %q/%v", snap.OTELSampler(), snap.OTELDisabled())
+	}
+	for _, key := range []string{KeyOTELEndpoint, KeyOTELServiceName, KeyOTELSampler, KeyOTELDisabled} {
+		if got := snap.Source(key); got != "env" {
+			t.Fatalf("%s source = %q, want env", key, got)
+		}
+	}
+
+	if err := s.Set(ctx, KeyOTELEndpoint, "https://db-otel.example.test/v1/traces", false, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Snapshot().OTELEndpoint(); got != "https://db-otel.example.test/v1/traces" {
+		t.Fatalf("db endpoint = %q", got)
+	}
+	if got := s.Snapshot().Source(KeyOTELEndpoint); got != "db" {
+		t.Fatalf("db endpoint source = %q", got)
+	}
+	if err := s.Delete(ctx, KeyOTELEndpoint, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Snapshot().OTELEndpoint(); got != "https://env-otel.example.test/v1/traces" {
+		t.Fatalf("delete did not fall back to env: %q", got)
 	}
 }
 

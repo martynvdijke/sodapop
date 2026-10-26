@@ -2,6 +2,7 @@ package settings
 
 import (
 	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,10 @@ type Snapshot struct {
 	allowPasswordFallback bool
 	allowedEmails         []string
 	allowedDomains        []string
+	otelEndpoint          string
+	otelServiceName       string
+	otelSampler           string
+	otelDisabled          bool
 	sources               map[string]string
 	secretLast4           map[string]string
 }
@@ -73,6 +78,19 @@ func (s *Snapshot) AllowedDomains() []string {
 	return append([]string(nil), s.allowedDomains...)
 }
 
+// OTELEndpoint returns the configured OTLP endpoint. An empty value means
+// traces are not exported.
+func (s *Snapshot) OTELEndpoint() string { return s.otelEndpoint }
+
+// OTELServiceName returns the configured OpenTelemetry service name.
+func (s *Snapshot) OTELServiceName() string { return s.otelServiceName }
+
+// OTELSampler returns the configured trace sampler name.
+func (s *Snapshot) OTELSampler() string { return s.otelSampler }
+
+// OTELDisabled reports whether the OpenTelemetry SDK is disabled outright.
+func (s *Snapshot) OTELDisabled() bool { return s.otelDisabled }
+
 // Source reports where the effective value came from: default, env or db.
 // Unknown keys return an empty string.
 func (s *Snapshot) Source(key string) string {
@@ -103,6 +121,7 @@ func buildSnapshot(cfg *config.Config, rows []*ent.RuntimeSetting, box *secretbo
 	}
 
 	applyEnv(cfg, values, sources)
+	applyOTELEnv(values, sources)
 
 	for _, row := range rows {
 		if row == nil {
@@ -174,6 +193,10 @@ func buildSnapshot(cfg *config.Config, rows []*ent.RuntimeSetting, box *secretbo
 		allowPasswordFallback: values[KeyAllowPasswordFallback] == "1",
 		allowedEmails:         splitList(values[KeyAllowedEmails]),
 		allowedDomains:        splitList(values[KeyAllowedDomains]),
+		otelEndpoint:          values[KeyOTELEndpoint],
+		otelServiceName:       values[KeyOTELServiceName],
+		otelSampler:           values[KeyOTELSampler],
+		otelDisabled:          values[KeyOTELDisabled] == "1",
 		sources:               sources,
 		secretLast4:           make(map[string]string),
 	}
@@ -239,6 +262,28 @@ func applyEnv(cfg *config.Config, values, sources map[string]string) {
 	if len(cfg.AllowedDomains) > 0 {
 		set(KeyAllowedDomains, strings.Join(cfg.AllowedDomains, ","))
 	}
+}
+
+// applyOTELEnv mirrors the standard OTEL_* variables read by telemetry.FromEnv.
+// They remain a fallback layer: a database row still wins, and an unset variable
+// leaves the built-in default in place.
+func applyOTELEnv(values, sources map[string]string) {
+	set := func(key, value string) {
+		if value == "" {
+			return
+		}
+		values[key] = value
+		sources[key] = "env"
+	}
+
+	endpoint := strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"))
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	}
+	set(KeyOTELEndpoint, endpoint)
+	set(KeyOTELServiceName, strings.TrimSpace(os.Getenv("OTEL_SERVICE_NAME")))
+	set(KeyOTELSampler, strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER")))
+	set(KeyOTELDisabled, strings.TrimSpace(os.Getenv("OTEL_SDK_DISABLED")))
 }
 
 func splitList(v string) []string {

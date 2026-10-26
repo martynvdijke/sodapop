@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -61,23 +62,6 @@ func run() error {
 	log := slog.New(handler)
 	slog.SetDefault(log)
 
-	telCfg := telemetry.FromEnv(cfg.Version)
-	shutdownTelemetry, err := telemetry.Setup(context.Background(), telCfg)
-	if err != nil {
-		log.Warn("telemetry disabled", "err", err)
-		shutdownTelemetry = func(context.Context) error { return nil }
-	}
-	if telCfg.Enabled {
-		log.Info("telemetry enabled", "endpoint", telCfg.Endpoint, "sampler", telCfg.Sampler)
-	}
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := shutdownTelemetry(ctx); err != nil {
-			log.Warn("telemetry shutdown", "err", err)
-		}
-	}()
-
 	database, err := db.Init(cfg.DBPath)
 	if err != nil {
 		return err
@@ -93,6 +77,43 @@ func run() error {
 		return err
 	}
 
+	snap := settingsSvc.Snapshot()
+	telCfg := telemetry.FromEnv(cfg.Version)
+	telCfg.Endpoint = snap.OTELEndpoint()
+	if os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") == "" {
+		telCfg.MetricsEndpoint = metricsEndpoint(telCfg.Endpoint)
+	}
+	if name := snap.OTELServiceName(); name != "" {
+		telCfg.ServiceName = name
+	}
+	telCfg.Sampler = snap.OTELSampler()
+	telCfg.Disabled = snap.OTELDisabled()
+	telCfg.Enabled = !telCfg.Disabled && telCfg.Endpoint != ""
+
+	shutdownTelemetry, err := telemetry.Setup(context.Background(), telCfg)
+	if err != nil {
+		log.Warn("telemetry disabled", "err", err)
+		shutdownTelemetry = func(context.Context) error { return nil }
+	}
+	shutdownMetrics, err := telemetry.SetupMetrics(context.Background(), telCfg)
+	if err != nil {
+		log.Warn("metrics disabled", "err", err)
+		shutdownMetrics = func(context.Context) error { return nil }
+	}
+	if telCfg.Enabled {
+		log.Info("telemetry enabled", "endpoint", telCfg.Endpoint, "sampler", telCfg.Sampler)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := shutdownMetrics(ctx); err != nil {
+			log.Warn("metrics shutdown", "err", err)
+		}
+		if err := shutdownTelemetry(ctx); err != nil {
+			log.Warn("telemetry shutdown", "err", err)
+		}
+	}()
+
 	authSvc := auth.New(cfg, database, settingsSvc)
 	if err := authSvc.InitOIDC(context.Background()); err != nil {
 		log.Warn("oidc disabled", "err", err)
@@ -107,6 +128,10 @@ func run() error {
 	mediaSvc := media.New(database, cfg)
 	aiSvc := ai.New(database, cfg, cfg.Version, log, settingsSvc)
 	integrationSvc := integrations.New(database, cfg, log, settingsSvc)
+	telemetry.SetOutboxDepthFunc(func(ctx context.Context) (int64, error) {
+		n, err := integrationSvc.OutboxDepth(ctx)
+		return int64(n), err
+	})
 	badgeSvc := badges.New(database)
 	tasteSvc := taste.New(database)
 	mixSvc := mix.New(database)
@@ -156,6 +181,7 @@ func run() error {
 	defer stop()
 
 	go mailer.Run(ctx)
+	go integrationSvc.RunOutbox(ctx)
 	go integrationSvc.RunDigestScheduler(ctx)
 	go func() {
 		t := time.NewTicker(10 * time.Minute)
@@ -206,4 +232,14 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return httpServer.Shutdown(shutdownCtx)
+}
+
+// metricsEndpoint keeps a single editable OTLP endpoint usable for both
+// signals. A trace-specific path is translated to the metrics path; a base
+// URL is passed through and the exporter appends the standard suffix.
+func metricsEndpoint(endpoint string) string {
+	if strings.HasSuffix(endpoint, "/v1/traces") {
+		return strings.TrimSuffix(endpoint, "/v1/traces") + "/v1/metrics"
+	}
+	return endpoint
 }

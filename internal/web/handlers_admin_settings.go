@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"sodapop/internal/settings"
-	"sodapop/internal/telemetry"
 )
 
 // settingsSnapshot returns the current immutable runtime settings snapshot, or
@@ -102,6 +101,7 @@ var settingsNotices = map[string]string{
 	"analytics_saved": "Analytics settings saved.",
 	"access_saved":    "Access settings saved.",
 	"ai_saved":        "AI settings saved.",
+	"otel_saved":      "Observability settings saved. Restart the server to apply them.",
 }
 
 // adminSettingsPage renders the admin settings panel from the current runtime
@@ -131,7 +131,6 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 	smtp := snap.SMTP()
 	umami := snap.Umami()
 	passwordSet, passwordLast4 := snap.SecretState(settings.KeySMTPPassword)
-	otel := telemetry.FromEnv("")
 	s.render(w, r, status, "admin_settings", map[string]any{
 		"Title":             "Settings",
 		"SiteName":          snap.SiteName(),
@@ -141,7 +140,8 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 		"SMTPPort":          smtp.Port,
 		"SMTPUsername":      smtp.Username,
 		"SMTPFrom":          smtp.From,
-		"SMTPTLS":           !strings.EqualFold(smtp.TLS, "none"),
+		"SMTPTLS":           smtp.TLS,
+		"SMTPSource":        snap.Source(settings.KeySMTPHost),
 		"SMTPPasswordSet":   passwordSet,
 		"SMTPPasswordLast4": passwordLast4,
 		"UmamiURL":          umami.URL,
@@ -151,14 +151,17 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 		"PasswordFallback":  snap.AllowPasswordFallback(),
 		"AllowedEmails":     strings.Join(snap.AllowedEmails(), ", "),
 		"AllowedDomains":    strings.Join(snap.AllowedDomains(), ", "),
+		"AccessSource":      snap.Source(settings.KeyRegistrationOpen),
 		"AIEnabled":         snap.AIEnabled(),
-		"OTELDisabled":      !otel.Enabled,
-		"OTELEndpoint":      otel.Endpoint,
-		"OTELServiceName":   otel.ServiceName,
-		"OTELSampler":       otel.Sampler,
-		// OTel is environment-only and applied at startup; this panel never
-		// writes it. There is no live drift to report here.
-		"OTELRestartRequired": false,
+		"AISource":          snap.Source(settings.KeyAIEnabled),
+		"OTELDisabled":      snap.OTELDisabled(),
+		"OTELEndpoint":      snap.OTELEndpoint(),
+		"OTELServiceName":   snap.OTELServiceName(),
+		"OTELSampler":       snap.OTELSampler(),
+		"OTELSource":        snap.Source(settings.KeyOTELEndpoint),
+		// OpenTelemetry is configured at startup, so any saved change only
+		// applies after a restart.
+		"OTELRestartRequired": true,
 		"Notice":              notice,
 		"Error":               errMsg,
 	})
@@ -216,13 +219,12 @@ func (s *Server) adminSettingsEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	tls := "none"
-	if r.FormValue("smtp_tls") != "" {
+	tls := strings.TrimSpace(r.FormValue("smtp_tls"))
+	if tls == "" {
+		// A form that omits the select keeps the currently saved mode.
 		tls = "starttls"
-		if snap := s.Settings.Snapshot(); snap != nil && strings.EqualFold(snap.SMTP().TLS, "tls") {
-			// Preserve implicit TLS; the checkbox cannot distinguish it from
-			// STARTTLS, so keep the previously effective mode.
-			tls = "tls"
+		if snap := s.Settings.Snapshot(); snap != nil {
+			tls = snap.SMTP().TLS
 		}
 	}
 	fields := map[string]string{
@@ -359,6 +361,34 @@ func (s *Server) adminSettingsAI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/settings?notice=ai_saved", http.StatusSeeOther)
+}
+
+func (s *Server) adminSettingsObservability(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	if s.Settings == nil {
+		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	fields := map[string]string{
+		settings.KeyOTELEndpoint:    strings.TrimSpace(r.FormValue("otel_endpoint")),
+		settings.KeyOTELServiceName: strings.TrimSpace(r.FormValue("otel_service_name")),
+		settings.KeyOTELSampler:     strings.TrimSpace(r.FormValue("otel_sampler")),
+		settings.KeyOTELDisabled:    boolField(r.FormValue("otel_disabled") != ""),
+	}
+	if err := validateSettings(fields); err != nil {
+		s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+		return
+	}
+	actor := s.settingsUpdatedBy(r)
+	for _, key := range []string{settings.KeyOTELEndpoint, settings.KeyOTELServiceName, settings.KeyOTELSampler, settings.KeyOTELDisabled} {
+		if err := s.Settings.Set(r.Context(), key, fields[key], false, actor); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+			return
+		}
+	}
+	http.Redirect(w, r, "/admin/settings?notice=otel_saved", http.StatusSeeOther)
 }
 
 func boolField(v bool) string {

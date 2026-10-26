@@ -177,7 +177,7 @@ func TestAdminSettingsEmailSecretPreserveAndClear(t *testing.T) {
 			"smtp_port":     {"2525"},
 			"smtp_username": {"mailer"},
 			"smtp_from":     {"Sodapop <no-reply@example.test>"},
-			"smtp_tls":      {"1"},
+			"smtp_tls":      {"starttls"},
 		}
 	}
 
@@ -342,6 +342,185 @@ func TestAdminSettingsAnalyticsAndAI(t *testing.T) {
 	}
 	if !h.settings.Snapshot().AIEnabled() {
 		t.Fatal("AI should be enabled when the checkbox is present")
+	}
+}
+
+func TestAdminSettingsEmailTLSSelectPreservesImplicitTLS(t *testing.T) {
+	h := newSettingsHarness(t)
+	admin := h.verifiedUser(t, "tls-admin", user.RoleAdmin)
+	form := url.Values{
+		"smtp_host": {"smtp.example.test"},
+		"smtp_port": {"465"},
+		"smtp_from": {"Sodapop <no-reply@example.test>"},
+		"smtp_tls":  {"tls"},
+	}
+	if rec := h.post(t, admin, h.srv.adminSettingsEmail, "/admin/settings/email", form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("implicit TLS status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	if got := h.settings.Snapshot().SMTP().TLS; got != "tls" {
+		t.Fatalf("smtp TLS = %q, want tls", got)
+	}
+
+	// The rendered select reflects the saved implicit TLS mode.
+	rec := h.getSettings(t, admin)
+	body := rec.Body.String()
+	if !strings.Contains(body, `value="tls" selected`) {
+		t.Fatalf("settings page does not select implicit TLS: %s", body)
+	}
+
+	// Omitting the select keeps the saved mode instead of silently downgrading.
+	form.Del("smtp_tls")
+	if rec := h.post(t, admin, h.srv.adminSettingsEmail, "/admin/settings/email", form); rec.Code != http.StatusSeeOther {
+		t.Fatalf("omitted TLS status = %d, want 303", rec.Code)
+	}
+	if got := h.settings.Snapshot().SMTP().TLS; got != "tls" {
+		t.Fatalf("omitted select changed TLS to %q", got)
+	}
+}
+
+func TestAdminSettingsObservabilitySavesAndRenders(t *testing.T) {
+	h := newSettingsHarness(t)
+	admin := h.verifiedUser(t, "otel-admin", user.RoleAdmin)
+
+	rec := h.post(t, admin, h.srv.adminSettingsObservability, "/admin/settings/observability", url.Values{
+		"otel_endpoint":     {"https://otel.example.test/v1/traces"},
+		"otel_service_name": {"sodapop-web"},
+		"otel_sampler":      {"always_on"},
+		"otel_disabled":     {"1"},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("observability status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	if loc := rec.Header().Get("Location"); loc != "/admin/settings?notice=otel_saved" {
+		t.Fatalf("redirect = %q", loc)
+	}
+	snap := h.settings.Snapshot()
+	if snap.OTELEndpoint() != "https://otel.example.test/v1/traces" || snap.OTELServiceName() != "sodapop-web" {
+		t.Fatalf("otel endpoint/service = %q/%q", snap.OTELEndpoint(), snap.OTELServiceName())
+	}
+	if snap.OTELSampler() != "always_on" || !snap.OTELDisabled() {
+		t.Fatalf("otel sampler/disabled = %q/%v", snap.OTELSampler(), snap.OTELDisabled())
+	}
+	if got := snap.Source(settings.KeyOTELEndpoint); got != "db" {
+		t.Fatalf("otel source = %q, want db", got)
+	}
+
+	rec = h.getSettings(t, admin)
+	body := rec.Body.String()
+	for _, want := range []string{
+		`value="https://otel.example.test/v1/traces"`,
+		`value="sodapop-web"`,
+		`data-source="db"`,
+		`name="otel_sampler"`,
+		`value="always_on" selected`,
+		`name="otel_disabled" value="1" checked`,
+		`action="/admin/settings/observability"`,
+		`Restart required`,
+		`apply after a restart`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("settings page missing %q", want)
+		}
+	}
+}
+
+func TestAdminSettingsObservabilityFailures(t *testing.T) {
+	h := newSettingsHarness(t)
+	admin := h.verifiedUser(t, "otel-admin-fail", user.RoleAdmin)
+	mod := h.verifiedUser(t, "otel-mod-fail", user.RoleModerator)
+
+	// Validation failure keeps the previous value and renders the form error.
+	valid := url.Values{
+		"otel_endpoint":     {"https://otel.example.test"},
+		"otel_sampler":      {"always_on"},
+		"otel_service_name": {"first"},
+	}
+	if rec := h.post(t, admin, h.srv.adminSettingsObservability, "/admin/settings/observability", valid); rec.Code != http.StatusSeeOther {
+		t.Fatalf("baseline save status = %d, want 303", rec.Code)
+	}
+	bad := url.Values{
+		"otel_endpoint":     {"otel.example.test"},
+		"otel_sampler":      {"always_on"},
+		"otel_service_name": {"second"},
+	}
+	rec := h.post(t, admin, h.srv.adminSettingsObservability, "/admin/settings/observability", bad)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid status = %d, want 400", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "otel_exporter_otlp_endpoint") {
+		t.Fatalf("validation error missing: %s", rec.Body.String())
+	}
+	snap := h.settings.Snapshot()
+	if snap.OTELServiceName() != "first" || snap.OTELEndpoint() != "https://otel.example.test" {
+		t.Fatalf("invalid form changed settings: %q/%q", snap.OTELServiceName(), snap.OTELEndpoint())
+	}
+
+	// CSRF is required.
+	req := h.request(http.MethodPost, "/admin/settings/observability", admin, url.Values{"otel_sampler": {"always_on"}})
+	rec = httptest.NewRecorder()
+	h.srv.adminSettingsObservability(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF status = %d, want 403", rec.Code)
+	}
+
+	// Strict admin role is required on the wrapped route.
+	form := url.Values{"csrf_token": {"test-csrf"}, "otel_sampler": {"always_on"}, "otel_service_name": {"mod"}}
+	req = h.request(http.MethodPost, "/admin/settings/observability", mod, form)
+	rec = httptest.NewRecorder()
+	h.srv.requireAdminStrict(h.srv.adminSettingsObservability)(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("moderator status = %d, want 403", rec.Code)
+	}
+
+	// And a non-admin cannot even load the page that renders the form.
+	req = h.request(http.MethodGet, "/admin/settings", mod, url.Values{})
+	rec = httptest.NewRecorder()
+	h.srv.requireAdminStrict(h.srv.adminSettingsPage)(rec, req)
+	if rec.Code != http.StatusForbidden || strings.Contains(rec.Body.String(), "otel_sampler") {
+		t.Fatalf("moderator page = %d, body leaked form: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAdminSettingsTemplateCoversOperationalSections(t *testing.T) {
+	h := newSettingsHarness(t)
+	admin := h.verifiedUser(t, "contract-admin", user.RoleAdmin)
+	body := h.getSettings(t, admin).Body.String()
+
+	for _, want := range []string{
+		`action="/admin/settings/general"`,
+		`action="/admin/settings/email"`,
+		`action="/admin/settings/analytics"`,
+		`action="/admin/settings/access"`,
+		`action="/admin/settings/ai"`,
+		`action="/admin/settings/observability"`,
+		`name="smtp_host"`,
+		`name="smtp_port"`,
+		`name="smtp_username"`,
+		`name="smtp_from"`,
+		`name="smtp_password"`,
+		`name="smtp_tls"`,
+		`value="starttls" selected`,
+		`value="tls"`,
+		`value="none"`,
+		`name="umami_url"`,
+		`name="umami_website_id"`,
+		`name="otel_endpoint"`,
+		`name="otel_service_name"`,
+		`name="otel_sampler"`,
+		`name="otel_disabled"`,
+		`settings-badge-source`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("settings template missing %q", want)
+		}
+	}
+	for _, section := range []string{"General", "Email", "Analytics", "Access", "AI", "Observability"} {
+		if !strings.Contains(body, section) {
+			t.Fatalf("settings template missing section %q", section)
+		}
+	}
+	if strings.Count(body, "settings-badge-source") < 6 {
+		t.Fatalf("expected a source badge in every section, found %d", strings.Count(body, "settings-badge-source"))
 	}
 }
 

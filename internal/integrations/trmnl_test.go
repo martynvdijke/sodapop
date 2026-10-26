@@ -175,6 +175,7 @@ func TestDispatchPushHonoursSetting(t *testing.T) {
 
 	// Push disabled (the default) => no delivery.
 	svc.Dispatch(ctx, Event{UserID: u.ID, Kind: EventCheckin, Text: "drank", URL: "https://sodapop.test/x"})
+	svc.processOutbox(ctx)
 	select {
 	case <-calls:
 		t.Fatal("push was sent while push_enabled is false")
@@ -188,6 +189,7 @@ func TestDispatchPushHonoursSetting(t *testing.T) {
 		t.Fatalf("create settings: %v", err)
 	}
 	svc.Dispatch(ctx, Event{UserID: u.ID, Kind: EventCheckin, Text: "drank", URL: "https://sodapop.test/x"})
+	svc.processOutbox(ctx)
 	select {
 	case title := <-calls:
 		if title != "New check-in" {

@@ -20,6 +20,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/comment"
+	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
 	"sodapop/ent/drinkalias"
 	"sodapop/ent/drinkbarcode"
@@ -42,6 +43,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/schedulerstate"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
 	"sodapop/ent/user"
@@ -131,6 +133,7 @@ func checkColumn(t, c string) error {
 			checkin.Table:                checkin.ValidColumn,
 			checkinlike.Table:            checkinlike.ValidColumn,
 			comment.Table:                comment.ValidColumn,
+			deliveryoutbox.Table:         deliveryoutbox.ValidColumn,
 			drink.Table:                  drink.ValidColumn,
 			drinkalias.Table:             drinkalias.ValidColumn,
 			drinkbarcode.Table:           drinkbarcode.ValidColumn,
@@ -153,6 +156,7 @@ func checkColumn(t, c string) error {
 			pushsubscription.Table:       pushsubscription.ValidColumn,
 			report.Table:                 report.ValidColumn,
 			runtimesetting.Table:         runtimesetting.ValidColumn,
+			schedulerstate.Table:         schedulerstate.ValidColumn,
 			session.Table:                session.ValidColumn,
 			style.Table:                  style.ValidColumn,
 			user.Table:                   user.ValidColumn,

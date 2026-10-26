@@ -45,6 +45,9 @@ type CheckinLike func(*sql.Selector)
 // Comment is the predicate function for comment builders.
 type Comment func(*sql.Selector)
 
+// DeliveryOutbox is the predicate function for deliveryoutbox builders.
+type DeliveryOutbox func(*sql.Selector)
+
 // Drink is the predicate function for drink builders.
 type Drink func(*sql.Selector)
 
@@ -110,6 +113,9 @@ type Report func(*sql.Selector)
 
 // RuntimeSetting is the predicate function for runtimesetting builders.
 type RuntimeSetting func(*sql.Selector)
+
+// SchedulerState is the predicate function for schedulerstate builders.
+type SchedulerState func(*sql.Selector)
 
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)

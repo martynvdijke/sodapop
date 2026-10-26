@@ -3,8 +3,49 @@ package db
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+// TestDeliveryOutboxMigration guards the append-only 0008 migration: the due
+// poll index is partial and the per-user history index exists.
+func TestDeliveryOutboxMigration(t *testing.T) {
+	database, err := Init(filepath.Join(t.TempDir(), "delivery.db"))
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	defer database.Close()
+	ctx := context.Background()
+
+	var version int
+	if err := database.SQL.QueryRowContext(ctx,
+		`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
+		t.Fatalf("schema version: %v", err)
+	}
+	if version < 8 {
+		t.Fatalf("schema_migrations max = %d, want at least 8", version)
+	}
+
+	var dueSQL string
+	if err := database.SQL.QueryRowContext(ctx,
+		`SELECT COALESCE(sql, '') FROM sqlite_master WHERE type = 'index' AND name = ?`,
+		"idx_delivery_outbox_due").Scan(&dueSQL); err != nil {
+		t.Fatalf("due index: %v", err)
+	}
+	if !strings.Contains(dueSQL, "delivered_at IS NULL") {
+		t.Errorf("idx_delivery_outbox_due is not partial: %q", dueSQL)
+	}
+
+	var userCreated int
+	if err := database.SQL.QueryRowContext(ctx,
+		`SELECT count(*) FROM sqlite_master WHERE type = 'index' AND tbl_name = 'delivery_outbox' AND name = ?`,
+		"idx_delivery_outbox_user_created").Scan(&userCreated); err != nil {
+		t.Fatalf("user/created index: %v", err)
+	}
+	if userCreated != 1 {
+		t.Error("idx_delivery_outbox_user_created is missing")
+	}
+}
 
 // TestAuditIndexesMigration guards the append-only 0009 migration: both audit
 // indexes exist and the recorded schema version reached it.

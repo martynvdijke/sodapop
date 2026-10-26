@@ -22,6 +22,7 @@ import (
 	"sodapop/internal/checkins"
 	"sodapop/internal/db"
 	"sodapop/internal/integrations"
+	"sodapop/internal/search"
 	"sodapop/internal/social"
 )
 
@@ -190,59 +191,31 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	if n, err := s.Auth.Client.User.Query().Where(user.HandleEqualFold(handle)).Count(ctx); err != nil || n > 0 {
-		renderErr(http.StatusConflict, "That handle is already taken.")
-		return
-	}
-	if n, err := s.Auth.Client.User.Query().Where(user.EmailEqualFold(email)).Count(ctx); err != nil || n > 0 {
-		renderErr(http.StatusConflict, "An account with that email already exists.")
-		return
-	}
 	hash, err := s.Auth.HashPassword(password)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	tx, err := s.Auth.Client.Tx(ctx)
+	reg, err := s.Auth.RegisterLocal(ctx, s.Auth.Client, auth.RegisterInput{
+		Handle:       handle,
+		Email:        email,
+		DisplayName:  display,
+		PasswordHash: hash,
+	})
 	if err != nil {
+		if errors.Is(err, auth.ErrRegistrationConflict) {
+			renderErr(http.StatusConflict, "That handle or email is already in use.")
+			return
+		}
 		s.fail(w, r, err)
 		return
 	}
-	u, err := tx.User.Create().
-		SetHandle(handle).SetEmail(email).SetDisplayName(display).SetPasswordHash(hash).
-		Save(ctx)
-	if err != nil {
-		_ = tx.Rollback()
-		s.fail(w, r, err)
-		return
-	}
-	if _, err := tx.UserSetting.Create().SetUserID(u.ID).Save(ctx); err != nil {
-		_ = tx.Rollback()
-		s.fail(w, r, err)
-		return
-	}
-	if _, err := tx.List.Create().
-		SetUserID(u.ID).SetName("Wishlist").SetSlug("wishlist").
-		SetVisibility(list.VisibilityPrivate).SetIsSystem(true).Save(ctx); err != nil {
-		_ = tx.Rollback()
-		s.fail(w, r, err)
-		return
-	}
-	raw := auth.RandomToken(32)
-	if _, err := tx.EmailVerificationToken.Create().
-		SetTokenHash(auth.HashToken(raw)).SetUserID(u.ID).SetEmail(email).
-		SetExpiresAt(time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)).
-		Save(ctx); err != nil {
-		_ = tx.Rollback()
-		s.fail(w, r, err)
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	if err := s.Mailer.Verification(ctx, email, handle, raw); err != nil {
-		s.Log.Warn("queue verification email failed", "err", err)
+	u := reg.User
+	raw := reg.VerificationToken
+	if u.EmailVerifiedAt == nil {
+		if err := s.Mailer.Verification(ctx, email, handle, raw); err != nil {
+			s.Log.Warn("queue verification email failed", "err", err)
+		}
 	}
 	res, err := s.Auth.CreateSession(ctx, u.ID, clientIP(r), r.UserAgent())
 	if err != nil {
@@ -250,6 +223,10 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Auth.SetSessionCookie(w, r, res.Token, res.ExpiresAt)
+	if u.EmailVerifiedAt != nil {
+		http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
+		return
+	}
 	data := map[string]any{
 		"Title":   "Check your inbox",
 		"Pending": true,
@@ -309,10 +286,23 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	data := map[string]any{"Title": "Search", "Query": q}
+	all := strings.EqualFold(r.URL.Query().Get("type"), "all") ||
+		strings.EqualFold(r.URL.Query().Get("scope"), "all")
+	data := map[string]any{
+		"Title":   "Search",
+		"Query":   q,
+		"All":     all,
+		"Unified": search.Results{},
+	}
 	if q != "" {
 		if len([]rune(q)) < catalog.MinSearchLen {
 			data["Error"] = "Type at least two characters."
+		} else if all {
+			results, err := search.New(s.Catalog).Search(r.Context(), q, 0)
+			if err != nil {
+				data["Error"] = "Search is temporarily unavailable."
+			}
+			data["Unified"] = results
 		} else {
 			results, err := s.Catalog.Search(r.Context(), q, r.URL.Query().Get("style"), 10)
 			if err != nil {

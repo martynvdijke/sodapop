@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -293,6 +294,25 @@ var (
 		Name:       "comments",
 		Columns:    CommentsColumns,
 		PrimaryKey: []*schema.Column{CommentsColumns[0]},
+	}
+	// DeliveryOutboxColumns holds the columns for the "delivery_outbox" table.
+	DeliveryOutboxColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeString, Default: ""},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"webhook", "matrix", "trmnl", "push"}},
+		{Name: "target", Type: field.TypeString, Default: ""},
+		{Name: "payload_json", Type: field.TypeString, Default: ""},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "next_attempt_at", Type: field.TypeString},
+		{Name: "last_error", Type: field.TypeString, Default: ""},
+		{Name: "delivered_at", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeString},
+	}
+	// DeliveryOutboxTable holds the schema information for the "delivery_outbox" table.
+	DeliveryOutboxTable = &schema.Table{
+		Name:       "delivery_outbox",
+		Columns:    DeliveryOutboxColumns,
+		PrimaryKey: []*schema.Column{DeliveryOutboxColumns[0]},
 	}
 	// DrinksColumns holds the columns for the "drinks" table.
 	DrinksColumns = []*schema.Column{
@@ -815,6 +835,21 @@ var (
 		Columns:    RuntimeSettingsColumns,
 		PrimaryKey: []*schema.Column{RuntimeSettingsColumns[0]},
 	}
+	// SchedulerStateColumns holds the columns for the "scheduler_state" table.
+	SchedulerStateColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "last_run_at", Type: field.TypeString, Nullable: true},
+		{Name: "locked_until", Type: field.TypeString, Nullable: true},
+		{Name: "lock_owner", Type: field.TypeString, Default: ""},
+		{Name: "updated_at", Type: field.TypeString},
+	}
+	// SchedulerStateTable holds the schema information for the "scheduler_state" table.
+	SchedulerStateTable = &schema.Table{
+		Name:       "scheduler_state",
+		Columns:    SchedulerStateColumns,
+		PrimaryKey: []*schema.Column{SchedulerStateColumns[0]},
+	}
 	// SessionsColumns holds the columns for the "sessions" table.
 	SessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1075,6 +1110,7 @@ var (
 		CheckinsTable,
 		CheckinLikesTable,
 		CommentsTable,
+		DeliveryOutboxTable,
 		DrinksTable,
 		DrinkAliasTable,
 		DrinkBarcodesTable,
@@ -1097,6 +1133,7 @@ var (
 		PushSubscriptionsTable,
 		ReportsTable,
 		RuntimeSettingsTable,
+		SchedulerStateTable,
 		SessionsTable,
 		StylesTable,
 		UsersTable,
@@ -1116,6 +1153,9 @@ func init() {
 	CheckinsTable.ForeignKeys[0].RefTable = DrinksTable
 	CheckinsTable.ForeignKeys[1].RefTable = UsersTable
 	CheckinsTable.ForeignKeys[2].RefTable = VenuesTable
+	DeliveryOutboxTable.Annotation = &entsql.Annotation{
+		Table: "delivery_outbox",
+	}
 	DrinksTable.ForeignKeys[0].RefTable = BrandsTable
 	DrinksTable.ForeignKeys[1].RefTable = StylesTable
 	DrinkAliasTable.ForeignKeys[0].RefTable = DrinksTable
@@ -1125,6 +1165,9 @@ func init() {
 	DrinkImagesTable.ForeignKeys[0].RefTable = DrinksTable
 	ListsTable.ForeignKeys[0].RefTable = UsersTable
 	ListItemsTable.ForeignKeys[0].RefTable = ListsTable
+	SchedulerStateTable.Annotation = &entsql.Annotation{
+		Table: "scheduler_state",
+	}
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 	UserIdentitiesTable.ForeignKeys[0].RefTable = UsersTable
 	VenueDrinksTable.ForeignKeys[0].RefTable = VenuesTable

@@ -19,6 +19,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/comment"
+	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
 	"sodapop/ent/drinkalias"
 	"sodapop/ent/drinkbarcode"
@@ -42,6 +43,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/schedulerstate"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
 	"sodapop/ent/user"
@@ -81,6 +83,7 @@ const (
 	TypeCheckin                = "Checkin"
 	TypeCheckinLike            = "CheckinLike"
 	TypeComment                = "Comment"
+	TypeDeliveryOutbox         = "DeliveryOutbox"
 	TypeDrink                  = "Drink"
 	TypeDrinkAlias             = "DrinkAlias"
 	TypeDrinkBarcode           = "DrinkBarcode"
@@ -103,6 +106,7 @@ const (
 	TypePushSubscription       = "PushSubscription"
 	TypeReport                 = "Report"
 	TypeRuntimeSetting         = "RuntimeSetting"
+	TypeSchedulerState         = "SchedulerState"
 	TypeSession                = "Session"
 	TypeStyle                  = "Style"
 	TypeUser                   = "User"
@@ -9076,6 +9080,828 @@ func (m *CommentMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *CommentMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Comment edge %s", name)
+}
+
+// DeliveryOutboxMutation represents an operation that mutates the DeliveryOutbox nodes in the graph.
+type DeliveryOutboxMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	user_id         *string
+	kind            *deliveryoutbox.Kind
+	target          *string
+	payload_json    *string
+	attempts        *int
+	addattempts     *int
+	next_attempt_at *string
+	last_error      *string
+	delivered_at    *string
+	created_at      *string
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*DeliveryOutbox, error)
+	predicates      []predicate.DeliveryOutbox
+}
+
+var _ ent.Mutation = (*DeliveryOutboxMutation)(nil)
+
+// deliveryoutboxOption allows management of the mutation configuration using functional options.
+type deliveryoutboxOption func(*DeliveryOutboxMutation)
+
+// newDeliveryOutboxMutation creates new mutation for the DeliveryOutbox entity.
+func newDeliveryOutboxMutation(c config, op Op, opts ...deliveryoutboxOption) *DeliveryOutboxMutation {
+	m := &DeliveryOutboxMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDeliveryOutbox,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDeliveryOutboxID sets the ID field of the mutation.
+func withDeliveryOutboxID(id int) deliveryoutboxOption {
+	return func(m *DeliveryOutboxMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DeliveryOutbox
+		)
+		m.oldValue = func(ctx context.Context) (*DeliveryOutbox, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DeliveryOutbox.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDeliveryOutbox sets the old DeliveryOutbox of the mutation.
+func withDeliveryOutbox(node *DeliveryOutbox) deliveryoutboxOption {
+	return func(m *DeliveryOutboxMutation) {
+		m.oldValue = func(context.Context) (*DeliveryOutbox, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DeliveryOutboxMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DeliveryOutboxMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of DeliveryOutbox entities.
+func (m *DeliveryOutboxMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DeliveryOutboxMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DeliveryOutboxMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DeliveryOutbox.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *DeliveryOutboxMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *DeliveryOutboxMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *DeliveryOutboxMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *DeliveryOutboxMutation) SetKind(d deliveryoutbox.Kind) {
+	m.kind = &d
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *DeliveryOutboxMutation) Kind() (r deliveryoutbox.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldKind(ctx context.Context) (v deliveryoutbox.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *DeliveryOutboxMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetTarget sets the "target" field.
+func (m *DeliveryOutboxMutation) SetTarget(s string) {
+	m.target = &s
+}
+
+// Target returns the value of the "target" field in the mutation.
+func (m *DeliveryOutboxMutation) Target() (r string, exists bool) {
+	v := m.target
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTarget returns the old "target" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldTarget(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTarget is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTarget requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTarget: %w", err)
+	}
+	return oldValue.Target, nil
+}
+
+// ResetTarget resets all changes to the "target" field.
+func (m *DeliveryOutboxMutation) ResetTarget() {
+	m.target = nil
+}
+
+// SetPayloadJSON sets the "payload_json" field.
+func (m *DeliveryOutboxMutation) SetPayloadJSON(s string) {
+	m.payload_json = &s
+}
+
+// PayloadJSON returns the value of the "payload_json" field in the mutation.
+func (m *DeliveryOutboxMutation) PayloadJSON() (r string, exists bool) {
+	v := m.payload_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayloadJSON returns the old "payload_json" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldPayloadJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayloadJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayloadJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayloadJSON: %w", err)
+	}
+	return oldValue.PayloadJSON, nil
+}
+
+// ResetPayloadJSON resets all changes to the "payload_json" field.
+func (m *DeliveryOutboxMutation) ResetPayloadJSON() {
+	m.payload_json = nil
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *DeliveryOutboxMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *DeliveryOutboxMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *DeliveryOutboxMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *DeliveryOutboxMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *DeliveryOutboxMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetNextAttemptAt sets the "next_attempt_at" field.
+func (m *DeliveryOutboxMutation) SetNextAttemptAt(s string) {
+	m.next_attempt_at = &s
+}
+
+// NextAttemptAt returns the value of the "next_attempt_at" field in the mutation.
+func (m *DeliveryOutboxMutation) NextAttemptAt() (r string, exists bool) {
+	v := m.next_attempt_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextAttemptAt returns the old "next_attempt_at" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldNextAttemptAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextAttemptAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextAttemptAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextAttemptAt: %w", err)
+	}
+	return oldValue.NextAttemptAt, nil
+}
+
+// ResetNextAttemptAt resets all changes to the "next_attempt_at" field.
+func (m *DeliveryOutboxMutation) ResetNextAttemptAt() {
+	m.next_attempt_at = nil
+}
+
+// SetLastError sets the "last_error" field.
+func (m *DeliveryOutboxMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *DeliveryOutboxMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *DeliveryOutboxMutation) ResetLastError() {
+	m.last_error = nil
+}
+
+// SetDeliveredAt sets the "delivered_at" field.
+func (m *DeliveryOutboxMutation) SetDeliveredAt(s string) {
+	m.delivered_at = &s
+}
+
+// DeliveredAt returns the value of the "delivered_at" field in the mutation.
+func (m *DeliveryOutboxMutation) DeliveredAt() (r string, exists bool) {
+	v := m.delivered_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeliveredAt returns the old "delivered_at" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldDeliveredAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeliveredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeliveredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeliveredAt: %w", err)
+	}
+	return oldValue.DeliveredAt, nil
+}
+
+// ClearDeliveredAt clears the value of the "delivered_at" field.
+func (m *DeliveryOutboxMutation) ClearDeliveredAt() {
+	m.delivered_at = nil
+	m.clearedFields[deliveryoutbox.FieldDeliveredAt] = struct{}{}
+}
+
+// DeliveredAtCleared returns if the "delivered_at" field was cleared in this mutation.
+func (m *DeliveryOutboxMutation) DeliveredAtCleared() bool {
+	_, ok := m.clearedFields[deliveryoutbox.FieldDeliveredAt]
+	return ok
+}
+
+// ResetDeliveredAt resets all changes to the "delivered_at" field.
+func (m *DeliveryOutboxMutation) ResetDeliveredAt() {
+	m.delivered_at = nil
+	delete(m.clearedFields, deliveryoutbox.FieldDeliveredAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DeliveryOutboxMutation) SetCreatedAt(s string) {
+	m.created_at = &s
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DeliveryOutboxMutation) CreatedAt() (r string, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DeliveryOutbox entity.
+// If the DeliveryOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeliveryOutboxMutation) OldCreatedAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DeliveryOutboxMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the DeliveryOutboxMutation builder.
+func (m *DeliveryOutboxMutation) Where(ps ...predicate.DeliveryOutbox) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DeliveryOutboxMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DeliveryOutboxMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DeliveryOutbox, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DeliveryOutboxMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DeliveryOutboxMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DeliveryOutbox).
+func (m *DeliveryOutboxMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DeliveryOutboxMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.user_id != nil {
+		fields = append(fields, deliveryoutbox.FieldUserID)
+	}
+	if m.kind != nil {
+		fields = append(fields, deliveryoutbox.FieldKind)
+	}
+	if m.target != nil {
+		fields = append(fields, deliveryoutbox.FieldTarget)
+	}
+	if m.payload_json != nil {
+		fields = append(fields, deliveryoutbox.FieldPayloadJSON)
+	}
+	if m.attempts != nil {
+		fields = append(fields, deliveryoutbox.FieldAttempts)
+	}
+	if m.next_attempt_at != nil {
+		fields = append(fields, deliveryoutbox.FieldNextAttemptAt)
+	}
+	if m.last_error != nil {
+		fields = append(fields, deliveryoutbox.FieldLastError)
+	}
+	if m.delivered_at != nil {
+		fields = append(fields, deliveryoutbox.FieldDeliveredAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, deliveryoutbox.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DeliveryOutboxMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case deliveryoutbox.FieldUserID:
+		return m.UserID()
+	case deliveryoutbox.FieldKind:
+		return m.Kind()
+	case deliveryoutbox.FieldTarget:
+		return m.Target()
+	case deliveryoutbox.FieldPayloadJSON:
+		return m.PayloadJSON()
+	case deliveryoutbox.FieldAttempts:
+		return m.Attempts()
+	case deliveryoutbox.FieldNextAttemptAt:
+		return m.NextAttemptAt()
+	case deliveryoutbox.FieldLastError:
+		return m.LastError()
+	case deliveryoutbox.FieldDeliveredAt:
+		return m.DeliveredAt()
+	case deliveryoutbox.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DeliveryOutboxMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case deliveryoutbox.FieldUserID:
+		return m.OldUserID(ctx)
+	case deliveryoutbox.FieldKind:
+		return m.OldKind(ctx)
+	case deliveryoutbox.FieldTarget:
+		return m.OldTarget(ctx)
+	case deliveryoutbox.FieldPayloadJSON:
+		return m.OldPayloadJSON(ctx)
+	case deliveryoutbox.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case deliveryoutbox.FieldNextAttemptAt:
+		return m.OldNextAttemptAt(ctx)
+	case deliveryoutbox.FieldLastError:
+		return m.OldLastError(ctx)
+	case deliveryoutbox.FieldDeliveredAt:
+		return m.OldDeliveredAt(ctx)
+	case deliveryoutbox.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown DeliveryOutbox field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeliveryOutboxMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case deliveryoutbox.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case deliveryoutbox.FieldKind:
+		v, ok := value.(deliveryoutbox.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case deliveryoutbox.FieldTarget:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTarget(v)
+		return nil
+	case deliveryoutbox.FieldPayloadJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayloadJSON(v)
+		return nil
+	case deliveryoutbox.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case deliveryoutbox.FieldNextAttemptAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextAttemptAt(v)
+		return nil
+	case deliveryoutbox.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case deliveryoutbox.FieldDeliveredAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeliveredAt(v)
+		return nil
+	case deliveryoutbox.FieldCreatedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DeliveryOutbox field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DeliveryOutboxMutation) AddedFields() []string {
+	var fields []string
+	if m.addattempts != nil {
+		fields = append(fields, deliveryoutbox.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DeliveryOutboxMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case deliveryoutbox.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeliveryOutboxMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case deliveryoutbox.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DeliveryOutbox numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DeliveryOutboxMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(deliveryoutbox.FieldDeliveredAt) {
+		fields = append(fields, deliveryoutbox.FieldDeliveredAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DeliveryOutboxMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DeliveryOutboxMutation) ClearField(name string) error {
+	switch name {
+	case deliveryoutbox.FieldDeliveredAt:
+		m.ClearDeliveredAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DeliveryOutbox nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DeliveryOutboxMutation) ResetField(name string) error {
+	switch name {
+	case deliveryoutbox.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case deliveryoutbox.FieldKind:
+		m.ResetKind()
+		return nil
+	case deliveryoutbox.FieldTarget:
+		m.ResetTarget()
+		return nil
+	case deliveryoutbox.FieldPayloadJSON:
+		m.ResetPayloadJSON()
+		return nil
+	case deliveryoutbox.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case deliveryoutbox.FieldNextAttemptAt:
+		m.ResetNextAttemptAt()
+		return nil
+	case deliveryoutbox.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case deliveryoutbox.FieldDeliveredAt:
+		m.ResetDeliveredAt()
+		return nil
+	case deliveryoutbox.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DeliveryOutbox field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DeliveryOutboxMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DeliveryOutboxMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DeliveryOutboxMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DeliveryOutboxMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DeliveryOutboxMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DeliveryOutboxMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DeliveryOutboxMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DeliveryOutbox unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DeliveryOutboxMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DeliveryOutbox edge %s", name)
 }
 
 // DrinkMutation represents an operation that mutates the Drink nodes in the graph.
@@ -24978,6 +25804,595 @@ func (m *RuntimeSettingMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *RuntimeSettingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown RuntimeSetting edge %s", name)
+}
+
+// SchedulerStateMutation represents an operation that mutates the SchedulerState nodes in the graph.
+type SchedulerStateMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	name          *string
+	last_run_at   *string
+	locked_until  *string
+	lock_owner    *string
+	updated_at    *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*SchedulerState, error)
+	predicates    []predicate.SchedulerState
+}
+
+var _ ent.Mutation = (*SchedulerStateMutation)(nil)
+
+// schedulerstateOption allows management of the mutation configuration using functional options.
+type schedulerstateOption func(*SchedulerStateMutation)
+
+// newSchedulerStateMutation creates new mutation for the SchedulerState entity.
+func newSchedulerStateMutation(c config, op Op, opts ...schedulerstateOption) *SchedulerStateMutation {
+	m := &SchedulerStateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSchedulerState,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSchedulerStateID sets the ID field of the mutation.
+func withSchedulerStateID(id int) schedulerstateOption {
+	return func(m *SchedulerStateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SchedulerState
+		)
+		m.oldValue = func(ctx context.Context) (*SchedulerState, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SchedulerState.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSchedulerState sets the old SchedulerState of the mutation.
+func withSchedulerState(node *SchedulerState) schedulerstateOption {
+	return func(m *SchedulerStateMutation) {
+		m.oldValue = func(context.Context) (*SchedulerState, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SchedulerStateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SchedulerStateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SchedulerState entities.
+func (m *SchedulerStateMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SchedulerStateMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SchedulerStateMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SchedulerState.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *SchedulerStateMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SchedulerStateMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SchedulerState entity.
+// If the SchedulerState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SchedulerStateMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SchedulerStateMutation) ResetName() {
+	m.name = nil
+}
+
+// SetLastRunAt sets the "last_run_at" field.
+func (m *SchedulerStateMutation) SetLastRunAt(s string) {
+	m.last_run_at = &s
+}
+
+// LastRunAt returns the value of the "last_run_at" field in the mutation.
+func (m *SchedulerStateMutation) LastRunAt() (r string, exists bool) {
+	v := m.last_run_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastRunAt returns the old "last_run_at" field's value of the SchedulerState entity.
+// If the SchedulerState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SchedulerStateMutation) OldLastRunAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastRunAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastRunAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastRunAt: %w", err)
+	}
+	return oldValue.LastRunAt, nil
+}
+
+// ClearLastRunAt clears the value of the "last_run_at" field.
+func (m *SchedulerStateMutation) ClearLastRunAt() {
+	m.last_run_at = nil
+	m.clearedFields[schedulerstate.FieldLastRunAt] = struct{}{}
+}
+
+// LastRunAtCleared returns if the "last_run_at" field was cleared in this mutation.
+func (m *SchedulerStateMutation) LastRunAtCleared() bool {
+	_, ok := m.clearedFields[schedulerstate.FieldLastRunAt]
+	return ok
+}
+
+// ResetLastRunAt resets all changes to the "last_run_at" field.
+func (m *SchedulerStateMutation) ResetLastRunAt() {
+	m.last_run_at = nil
+	delete(m.clearedFields, schedulerstate.FieldLastRunAt)
+}
+
+// SetLockedUntil sets the "locked_until" field.
+func (m *SchedulerStateMutation) SetLockedUntil(s string) {
+	m.locked_until = &s
+}
+
+// LockedUntil returns the value of the "locked_until" field in the mutation.
+func (m *SchedulerStateMutation) LockedUntil() (r string, exists bool) {
+	v := m.locked_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLockedUntil returns the old "locked_until" field's value of the SchedulerState entity.
+// If the SchedulerState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SchedulerStateMutation) OldLockedUntil(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLockedUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLockedUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLockedUntil: %w", err)
+	}
+	return oldValue.LockedUntil, nil
+}
+
+// ClearLockedUntil clears the value of the "locked_until" field.
+func (m *SchedulerStateMutation) ClearLockedUntil() {
+	m.locked_until = nil
+	m.clearedFields[schedulerstate.FieldLockedUntil] = struct{}{}
+}
+
+// LockedUntilCleared returns if the "locked_until" field was cleared in this mutation.
+func (m *SchedulerStateMutation) LockedUntilCleared() bool {
+	_, ok := m.clearedFields[schedulerstate.FieldLockedUntil]
+	return ok
+}
+
+// ResetLockedUntil resets all changes to the "locked_until" field.
+func (m *SchedulerStateMutation) ResetLockedUntil() {
+	m.locked_until = nil
+	delete(m.clearedFields, schedulerstate.FieldLockedUntil)
+}
+
+// SetLockOwner sets the "lock_owner" field.
+func (m *SchedulerStateMutation) SetLockOwner(s string) {
+	m.lock_owner = &s
+}
+
+// LockOwner returns the value of the "lock_owner" field in the mutation.
+func (m *SchedulerStateMutation) LockOwner() (r string, exists bool) {
+	v := m.lock_owner
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLockOwner returns the old "lock_owner" field's value of the SchedulerState entity.
+// If the SchedulerState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SchedulerStateMutation) OldLockOwner(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLockOwner is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLockOwner requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLockOwner: %w", err)
+	}
+	return oldValue.LockOwner, nil
+}
+
+// ResetLockOwner resets all changes to the "lock_owner" field.
+func (m *SchedulerStateMutation) ResetLockOwner() {
+	m.lock_owner = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SchedulerStateMutation) SetUpdatedAt(s string) {
+	m.updated_at = &s
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SchedulerStateMutation) UpdatedAt() (r string, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SchedulerState entity.
+// If the SchedulerState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SchedulerStateMutation) OldUpdatedAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SchedulerStateMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the SchedulerStateMutation builder.
+func (m *SchedulerStateMutation) Where(ps ...predicate.SchedulerState) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SchedulerStateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SchedulerStateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SchedulerState, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SchedulerStateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SchedulerStateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SchedulerState).
+func (m *SchedulerStateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SchedulerStateMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.name != nil {
+		fields = append(fields, schedulerstate.FieldName)
+	}
+	if m.last_run_at != nil {
+		fields = append(fields, schedulerstate.FieldLastRunAt)
+	}
+	if m.locked_until != nil {
+		fields = append(fields, schedulerstate.FieldLockedUntil)
+	}
+	if m.lock_owner != nil {
+		fields = append(fields, schedulerstate.FieldLockOwner)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, schedulerstate.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SchedulerStateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case schedulerstate.FieldName:
+		return m.Name()
+	case schedulerstate.FieldLastRunAt:
+		return m.LastRunAt()
+	case schedulerstate.FieldLockedUntil:
+		return m.LockedUntil()
+	case schedulerstate.FieldLockOwner:
+		return m.LockOwner()
+	case schedulerstate.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SchedulerStateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case schedulerstate.FieldName:
+		return m.OldName(ctx)
+	case schedulerstate.FieldLastRunAt:
+		return m.OldLastRunAt(ctx)
+	case schedulerstate.FieldLockedUntil:
+		return m.OldLockedUntil(ctx)
+	case schedulerstate.FieldLockOwner:
+		return m.OldLockOwner(ctx)
+	case schedulerstate.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SchedulerState field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SchedulerStateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case schedulerstate.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case schedulerstate.FieldLastRunAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastRunAt(v)
+		return nil
+	case schedulerstate.FieldLockedUntil:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLockedUntil(v)
+		return nil
+	case schedulerstate.FieldLockOwner:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLockOwner(v)
+		return nil
+	case schedulerstate.FieldUpdatedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SchedulerState field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SchedulerStateMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SchedulerStateMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SchedulerStateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SchedulerState numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SchedulerStateMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(schedulerstate.FieldLastRunAt) {
+		fields = append(fields, schedulerstate.FieldLastRunAt)
+	}
+	if m.FieldCleared(schedulerstate.FieldLockedUntil) {
+		fields = append(fields, schedulerstate.FieldLockedUntil)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SchedulerStateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SchedulerStateMutation) ClearField(name string) error {
+	switch name {
+	case schedulerstate.FieldLastRunAt:
+		m.ClearLastRunAt()
+		return nil
+	case schedulerstate.FieldLockedUntil:
+		m.ClearLockedUntil()
+		return nil
+	}
+	return fmt.Errorf("unknown SchedulerState nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SchedulerStateMutation) ResetField(name string) error {
+	switch name {
+	case schedulerstate.FieldName:
+		m.ResetName()
+		return nil
+	case schedulerstate.FieldLastRunAt:
+		m.ResetLastRunAt()
+		return nil
+	case schedulerstate.FieldLockedUntil:
+		m.ResetLockedUntil()
+		return nil
+	case schedulerstate.FieldLockOwner:
+		m.ResetLockOwner()
+		return nil
+	case schedulerstate.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SchedulerState field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SchedulerStateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SchedulerStateMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SchedulerStateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SchedulerStateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SchedulerStateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SchedulerStateMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SchedulerStateMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SchedulerState unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SchedulerStateMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SchedulerState edge %s", name)
 }
 
 // SessionMutation represents an operation that mutates the Session nodes in the graph.

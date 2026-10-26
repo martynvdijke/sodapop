@@ -24,6 +24,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/comment"
+	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
 	"sodapop/ent/drinkalias"
 	"sodapop/ent/drinkbarcode"
@@ -46,6 +47,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/schedulerstate"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
 	"sodapop/ent/user"
@@ -95,6 +97,8 @@ type Client struct {
 	CheckinLike *CheckinLikeClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
+	// DeliveryOutbox is the client for interacting with the DeliveryOutbox builders.
+	DeliveryOutbox *DeliveryOutboxClient
 	// Drink is the client for interacting with the Drink builders.
 	Drink *DrinkClient
 	// DrinkAlias is the client for interacting with the DrinkAlias builders.
@@ -139,6 +143,8 @@ type Client struct {
 	Report *ReportClient
 	// RuntimeSetting is the client for interacting with the RuntimeSetting builders.
 	RuntimeSetting *RuntimeSettingClient
+	// SchedulerState is the client for interacting with the SchedulerState builders.
+	SchedulerState *SchedulerStateClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Style is the client for interacting with the Style builders.
@@ -185,6 +191,7 @@ func (c *Client) init() {
 	c.Checkin = NewCheckinClient(c.config)
 	c.CheckinLike = NewCheckinLikeClient(c.config)
 	c.Comment = NewCommentClient(c.config)
+	c.DeliveryOutbox = NewDeliveryOutboxClient(c.config)
 	c.Drink = NewDrinkClient(c.config)
 	c.DrinkAlias = NewDrinkAliasClient(c.config)
 	c.DrinkBarcode = NewDrinkBarcodeClient(c.config)
@@ -207,6 +214,7 @@ func (c *Client) init() {
 	c.PushSubscription = NewPushSubscriptionClient(c.config)
 	c.Report = NewReportClient(c.config)
 	c.RuntimeSetting = NewRuntimeSettingClient(c.config)
+	c.SchedulerState = NewSchedulerStateClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.Style = NewStyleClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -323,6 +331,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Checkin:                NewCheckinClient(cfg),
 		CheckinLike:            NewCheckinLikeClient(cfg),
 		Comment:                NewCommentClient(cfg),
+		DeliveryOutbox:         NewDeliveryOutboxClient(cfg),
 		Drink:                  NewDrinkClient(cfg),
 		DrinkAlias:             NewDrinkAliasClient(cfg),
 		DrinkBarcode:           NewDrinkBarcodeClient(cfg),
@@ -345,6 +354,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PushSubscription:       NewPushSubscriptionClient(cfg),
 		Report:                 NewReportClient(cfg),
 		RuntimeSetting:         NewRuntimeSettingClient(cfg),
+		SchedulerState:         NewSchedulerStateClient(cfg),
 		Session:                NewSessionClient(cfg),
 		Style:                  NewStyleClient(cfg),
 		User:                   NewUserClient(cfg),
@@ -388,6 +398,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Checkin:                NewCheckinClient(cfg),
 		CheckinLike:            NewCheckinLikeClient(cfg),
 		Comment:                NewCommentClient(cfg),
+		DeliveryOutbox:         NewDeliveryOutboxClient(cfg),
 		Drink:                  NewDrinkClient(cfg),
 		DrinkAlias:             NewDrinkAliasClient(cfg),
 		DrinkBarcode:           NewDrinkBarcodeClient(cfg),
@@ -410,6 +421,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PushSubscription:       NewPushSubscriptionClient(cfg),
 		Report:                 NewReportClient(cfg),
 		RuntimeSetting:         NewRuntimeSettingClient(cfg),
+		SchedulerState:         NewSchedulerStateClient(cfg),
 		Session:                NewSessionClient(cfg),
 		Style:                  NewStyleClient(cfg),
 		User:                   NewUserClient(cfg),
@@ -452,13 +464,14 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AIDraftSession, c.AIEndpoint, c.APIToken, c.Activity, c.AdminNote,
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
-		c.CheckinLike, c.Comment, c.Drink, c.DrinkAlias, c.DrinkBarcode,
-		c.DrinkFlavour, c.DrinkImage, c.EmailOutbox, c.EmailVerificationToken,
-		c.Flavour, c.Follow, c.Friendship, c.InboundToken, c.Integration, c.List,
-		c.ListItem, c.LoginAttempt, c.Media, c.Notification, c.OffProduct,
-		c.PasswordResetToken, c.PushSubscription, c.Report, c.RuntimeSetting,
-		c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting,
-		c.Venue, c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
+		c.CheckinLike, c.Comment, c.DeliveryOutbox, c.Drink, c.DrinkAlias,
+		c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
+		c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship, c.InboundToken,
+		c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
+		c.OffProduct, c.PasswordResetToken, c.PushSubscription, c.Report,
+		c.RuntimeSetting, c.SchedulerState, c.Session, c.Style, c.User, c.UserBadge,
+		c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueMedia,
+		c.VenueName, c.VenueSave,
 	} {
 		n.Use(hooks...)
 	}
@@ -470,13 +483,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AIDraftSession, c.AIEndpoint, c.APIToken, c.Activity, c.AdminNote,
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
-		c.CheckinLike, c.Comment, c.Drink, c.DrinkAlias, c.DrinkBarcode,
-		c.DrinkFlavour, c.DrinkImage, c.EmailOutbox, c.EmailVerificationToken,
-		c.Flavour, c.Follow, c.Friendship, c.InboundToken, c.Integration, c.List,
-		c.ListItem, c.LoginAttempt, c.Media, c.Notification, c.OffProduct,
-		c.PasswordResetToken, c.PushSubscription, c.Report, c.RuntimeSetting,
-		c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting,
-		c.Venue, c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
+		c.CheckinLike, c.Comment, c.DeliveryOutbox, c.Drink, c.DrinkAlias,
+		c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
+		c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship, c.InboundToken,
+		c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
+		c.OffProduct, c.PasswordResetToken, c.PushSubscription, c.Report,
+		c.RuntimeSetting, c.SchedulerState, c.Session, c.Style, c.User, c.UserBadge,
+		c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueMedia,
+		c.VenueName, c.VenueSave,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -511,6 +525,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CheckinLike.mutate(ctx, m)
 	case *CommentMutation:
 		return c.Comment.mutate(ctx, m)
+	case *DeliveryOutboxMutation:
+		return c.DeliveryOutbox.mutate(ctx, m)
 	case *DrinkMutation:
 		return c.Drink.mutate(ctx, m)
 	case *DrinkAliasMutation:
@@ -555,6 +571,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Report.mutate(ctx, m)
 	case *RuntimeSettingMutation:
 		return c.RuntimeSetting.mutate(ctx, m)
+	case *SchedulerStateMutation:
+		return c.SchedulerState.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
 	case *StyleMutation:
@@ -2388,6 +2406,139 @@ func (c *CommentClient) mutate(ctx context.Context, m *CommentMutation) (Value, 
 		return (&CommentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Comment mutation op: %q", m.Op())
+	}
+}
+
+// DeliveryOutboxClient is a client for the DeliveryOutbox schema.
+type DeliveryOutboxClient struct {
+	config
+}
+
+// NewDeliveryOutboxClient returns a client for the DeliveryOutbox from the given config.
+func NewDeliveryOutboxClient(c config) *DeliveryOutboxClient {
+	return &DeliveryOutboxClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `deliveryoutbox.Hooks(f(g(h())))`.
+func (c *DeliveryOutboxClient) Use(hooks ...Hook) {
+	c.hooks.DeliveryOutbox = append(c.hooks.DeliveryOutbox, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `deliveryoutbox.Intercept(f(g(h())))`.
+func (c *DeliveryOutboxClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeliveryOutbox = append(c.inters.DeliveryOutbox, interceptors...)
+}
+
+// Create returns a builder for creating a DeliveryOutbox entity.
+func (c *DeliveryOutboxClient) Create() *DeliveryOutboxCreate {
+	mutation := newDeliveryOutboxMutation(c.config, OpCreate)
+	return &DeliveryOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeliveryOutbox entities.
+func (c *DeliveryOutboxClient) CreateBulk(builders ...*DeliveryOutboxCreate) *DeliveryOutboxCreateBulk {
+	return &DeliveryOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeliveryOutboxClient) MapCreateBulk(slice any, setFunc func(*DeliveryOutboxCreate, int)) *DeliveryOutboxCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeliveryOutboxCreateBulk{err: fmt.Errorf("calling to DeliveryOutboxClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeliveryOutboxCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeliveryOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeliveryOutbox.
+func (c *DeliveryOutboxClient) Update() *DeliveryOutboxUpdate {
+	mutation := newDeliveryOutboxMutation(c.config, OpUpdate)
+	return &DeliveryOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeliveryOutboxClient) UpdateOne(_m *DeliveryOutbox) *DeliveryOutboxUpdateOne {
+	mutation := newDeliveryOutboxMutation(c.config, OpUpdateOne, withDeliveryOutbox(_m))
+	return &DeliveryOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeliveryOutboxClient) UpdateOneID(id int) *DeliveryOutboxUpdateOne {
+	mutation := newDeliveryOutboxMutation(c.config, OpUpdateOne, withDeliveryOutboxID(id))
+	return &DeliveryOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeliveryOutbox.
+func (c *DeliveryOutboxClient) Delete() *DeliveryOutboxDelete {
+	mutation := newDeliveryOutboxMutation(c.config, OpDelete)
+	return &DeliveryOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeliveryOutboxClient) DeleteOne(_m *DeliveryOutbox) *DeliveryOutboxDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeliveryOutboxClient) DeleteOneID(id int) *DeliveryOutboxDeleteOne {
+	builder := c.Delete().Where(deliveryoutbox.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeliveryOutboxDeleteOne{builder}
+}
+
+// Query returns a query builder for DeliveryOutbox.
+func (c *DeliveryOutboxClient) Query() *DeliveryOutboxQuery {
+	return &DeliveryOutboxQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeliveryOutbox},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeliveryOutbox entity by its id.
+func (c *DeliveryOutboxClient) Get(ctx context.Context, id int) (*DeliveryOutbox, error) {
+	return c.Query().Where(deliveryoutbox.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeliveryOutboxClient) GetX(ctx context.Context, id int) *DeliveryOutbox {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeliveryOutboxClient) Hooks() []Hook {
+	return c.hooks.DeliveryOutbox
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeliveryOutboxClient) Interceptors() []Interceptor {
+	return c.inters.DeliveryOutbox
+}
+
+func (c *DeliveryOutboxClient) mutate(ctx context.Context, m *DeliveryOutboxMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeliveryOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeliveryOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeliveryOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeliveryOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeliveryOutbox mutation op: %q", m.Op())
 	}
 }
 
@@ -5573,6 +5724,139 @@ func (c *RuntimeSettingClient) mutate(ctx context.Context, m *RuntimeSettingMuta
 	}
 }
 
+// SchedulerStateClient is a client for the SchedulerState schema.
+type SchedulerStateClient struct {
+	config
+}
+
+// NewSchedulerStateClient returns a client for the SchedulerState from the given config.
+func NewSchedulerStateClient(c config) *SchedulerStateClient {
+	return &SchedulerStateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `schedulerstate.Hooks(f(g(h())))`.
+func (c *SchedulerStateClient) Use(hooks ...Hook) {
+	c.hooks.SchedulerState = append(c.hooks.SchedulerState, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `schedulerstate.Intercept(f(g(h())))`.
+func (c *SchedulerStateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SchedulerState = append(c.inters.SchedulerState, interceptors...)
+}
+
+// Create returns a builder for creating a SchedulerState entity.
+func (c *SchedulerStateClient) Create() *SchedulerStateCreate {
+	mutation := newSchedulerStateMutation(c.config, OpCreate)
+	return &SchedulerStateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SchedulerState entities.
+func (c *SchedulerStateClient) CreateBulk(builders ...*SchedulerStateCreate) *SchedulerStateCreateBulk {
+	return &SchedulerStateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SchedulerStateClient) MapCreateBulk(slice any, setFunc func(*SchedulerStateCreate, int)) *SchedulerStateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SchedulerStateCreateBulk{err: fmt.Errorf("calling to SchedulerStateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SchedulerStateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SchedulerStateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SchedulerState.
+func (c *SchedulerStateClient) Update() *SchedulerStateUpdate {
+	mutation := newSchedulerStateMutation(c.config, OpUpdate)
+	return &SchedulerStateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SchedulerStateClient) UpdateOne(_m *SchedulerState) *SchedulerStateUpdateOne {
+	mutation := newSchedulerStateMutation(c.config, OpUpdateOne, withSchedulerState(_m))
+	return &SchedulerStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SchedulerStateClient) UpdateOneID(id int) *SchedulerStateUpdateOne {
+	mutation := newSchedulerStateMutation(c.config, OpUpdateOne, withSchedulerStateID(id))
+	return &SchedulerStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SchedulerState.
+func (c *SchedulerStateClient) Delete() *SchedulerStateDelete {
+	mutation := newSchedulerStateMutation(c.config, OpDelete)
+	return &SchedulerStateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SchedulerStateClient) DeleteOne(_m *SchedulerState) *SchedulerStateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SchedulerStateClient) DeleteOneID(id int) *SchedulerStateDeleteOne {
+	builder := c.Delete().Where(schedulerstate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SchedulerStateDeleteOne{builder}
+}
+
+// Query returns a query builder for SchedulerState.
+func (c *SchedulerStateClient) Query() *SchedulerStateQuery {
+	return &SchedulerStateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSchedulerState},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SchedulerState entity by its id.
+func (c *SchedulerStateClient) Get(ctx context.Context, id int) (*SchedulerState, error) {
+	return c.Query().Where(schedulerstate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SchedulerStateClient) GetX(ctx context.Context, id int) *SchedulerState {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SchedulerStateClient) Hooks() []Hook {
+	return c.hooks.SchedulerState
+}
+
+// Interceptors returns the client interceptors.
+func (c *SchedulerStateClient) Interceptors() []Interceptor {
+	return c.inters.SchedulerState
+}
+
+func (c *SchedulerStateClient) mutate(ctx context.Context, m *SchedulerStateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SchedulerStateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SchedulerStateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SchedulerStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SchedulerStateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SchedulerState mutation op: %q", m.Op())
+	}
+}
+
 // SessionClient is a client for the Session schema.
 type SessionClient struct {
 	config
@@ -7248,22 +7532,22 @@ func (c *VenueSaveClient) mutate(ctx context.Context, m *VenueSaveMutation) (Val
 type (
 	hooks struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
-		Block, Brand, CatalogRevision, Checkin, CheckinLike, Comment, Drink,
-		DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox,
+		Block, Brand, CatalogRevision, Checkin, CheckinLike, Comment, DeliveryOutbox,
+		Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox,
 		EmailVerificationToken, Flavour, Follow, Friendship, InboundToken, Integration,
 		List, ListItem, LoginAttempt, Media, Notification, OffProduct,
-		PasswordResetToken, PushSubscription, Report, RuntimeSetting, Session, Style,
-		User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink, VenueMedia,
-		VenueName, VenueSave []ent.Hook
+		PasswordResetToken, PushSubscription, Report, RuntimeSetting, SchedulerState,
+		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
+		VenueMedia, VenueName, VenueSave []ent.Hook
 	}
 	inters struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
-		Block, Brand, CatalogRevision, Checkin, CheckinLike, Comment, Drink,
-		DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox,
+		Block, Brand, CatalogRevision, Checkin, CheckinLike, Comment, DeliveryOutbox,
+		Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox,
 		EmailVerificationToken, Flavour, Follow, Friendship, InboundToken, Integration,
 		List, ListItem, LoginAttempt, Media, Notification, OffProduct,
-		PasswordResetToken, PushSubscription, Report, RuntimeSetting, Session, Style,
-		User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink, VenueMedia,
-		VenueName, VenueSave []ent.Interceptor
+		PasswordResetToken, PushSubscription, Report, RuntimeSetting, SchedulerState,
+		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
+		VenueMedia, VenueName, VenueSave []ent.Interceptor
 	}
 )

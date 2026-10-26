@@ -57,6 +57,7 @@
       <section class="settings-card" id="email" aria-labelledby="settings-email-title">
         <div class="settings-card-head">
           <h2 id="settings-email-title">Email</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .SMTPSource}}{{.SMTPSource}}{{else}}default{{end}}">Source: {{if .SMTPSource}}{{.SMTPSource}}{{else}}default{{end}}</span>
         </div>
         <p class="settings-intro">Outgoing mail for verification, password resets, and account notices.</p>
 
@@ -83,12 +84,13 @@
             <span class="hint" id="settings-smtp-from-hint">The sender shown on outgoing mail.</span>
           </label>
 
-          <label class="check-row">
-            <input type="checkbox" name="smtp_tls" value="1"{{if .SMTPTLS}} checked{{end}}>
-            <span class="check-copy">
-              <strong>Use TLS</strong>
-              <span class="hint">Encrypt the connection to the mail server.</span>
-            </span>
+          <label for="settings-smtp-tls">Connection encryption
+            <select id="settings-smtp-tls" name="smtp_tls" aria-describedby="settings-smtp-tls-hint">
+              <option value="starttls"{{if eq .SMTPTLS "starttls"}} selected{{end}}>STARTTLS (usually port 587)</option>
+              <option value="tls"{{if eq .SMTPTLS "tls"}} selected{{end}}>Implicit TLS (usually port 465)</option>
+              <option value="none"{{if eq .SMTPTLS "none"}} selected{{end}}>None (not recommended)</option>
+            </select>
+            <span class="hint" id="settings-smtp-tls-hint">STARTTLS upgrades a plain connection; implicit TLS encrypts from the start. Use none only for a local relay.</span>
           </label>
 
           <div class="secret-block">
@@ -164,6 +166,7 @@
       <section class="settings-card" id="access" aria-labelledby="settings-access-title">
         <div class="settings-card-head">
           <h2 id="settings-access-title">Access</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .AccessSource}}{{.AccessSource}}{{else}}default{{end}}">Source: {{if .AccessSource}}{{.AccessSource}}{{else}}default{{end}}</span>
         </div>
         <p class="settings-intro">Who can join, and how they sign in.</p>
 
@@ -205,6 +208,7 @@
       <section class="settings-card" id="ai" aria-labelledby="settings-ai-title">
         <div class="settings-card-head">
           <h2 id="settings-ai-title">AI</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .AISource}}{{.AISource}}{{else}}default{{end}}">Source: {{if .AISource}}{{.AISource}}{{else}}default{{end}}</span>
         </div>
         <p class="settings-intro">Drafting and tasting-note help. Provider keys stay on the <a href="/admin#ai-endpoints">AI endpoints</a> section of the admin page.</p>
 
@@ -228,29 +232,50 @@
       <section class="settings-card" id="observability" aria-labelledby="settings-observability-title">
         <div class="settings-card-head">
           <h2 id="settings-observability-title">Observability</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .OTELSource}}{{.OTELSource}}{{else}}default{{end}}">Source: {{if .OTELSource}}{{.OTELSource}}{{else}}default{{end}}</span>
           {{if .OTELRestartRequired}}<span class="settings-badge settings-badge-restart">Restart required</span>{{end}}
         </div>
-        <p class="settings-intro">Read from the environment at startup. These values cannot be changed here.</p>
+        <p class="settings-intro">OpenTelemetry tracing. Leave the endpoint blank to stop exporting traces. Changes apply after a restart.</p>
 
-        <dl class="settings-facts">
-          <div>
-            <dt>OpenTelemetry</dt>
-            <dd>{{if .OTELDisabled}}Disabled{{else}}Enabled{{end}}</dd>
+        <form method="post" action="/admin/settings/observability" class="settings-form" aria-labelledby="settings-observability-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <label for="settings-otel-endpoint">OTLP endpoint
+            <input id="settings-otel-endpoint" name="otel_endpoint" type="url" value="{{with .OTELEndpoint}}{{.}}{{end}}" inputmode="url" placeholder="https://otel.example.com/v1/traces" aria-describedby="settings-otel-endpoint-hint">
+            <span class="hint" id="settings-otel-endpoint-hint">Absolute http(s) URL for an OTLP/HTTP trace exporter. Blank disables export.</span>
+          </label>
+
+          <label for="settings-otel-service-name">Service name
+            <input id="settings-otel-service-name" name="otel_service_name" value="{{with .OTELServiceName}}{{.}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" aria-describedby="settings-otel-service-name-hint">
+            <span class="hint" id="settings-otel-service-name-hint">1–100 characters. Defaults to the built-in service identity when blank.</span>
+          </label>
+
+          <label for="settings-otel-sampler">Sampler
+            <select id="settings-otel-sampler" name="otel_sampler" aria-describedby="settings-otel-sampler-hint">
+              <option value="parentbased_traceidratio"{{if eq .OTELSampler "parentbased_traceidratio"}} selected{{end}}>Parent-based, trace ID ratio</option>
+              <option value="parentbased_always_on"{{if eq .OTELSampler "parentbased_always_on"}} selected{{end}}>Parent-based, always on</option>
+              <option value="parentbased_always_off"{{if eq .OTELSampler "parentbased_always_off"}} selected{{end}}>Parent-based, always off</option>
+              <option value="traceidratio"{{if eq .OTELSampler "traceidratio"}} selected{{end}}>Trace ID ratio</option>
+              <option value="always_on"{{if eq .OTELSampler "always_on"}} selected{{end}}>Always on</option>
+              <option value="always_off"{{if eq .OTELSampler "always_off"}} selected{{end}}>Always off</option>
+            </select>
+            <span class="hint" id="settings-otel-sampler-hint">Controls which traces are recorded. Ratio samplers use the exporter's configured ratio.</span>
+          </label>
+
+          <label class="check-row">
+            <input type="checkbox" name="otel_disabled" value="1"{{if .OTELDisabled}} checked{{end}}>
+            <span class="check-copy">
+              <strong>Disable OpenTelemetry</strong>
+              <span class="hint">Turns the SDK off entirely, regardless of the endpoint.</span>
+            </span>
+          </label>
+
+          <p class="hint">Saving stores these values immediately, but the running tracer is only rebuilt at startup. Restart the server to apply changes.</p>
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save observability</button>
           </div>
-          <div>
-            <dt>Endpoint</dt>
-            <dd>{{if .OTELEndpoint}}{{.OTELEndpoint}}{{else}}Not set{{end}}</dd>
-          </div>
-          <div>
-            <dt>Service name</dt>
-            <dd>{{if .OTELServiceName}}{{.OTELServiceName}}{{else}}Not set{{end}}</dd>
-          </div>
-          <div>
-            <dt>Sampler</dt>
-            <dd>{{if .OTELSampler}}{{.OTELSampler}}{{else}}Not set{{end}}</dd>
-          </div>
-        </dl>
-        <p class="hint">Changing <code>OTEL_*</code> environment variables requires a server restart.</p>
+        </form>
       </section>
     </div>
   </div>

@@ -23,6 +23,7 @@ import (
 	"sodapop/internal/setup"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
+	"sodapop/internal/telemetry"
 	"sodapop/internal/venues"
 )
 
@@ -173,6 +174,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/settings/analytics", s.requireAdminStrict(s.adminSettingsAnalytics))
 	mux.HandleFunc("POST /admin/settings/access", s.requireAdminStrict(s.adminSettingsAccess))
 	mux.HandleFunc("POST /admin/settings/ai", s.requireAdminStrict(s.adminSettingsAI))
+	mux.HandleFunc("POST /admin/settings/observability", s.requireAdminStrict(s.adminSettingsObservability))
 	mux.HandleFunc("POST /admin/ai", s.requireAdmin(s.adminAISave))
 	mux.HandleFunc("POST /admin/ai/{id}/toggle", s.requireAdmin(s.adminAIToggle))
 	mux.HandleFunc("POST /admin/ai/{id}/test", s.requireAdmin(s.adminAITest))
@@ -185,9 +187,10 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/digest", s.requireAdmin(s.adminDigest))
 }
 
-// Middleware attaches the session and applies security headers.
+// Middleware attaches the session and applies security headers. It also wraps
+// the shared web/API mux with HTTP metrics exactly once.
 func (s *Server) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return telemetry.HTTPMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if sess, u, err := s.Auth.CurrentSession(ctx, r); err == nil {
 			ctx = context.WithValue(ctx, userKey{}, u)
@@ -211,7 +214,7 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	}))
 }
 
 // indexablePath reports whether a route may be indexed. Public catalog pages and
@@ -223,16 +226,17 @@ func indexablePath(p string) bool {
 func (s *Server) base(r *http.Request) map[string]any {
 	umami := s.umami()
 	d := map[string]any{
-		"AppName":     s.siteName(),
-		"Env":         s.Cfg.Env,
-		"Version":     s.Cfg.Version,
-		"UmamiURL":    umami.URL,
-		"UmamiID":     umami.WebsiteID,
-		"OIDC":        s.Auth.OIDCStatus(),
-		"AssetScript": uiAssets.Script,
-		"Year":        time.Now().Year(),
-		"NavUnread":   0,
-		"Theme":       "system",
+		"AppName":          s.siteName(),
+		"Env":              s.Cfg.Env,
+		"Version":          s.Cfg.Version,
+		"UmamiURL":         umami.URL,
+		"UmamiID":          umami.WebsiteID,
+		"OIDC":             s.Auth.OIDCStatus(),
+		"AssetScript":      uiAssets.Script,
+		"Year":             time.Now().Year(),
+		"NavUnread":        0,
+		"Theme":            "system",
+		"RegistrationOpen": s.registrationOpen(),
 	}
 	if u := UserFromContext(r); u != nil {
 		d["User"] = u

@@ -19,7 +19,7 @@
     </label>
     <button class="btn btn-primary btn-block" type="submit">Sign in</button>
   </form>
-  <p class="muted">New here? <a href="/register">Create an account</a>.</p>
+  {{if .RegistrationOpen}}<p class="muted">New here? <a href="/register">Create an account</a>.</p>{{end}}
   {{end}}
 </section>
 {{end}}
