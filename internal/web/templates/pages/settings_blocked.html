@@ -1,0 +1,38 @@
+{{define "content"}}
+<section class="narrow settings-page blocked-page">
+  <p class="eyebrow">Settings</p>
+  <h1>Blocked people</h1>
+  <p class="lede">People you have blocked. Blocking keeps their check-ins out of your feed and stops them following you or commenting on yours.</p>
+
+  {{if .BlockedError}}<p class="banner error" role="alert">{{.BlockedError}}</p>{{end}}
+
+  {{if .BlockedUsers}}
+    <p class="settings-note">You can unblock someone at any time.</p>
+
+    <ul class="blocked-list">
+      {{range .BlockedUsers}}
+        <li class="card blocked-row">
+          <span class="avatar blocked-avatar" aria-hidden="true">{{initial (or .DisplayName .Handle)}}</span>
+          <div class="blocked-identity">
+            <p class="blocked-name">{{if .DisplayName}}{{.DisplayName}}{{else}}@{{.Handle}}{{end}}</p>
+            <p class="blocked-handle"><a href="/u/{{.Handle}}">@{{.Handle}}</a></p>
+            <p class="blocked-date">Blocked {{.CreatedAt}}</p>
+          </div>
+          <form method="post" action="/u/{{.Handle}}/unblock">
+            <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+            <button class="btn btn-small" type="submit" aria-label="Unblock {{if .DisplayName}}{{.DisplayName}}{{else}}@{{.Handle}}{{end}}">Unblock</button>
+          </form>
+        </li>
+      {{end}}
+    </ul>
+
+    <p class="settings-back"><a href="/settings">Back to settings</a></p>
+  {{else}}
+    <div class="empty blocked-empty">
+      <p class="empty-title">You haven't blocked anyone.</p>
+      <p>When you block someone, they appear here so you can undo it.</p>
+      <p class="empty-actions"><a class="btn" href="/settings">Back to settings</a></p>
+    </div>
+  {{end}}
+</section>
+{{end}}

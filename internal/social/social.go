@@ -22,7 +22,6 @@ var (
 	ErrSelfAction = errors.New("cannot perform that action on yourself")
 	ErrNotFriend  = errors.New("not friends")
 	ErrNotFound   = errors.New("not found")
-	ErrNotAllowed = errors.New("not allowed")
 )
 
 // Service owns the friend graph, follows and the friends feed.
@@ -113,7 +112,12 @@ func (s *Service) Friends(ctx context.Context, userID string) (*FriendsDetailed,
 		FROM friendships f
 		JOIN users u ON u.id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END
 		WHERE f.status = 'accepted' AND (f.user_a = ? OR f.user_b = ?)
-		ORDER BY u.handle`, userID, userID, userID)
+		  AND NOT EXISTS (
+			SELECT 1 FROM blocks bl
+			WHERE (bl.blocker_id = ? AND bl.blocked_id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END)
+			   OR (bl.blocked_id = ? AND bl.blocker_id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END)
+		  )
+		ORDER BY u.handle`, userID, userID, userID, userID, userID, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +136,12 @@ func (s *Service) Friends(ctx context.Context, userID string) (*FriendsDetailed,
 		FROM friendships f
 		JOIN users u ON u.id = CASE WHEN f.requested_by = ? THEN (CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END) ELSE f.requested_by END
 		WHERE f.status = 'pending' AND (f.user_a = ? OR f.user_b = ?)
-		ORDER BY f.created_at DESC`, userID, userID, userID, userID)
+		  AND NOT EXISTS (
+			SELECT 1 FROM blocks bl
+			WHERE (bl.blocker_id = ? AND bl.blocked_id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END)
+			   OR (bl.blocked_id = ? AND bl.blocker_id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END)
+		  )
+		ORDER BY f.created_at DESC`, userID, userID, userID, userID, userID, userID, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +175,14 @@ func (s *Service) Request(ctx context.Context, fromID, handle string) (*ent.Frie
 	}
 	if target.ID == fromID {
 		return nil, ErrSelfAction
+	}
+	blocked, err := s.AreBlocked(ctx, fromID, target.ID)
+	if err != nil {
+		return nil, err
+	}
+	if blocked {
+		// Respond exactly as an unknown handle would.
+		return nil, nil
 	}
 	a, b := order(fromID, target.ID)
 	existing, err := s.Client.Friendship.Query().
@@ -203,10 +220,18 @@ func (s *Service) Accept(ctx context.Context, userID, friendshipID string) error
 		return ErrNotFound
 	}
 	if f.UserA != userID && f.UserB != userID {
-		return ErrNotAllowed
+		// Do not reveal that the friendship exists to a non-participant.
+		return ErrNotFound
+	}
+	blocked, err := s.AreBlocked(ctx, f.UserA, f.UserB)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return ErrNotFound
 	}
 	if f.RequestedBy == userID {
-		return ErrNotAllowed
+		return ErrNotFound
 	}
 	if f.Status != friendship.StatusPending {
 		return nil
@@ -241,7 +266,8 @@ func (s *Service) Remove(ctx context.Context, userID, friendshipID string) error
 		return ErrNotFound
 	}
 	if f.UserA != userID && f.UserB != userID {
-		return ErrNotAllowed
+		// Do not reveal that the friendship exists to a non-participant.
+		return ErrNotFound
 	}
 	return s.Client.Friendship.DeleteOne(f).Exec(ctx)
 }
@@ -271,10 +297,15 @@ func (s *Service) FolloweeIDs(ctx context.Context, userID string) ([]string, err
 // requests addressed to userID. Outgoing and accepted requests are excluded.
 func (s *Service) IncomingPendingRequests(ctx context.Context, userID string) (map[string]string, error) {
 	rows, err := s.SQL.QueryContext(ctx, `
-		SELECT requested_by, id FROM friendships
+		SELECT requested_by, id FROM friendships f
 		WHERE status = 'pending'
 		  AND (user_a = ? OR user_b = ?)
-		  AND requested_by <> ?`, userID, userID, userID)
+		  AND requested_by <> ?
+		  AND NOT EXISTS (
+			SELECT 1 FROM blocks bl
+			WHERE (bl.blocker_id = ? AND bl.blocked_id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END)
+			   OR (bl.blocked_id = ? AND bl.blocker_id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END)
+		  )`, userID, userID, userID, userID, userID, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -301,6 +332,17 @@ func (s *Service) Follow(ctx context.Context, followerID, handle string) error {
 	}
 	if target.ID == followerID {
 		return ErrSelfAction
+	}
+	// A block ends contact in both directions, so no follow may be created
+	// across one even if the block row was added after the target was loaded.
+	// Respond exactly as an unknown handle would so the action cannot be used
+	// to probe for a block.
+	blocked, err := s.AreBlocked(ctx, followerID, target.ID)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return nil
 	}
 	exists, err := s.Client.Follow.Query().Where(follow.FollowerID(followerID), follow.FolloweeID(target.ID)).Exist(ctx)
 	if err != nil || exists {
@@ -380,7 +422,7 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 			OR (f.user_b = ? AND f.user_a = c.user_id)
 		  )
 	)`
-	args := []any{userID}
+	args := []any{userID, userID, userID}
 	query := `
 		SELECT c.id, c.user_id, u.handle, u.display_name,
 		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
@@ -400,6 +442,11 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 		LEFT JOIN venues v ON v.id = c.venue_id
 		LEFT JOIN media m ON m.id = c.photo_media_id
 		WHERE c.deleted_at IS NULL
+		  AND NOT EXISTS (
+			SELECT 1 FROM blocks bl
+			WHERE (bl.blocker_id = ? AND bl.blocked_id = c.user_id)
+			   OR (bl.blocked_id = ? AND bl.blocker_id = c.user_id)
+		  )
 		  AND (
 			c.user_id = ?
 			OR (
@@ -516,6 +563,11 @@ func (s *Service) visibleCheckinOwner(ctx context.Context, userID, checkinID str
 		JOIN users u ON u.id = c.user_id
 		WHERE c.id = ? AND c.deleted_at IS NULL
 		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
+		  AND NOT EXISTS (
+			SELECT 1 FROM blocks bl
+			WHERE (bl.blocker_id = ? AND bl.blocked_id = c.user_id)
+			   OR (bl.blocked_id = ? AND bl.blocker_id = c.user_id)
+		  )
 		  AND (
 			c.visibility = 'public'
 			OR c.user_id = ?
@@ -531,7 +583,7 @@ func (s *Service) visibleCheckinOwner(ctx context.Context, userID, checkinID str
 					  )
 				)
 			)
-		  )`, checkinID, userID, userID, userID, userID).Scan(&ownerID)
+		  )`, checkinID, userID, userID, userID, userID, userID, userID).Scan(&ownerID)
 	if err != nil {
 		return "", ErrNotFound
 	}
@@ -543,14 +595,33 @@ func (s *Service) Notifications(ctx context.Context, userID string, limit int) (
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	return s.Client.Notification.Query().
-		Where(notification.UserID(userID)).
-		Order(ent.Desc(notification.FieldCreatedAt)).
+	blockedIDs, err := s.BlockedUserIDs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	q := s.Client.Notification.Query().
+		Where(notification.UserID(userID))
+	if len(blockedIDs) > 0 {
+		// Notifications without an actor (system/badge) stay visible.
+		q = q.Where(notification.Not(notification.ActorIDIn(blockedIDs...)))
+	}
+	return q.Order(ent.Desc(notification.FieldCreatedAt)).
 		Limit(limit).All(ctx)
 }
 
 // Notify records a notification for userID. actorID/subjectID may be empty.
+// Notifications between blocked pairs are silently dropped, in either
+// direction, so an existing block cannot be bypassed by writing an event.
 func (s *Service) Notify(ctx context.Context, userID, kind, actorID, subjectID, text string) error {
+	if actorID != "" {
+		blocked, err := s.AreBlocked(ctx, userID, actorID)
+		if err != nil {
+			return err
+		}
+		if blocked {
+			return nil
+		}
+	}
 	k := notification.Kind(kind)
 	if notification.KindValidator(k) != nil {
 		k = notification.KindSystem
@@ -567,11 +638,20 @@ func (s *Service) Notify(ctx context.Context, userID, kind, actorID, subjectID, 
 	return err
 }
 
-// UnreadCount returns the number of unread notifications for userID.
+// UnreadCount returns the number of unread notifications for userID that the
+// visible list would also show. Notifications from blocked actors are excluded
+// so nav and API counters cannot disagree with Notifications.
 func (s *Service) UnreadCount(ctx context.Context, userID string) (int, error) {
-	return s.Client.Notification.Query().
-		Where(notification.UserID(userID), notification.ReadAtIsNil()).
-		Count(ctx)
+	blockedIDs, err := s.BlockedUserIDs(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	q := s.Client.Notification.Query().
+		Where(notification.UserID(userID), notification.ReadAtIsNil())
+	if len(blockedIDs) > 0 {
+		q = q.Where(notification.Not(notification.ActorIDIn(blockedIDs...)))
+	}
+	return q.Count(ctx)
 }
 
 // MarkRead marks one notification (owned by userID) as read; empty id marks all.

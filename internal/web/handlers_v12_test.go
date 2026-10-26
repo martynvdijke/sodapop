@@ -392,6 +392,33 @@ func TestFollowUnfollowIdempotentAndSelfRejected(t *testing.T) {
 	}
 }
 
+func TestFollowBlockedPairIsSilentNotForbidden(t *testing.T) {
+	h := newV12Harness(t)
+	viewer := h.user(t, "viewer")
+	target := h.user(t, "target")
+	ctx := context.Background()
+
+	// Target blocks the viewer; a follow must look exactly like following an
+	// unknown handle: a redirect, never a 403 that reveals the block.
+	if err := h.srv.Social.Block(ctx, target.ID, viewer.Handle); err != nil {
+		t.Fatalf("block: %v", err)
+	}
+	req := h.request(http.MethodPost, "/u/"+target.Handle+"/follow", viewer, h.form())
+	req.SetPathValue("handle", target.Handle)
+	rec := httptest.NewRecorder()
+	h.srv.followUser(rec, req)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("blocked follow status = %d, want 302 (never 403): %s", rec.Code, rec.Body.String())
+	}
+	n, err := h.db.Client.Follow.Query().Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("follow rows after blocked follow = %d, want 0", n)
+	}
+}
+
 func TestHomeFollowingTabUsesFollowingFeed(t *testing.T) {
 	h := newV12Harness(t)
 	viewer := h.user(t, "viewer")

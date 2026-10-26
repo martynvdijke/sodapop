@@ -41,6 +41,7 @@ import (
 	"sodapop/ent/passwordresettoken"
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
+	"sodapop/ent/runtimesetting"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
 	"sodapop/ent/user"
@@ -151,6 +152,7 @@ func checkColumn(t, c string) error {
 			passwordresettoken.Table:     passwordresettoken.ValidColumn,
 			pushsubscription.Table:       pushsubscription.ValidColumn,
 			report.Table:                 report.ValidColumn,
+			runtimesetting.Table:         runtimesetting.ValidColumn,
 			session.Table:                session.ValidColumn,
 			style.Table:                  style.ValidColumn,
 			user.Table:                   user.ValidColumn,

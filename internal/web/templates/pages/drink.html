@@ -45,6 +45,69 @@
     <div><dt>Barcodes</dt><dd>{{$d.BarcodeNum}}</dd></div>
   </dl>
 
+  <section id="gallery" class="drink-gallery" aria-labelledby="gallery-title">
+    <h2 id="gallery-title">Photos</h2>
+    <p class="gallery-intro">Photos of this soda, added by people who have logged it.</p>
+
+    {{if .GalleryError}}<p class="banner error gallery-error" role="alert">{{.GalleryError}}</p>{{end}}
+
+    {{if .Images}}
+      <ul class="gallery-grid">
+        {{range .Images}}
+          <li class="gallery-item card">
+            <img class="gallery-photo" src="{{.ThumbURL}}" alt="{{if .IsPrimary}}Primary photo{{else}}Photo{{end}} of {{$d.Drink.Name}}{{with .Attribution}}, {{.}}{{end}}" loading="lazy" decoding="async" width="480" height="480">
+            <div class="gallery-meta">
+              {{if .IsPrimary}}
+                <span class="gallery-badge">
+                  <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path d="M3.5 8.5l3 3 6-6.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Primary
+                </span>
+              {{end}}
+              <p class="gallery-credit">{{if .Attribution}}{{.Attribution}}{{else}}Added by a member{{end}}</p>
+            </div>
+            {{if $.CanModerate}}
+              <div class="gallery-actions">
+                {{if not .IsPrimary}}
+                  <form method="post" action="/drinks/images/{{.ID}}/primary">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                    <button class="btn btn-small" type="submit" aria-label="Make primary photo">Make primary</button>
+                  </form>
+                {{end}}
+                <form method="post" action="/drinks/images/{{.ID}}/delete">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                  <button class="btn btn-small gallery-remove" type="submit" aria-label="Remove photo">Remove</button>
+                </form>
+              </div>
+            {{end}}
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <div class="empty gallery-empty">
+        <p class="empty-title">No community photos yet.</p>
+        <p>{{if .CanUpload}}If you have a photo of this soda, add the first one below.{{else}}Photos are added by members who are signed in.{{end}}</p>
+      </div>
+    {{end}}
+
+    {{if .CanUpload}}
+      <form class="gallery-upload" method="post" action="/drinks/{{$d.Drink.Slug}}/images" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <h3>Add a photo</h3>
+        <label>Photo
+          <input type="file" name="image" accept="image/*" required>
+          <span class="hint">JPEG, PNG or WebP.</span>
+        </label>
+        <label>Credit <span class="hint">optional</span>
+          <input type="text" name="attribution" autocomplete="off">
+          <span class="hint">Who took it, or where it came from.</span>
+        </label>
+        <div class="form-actions">
+          <button class="btn" type="submit">Upload photo</button>
+        </div>
+      </form>
+    {{end}}
+  </section>
+
   {{if .CanManage}}
   <details class="card manage-card">
     <summary class="manage-summary">Lifecycle</summary>

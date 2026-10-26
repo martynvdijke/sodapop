@@ -86,6 +86,18 @@ func (s *Service) Create(ctx context.Context, userID, checkinID, body string) (*
 		return nil, err
 	}
 
+	// A block in either direction makes the check-in unwritable. It is reported
+	// as missing, never as a forbidden action.
+	if parent.UserID != userID && s.Checkins.Social != nil {
+		blocked, err := s.Checkins.Social.AreBlocked(ctx, userID, parent.UserID)
+		if err != nil {
+			return nil, err
+		}
+		if blocked {
+			return nil, ErrNotFound
+		}
+	}
+
 	cutoff := time.Now().UTC().Add(-rateLimitSpan).Format(time.RFC3339)
 	var recent int
 	if err := s.SQL.QueryRowContext(ctx,
@@ -146,8 +158,13 @@ func (s *Service) List(ctx context.Context, viewerID, checkinID string) ([]Comme
 		JOIN users u ON u.id = cm.user_id
 		WHERE cm.checkin_id = ? AND cm.deleted_at IS NULL
 		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
+		  AND NOT EXISTS (
+			SELECT 1 FROM blocks bl
+			WHERE (bl.blocker_id = ? AND bl.blocked_id = cm.user_id)
+			   OR (bl.blocked_id = ? AND bl.blocker_id = cm.user_id)
+		  )
 		ORDER BY cm.created_at DESC, cm.id DESC
-		LIMIT ?`, checkinID, maxComments)
+		LIMIT ?`, checkinID, viewerID, viewerID, maxComments)
 	if err != nil {
 		return nil, err
 	}

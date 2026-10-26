@@ -77,24 +77,21 @@ func (s *Server) adminDrinkStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	previous := row.Status
-	stamp := time.Now().UTC().Format(time.RFC3339)
 
-	update := s.Auth.Client.Drink.UpdateOneID(id).
-		SetStatus(status).
-		SetUpdatedAt(stamp)
-	if status == drink.StatusDiscontinued {
-		update.SetDiscontinuedAt(stamp).ClearLimitedUntil()
-	} else {
-		update.ClearDiscontinuedAt()
-		if status == drink.StatusLimited || status == drink.StatusSeasonal {
-			if limitedUntil != nil {
-				update.SetLimitedUntil(*limitedUntil)
-			}
-		} else {
-			update.ClearLimitedUntil()
-		}
+	actor := UserFromContext(r)
+	var actorID *string
+	if actor != nil {
+		actorID = &actor.ID
 	}
-	if _, err := update.Save(r.Context()); err != nil {
+	until := ""
+	if limitedUntil != nil {
+		until = *limitedUntil
+	}
+	if err := s.Catalog.SetDrinkStatus(r.Context(), actorID, id, string(status), until); err != nil {
+		if ent.IsNotFound(err) {
+			http.NotFound(w, r)
+			return
+		}
 		s.fail(w, r, err)
 		return
 	}

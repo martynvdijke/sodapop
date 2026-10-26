@@ -82,7 +82,14 @@ func TestMaskAPIKey(t *testing.T) {
 		{in: "", want: ""},
 		{in: "sk-live-very-secret-value-1234", want: "sk-...1234"},
 		{in: "abcdefgh", want: "ab...efgh"},
-		{in: "abc", want: "...abc"},
+		{in: "a", want: "***"},
+		{in: "ab", want: "***"},
+		{in: "abc", want: "***"},
+		{in: "abcd", want: "***"},
+		{in: "abcde", want: "***"},
+		{in: "abcdef", want: "***"},
+		{in: "sk-abc", want: "***"},
+		{in: "abcdefg", want: "ab...defg"},
 	}
 	for _, tc := range tests {
 		if got := MaskAPIKey(tc.in); got != tc.want {

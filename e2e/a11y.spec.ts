@@ -49,6 +49,7 @@ test('no serious accessibility violations across signed-in member pages', async 
 
   for (const path of [
     '/settings',
+    '/settings/blocked',
     '/notifications',
     '/insights',
     '/drinks',

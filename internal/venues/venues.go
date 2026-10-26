@@ -53,10 +53,19 @@ func (s *Service) Search(ctx context.Context, q string, limit int) ([]Venue, err
 		limit = 10
 	}
 	rows, err := s.SQL.QueryContext(ctx, `
-		SELECT id, slug, name, kind, address, city, region, country, lat, lng, COALESCE(website,'')
-		FROM venues
-		WHERE merged_into_id IS NULL AND (lower(name) LIKE lower(?) OR lower(city) LIKE lower(?))
-		ORDER BY name LIMIT ?`, "%"+q+"%", "%"+q+"%", limit)
+		SELECT v.id, v.slug, v.name, v.kind, v.address, v.city, v.region, v.country, v.lat, v.lng, COALESCE(v.website,'')
+		FROM venues v
+		WHERE v.merged_into_id IS NULL
+		  AND (
+		    lower(v.name) LIKE lower(?)
+		    OR lower(v.city) LIKE lower(?)
+		    OR EXISTS (
+		      SELECT 1 FROM venue_names n
+		      WHERE n.venue_id = v.id AND lower(n.name) LIKE lower(?)
+		    )
+		  )
+		ORDER BY lower(v.name), v.id LIMIT ?`,
+		"%"+q+"%", "%"+q+"%", "%"+q+"%", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -130,15 +139,21 @@ type CreateInput struct {
 
 // Create deduplicates venues within 150 metres or by identical name+city.
 func (s *Service) Create(ctx context.Context, userID string, in CreateInput) (*ent.Venue, bool, error) {
-	in.Name = strings.TrimSpace(in.Name)
-	if in.Name == "" {
-		return nil, false, ErrInvalid
+	name, err := normalizeVenueName(in.Name)
+	if err != nil {
+		return nil, false, err
 	}
+	in.Name = name
 	existing, err := s.findNearby(ctx, in)
 	if err != nil {
 		return nil, false, err
 	}
 	if existing != nil {
+		// The submitted name is an alternate spelling/alias of an existing
+		// venue. Record it instead of creating a duplicate.
+		if err := s.AddName(ctx, existing.ID, in.Name); err != nil {
+			return nil, false, err
+		}
 		return existing, false, nil
 	}
 	slug := catalog.Slugify(in.Name)
@@ -153,7 +168,13 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateInput) (*e
 		}
 		unique = slug + "-" + itoa(i)
 	}
-	v, err := s.Client.Venue.Create().
+	tx, err := s.Client.Tx(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	v, err := tx.Venue.Create().
 		SetName(in.Name).
 		SetSlug(unique).
 		SetKind(kindEnum(in.Kind)).
@@ -169,10 +190,23 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateInput) (*e
 	if err != nil {
 		return nil, false, err
 	}
+	if err := addVenueName(ctx, tx.VenueName, v.ID, in.Name); err != nil {
+		return nil, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, false, err
+	}
 	return v, true, nil
 }
 
 func (s *Service) findNearby(ctx context.Context, in CreateInput) (*ent.Venue, error) {
+	named, err := s.findByName(ctx, in.Name, in.City)
+	if err != nil {
+		return nil, err
+	}
+	if named != nil {
+		return named, nil
+	}
 	rows, err := s.SQL.QueryContext(ctx, `
 		SELECT id, name, city, lat, lng FROM venues
 		WHERE merged_into_id IS NULL

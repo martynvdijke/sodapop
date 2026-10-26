@@ -22,6 +22,21 @@
 
   {{if .IsOwner}}
     <p class="profile-owner"><a class="btn btn-small" href="/settings">Edit profile</a></p>
+  {{else if .IsBlocked}}
+    <div class="profile-blocked">
+      <p class="profile-blocked-title">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6.4 17.6 17.6 6.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Blocked
+      </p>
+      <p class="profile-blocked-copy">You blocked @{{.Profile.Handle}}. Their check-ins stay out of your feed, and they cannot follow you or comment on your check-ins.</p>
+      <form method="post" action="/u/{{.Profile.Handle}}/unblock" class="profile-blocked-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <button class="btn" type="submit">Unblock @{{.Profile.Handle}}</button>
+      </form>
+    </div>
   {{else}}
     {{if or .Authenticated .Profile.PublicProfile}}
     <div class="profile-actions">
@@ -40,6 +55,18 @@
       {{end}}
       {{if .Profile.PublicProfile}}
         <button class="btn" type="button" data-share data-share-url="/u/{{.Profile.Handle}}" data-share-title="{{.Profile.DisplayName}} on Sodapop" data-share-text="@{{.Profile.Handle}} on Sodapop">Share</button>
+      {{end}}
+      {{if .CanBlock}}
+        <details class="profile-block">
+          <summary>Block</summary>
+          <div class="profile-block-panel">
+            <p>Blocking @{{.Profile.Handle}} hides their check-ins and stops them following you or commenting on your check-ins. You can undo this later.</p>
+            <form method="post" action="/u/{{.Profile.Handle}}/block">
+              <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+              <button class="btn" type="submit">Block @{{.Profile.Handle}}</button>
+            </form>
+          </div>
+        </details>
       {{end}}
     </div>
     {{end}}
@@ -105,25 +132,31 @@
   <section class="profile-section" aria-labelledby="profile-checkins">
     <h2 id="profile-checkins" class="section-heading">Check-ins</h2>
 
-    {{range .Checkins}}{{template "feed_item" .}}{{else}}
+    {{if .IsBlocked}}
       <div class="empty profile-empty">
-        {{if .IsOwner}}
-          <p>No check-ins yet. Scan a soda to start your log.</p>
-          <p class="empty-actions"><a class="btn btn-primary" href="/scan">Scan a soda</a></p>
-        {{else}}
-          <p>No visible check-ins yet.</p>
-        {{end}}
+        <p>Check-ins are hidden while you have this person blocked.</p>
       </div>
-    {{end}}
+    {{else}}
+      {{range .Checkins}}{{template "feed_item" .}}{{else}}
+        <div class="empty profile-empty">
+          {{if .IsOwner}}
+            <p>No check-ins yet. Scan a soda to start your log.</p>
+            <p class="empty-actions"><a class="btn btn-primary" href="/scan">Scan a soda</a></p>
+          {{else}}
+            <p>No visible check-ins yet.</p>
+          {{end}}
+        </div>
+      {{end}}
 
-    {{if .HasMore}}
-      <p class="pagination">
-        <a class="btn" href="/u/{{.Profile.Handle}}?before={{.NextBefore}}" rel="next">Load older check-ins</a>
-      </p>
+      {{if .HasMore}}
+        <p class="pagination">
+          <a class="btn" href="/u/{{.Profile.Handle}}?before={{.NextBefore}}" rel="next">Load older check-ins</a>
+        </p>
+      {{end}}
     {{end}}
   </section>
 
-  {{if .Lists}}
+  {{if and .Lists (not .IsBlocked)}}
     <section class="profile-section" aria-labelledby="profile-lists">
       <h2 id="profile-lists" class="section-heading">Lists</h2>
       <ul class="list-stack">

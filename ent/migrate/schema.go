@@ -776,7 +776,7 @@ var (
 	// ReportsColumns holds the columns for the "reports" table.
 	ReportsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "entity", Type: field.TypeEnum, Enums: []string{"drink", "brand", "venue", "checkin", "user", "comment", "venue_media"}, Default: "drink"},
+		{Name: "entity", Type: field.TypeEnum, Enums: []string{"drink", "brand", "venue", "checkin", "user", "comment", "venue_media", "drink_image"}, Default: "drink"},
 		{Name: "entity_id", Type: field.TypeInt},
 		{Name: "entity_ref", Type: field.TypeString, Default: ""},
 		{Name: "user_id", Type: field.TypeString, Nullable: true},
@@ -798,6 +798,22 @@ var (
 				Columns: []*schema.Column{ReportsColumns[7], ReportsColumns[8]},
 			},
 		},
+	}
+	// RuntimeSettingsColumns holds the columns for the "runtime_settings" table.
+	RuntimeSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "key", Type: field.TypeString, Unique: true},
+		{Name: "value", Type: field.TypeString, Default: ""},
+		{Name: "encrypted_value", Type: field.TypeString, Default: ""},
+		{Name: "is_secret", Type: field.TypeBool, Default: false},
+		{Name: "updated_by", Type: field.TypeString, Nullable: true},
+		{Name: "updated_at", Type: field.TypeString},
+	}
+	// RuntimeSettingsTable holds the schema information for the "runtime_settings" table.
+	RuntimeSettingsTable = &schema.Table{
+		Name:       "runtime_settings",
+		Columns:    RuntimeSettingsColumns,
+		PrimaryKey: []*schema.Column{RuntimeSettingsColumns[0]},
 	}
 	// SessionsColumns holds the columns for the "sessions" table.
 	SessionsColumns = []*schema.Column{
@@ -1080,6 +1096,7 @@ var (
 		PasswordResetTokensTable,
 		PushSubscriptionsTable,
 		ReportsTable,
+		RuntimeSettingsTable,
 		SessionsTable,
 		StylesTable,
 		UsersTable,

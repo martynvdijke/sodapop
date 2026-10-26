@@ -121,6 +121,16 @@ func (s *Server) userProfile(w http.ResponseWriter, r *http.Request, tok *auth.A
 	if err != nil {
 		return err
 	}
+	if p.ID != tok.User.ID {
+		blocked, err := s.Social.AreBlocked(r.Context(), tok.User.ID, p.ID)
+		if err != nil {
+			return err
+		}
+		if blocked {
+			writeError(w, http.StatusNotFound, "not_found", "not found")
+			return nil
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
 		"handle": p.Handle, "display_name": p.DisplayName, "bio": p.Bio, "created_at": p.CreatedAt,
 	}})
@@ -132,10 +142,16 @@ func (s *Server) userCheckins(w http.ResponseWriter, r *http.Request, tok *auth.
 	if err != nil {
 		return err
 	}
-	if p.ID != tok.User.ID && !s.Social.AreFriends(r.Context(), tok.User.ID, p.ID) {
-		// Return 404 rather than 403 so token holders cannot probe for accounts.
-		writeError(w, http.StatusNotFound, "not_found", "not found")
-		return nil
+	if p.ID != tok.User.ID {
+		blocked, err := s.Social.AreBlocked(r.Context(), tok.User.ID, p.ID)
+		if err != nil {
+			return err
+		}
+		if blocked || !s.Social.AreFriends(r.Context(), tok.User.ID, p.ID) {
+			// Return 404 rather than 403 so token holders cannot probe for accounts.
+			writeError(w, http.StatusNotFound, "not_found", "not found")
+			return nil
+		}
 	}
 	items, err := s.Checkins.ListForUser(r.Context(), tok.User.ID, p.ID, queryInt(r, "limit", 20, 50), r.URL.Query().Get("before"))
 	if err != nil {

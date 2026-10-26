@@ -380,6 +380,25 @@ func (s *Server) reportSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		entityID = 0
+	case "drink_image":
+		if entityRef == "" {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
+		imageID, err := strconv.Atoi(entityRef)
+		if err != nil || imageID <= 0 {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
+		if _, err := s.Auth.Client.DrinkImage.Get(r.Context(), imageID); err != nil {
+			if ent.IsNotFound(err) {
+				http.NotFound(w, r)
+				return
+			}
+			s.fail(w, r, err)
+			return
+		}
+		entityID = 0
 	case "drink", "brand", "venue", "checkin", "user":
 		entityRef = ""
 		if entityID <= 0 {

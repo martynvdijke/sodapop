@@ -80,6 +80,8 @@ type Tx struct {
 	PushSubscription *PushSubscriptionClient
 	// Report is the client for interacting with the Report builders.
 	Report *ReportClient
+	// RuntimeSetting is the client for interacting with the RuntimeSetting builders.
+	RuntimeSetting *RuntimeSettingClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Style is the client for interacting with the Style builders.
@@ -267,6 +269,7 @@ func (tx *Tx) init() {
 	tx.PasswordResetToken = NewPasswordResetTokenClient(tx.config)
 	tx.PushSubscription = NewPushSubscriptionClient(tx.config)
 	tx.Report = NewReportClient(tx.config)
+	tx.RuntimeSetting = NewRuntimeSettingClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Style = NewStyleClient(tx.config)
 	tx.User = NewUserClient(tx.config)

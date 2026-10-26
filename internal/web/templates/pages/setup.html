@@ -1,0 +1,47 @@
+{{define "content"}}
+<section class="narrow setup-page">
+  <p class="eyebrow">First run</p>
+  <h1>Set up Sodapop</h1>
+  <p class="lede">This instance has no administrator yet. Create the first admin account here. The account is verified immediately and can manage the instance after setup.</p>
+
+  {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+  {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+  <aside class="setup-note" aria-labelledby="setup-token-title">
+    <h2 id="setup-token-title">Where to find the setup token</h2>
+    <p>The server prints the token once at startup, in the log line that begins with <code>setup required:</code>. If this instance sets <code>SETUP_TOKEN</code>, use that value instead; it is not written to the log. The token is never shown on this page.</p>
+  </aside>
+
+  <form method="post" action="/setup" class="setup-form">
+    <input type="hidden" name="setup_nonce" value="{{with .SetupNonce}}{{.}}{{end}}">
+
+    <label for="setup-token">Setup token
+      <input id="setup-token" name="token" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="setup-token-hint" required>
+      <span class="hint" id="setup-token-hint">Paste the token from the server log or from <code>SETUP_TOKEN</code>. It is case-sensitive.</span>
+    </label>
+
+    <label for="setup-handle">Handle
+      <input id="setup-handle" name="handle" value="{{with .Handle}}{{.}}{{end}}" pattern="[a-z0-9_]{3,24}" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="setup-handle-hint" required>
+      <span class="hint" id="setup-handle-hint">3–24 characters: lowercase letters, numbers, underscore.</span>
+    </label>
+
+    <label for="setup-email">Email
+      <input id="setup-email" name="email" type="email" value="{{with .Email}}{{.}}{{end}}" autocomplete="email" aria-describedby="setup-email-hint" required>
+      <span class="hint" id="setup-email-hint">Used for password resets and instance notices.</span>
+    </label>
+
+    <label for="setup-password">Password
+      <input id="setup-password" name="password" type="password" autocomplete="new-password" minlength="10" aria-describedby="setup-password-hint" required>
+      <span class="hint" id="setup-password-hint">At least 10 characters.</span>
+    </label>
+
+    <label for="setup-display-name"><span class="field-label">Display name <span class="field-optional">Optional</span></span>
+      <input id="setup-display-name" name="display_name" value="{{with .DisplayName}}{{.}}{{end}}" autocomplete="nickname">
+    </label>
+
+    <button class="btn btn-primary btn-save" type="submit">Create admin account</button>
+  </form>
+
+  <p class="auth-note">Already have an account? <a href="/login">Sign in</a>. Setup is unavailable once an admin exists.</p>
+</section>
+{{end}}

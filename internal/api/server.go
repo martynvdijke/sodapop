@@ -54,6 +54,8 @@ type apiFunc func(http.ResponseWriter, *http.Request, *auth.APIToken) error
 // the full catalog, all users or all venues.
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/openapi.json", s.openapiJSON)
+	s.RegisterGalleryRoutes(mux)
+	s.RegisterAIAPI(mux)
 	docs := v5emb.New("Sodapop API", "/api/openapi.json", "/api/docs/")
 	mux.Handle("GET /api/docs/", docs)
 	mux.HandleFunc("GET /api/docs", func(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +89,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/checkins/{id}/comments", s.protect("write", true, s.createComment))
 	mux.HandleFunc("DELETE /api/v1/comments/{id}", s.protect("write", true, s.deleteComment))
 
+	mux.HandleFunc("POST /api/v1/users/{handle}/block", s.protect("write", true, s.blockUser))
+	mux.HandleFunc("DELETE /api/v1/users/{handle}/block", s.protect("write", true, s.unblockUser))
 	mux.HandleFunc("GET /api/v1/users/{handle}", s.protect("read", false, s.userProfile))
 	mux.HandleFunc("GET /api/v1/users/{handle}/checkins", s.protect("feed", false, s.userCheckins))
 
@@ -108,6 +112,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/venues/{venueID}/{target}", s.protect("write", true, s.venueDelete))
 	mux.HandleFunc("GET /api/v1/venues/{id}/media", s.protect("read", false, s.listVenueMedia))
 	mux.HandleFunc("POST /api/v1/venues/{id}/media", s.protect("write", true, s.uploadVenueMedia))
+	mux.HandleFunc("GET /api/v1/admin/reports/{id}/notes", s.protect("read", false, s.listReportNotes))
+	mux.HandleFunc("POST /api/v1/admin/reports/{id}/notes", s.protect("write", true, s.createReportNote))
+	mux.HandleFunc("DELETE /api/v1/admin/notes/{id}", s.protect("write", true, s.deleteAdminNote))
 }
 
 func (s *Server) protect(scope string, verified bool, fn apiFunc) http.HandlerFunc {
@@ -164,7 +171,7 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 	case errors.Is(err, catalog.ErrQueryTooShort):
 		writeError(w, http.StatusBadRequest, "query_too_short", "query must be at least 2 characters")
 	case errors.Is(err, catalog.ErrNotFound), errors.Is(err, checkins.ErrNotFound), errors.Is(err, venues.ErrNotFound),
-		errors.Is(err, comments.ErrNotFound):
+		errors.Is(err, comments.ErrNotFound), errors.Is(err, social.ErrNotFound):
 		writeError(w, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, catalog.ErrInvalidBarcode):
 		writeError(w, http.StatusBadRequest, "invalid_barcode", "barcode must be a valid GTIN-8/12/13/14")
@@ -172,7 +179,7 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "barcode_taken", "barcode already belongs to another drink")
 	case errors.Is(err, catalog.ErrOFFRateLimited):
 		writeError(w, http.StatusTooManyRequests, "upstream_rate_limited", "product lookup is temporarily rate limited")
-	case errors.Is(err, checkins.ErrForbidden), errors.Is(err, social.ErrNotAllowed), errors.Is(err, social.ErrNotFriend):
+	case errors.Is(err, checkins.ErrForbidden), errors.Is(err, social.ErrNotFriend):
 		writeError(w, http.StatusForbidden, "forbidden", "you do not have access to this resource")
 	case errors.Is(err, checkins.ErrInvalidRating), errors.Is(err, checkins.ErrInvalidInput), errors.Is(err, venues.ErrInvalid),
 		errors.Is(err, comments.ErrInvalid), errors.Is(err, venues.ErrInvalidKind), errors.Is(err, venues.ErrInvalidLabel):

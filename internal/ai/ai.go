@@ -14,6 +14,7 @@ import (
 	"sodapop/ent"
 	"sodapop/ent/aiendpoint"
 	"sodapop/ent/appsetting"
+	"sodapop/internal/catalog"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 )
@@ -25,6 +26,9 @@ type Service struct {
 	HTTP    *http.Client
 	Version string
 	Log     *slog.Logger
+	// Catalog commits drafts into provisional drinks. New populates it when a
+	// database is available; callers may override it in tests.
+	Catalog *catalog.Service
 }
 
 // New builds the AI service. database may be nil for env-only use; calls that
@@ -38,6 +42,9 @@ func New(database *db.DB, cfg *config.Config, version string, log *slog.Logger) 
 	}
 	if database != nil {
 		s.Client = database.Client
+		if cfg != nil {
+			s.Catalog = catalog.New(cfg, database)
+		}
 	}
 	if strings.TrimSpace(s.Version) == "" && cfg != nil {
 		s.Version = cfg.Version

@@ -37,6 +37,7 @@ import (
 	"sodapop/ent/passwordresettoken"
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
+	"sodapop/ent/runtimesetting"
 	"sodapop/ent/schema"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
@@ -799,6 +800,28 @@ func init() {
 	reportDescCreatedAt := reportFields[8].Descriptor()
 	// report.DefaultCreatedAt holds the default value on creation for the created_at field.
 	report.DefaultCreatedAt = reportDescCreatedAt.Default.(func() string)
+	runtimesettingFields := schema.RuntimeSetting{}.Fields()
+	_ = runtimesettingFields
+	// runtimesettingDescKey is the schema descriptor for key field.
+	runtimesettingDescKey := runtimesettingFields[1].Descriptor()
+	// runtimesetting.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	runtimesetting.KeyValidator = runtimesettingDescKey.Validators[0].(func(string) error)
+	// runtimesettingDescValue is the schema descriptor for value field.
+	runtimesettingDescValue := runtimesettingFields[2].Descriptor()
+	// runtimesetting.DefaultValue holds the default value on creation for the value field.
+	runtimesetting.DefaultValue = runtimesettingDescValue.Default.(string)
+	// runtimesettingDescEncryptedValue is the schema descriptor for encrypted_value field.
+	runtimesettingDescEncryptedValue := runtimesettingFields[3].Descriptor()
+	// runtimesetting.DefaultEncryptedValue holds the default value on creation for the encrypted_value field.
+	runtimesetting.DefaultEncryptedValue = runtimesettingDescEncryptedValue.Default.(string)
+	// runtimesettingDescIsSecret is the schema descriptor for is_secret field.
+	runtimesettingDescIsSecret := runtimesettingFields[4].Descriptor()
+	// runtimesetting.DefaultIsSecret holds the default value on creation for the is_secret field.
+	runtimesetting.DefaultIsSecret = runtimesettingDescIsSecret.Default.(bool)
+	// runtimesettingDescUpdatedAt is the schema descriptor for updated_at field.
+	runtimesettingDescUpdatedAt := runtimesettingFields[6].Descriptor()
+	// runtimesetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	runtimesetting.DefaultUpdatedAt = runtimesettingDescUpdatedAt.Default.(func() string)
 	sessionFields := schema.Session{}.Fields()
 	_ = sessionFields
 	// sessionDescTokenHash is the schema descriptor for token_hash field.

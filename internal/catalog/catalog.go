@@ -327,6 +327,24 @@ func (s *Service) CreateProvisional(ctx context.Context, userID string, in Creat
 			return nil, false, err
 		}
 	}
+	after := map[string]any{
+		"name":       d.Name,
+		"slug":       d.Slug,
+		"brand_id":   brandID,
+		"style_id":   styleID,
+		"container":  string(d.Container),
+		"volume_ml":  d.VolumeMl,
+		"status":     string(d.Status),
+		"source":     string(d.Source),
+		"created_by": d.CreatedBy,
+	}
+	if in.Barcode != "" {
+		after["barcode"] = in.Barcode
+	}
+	if err := recordRevisionTx(ctx, tx, "drink", d.ID, &userID, "create", nil, after); err != nil {
+		_ = tx.Rollback()
+		return nil, false, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, false, err
 	}
@@ -339,19 +357,45 @@ func (s *Service) AttachBarcode(ctx context.Context, drinkID int, raw, symbology
 	if err != nil {
 		return nil, err
 	}
-	existing, err := s.Client.DrinkBarcode.Query().Where(drinkbarcode.Gtin14(gtin)).Only(ctx)
+	tx, err := s.Client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	existing, err := tx.DrinkBarcode.Query().Where(drinkbarcode.Gtin14(gtin)).Only(ctx)
 	if err == nil {
+		_ = tx.Rollback()
 		if existing.DrinkID != drinkID {
 			return nil, ErrBarcodeTaken
 		}
 		return existing, nil
 	}
 	if !ent.IsNotFound(err) {
+		_ = tx.Rollback()
 		return nil, err
 	}
-	return s.Client.DrinkBarcode.Create().
+	beforeCount, err := tx.DrinkBarcode.Query().Where(drinkbarcode.DrinkID(drinkID)).Count(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	row, err := tx.DrinkBarcode.Create().
 		SetDrinkID(drinkID).SetGtin14(gtin).SetRawCode(raw).
 		SetSymbology(symbology).SetSource(barcodeSource(source)).Save(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := recordRevisionTx(ctx, tx, "drink", drinkID, nil, "barcode",
+		map[string]any{"barcode_count": beforeCount},
+		map[string]any{"barcode_count": beforeCount + 1, "gtin14": gtin, "symbology": symbology, "source": row.Source},
+	); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return row, nil
 }
 
 func (s *Service) resolveBrand(ctx context.Context, name string, userID string) (*int, error) {

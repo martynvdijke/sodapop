@@ -35,6 +35,10 @@ func (s *Server) passwordToken(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid_credentials", "email or password is incorrect")
 		return
 	}
+	if s.Auth.LoginLocked(r.Context(), login) {
+		writeError(w, http.StatusUnauthorized, "invalid_credentials", "email or password is incorrect")
+		return
+	}
 	u, err := s.Auth.Client.User.Query().
 		Where(user.Or(
 			user.HandleEQ(login),
@@ -43,9 +47,11 @@ func (s *Server) passwordToken(w http.ResponseWriter, r *http.Request) {
 		Only(r.Context())
 	if err != nil || u.Status != user.StatusActive || u.PasswordHash == nil ||
 		!auth.CheckPassword(*u.PasswordHash, in.Password) {
+		_ = s.Auth.RecordLoginFailure(r.Context(), login)
 		writeError(w, http.StatusUnauthorized, "invalid_credentials", "email or password is incorrect")
 		return
 	}
+	_ = s.Auth.ClearLoginFailures(r.Context(), login)
 	if u.EmailVerifiedAt == nil {
 		writeError(w, http.StatusForbidden, "email_not_verified", "verify your email address first")
 		return

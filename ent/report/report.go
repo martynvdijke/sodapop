@@ -85,6 +85,7 @@ const (
 	EntityUser       Entity = "user"
 	EntityComment    Entity = "comment"
 	EntityVenueMedia Entity = "venue_media"
+	EntityDrinkImage Entity = "drink_image"
 )
 
 func (e Entity) String() string {
@@ -94,7 +95,7 @@ func (e Entity) String() string {
 // EntityValidator is a validator for the "entity" field enum values. It is called by the builders before save.
 func EntityValidator(e Entity) error {
 	switch e {
-	case EntityDrink, EntityBrand, EntityVenue, EntityCheckin, EntityUser, EntityComment, EntityVenueMedia:
+	case EntityDrink, EntityBrand, EntityVenue, EntityCheckin, EntityUser, EntityComment, EntityVenueMedia, EntityDrinkImage:
 		return nil
 	default:
 		return fmt.Errorf("report: invalid enum value for entity field: %q", e)

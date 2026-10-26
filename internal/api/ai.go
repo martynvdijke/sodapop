@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"sodapop/internal/ai"
 	"sodapop/internal/auth"
 )
 
@@ -15,13 +16,22 @@ func (s *Server) aiDraft(w http.ResponseWriter, r *http.Request, tok *auth.APITo
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
 	}
-	draft, reply, session, err := s.AI.DraftDrink(r.Context(), in.Notes, in.Barcode, in.SessionID)
-	if err != nil {
-		return err
+	if !s.aiReady(w, r) {
+		return nil
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
-		"draft": draft, "message": reply, "session_id": session,
-	}})
+	session, err := s.AI.CreateDraftSession(r.Context(), tok.User.ID, "drink", in.Notes, in.Barcode)
+	if err != nil {
+		s.writeAIError(w, err)
+		return nil
+	}
+	turn, err := ai.DraftTurnFromSession(session)
+	if err != nil {
+		s.writeAIError(w, err)
+		return nil
+	}
+	// Keep the existing data.draft/message/session_id shape. session_id now
+	// identifies the persisted session used by the follow-up routes.
+	writeAITurn(w, turn)
 	return nil
 }
 

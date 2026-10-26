@@ -23,6 +23,8 @@
   --accent-tint: #FCEBE2;
   --success: #1D6B45;
   --success-tint: #DDEEE3;
+  --warning: #8A5A00;
+  --warning-tint: #F6EBCF;
   --danger: #B3261E;
   --danger-tint: #F7E0DD;
   --danger-contrast: #FBFBF2;
@@ -53,6 +55,8 @@
     --accent-tint: #33201A;
     --success: #5FD39A;
     --success-tint: #122E23;
+    --warning: #F2B33D;
+    --warning-tint: #33280F;
     --danger: #FF7A6E;
     --danger-tint: #3A1B18;
     --danger-contrast: #0C130E;
@@ -82,6 +86,8 @@
   --accent-tint: #33201A;
   --success: #5FD39A;
   --success-tint: #122E23;
+  --warning: #F2B33D;
+  --warning-tint: #33280F;
   --danger: #FF7A6E;
   --danger-tint: #3A1B18;
   --danger-contrast: #0C130E;
@@ -1811,4 +1817,761 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
   color: var(--text-muted);
   font-size: .8125rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================================
+   10. Safety controls, drink gallery, admin notes
+
+   Additive. Blocked people and the profile block control, the drink photo
+   gallery, and the internal report note log. Same 4px rhythm, radii and
+   tokens as the rest of the file. No new colours; lime stays a fill.
+   ========================================================================= */
+
+/* 10.1 Settings link row -------------------------------------------------- */
+.settings-row-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.settings-row-link:hover {
+  background: var(--surface-sunken);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.settings-row-link .pill {
+  flex: 0 0 auto;
+  border-color: var(--border-strong);
+  background: var(--primary-tint);
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 10.2 Blocked people list ----------------------------------------------- */
+.blocked-list {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.blocked-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.blocked-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 1rem;
+}
+.blocked-identity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.blocked-name {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.blocked-handle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  overflow-wrap: anywhere;
+}
+.blocked-date {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+}
+.blocked-row form {
+  margin: 0;
+  justify-self: end;
+}
+.blocked-row .btn { min-height: 44px; }
+.blocked-empty { margin-top: 16px; }
+.settings-back { margin: 20px 0 0; }
+.settings-back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 420px) {
+  .blocked-row { grid-template-columns: auto minmax(0, 1fr); }
+  .blocked-row form {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+/* 10.3 Profile block control ---------------------------------------------- */
+/* The blocked state is a calm status panel, not an error: sunken surface,
+   a stronger border and the word "Blocked" carry it. */
+.profile-blocked {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+.profile-blocked-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.profile-blocked-title svg { flex: 0 0 auto; }
+.profile-blocked-copy {
+  max-width: 60ch;
+  margin: 6px 0 12px;
+  color: var(--text-muted);
+  font-size: .9rem;
+  line-height: 1.45;
+}
+.profile-blocked-form { margin: 0; }
+.profile-blocked-form .btn { min-height: 44px; }
+
+/* A quiet text control that opens a two-step confirmation. It sits on its
+   own row below follow and share, so it never reads as the primary action. */
+.profile-block {
+  flex: 1 1 100%;
+  margin: 0;
+}
+.profile-block > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: .875rem;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.profile-block > summary::-webkit-details-marker { display: none; }
+.profile-block > summary::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 120ms ease;
+}
+.profile-block > summary:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.profile-block > summary:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.profile-block[open] > summary { color: var(--text); }
+.profile-block[open] > summary::after {
+  margin-top: 3px;
+  transform: rotate(225deg);
+}
+.profile-block-panel {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.profile-block-panel p {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .875rem;
+  line-height: 1.45;
+}
+.profile-block-panel form { margin: 0; }
+.profile-block-panel .btn { min-height: 44px; }
+
+/* 10.4 Drink gallery ------------------------------------------------------ */
+.drink-gallery { margin: 32px 0 0; }
+.gallery-intro {
+  max-width: 60ch;
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+.gallery-error { margin: 0 0 16px; }
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 480px) {
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+}
+.gallery-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+}
+.gallery-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+.gallery-meta {
+  display: grid;
+  gap: 4px;
+  padding: 0 2px;
+}
+.gallery-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  padding: 1px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--primary-tint);
+  color: var(--text);
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.gallery-badge svg { flex: 0 0 auto; }
+.gallery-credit {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.gallery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 2px;
+}
+.gallery-actions form { margin: 0; }
+.gallery-actions .btn { min-height: 44px; }
+.gallery-remove {
+  border-color: var(--danger);
+  background: var(--surface-raised);
+  color: var(--danger);
+}
+.gallery-remove:hover {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.gallery-empty { margin-top: 16px; }
+.gallery-upload {
+  display: grid;
+  gap: 14px;
+  max-width: 600px;
+  margin: 20px 0 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.gallery-upload h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.gallery-upload label { font-size: .875rem; }
+.gallery-upload .hint { font-weight: 400; }
+.gallery-upload input[type="file"] {
+  width: 100%;
+  padding: .65rem;
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+}
+.gallery-upload .form-actions { margin: 0; }
+
+/* 10.5 Admin report notes -------------------------------------------------- */
+/* Visually secondary to the report actions: sunken panel, small heading and
+   compact log. The textarea is capped so lines stay readable on wide screens. */
+.report-notes {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+.report-notes-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin: 0 0 8px;
+}
+.report-notes-title {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.report-notes-hint {
+  color: var(--text-muted);
+  font-size: .6875rem;
+}
+.note-log {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.note-log-item {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.note-log-item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.note-log-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin: 0;
+}
+.note-log-author {
+  font-size: .8125rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.note-log-date {
+  color: var(--text-muted);
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+}
+.note-log-body {
+  max-width: 72ch;
+  margin: 4px 0 0;
+  font-size: .9rem;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.note-log-delete { margin: 4px 0 0; }
+.note-log-delete .btn {
+  min-height: 44px;
+  padding: 0 6px;
+  border-color: transparent;
+  background: none;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.note-log-delete .btn:hover {
+  border-color: transparent;
+  color: var(--text);
+}
+.note-log-empty {
+  margin: 0 0 4px;
+  font-size: .8125rem;
+}
+.note-form {
+  display: grid;
+  gap: 8px;
+  max-width: 640px;
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.note-form label { font-size: .8125rem; }
+.note-form textarea { min-height: 80px; }
+.note-form .hint { font-weight: 400; }
+.note-form .btn {
+  justify-self: start;
+  min-height: 44px;
+}
+
+/* =========================================================================
+   First-run setup and runtime settings
+   ========================================================================= */
+
+.nav-setup {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+.nav-setup:hover { text-decoration-color: var(--text); }
+
+/* 1. First-run setup ------------------------------------------------------ */
+.setup-page {
+  max-width: 560px;
+  padding-bottom: .5rem;
+}
+.setup-page h1 { margin-bottom: .35rem; }
+.setup-page .lede { font-size: 1rem; line-height: 1.55; }
+.setup-page .banner { margin-top: 1rem; }
+.setup-note {
+  margin: 1.25rem 0 1rem;
+  padding: .95rem 1rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 10px;
+}
+.setup-note h2 {
+  margin: 0 0 .3rem;
+  font-size: 1rem;
+  letter-spacing: -.01em;
+}
+.setup-note p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+  line-height: 1.5;
+}
+.setup-note code,
+.settings-card code {
+  padding: .05em .3em;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .85em;
+  white-space: nowrap;
+}
+.setup-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: clamp(1rem, 4vw, 1.25rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.setup-form label {
+  font-size: .9rem;
+  font-weight: 600;
+}
+.setup-form .hint {
+  font-weight: 400;
+  line-height: 1.45;
+}
+.setup-form .btn-save {
+  justify-self: start;
+  min-width: 190px;
+}
+.setup-form .btn-primary { border-color: var(--border-strong); }
+.field-optional {
+  color: var(--text-muted);
+  font-size: .8rem;
+  font-weight: 400;
+}
+.setup-form .field-label { font-weight: 600; }
+.setup-page .auth-note { margin-top: 1.25rem; }
+
+/* 2. Admin settings shell ------------------------------------------------- */
+.admin-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .75rem 1rem;
+  margin: 0 0 1.25rem;
+}
+.admin-head h1 { margin: 0; }
+.admin-head .eyebrow { margin-bottom: .3rem; }
+.admin-head > .btn { flex: 0 0 auto; }
+.admin-head .btn svg { flex: 0 0 auto; }
+.btn-admin-settings { border-color: var(--border-strong); }
+
+.settings-shell { padding-bottom: 1rem; }
+.settings-head {
+  display: grid;
+  gap: .35rem;
+  margin-bottom: 1.25rem;
+}
+.settings-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .75rem 1rem;
+}
+.settings-head-row h1 { margin: 0; }
+.settings-head .eyebrow { margin: 0 0 .25rem; }
+.settings-head .lede {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+.settings-head-row > .btn { flex: 0 0 auto; }
+.settings-shell > .banner { margin: 0 0 1rem; }
+
+.settings-layout { display: block; }
+.settings-nav {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: 0 0 1rem;
+  padding: .3rem 0 .4rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.settings-nav-title { display: none; }
+.settings-nav ul {
+  display: flex;
+  gap: .2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+.settings-nav li { flex: 0 0 auto; }
+.settings-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: .25rem .7rem;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: .875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.settings-nav a:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.settings-sections {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.settings-card {
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  scroll-margin-top: 4.25rem;
+}
+.settings-card:target { border-color: var(--border-strong); }
+.settings-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .35rem .75rem;
+  margin-bottom: .2rem;
+}
+.settings-card-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: -.015em;
+}
+.settings-card .hint {
+  font-weight: 400;
+  line-height: 1.45;
+}
+.settings-card .settings-form {
+  max-width: 640px;
+  margin-top: .75rem;
+}
+.settings-card .form-actions { margin-top: .15rem; }
+.settings-card .field-narrow { max-width: 180px; }
+.settings-card .settings-sub .hint { margin: .15rem 0 .65rem; }
+.settings-test-form { margin: 0; }
+.settings-test-form .btn { min-width: 170px; }
+.btn-save { min-width: 150px; }
+
+.settings-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 24px;
+  padding: 0 .55rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.settings-badge-source::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .65;
+}
+.settings-badge-source[data-source="db"] {
+  background: var(--primary-tint);
+  color: var(--text);
+}
+.settings-badge-source[data-source="env"] {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.settings-badge-restart {
+  background: var(--warning-tint);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.secret-block {
+  display: grid;
+  gap: .85rem;
+  padding: .85rem .9rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.secret-current {
+  display: grid;
+  gap: .2rem;
+}
+.secret-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .3rem;
+  margin: 0;
+  font-size: .95rem;
+}
+.secret-readout.muted { font-size: .9rem; }
+.secret-mask,
+.secret-last4 {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .04em;
+}
+.secret-mask {
+  font-size: 1.15rem;
+  letter-spacing: .06em;
+}
+.secret-last4 {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-weight: 700;
+}
+.secret-block .hint { font-weight: 400; }
+
+.settings-facts {
+  display: grid;
+  margin: .75rem 0 .25rem;
+  border-top: 1px solid var(--border);
+}
+.settings-facts > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 32%) minmax(0, 1fr);
+  gap: .25rem .9rem;
+  padding: .7rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.settings-facts dt {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.settings-facts dd {
+  margin: 0;
+  font-size: .925rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.settings-card > .hint { margin-top: .6rem; }
+
+@media (min-width: 900px) {
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 196px minmax(0, 1fr);
+    align-items: start;
+    gap: 1.75rem;
+  }
+  .settings-nav {
+    position: sticky;
+    top: 1.5rem;
+    margin: 0;
+    padding: .25rem 1rem .25rem 0;
+    background: transparent;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+  }
+  .settings-nav-title {
+    display: block;
+    margin: 0 0 .4rem;
+    color: var(--text-muted);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+  }
+  .settings-nav ul {
+    display: grid;
+    gap: 2px;
+    overflow: visible;
+  }
+  .settings-nav a { width: 100%; }
+  .settings-card { scroll-margin-top: 1.25rem; }
+}
+
+@media (max-width: 480px) {
+  .settings-facts > div {
+    grid-template-columns: 1fr;
+    gap: .15rem;
+  }
 }

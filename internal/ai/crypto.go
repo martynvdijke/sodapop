@@ -86,14 +86,14 @@ func decryptAPIKey(secret, encoded string) (string, error) {
 
 // MaskAPIKey returns the only representation of a key that may leave the
 // process: a short prefix plus the last four characters, for example
-// "sk-...a1b2".
+// "sk-...a1b2". Keys of six characters or fewer reveal no material at all.
 func MaskAPIKey(key string) string {
 	key = strings.TrimSpace(key)
 	if key == "" {
 		return ""
 	}
-	if len(key) <= 4 {
-		return "..." + key
+	if len(key) <= 6 {
+		return "***"
 	}
 	prefix := key[:2]
 	if strings.HasPrefix(key, "sk-") {

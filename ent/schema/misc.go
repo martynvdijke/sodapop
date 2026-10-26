@@ -14,7 +14,7 @@ type Report struct {
 func (Report) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("id"),
-		field.Enum("entity").Values("drink", "brand", "venue", "checkin", "user", "comment", "venue_media").Default("drink"),
+		field.Enum("entity").Values("drink", "brand", "venue", "checkin", "user", "comment", "venue_media", "drink_image").Default("drink"),
 		field.Int("entity_id"),
 		field.String("entity_ref").Default(""),
 		field.String("user_id").Optional().Nillable(),

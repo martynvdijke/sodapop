@@ -68,6 +68,10 @@ func (s *Server) settingsData(ctx context.Context, r *http.Request) (map[string]
 	if err != nil {
 		return nil, err
 	}
+	blockedUsers, err := s.Social.BlockedUsers(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]any{
 		"Title": "Settings",
 		"Profile": map[string]string{
@@ -88,6 +92,7 @@ func (s *Server) settingsData(ctx context.Context, r *http.Request) (map[string]
 		},
 		"Sessions":          sessions,
 		"TokenCount":        tokenCount,
+		"BlockedCount":      len(blockedUsers),
 		"DefaultVisibility": string(u.DefaultVisibility),
 	}, nil
 }

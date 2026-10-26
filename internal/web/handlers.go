@@ -91,15 +91,25 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	u, err := s.Auth.Client.User.Query().
-		Where(user.Or(user.EmailEqualFold(ident), user.HandleEqualFold(ident)), user.DeletedAtIsNil()).
-		Only(r.Context())
-	if err != nil || u.PasswordHash == nil || !auth.CheckPassword(*u.PasswordHash, password) {
+	// Durable lockout is checked with the same generic response as a wrong
+	// password, so an attacker cannot tell a locked key from a bad guess.
+	if s.Auth.LoginLocked(r.Context(), ident) {
 		s.render(w, r, http.StatusUnauthorized, "login", map[string]any{
 			"Title": "Sign in", "Error": "That email/handle and password combination did not match.", "Fallback": true,
 		})
 		return
 	}
+	u, err := s.Auth.Client.User.Query().
+		Where(user.Or(user.EmailEqualFold(ident), user.HandleEqualFold(ident)), user.DeletedAtIsNil()).
+		Only(r.Context())
+	if err != nil || u.PasswordHash == nil || !auth.CheckPassword(*u.PasswordHash, password) {
+		_ = s.Auth.RecordLoginFailure(r.Context(), ident)
+		s.render(w, r, http.StatusUnauthorized, "login", map[string]any{
+			"Title": "Sign in", "Error": "That email/handle and password combination did not match.", "Fallback": true,
+		})
+		return
+	}
+	_ = s.Auth.ClearLoginFailures(r.Context(), ident)
 	if u.Status != "active" {
 		s.render(w, r, http.StatusForbidden, "login", map[string]any{
 			"Title": "Sign in", "Error": "This account is disabled.", "Fallback": true,
@@ -303,9 +313,14 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 		Where(list.UserID(UserFromContext(r).ID)).
 		Order(ent.Asc(list.FieldName)).All(r.Context())
 	u := UserFromContext(r)
+	gallery := s.GalleryPageData(r.Context(), d.Drink.ID, u)
 	s.render(w, r, http.StatusOK, "drink", map[string]any{
 		"Title": d.Drink.Name, "Drink": d, "Lists": lists,
-		"CanManage": u != nil && (u.Role == "admin" || u.Role == "moderator"),
+		"CanManage":    u != nil && (u.Role == "admin" || u.Role == "moderator"),
+		"Images":       gallery.Images,
+		"CanUpload":    gallery.CanUpload,
+		"CanModerate":  gallery.CanModerate,
+		"GalleryError": gallery.GalleryError,
 	})
 }
 

@@ -89,10 +89,20 @@ type SessionResult struct {
 
 // CreateSession stores a hashed session token and returns the raw cookie value.
 func (s *Service) CreateSession(ctx context.Context, userID, ip, ua string) (*SessionResult, error) {
+	return s.CreateSessionWithClient(ctx, s.Client, userID, ip, ua)
+}
+
+// CreateSessionWithClient creates a session through the supplied client, which
+// may be a transaction client. It keeps cookie/TTL behaviour identical to
+// CreateSession.
+func (s *Service) CreateSessionWithClient(ctx context.Context, client *ent.Client, userID, ip, ua string) (*SessionResult, error) {
+	if client == nil {
+		client = s.Client
+	}
 	token := RandomToken(32)
 	csrf := RandomToken(32)
 	expires := time.Now().UTC().Add(s.Cfg.SessionTTL)
-	_, err := s.Client.Session.Create().
+	_, err := client.Session.Create().
 		SetTokenHash(HashToken(token)).
 		SetUserID(userID).
 		SetCsrfToken(csrf).

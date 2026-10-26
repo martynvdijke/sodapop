@@ -52,8 +52,12 @@
           </div>
         </details>
       {{else}}
-        <a href="/login">Sign in</a>
-        <a class="btn btn-small" href="/register">Join</a>
+        {{if .SetupRequired}}
+          <a class="nav-setup" href="/setup">Finish setup</a>
+        {{else}}
+          <a href="/login">Sign in</a>
+          <a class="btn btn-small" href="/register">Join</a>
+        {{end}}
       {{end}}
     </nav>
   </header>
@@ -66,6 +70,7 @@
     {{template "content" .}}
   </main>
 
+  {{if or .User (not .SetupRequired)}}
   <nav class="tabbar" aria-label="Sections">
     <a href="/">Feed</a>
     <a href="/search">Search</a>
@@ -80,6 +85,7 @@
     <a href="/friends">Friends</a>
     <a href="/you">You <span class="pending-count" data-pending-count hidden></span></a>
   </nav>
+  {{end}}
 
   <footer class="site-footer wrap">
     <p>{{.AppName}} {{.Version}} · Built for soda, not beer.</p>

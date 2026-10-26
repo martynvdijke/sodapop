@@ -1,0 +1,258 @@
+{{define "content"}}
+<div class="settings-shell">
+  <header class="settings-head">
+    <div class="settings-head-row">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Settings</h1>
+      </div>
+      <a class="btn" href="/admin">Back to admin</a>
+    </div>
+    <p class="lede">These settings override environment defaults. Secrets are never shown again.</p>
+  </header>
+
+  {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+  {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+  <div class="settings-layout">
+    <nav class="settings-nav" aria-label="Settings sections">
+      <p class="settings-nav-title">On this page</p>
+      <ul>
+        <li><a href="#general">General</a></li>
+        <li><a href="#email">Email</a></li>
+        <li><a href="#analytics">Analytics</a></li>
+        <li><a href="#access">Access</a></li>
+        <li><a href="#ai">AI</a></li>
+        <li><a href="#observability">Observability</a></li>
+      </ul>
+    </nav>
+
+    <div class="settings-sections">
+      <section class="settings-card" id="general" aria-labelledby="settings-general-title">
+        <div class="settings-card-head">
+          <h2 id="settings-general-title">General</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .BaseURLSource}}{{.BaseURLSource}}{{else}}default{{end}}">Source: {{if .BaseURLSource}}{{.BaseURLSource}}{{else}}default{{end}}</span>
+        </div>
+        <p class="settings-intro">The instance name and the public address used in links and email.</p>
+
+        <form method="post" action="/admin/settings/general" class="settings-form" aria-labelledby="settings-general-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <label for="settings-site-name">Site name
+            <input id="settings-site-name" name="site_name" value="{{with .SiteName}}{{.}}{{end}}" autocomplete="organization" aria-describedby="settings-site-name-hint" required>
+            <span class="hint" id="settings-site-name-hint">Shown in the header, page titles, and email.</span>
+          </label>
+
+          <label for="settings-base-url">Base URL
+            <input id="settings-base-url" name="base_url" type="url" value="{{with .BaseURL}}{{.}}{{end}}" autocomplete="url" inputmode="url" aria-describedby="settings-base-url-hint" placeholder="https://soda.example.com" required>
+            <span class="hint" id="settings-base-url-hint">Public origin for links, email, and sign-in callbacks. No trailing slash. Takes effect after a restart.</span>
+          </label>
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save general</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="settings-card" id="email" aria-labelledby="settings-email-title">
+        <div class="settings-card-head">
+          <h2 id="settings-email-title">Email</h2>
+        </div>
+        <p class="settings-intro">Outgoing mail for verification, password resets, and account notices.</p>
+
+        <form method="post" action="/admin/settings/email" class="settings-form" aria-labelledby="settings-email-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <label for="settings-smtp-host">SMTP host
+            <input id="settings-smtp-host" name="smtp_host" value="{{with .SMTPHost}}{{.}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-smtp-host-hint">
+            <span class="hint" id="settings-smtp-host-hint">Hostname or IP address of the mail server.</span>
+          </label>
+
+          <div class="field-row">
+            <label class="field-narrow" for="settings-smtp-port">Port
+              <input id="settings-smtp-port" name="smtp_port" type="number" min="1" max="65535" step="1" inputmode="numeric" value="{{with .SMTPPort}}{{.}}{{end}}">
+            </label>
+            <label for="settings-smtp-username">Username
+              <input id="settings-smtp-username" name="smtp_username" value="{{with .SMTPUsername}}{{.}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-smtp-username-hint">
+              <span class="hint" id="settings-smtp-username-hint">Leave blank if the server does not require authentication.</span>
+            </label>
+          </div>
+
+          <label for="settings-smtp-from">From address
+            <input id="settings-smtp-from" name="smtp_from" value="{{with .SMTPFrom}}{{.}}{{end}}" autocomplete="off" inputmode="email" aria-describedby="settings-smtp-from-hint">
+            <span class="hint" id="settings-smtp-from-hint">The sender shown on outgoing mail.</span>
+          </label>
+
+          <label class="check-row">
+            <input type="checkbox" name="smtp_tls" value="1"{{if .SMTPTLS}} checked{{end}}>
+            <span class="check-copy">
+              <strong>Use TLS</strong>
+              <span class="hint">Encrypt the connection to the mail server.</span>
+            </span>
+          </label>
+
+          <div class="secret-block">
+            <div class="secret-current">
+              <span class="static-label">Saved password</span>
+              {{if .SMTPPasswordSet}}
+                <p class="secret-readout">
+                  <span class="secret-mask" aria-hidden="true">••••••</span>{{if .SMTPPasswordLast4}}<span class="secret-last4" aria-hidden="true">{{.SMTPPasswordLast4}}</span>{{end}}
+                  <span class="sr-only">{{if .SMTPPasswordLast4}}Ending in {{.SMTPPasswordLast4}}.{{else}}Set.{{end}}</span>
+                </p>
+              {{else}}
+                <p class="secret-readout muted">No password saved.</p>
+              {{end}}
+            </div>
+
+            <label for="settings-smtp-password">New password
+              <input id="settings-smtp-password" name="smtp_password" type="password" autocomplete="off" aria-describedby="settings-smtp-password-hint">
+              <span class="hint" id="settings-smtp-password-hint">Leave blank to keep the saved password.</span>
+            </label>
+          </div>
+
+          {{if .SMTPPasswordSet}}
+          <label class="check-row">
+            <input type="checkbox" name="clear_smtp_password" value="1">
+            <span class="check-copy">
+              <strong>Clear saved password</strong>
+              <span class="hint">Removes the stored SMTP password. Use this only if the server no longer needs one.</span>
+            </span>
+          </label>
+          {{end}}
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save email</button>
+          </div>
+        </form>
+
+        <div class="settings-sub">
+          <h3 id="settings-email-test-title">Send a test email</h3>
+          <p class="hint">Uses the saved SMTP settings and sends only to your account email. Save changes before testing.</p>
+          <form method="post" action="/admin/settings/email/test" class="settings-test-form" aria-labelledby="settings-email-test-title">
+            <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+            <button class="btn" type="submit">Send test email</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="settings-card" id="analytics" aria-labelledby="settings-analytics-title">
+        <div class="settings-card-head">
+          <h2 id="settings-analytics-title">Analytics</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .UmamiSource}}{{.UmamiSource}}{{else}}default{{end}}">Source: {{if .UmamiSource}}{{.UmamiSource}}{{else}}default{{end}}</span>
+        </div>
+        <p class="settings-intro">Optional Umami analytics. Leave both fields blank to turn analytics off.</p>
+
+        <form method="post" action="/admin/settings/analytics" class="settings-form" aria-labelledby="settings-analytics-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <label for="settings-umami-url">Umami URL
+            <input id="settings-umami-url" name="umami_url" type="url" value="{{with .UmamiURL}}{{.}}{{end}}" inputmode="url" placeholder="https://analytics.example.com" aria-describedby="settings-umami-url-hint">
+            <span class="hint" id="settings-umami-url-hint">Origin only, with no path or credentials.</span>
+          </label>
+
+          <label for="settings-umami-id">Website ID
+            <input id="settings-umami-id" name="umami_website_id" value="{{with .UmamiWebsiteID}}{{.}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-umami-id-hint">
+            <span class="hint" id="settings-umami-id-hint">The website ID from the Umami dashboard.</span>
+          </label>
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save analytics</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="settings-card" id="access" aria-labelledby="settings-access-title">
+        <div class="settings-card-head">
+          <h2 id="settings-access-title">Access</h2>
+        </div>
+        <p class="settings-intro">Who can join, and how they sign in.</p>
+
+        <form method="post" action="/admin/settings/access" class="settings-form" aria-labelledby="settings-access-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <label class="check-row">
+            <input type="checkbox" name="registration_open" value="1"{{if .RegistrationOpen}} checked{{end}}>
+            <span class="check-copy">
+              <strong>Allow new registrations</strong>
+              <span class="hint">When off, the registration form is closed and new accounts cannot be created. Existing accounts can still sign in.</span>
+            </span>
+          </label>
+
+          <label class="check-row">
+            <input type="checkbox" name="password_fallback" value="1"{{if .PasswordFallback}} checked{{end}}>
+            <span class="check-copy">
+              <strong>Allow password sign-in</strong>
+              <span class="hint">Keep local password sign-in available when an identity provider is configured.</span>
+            </span>
+          </label>
+
+          <label for="settings-allowed-emails">Allowed email addresses
+            <textarea id="settings-allowed-emails" name="allowed_emails" rows="3" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-allowed-emails-hint">{{with .AllowedEmails}}{{.}}{{end}}</textarea>
+            <span class="hint" id="settings-allowed-emails-hint">Comma-separated addresses. Leave blank to allow any address.</span>
+          </label>
+
+          <label for="settings-allowed-domains">Allowed domains
+            <textarea id="settings-allowed-domains" name="allowed_domains" rows="2" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-allowed-domains-hint">{{with .AllowedDomains}}{{.}}{{end}}</textarea>
+            <span class="hint" id="settings-allowed-domains-hint">Comma-separated domains, without the @. Leave blank to allow any domain.</span>
+          </label>
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save access</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="settings-card" id="ai" aria-labelledby="settings-ai-title">
+        <div class="settings-card-head">
+          <h2 id="settings-ai-title">AI</h2>
+        </div>
+        <p class="settings-intro">Drafting and tasting-note help. Provider keys stay on the <a href="/admin#ai-endpoints">AI endpoints</a> section of the admin page.</p>
+
+        <form method="post" action="/admin/settings/ai" class="settings-form" aria-labelledby="settings-ai-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <label class="check-row">
+            <input type="checkbox" name="ai_enabled" value="1"{{if .AIEnabled}} checked{{end}}>
+            <span class="check-copy">
+              <strong>Enable AI features</strong>
+              <span class="hint">Turns drink drafting and tasting-note polish on for everyone. AI stays off until at least one endpoint is configured.</span>
+            </span>
+          </label>
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save AI</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="settings-card" id="observability" aria-labelledby="settings-observability-title">
+        <div class="settings-card-head">
+          <h2 id="settings-observability-title">Observability</h2>
+          {{if .OTELRestartRequired}}<span class="settings-badge settings-badge-restart">Restart required</span>{{end}}
+        </div>
+        <p class="settings-intro">Read from the environment at startup. These values cannot be changed here.</p>
+
+        <dl class="settings-facts">
+          <div>
+            <dt>OpenTelemetry</dt>
+            <dd>{{if .OTELDisabled}}Disabled{{else}}Enabled{{end}}</dd>
+          </div>
+          <div>
+            <dt>Endpoint</dt>
+            <dd>{{if .OTELEndpoint}}{{.OTELEndpoint}}{{else}}Not set{{end}}</dd>
+          </div>
+          <div>
+            <dt>Service name</dt>
+            <dd>{{if .OTELServiceName}}{{.OTELServiceName}}{{else}}Not set{{end}}</dd>
+          </div>
+          <div>
+            <dt>Sampler</dt>
+            <dd>{{if .OTELSampler}}{{.OTELSampler}}{{else}}Not set{{end}}</dd>
+          </div>
+        </dl>
+        <p class="hint">Changing <code>OTEL_*</code> environment variables requires a server restart.</p>
+      </section>
+    </div>
+  </div>
+</div>
+{{end}}

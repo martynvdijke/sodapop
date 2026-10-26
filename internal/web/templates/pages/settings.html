@@ -167,6 +167,15 @@
     </form>
   </section>
 
+  <section class="settings-section" aria-labelledby="settings-blocked">
+    <h2 id="settings-blocked">Blocked people</h2>
+    <p class="settings-intro">People you have blocked. Their check-ins stay out of your feed, and they cannot follow you or comment on your check-ins.</p>
+    <a class="settings-row-link" href="/settings/blocked">
+      <span>Review blocked people</span>
+      {{if .BlockedCount}}<span class="pill">{{.BlockedCount}} blocked</span>{{end}}
+    </a>
+  </section>
+
   <section class="settings-section" aria-labelledby="settings-security">
     <h2 id="settings-security">Security</h2>
     <p class="settings-intro">Change your password and manage API access.</p>

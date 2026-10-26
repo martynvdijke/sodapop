@@ -1,6 +1,18 @@
 {{define "content"}}
-<p class="eyebrow">Admin</p>
-<h1>Keep the fridge tidy.</h1>
+<div class="admin-head">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>Keep the fridge tidy.</h1>
+  </div>
+  <a class="btn btn-primary btn-admin-settings" href="/admin/settings">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+      <path d="M4 7h9M19 7h1M4 17h2M12 17h8"/>
+      <circle cx="16" cy="7" r="2"/>
+      <circle cx="8" cy="17" r="2"/>
+    </svg>
+    Settings
+  </a>
+</div>
 {{if .Notice}}<p class="banner success">{{.Notice}}</p>{{end}}
 
 <section class="stat-grid">
@@ -35,6 +47,41 @@
       {{end}}
       {{if eq .Entity "drink"}}<a class="btn btn-small" href="/drinks/{{.EntitySlug}}">Open soda</a>{{end}}
     </div>
+
+    <section class="report-notes" aria-labelledby="report-notes-{{.ID}}">
+      <div class="report-notes-head">
+        <h3 class="report-notes-title" id="report-notes-{{.ID}}">Internal notes</h3>
+        <span class="report-notes-hint">Admins only</span>
+      </div>
+
+      {{if .Notes}}
+        <ol class="note-log">
+          {{range .Notes}}
+            <li class="note-log-item">
+              <p class="note-log-meta">
+                <strong class="note-log-author">@{{.AuthorHandle}}</strong>
+                <span class="note-log-date">{{.CreatedAt}}</span>
+              </p>
+              <p class="note-log-body">{{.Body}}</p>
+              <form class="note-log-delete" method="post" action="/admin/notes/{{.ID}}/delete">
+                <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                <button class="btn btn-small" type="submit" aria-label="Delete note by @{{.AuthorHandle}}">Delete note</button>
+              </form>
+            </li>
+          {{end}}
+        </ol>
+      {{else}}
+        <p class="muted note-log-empty">No notes on this report yet.</p>
+      {{end}}
+
+      <form class="note-form" method="post" action="/admin/reports/{{.ID}}/notes">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <label for="report-note-{{.ID}}">Add a note</label>
+        <textarea id="report-note-{{.ID}}" name="body" rows="3" maxlength="2000" aria-describedby="report-note-hint-{{.ID}}" required></textarea>
+        <p class="hint" id="report-note-hint-{{.ID}}">Only admins see this. 2000 characters max.</p>
+        <button class="btn btn-small" type="submit">Add note</button>
+      </form>
+    </section>
   </article>
 {{else}}<div class="empty"><p>No open reports. Rare and pleasant.</p></div>{{end}}
 
@@ -58,7 +105,7 @@
   </tbody>
 </table>
 
-<h2>AI endpoints</h2>
+<h2 id="ai-endpoints">AI endpoints</h2>
 <p class="muted">Used for drink drafting and tasting-note polish. Keys are encrypted at rest and never returned.</p>
 <form method="post" action="/admin/ai" class="field-grid card">
   <input type="hidden" name="csrf_token" value="{{.CSRF}}">

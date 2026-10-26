@@ -108,6 +108,9 @@ type PushSubscription func(*sql.Selector)
 // Report is the predicate function for report builders.
 type Report func(*sql.Selector)
 
+// RuntimeSetting is the predicate function for runtimesetting builders.
+type RuntimeSetting func(*sql.Selector)
+
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
 

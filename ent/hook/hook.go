@@ -416,6 +416,18 @@ func (f ReportFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReportMutation", m)
 }
 
+// The RuntimeSettingFunc type is an adapter to allow the use of ordinary
+// function as RuntimeSetting mutator.
+type RuntimeSettingFunc func(context.Context, *ent.RuntimeSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RuntimeSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RuntimeSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RuntimeSettingMutation", m)
+}
+
 // The SessionFunc type is an adapter to allow the use of ordinary
 // function as Session mutator.
 type SessionFunc func(context.Context, *ent.SessionMutation) (ent.Value, error)

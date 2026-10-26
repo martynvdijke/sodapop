@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"sodapop/ent"
+	"sodapop/ent/block"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/friendship"
 	"sodapop/ent/user"
@@ -146,6 +147,94 @@ func TestGetVisibility(t *testing.T) {
 			t.Fatalf("missing: got %v, want ErrNotFound", err)
 		}
 	})
+}
+
+func TestGetRefusesEitherDirectionBlock(t *testing.T) {
+	e := newTestEnv(t)
+	e.befriend(t, e.alice, e.bob)
+
+	for _, visibility := range []string{"public", "friends", "private"} {
+		t.Run(visibility, func(t *testing.T) {
+			if _, err := e.db.Client.Block.Delete().Exec(e.ctx); err != nil {
+				t.Fatalf("reset blocks: %v", err)
+			}
+			c := e.createCheckin(t, e.alice, visibility)
+			if _, err := e.db.Client.Block.Create().
+				SetBlockerID(e.bob.ID).SetBlockedID(e.alice.ID).
+				SetCreatedAt(db.Now()).Save(e.ctx); err != nil {
+				t.Fatalf("block bob->alice: %v", err)
+			}
+			if _, err := e.svc.Get(e.ctx, e.alice.ID, c.ID); err != nil {
+				t.Fatalf("owner read with block = %v, want ok", err)
+			}
+			if _, err := e.svc.Get(e.ctx, e.bob.ID, c.ID); !errors.Is(err, checkins.ErrNotFound) {
+				t.Fatalf("blocked viewer read = %v, want ErrNotFound", err)
+			}
+			if _, err := e.svc.Get(e.ctx, "", c.ID); visibility == "public" && err != nil {
+				t.Fatalf("anonymous read with block = %v, want ok", err)
+			}
+			if err := e.db.Client.Block.DeleteOneID(
+				blockID(t, e, e.bob.ID, e.alice.ID),
+			).Exec(e.ctx); err != nil {
+				t.Fatalf("unblock: %v", err)
+			}
+
+			// The other direction is equally effective.
+			if _, err := e.db.Client.Block.Create().
+				SetBlockerID(e.alice.ID).SetBlockedID(e.bob.ID).
+				SetCreatedAt(db.Now()).Save(e.ctx); err != nil {
+				t.Fatalf("block alice->bob: %v", err)
+			}
+			if _, err := e.svc.Get(e.ctx, e.bob.ID, c.ID); !errors.Is(err, checkins.ErrNotFound) {
+				t.Fatalf("blocked viewer read (other direction) = %v, want ErrNotFound", err)
+			}
+		})
+	}
+}
+
+func TestGetForModerationAcrossBlock(t *testing.T) {
+	e := newTestEnv(t)
+	e.befriend(t, e.alice, e.bob)
+	c := e.createCheckin(t, e.alice, "friends")
+	if _, err := e.db.Client.Block.Create().
+		SetBlockerID(e.bob.ID).SetBlockedID(e.alice.ID).
+		SetCreatedAt(db.Now()).Save(e.ctx); err != nil {
+		t.Fatalf("block bob->alice: %v", err)
+	}
+
+	// Normal readers stay blocked.
+	if _, err := e.svc.Get(e.ctx, e.bob.ID, c.ID); !errors.Is(err, checkins.ErrNotFound) {
+		t.Fatalf("normal blocked Get = %v, want ErrNotFound", err)
+	}
+
+	// The moderation escape hatch deliberately skips the block denial so an
+	// admin can act on a reported row.
+	got, err := e.svc.GetForModeration(e.ctx, c.ID)
+	if err != nil {
+		t.Fatalf("GetForModeration across block: %v", err)
+	}
+	if got.ID != c.ID || got.UserID != e.alice.ID || got.Visibility != "friends" {
+		t.Fatalf("GetForModeration = %+v", got)
+	}
+
+	// It is not a way around deletion.
+	if err := e.db.Client.Checkin.UpdateOneID(c.ID).SetDeletedAt(db.Now()).Exec(e.ctx); err != nil {
+		t.Fatalf("soft delete: %v", err)
+	}
+	if _, err := e.svc.GetForModeration(e.ctx, c.ID); !errors.Is(err, checkins.ErrNotFound) {
+		t.Fatalf("GetForModeration deleted = %v, want ErrNotFound", err)
+	}
+}
+
+func blockID(t *testing.T, e *testEnv, blocker, blocked string) int {
+	t.Helper()
+	b, err := e.db.Client.Block.Query().
+		Where(block.BlockerID(blocker), block.BlockedID(blocked)).
+		Only(e.ctx)
+	if err != nil {
+		t.Fatalf("block row: %v", err)
+	}
+	return b.ID
 }
 
 func TestGetHidesDeletedAuthor(t *testing.T) {

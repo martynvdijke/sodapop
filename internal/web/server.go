@@ -19,6 +19,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/setup"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
 	"sodapop/internal/venues"
@@ -46,17 +47,21 @@ type Server struct {
 	Log          *slog.Logger
 	Limiter      *ratelimit.Limiter
 	Render       *Renderer
+	Setup        *setup.Service
 }
 
 // Register wires HTML routes and the OIDC redirect endpoints.
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", StaticHandler()))
+	s.RegisterGalleryRoutes(mux)
 
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("GET /register", s.registerPage)
 	mux.HandleFunc("POST /register", s.registerSubmit)
+	mux.HandleFunc("GET /setup", s.setupPage)
+	mux.HandleFunc("POST /setup", s.setupSubmit)
 	mux.HandleFunc("GET /verify", s.verify)
 	mux.HandleFunc("POST /logout", s.logout)
 
@@ -91,6 +96,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /friends/{id}/accept", s.requireUser(s.friendAccept))
 	mux.HandleFunc("POST /friends/{id}/remove", s.requireUser(s.friendRemove))
 	mux.HandleFunc("GET /settings/tokens", s.requireUser(s.tokensPage))
+	mux.HandleFunc("GET /settings/blocked", s.requireUser(s.settingsBlockedPage))
 	mux.HandleFunc("POST /settings/tokens", s.requireUser(s.tokensCreate))
 	mux.HandleFunc("GET /you", s.requireUser(s.youPage))
 	mux.HandleFunc("GET /lists", s.requireUser(s.listsPage))
@@ -149,6 +155,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /u/{handle}", s.profilePage)
 	mux.HandleFunc("POST /u/{handle}/follow", s.requireVerified(s.followUser))
 	mux.HandleFunc("POST /u/{handle}/unfollow", s.requireVerified(s.unfollowUser))
+	mux.HandleFunc("POST /u/{handle}/block", s.requireUser(s.blockUser))
+	mux.HandleFunc("POST /u/{handle}/unblock", s.requireUser(s.unblockUser))
 	mux.HandleFunc("GET /insights", s.requireUser(s.insightsPage))
 	mux.HandleFunc("POST /admin/drinks/{id}/status", s.requireAdmin(s.adminDrinkStatus))
 	mux.HandleFunc("POST /integrations/ha-token", s.requireUser(s.haTokenCreate))
@@ -162,6 +170,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/reports/{id}/resolve", s.requireAdmin(s.adminReportResolve))
 	mux.HandleFunc("POST /admin/reports/{id}/dismiss", s.requireAdmin(s.adminReportDismiss))
 	mux.HandleFunc("POST /admin/reports/{id}/remove", s.requireAdmin(s.adminReportRemove))
+	mux.HandleFunc("POST /admin/reports/{id}/notes", s.requireAdmin(s.adminReportNoteCreate))
+	mux.HandleFunc("POST /admin/notes/{id}/delete", s.requireAdmin(s.adminNoteDelete))
 	mux.HandleFunc("POST /admin/drinks/{id}/activate", s.requireAdmin(s.adminDrinkActivate))
 	mux.HandleFunc("POST /admin/digest", s.requireAdmin(s.adminDigest))
 }

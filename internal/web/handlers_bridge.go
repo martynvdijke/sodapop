@@ -14,11 +14,13 @@ import (
 	"sodapop/ent/catalogrevision"
 	"sodapop/ent/comment"
 	"sodapop/ent/drink"
+	"sodapop/ent/drinkimage"
 	"sodapop/ent/report"
 	"sodapop/ent/venue"
 	"sodapop/ent/venuemedia"
 	"sodapop/internal/ai"
 	"sodapop/internal/auth"
+	"sodapop/internal/catalog"
 	"sodapop/internal/comments"
 	"sodapop/internal/venues"
 )
@@ -354,6 +356,16 @@ type adminReportView struct {
 	EntitySlug  string
 	CanRemove   bool
 	RemoveLabel string
+	Notes       []adminNoteView
+}
+
+// adminNoteView is the template contract for report notes. Keep these field
+// names stable: admin.html renders them directly.
+type adminNoteView struct {
+	ID           int
+	AuthorHandle string
+	Body         string
+	CreatedAt    string
 }
 
 type adminDrinkView struct {
@@ -380,7 +392,7 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 
 	// Batch-load every string-ref target kind once so the queue stays O(kinds)
 	// queries instead of one lookup per report.
-	var commentRefs, mediaRefs []string
+	var commentRefs, mediaRefs, imageRefs []string
 	for _, row := range reports {
 		if row.EntityRef == "" {
 			continue
@@ -390,6 +402,8 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 			commentRefs = append(commentRefs, row.EntityRef)
 		case "venue_media":
 			mediaRefs = append(mediaRefs, row.EntityRef)
+		case "drink_image":
+			imageRefs = append(imageRefs, row.EntityRef)
 		}
 	}
 	commentBodies := map[string]string{}
@@ -435,11 +449,44 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	type imageContext struct {
+		drinkName string
+		drinkSlug string
+	}
+	imageContexts := map[string]imageContext{}
+	if len(imageRefs) > 0 {
+		ids := make([]int, 0, len(imageRefs))
+		for _, ref := range imageRefs {
+			if id, err := strconv.Atoi(ref); err == nil && id > 0 {
+				ids = append(ids, id)
+			}
+		}
+		if len(ids) > 0 {
+			if rows, err := s.Auth.Client.DrinkImage.Query().
+				Where(drinkimage.IDIn(ids...)).WithDrink().All(ctx); err == nil {
+				for _, row := range rows {
+					ic := imageContext{}
+					if row.Edges.Drink != nil {
+						ic.drinkName = row.Edges.Drink.Name
+						ic.drinkSlug = row.Edges.Drink.Slug
+					}
+					imageContexts[strconv.Itoa(row.ID)] = ic
+				}
+			}
+		}
+	}
+
 	reportViews := make([]adminReportView, 0, len(reports))
+	reportIDs := make([]int, 0, len(reports))
+	for _, row := range reports {
+		reportIDs = append(reportIDs, row.ID)
+	}
+	notesByReport := s.reportNotes(r, reportIDs)
 	for _, row := range reports {
 		v := adminReportView{ID: row.ID, Entity: string(row.Entity), EntityID: row.EntityID,
 			EntityRef: row.EntityRef, Reason: row.Reason, Details: row.Details,
-			Status: string(row.Status), CreatedAt: row.CreatedAt, Reporter: "deleted user"}
+			Status: string(row.Status), CreatedAt: row.CreatedAt, Reporter: "deleted user",
+			Notes: notesByReport[row.ID]}
 		if row.UserID != nil {
 			if u, err := s.Auth.Client.User.Get(ctx, *row.UserID); err == nil {
 				v.Reporter = "@" + u.Handle
@@ -469,6 +516,17 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 			}
 			v.CanRemove = true
 			v.RemoveLabel = "Remove media"
+		case "drink_image":
+			v.EntityRef = shortenRef(row.EntityRef)
+			if ic, ok := imageContexts[row.EntityRef]; ok {
+				v.Context = "Drink image"
+				if ic.drinkName != "" {
+					v.Context = "Drink " + ic.drinkName
+				}
+				v.EntitySlug = ic.drinkSlug
+			}
+			v.CanRemove = true
+			v.RemoveLabel = "Remove image"
 		}
 		reportViews = append(reportViews, v)
 	}
@@ -587,6 +645,26 @@ func (s *Server) adminReportRemove(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, err)
 			return
 		}
+	case "drink_image":
+		imageID, err := strconv.Atoi(row.EntityRef)
+		if err != nil || imageID <= 0 {
+			http.NotFound(w, r)
+			return
+		}
+		if _, err := s.Auth.Client.DrinkImage.Get(ctx, imageID); err != nil {
+			if ent.IsNotFound(err) {
+				http.NotFound(w, r)
+				return
+			}
+			s.fail(w, r, err)
+			return
+		}
+		// Delete only the image and its media row; the drink is untouched.
+		if err := s.Catalog.DeleteImage(ctx, true, imageID); err != nil &&
+			!errors.Is(err, catalog.ErrNotFound) {
+			s.fail(w, r, err)
+			return
+		}
 	default:
 		http.Error(w, "report target cannot be removed", http.StatusBadRequest)
 		return
@@ -618,7 +696,8 @@ func (s *Server) adminDrinkActivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := strconv.Atoi(r.PathValue("id"))
-	if _, err := s.Auth.Client.Drink.UpdateOneID(id).SetStatus(drink.StatusActive).Save(r.Context()); err != nil {
+	u := UserFromContext(r)
+	if _, err := s.Catalog.ActivateDrink(r.Context(), &u.ID, id); err != nil {
 		http.Error(w, "could not activate drink", http.StatusBadRequest)
 		return
 	}

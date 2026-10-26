@@ -43,6 +43,22 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 	}
 	areFriends := viewerID != "" && viewerID != target.ID && s.Social.AreFriends(ctx, viewerID, target.ID)
 
+	// A block in either direction is indistinguishable from a missing profile,
+	// including for opted-in public profiles. This check runs before any
+	// profile content is loaded.
+	isBlocked := false
+	if viewerID != "" && viewerID != target.ID {
+		isBlocked, err = s.Social.AreBlocked(ctx, viewerID, target.ID)
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		if isBlocked {
+			s.profileNotFound(w, r)
+			return
+		}
+	}
+
 	settings, err := s.Auth.GetOrCreateSettings(ctx, target.ID)
 	if err != nil {
 		s.fail(w, r, err)
@@ -171,6 +187,9 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		"IsOwner":         isOwner,
 		"IsFriend":        areFriends,
 		"IsFollowing":     isFollowing,
+		"IsBlocked":       isBlocked,
+		"BlockedByTarget": false,
+		"CanBlock":        viewerID != "" && viewerID != target.ID,
 		"FollowerCount":   followerCount,
 		"FollowingCount":  followingCount,
 		"Authenticated":   viewerID != "",
@@ -205,7 +224,6 @@ func (s *Server) followUser(w http.ResponseWriter, r *http.Request) {
 	}
 	u := UserFromContext(r)
 	handle := strings.ToLower(strings.TrimSpace(r.PathValue("handle")))
-	// block enforcement lands in Phase C
 	if err := s.Social.Follow(r.Context(), u.ID, handle); err != nil {
 		if err == social.ErrSelfAction {
 			http.Error(w, "you cannot follow yourself", http.StatusBadRequest)
@@ -223,7 +241,6 @@ func (s *Server) unfollowUser(w http.ResponseWriter, r *http.Request) {
 	}
 	u := UserFromContext(r)
 	handle := strings.ToLower(strings.TrimSpace(r.PathValue("handle")))
-	// block enforcement lands in Phase C
 	if err := s.Social.Unfollow(r.Context(), u.ID, handle); err != nil {
 		if err == social.ErrSelfAction {
 			http.Error(w, "you cannot unfollow yourself", http.StatusBadRequest)

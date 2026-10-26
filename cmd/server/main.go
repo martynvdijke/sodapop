@@ -24,6 +24,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/setup"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
 	"sodapop/internal/telemetry"
@@ -100,6 +101,7 @@ func run() error {
 	tasteSvc := taste.New(database)
 	mixSvc := mix.New(database)
 	limiter := ratelimit.New()
+	setupSvc := setup.New(database.Client, authSvc, limiter, log, os.Getenv("SETUP_TOKEN"))
 
 	renderer, err := web.NewRenderer()
 	if err != nil {
@@ -111,7 +113,7 @@ func run() error {
 		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		DB: database, Media: mediaSvc, AI: aiSvc, Integrations: integrationSvc,
-		Limiter: limiter, Render: renderer,
+		Limiter: limiter, Render: renderer, Setup: setupSvc,
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
@@ -153,6 +155,15 @@ func run() error {
 				return
 			case <-t.C:
 				limiter.Prune(30 * time.Minute)
+				// Draft sessions expire after their TTL; keep the sweep
+				// bounded so one slow delete cannot stall maintenance.
+				sweepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				if n, err := aiSvc.ExpireDrafts(sweepCtx); err != nil {
+					log.Warn("expire ai drafts failed", "err", err)
+				} else if n > 0 {
+					log.Info("expired ai drafts", "count", n)
+				}
+				cancel()
 			}
 		}
 	}()
