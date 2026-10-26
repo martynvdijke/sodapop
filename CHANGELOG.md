@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/martynvdijke/sodapop/compare/v1.3.0...v1.4.0) (2026-10-26)
+
+
+### Features
+
+* add durable delivery, scheduler leases, metrics, unified search, and admin completeness ([975c444](https://github.com/martynvdijke/sodapop/commit/975c4445c1343d93af3e2fcae322285f49ce9524))
+
 # [1.3.0](https://github.com/martynvdijke/sodapop/compare/v1.2.0...v1.3.0) (2026-10-26)
 
 
