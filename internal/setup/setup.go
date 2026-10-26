@@ -23,7 +23,6 @@ import (
 const (
 	setupCompleteKey = "setup_complete"
 	ipLimit          = 5
-	globalLimit      = 20
 	limitWindow      = 15 * time.Minute
 )
 
@@ -52,11 +51,31 @@ type Service struct {
 	tokenRaw string
 	tokenSum [sha256.Size]byte
 	hasToken bool
+	envToken string
+
+	// claimMu serialises bootstrap transactions. SQLite is single-writer and
+	// concurrent deferred transactions can deadlock while taking the latch.
+	claimMu sync.Mutex
 }
 
-// New prepares the setup service. If no admin exists, it resolves a bootstrap
-// token (SETUP_TOKEN or a random generated value) and logs the generated token
-// exactly once. Only a SHA-256 digest is kept for comparison.
+// CountLiveAdmins counts active, non-deleted administrators. Setup is required
+// exactly when this is zero.
+func CountLiveAdmins(ctx context.Context, client *ent.Client) (int, error) {
+	if client == nil {
+		return 0, nil
+	}
+	return client.User.Query().
+		Where(
+			user.RoleEQ(user.RoleAdmin),
+			user.StatusEQ(user.StatusActive),
+			user.DeletedAtIsNil(),
+		).
+		Count(ctx)
+}
+
+// New prepares the setup service. If no live admin exists, it resolves a
+// bootstrap token (SETUP_TOKEN or a random generated value) and logs the
+// generated token exactly once. Only a SHA-256 digest is kept for comparison.
 func New(client *ent.Client, authSvc *auth.Service, limiter *ratelimit.Limiter, log *slog.Logger, envToken string) *Service {
 	if log == nil {
 		log = slog.Default()
@@ -64,11 +83,17 @@ func New(client *ent.Client, authSvc *auth.Service, limiter *ratelimit.Limiter, 
 	if limiter == nil {
 		limiter = ratelimit.New()
 	}
-	s := &Service{client: client, auth: authSvc, limiter: limiter, log: log}
+	s := &Service{
+		client:   client,
+		auth:     authSvc,
+		limiter:  limiter,
+		log:      log,
+		envToken: strings.TrimSpace(envToken),
+	}
 	if client == nil {
 		return s
 	}
-	n, err := client.User.Query().Where(user.RoleEQ(user.RoleAdmin)).Count(context.Background())
+	n, err := CountLiveAdmins(context.Background(), client)
 	if err != nil {
 		log.Warn("setup state check failed", "err", err)
 		return s
@@ -76,31 +101,32 @@ func New(client *ent.Client, authSvc *auth.Service, limiter *ratelimit.Limiter, 
 	if n > 0 {
 		return s
 	}
+	s.ensureToken()
+	return s
+}
 
-	token := strings.TrimSpace(envToken)
+// ensureToken installs the configured bootstrap token, or generates and logs
+// one once, when setup becomes required again after the last live admin was
+// demoted or deleted externally.
+func (s *Service) ensureToken() {
+	s.mu.Lock()
+	if s.hasToken {
+		s.mu.Unlock()
+		return
+	}
+	token := s.envToken
 	generated := token == ""
 	if generated {
 		token = auth.RandomToken(32)
 	}
-	s.setToken(token)
-	if generated {
-		// This is the only place the generated token is ever logged.
-		log.Info("setup required: open /setup and use token " + token)
-	}
-	return s
-}
-
-func (s *Service) setToken(token string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if token == "" {
-		s.tokenRaw = ""
-		s.hasToken = false
-		return
-	}
 	s.tokenRaw = token
 	s.tokenSum = sha256.Sum256([]byte(token))
 	s.hasToken = true
+	s.mu.Unlock()
+	if generated {
+		// This is the only place the generated token is ever logged.
+		s.log.Info("setup required: open /setup and use token " + token)
+	}
 }
 
 // SetupToken returns the bootstrap token once for boot logging or integration
@@ -113,23 +139,19 @@ func (s *Service) SetupToken() string {
 	return token
 }
 
-// Required reports whether the one-time setup flow is still available.
+// Required reports whether the one-time setup flow is still available. It is
+// true whenever there are no live admins, even if a setup_complete latch row
+// exists, so an external demotion can always be recovered.
 func (s *Service) Required(ctx context.Context) (bool, error) {
-	if s.client == nil {
-		return false, nil
-	}
-	n, err := s.client.User.Query().Where(user.RoleEQ(user.RoleAdmin)).Count(ctx)
+	n, err := CountLiveAdmins(ctx, s.client)
 	if err != nil {
 		return false, err
 	}
 	if n > 0 {
 		return false, nil
 	}
-	exists, err := s.client.AppSetting.Query().Where(appsetting.KeyEQ(setupCompleteKey)).Exist(ctx)
-	if err != nil {
-		return false, err
-	}
-	return !exists, nil
+	s.ensureToken()
+	return true, nil
 }
 
 // TokenValid compares token against the stored digest in constant time.
@@ -168,9 +190,6 @@ func (s *Service) ClaimSession(ctx context.Context, token, handle, email, passwo
 	if !s.limiter.Allow("setup:ip:"+ipKey, ipLimit, limitWindow) {
 		return nil, nil, ErrRateLimited
 	}
-	if !s.limiter.Allow("setup:global", globalLimit, limitWindow) {
-		return nil, nil, ErrRateLimited
-	}
 	if !s.TokenValid(token) {
 		return nil, nil, ErrInvalidToken
 	}
@@ -190,6 +209,9 @@ func (s *Service) ClaimSession(ctx context.Context, token, handle, email, passwo
 		return nil, nil, err
 	}
 
+	s.claimMu.Lock()
+	defer s.claimMu.Unlock()
+
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		if isConflict(err) {
@@ -202,22 +224,32 @@ func (s *Service) ClaimSession(ctx context.Context, token, handle, email, passwo
 		return nil, nil, err
 	}
 
-	// Re-check completion inside the transaction. The unique setup_complete row
-	// is inserted before the user so concurrent claims cannot both proceed.
-	if exists, err := tx.AppSetting.Query().Where(appsetting.KeyEQ(setupCompleteKey)).Exist(ctx); err != nil {
-		return rollback(err)
-	} else if exists {
-		return rollback(ErrSetupComplete)
-	}
-	n, err := tx.User.Query().Where(user.RoleEQ(user.RoleAdmin)).Count(ctx)
+	// Re-check live admins inside the transaction. The setup_complete row is a
+	// unique latch, but it is tolerated when recovery is needed after the last
+	// admin was demoted; a write to it serialises concurrent claims.
+	n, err := CountLiveAdmins(ctx, tx.Client())
 	if err != nil {
 		return rollback(err)
 	}
 	if n > 0 {
 		return rollback(ErrSetupComplete)
 	}
-
-	if _, err := tx.AppSetting.Create().
+	exists, err := tx.AppSetting.Query().Where(appsetting.KeyEQ(setupCompleteKey)).Exist(ctx)
+	if err != nil {
+		return rollback(err)
+	}
+	if exists {
+		if _, err := tx.AppSetting.Update().
+			Where(appsetting.KeyEQ(setupCompleteKey)).
+			SetValue("1").
+			SetUpdatedAt(db.Now()).
+			Save(ctx); err != nil {
+			if isConflict(err) {
+				return rollback(ErrSetupComplete)
+			}
+			return rollback(err)
+		}
+	} else if _, err := tx.AppSetting.Create().
 		SetKey(setupCompleteKey).
 		SetValue("1").
 		SetUpdatedAt(db.Now()).
@@ -228,8 +260,8 @@ func (s *Service) ClaimSession(ctx context.Context, token, handle, email, passwo
 		return rollback(err)
 	}
 
-	// One more admin check after taking the setup gate.
-	if n, err := tx.User.Query().Where(user.RoleEQ(user.RoleAdmin)).Count(ctx); err != nil {
+	// One more live-admin check after taking the setup gate.
+	if n, err := CountLiveAdmins(ctx, tx.Client()); err != nil {
 		return rollback(err)
 	} else if n > 0 {
 		return rollback(ErrSetupComplete)

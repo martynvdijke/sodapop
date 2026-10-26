@@ -111,9 +111,12 @@ POST /integrations/ha-token/{id}/revoke
 POST /hooks/ha/{token}          machine check-in (capability token, no session/CSRF)
 GET  /insights                  personal sugar, caffeine and calorie summary
 GET  /forgot  GET/POST /reset/{token}  password reset (anti-enumerated)
+GET/POST /setup                 first-run admin creation (404 while a live admin exists)
 GET  /auth/oidc/login           start OIDC Authorization Code + PKCE S256
 GET  /auth/oidc/callback        verify state/nonce/PKCE + JWKS ID token
 POST /auth/oidc/logout          clear session + redirect to OIDC end-session
+GET  /admin/settings            runtime settings panel (admin only)
+POST /admin/settings/{general,email,email/test,analytics,access,ai}
 GET  /admin/{drinks,venues,users,reports,email,ai}   # role-gated
 POST /admin/drinks/{id}/status  lifecycle change (active/limited/seasonal/discontinued)
 GET  /healthz /readyz /metrics
@@ -163,6 +166,7 @@ Modeled directly on `dnd` and `board-games`:
 - **Discovery & verification:** discovers authorization, token, userinfo, end-session, and `jwks_uri` from `/.well-known/openid-configuration`. Callback validates HMAC-signed HttpOnly cookie `state`, `nonce`, and PKCE `code_verifier`, then verifies the ID token's RS256 signature against cached JWKS keys, `iss`, `aud` (`OIDC_CLIENT_ID`), and `exp`.
 - **Account linking & provisioning:** requires `email_verified=true` from the provider. Looks up `(provider='oidc', subject=sub)` in `user_identities`; if absent, links to an existing `users.email` (case-insensitive) and stamps `email_verified_at` if unset, or auto-provisions a new verified user (deriving a unique handle from `preferred_username` or email local-part).
 - **Allowlists & role mapping:** enforces `ALLOWED_EMAILS` and `ALLOWED_DOMAINS` when configured. The first user on a fresh database becomes `admin`; on every OIDC login, if the `groups` claim contains `admins`, the user's role is promoted to `admin`.
+- **Recovery when the last admin is demoted:** OIDC group mapping can remove the last admin. `/setup` reopens whenever there are zero live admins (`role=admin`, active, not deleted), even if the historical `setup_complete` row exists. The next request or restart installs `SETUP_TOKEN` (or generates and logs a one-time token), and setup can create a replacement admin. This is the supported recovery path rather than blocking external demotion.
 - **Coexistence with local accounts:** when `OIDC_ENABLED=true`, `/login` shows **"Sign in with Authelia"** as the primary action. Local email+password signup/login and email verification remain available when `ALLOW_PASSWORD_FALLBACK=true` (default `true` when `OIDC_ENABLED=false`; explicit break-glass toggle when `OIDC_ENABLED=true`).
 - **Mobile & API discovery:** `GET /api/v1/auth/oidc/status` returns `{"enabled": true, "issuer": "...", "password_fallback": false}` so the Flutter Android onboarding screen can automatically present the Authelia WebView login flow.
 
@@ -296,7 +300,15 @@ OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_PROTOCOL OTEL_SERVICE_NAME=sodapo
 TRUSTED_PROXIES METRICS_ENABLED LOG_LEVEL VERSION
 ```
 
+Set `TRUSTED_PROXIES` to the reverse proxy's exact IPs or CIDRs when the app is behind a proxy. Without it, `/setup` treats every client as the proxy address, so one stranger can exhaust a shared bucket; configure it alongside proxy-aware limits so clients are distinguished consistently. With it, forwarded hops are walked from the right and trusted hops are skipped.
+
 Secrets accept `_FILE` variants. Invalid config fails fast with a readable error; secrets never appear in logs.
+
+### Runtime settings
+
+`/admin/settings` overlays a small, audited set of operational values on top of env config. Precedence is **built-in default < env < database**, loaded once into an immutable snapshot so request paths never query settings tables. Database overrides are denied for bootstrap-only keys (`ENV`, `PORT`, `DATABASE_PATH`, `DATA_DIR`, `SESSION_SECRET`, `OTEL_*`, `EMAIL_DEV_DIR`, `SEED_DEMO`); OTel is shown read-only with a restart label. Runtime-overridable keys include `APP_NAME`, `BASE_URL`, SMTP host/port/username/password/from/TLS, `UMAMI_URL`, `UMAMI_WEBSITE_ID`, registration, password fallback, allowlists and AI enablement.
+
+Secrets are stored only as AES-256-GCM ciphertext (`enc:v1:`) under a domain-separated key derived from `SESSION_SECRET`; the UI shows `set` plus the last four characters, a blank field preserves the stored value, and an explicit clear removes it. Changing `SESSION_SECRET` makes old ciphertext unreadable (the instance falls back to env/default and logs a warning). Each write is transactional and appends an `admin_notes` audit row containing key names only. First-run setup uses the same storage to record `setup_complete` and create the first verified admin atomically; the one-time token comes from `SETUP_TOKEN` or a generated value logged once on a fresh database.
 
 ## 14. Ops
 

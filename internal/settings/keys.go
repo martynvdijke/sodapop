@@ -3,6 +3,7 @@ package settings
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -54,6 +55,24 @@ var envOnlyKeys = map[string]bool{
 func isEnvOnlyKey(key string) bool {
 	key = strings.ToLower(key)
 	return envOnlyKeys[key] || strings.HasPrefix(key, "otel_")
+}
+
+// Validate checks a non-secret value against the same rules Set applies. It is
+// exported so callers can validate a multi-field form before persisting any of
+// it. Secret values are not validated here; Set treats blank as "keep".
+func Validate(key, value string) error {
+	spec, ok := specs[key]
+	if !ok {
+		if isEnvOnlyKey(key) {
+			return fmt.Errorf("%w: %s", ErrEnvOnlyKey, key)
+		}
+		return fmt.Errorf("%w: %s", ErrUnknownKey, key)
+	}
+	if spec.secret {
+		return nil
+	}
+	_, err := normalizeValue(key, value)
+	return err
 }
 
 type keySpec struct {
@@ -215,6 +234,9 @@ func normalizeBaseURL(raw string) (string, error) {
 	if scheme != "http" && scheme != "https" {
 		return "", invalid("%s must be http or https", KeyBaseURL)
 	}
+	if !validHost(u.Hostname()) {
+		return "", invalid("%s must use a valid host", KeyBaseURL)
+	}
 	out := scheme + "://" + strings.ToLower(u.Host) + u.EscapedPath()
 	return strings.TrimRight(out, "/"), nil
 }
@@ -240,7 +262,30 @@ func normalizeOrigin(raw string) (string, error) {
 	if u.Opaque != "" {
 		return "", invalid("%s must be an http(s) origin", KeyUmamiURL)
 	}
+	if !validHost(u.Hostname()) {
+		return "", invalid("%s must use a valid host", KeyUmamiURL)
+	}
 	return scheme + "://" + strings.ToLower(u.Host), nil
+}
+
+// validHost restricts hostnames to characters safe to interpolate into CSP
+// directives and URLs. IPv6 literals are accepted when net.ParseIP parses the
+// colon-containing hostname.
+func validHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return false
+	}
+	if strings.Contains(host, ":") {
+		return net.ParseIP(host) != nil
+	}
+	for _, r := range host {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func normalizeList(raw string, emails bool) (string, error) {

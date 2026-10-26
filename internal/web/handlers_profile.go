@@ -194,7 +194,7 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		"FollowingCount":  followingCount,
 		"Authenticated":   viewerID != "",
 		"Indexable":       indexable,
-		"CanonicalURL":    s.Cfg.BaseURL + "/u/" + target.Handle,
+		"CanonicalURL":    s.baseURL() + "/u/" + target.Handle,
 		"MetaRobots":      robots,
 		"MetaTitle":       displayName + " (@" + target.Handle + ") · Sodapop",
 		"MetaDescription": profileDescription(target.Bio, target.Handle),

@@ -68,7 +68,7 @@ func (s *Service) IssuePasswordReset(ctx context.Context, emailAddr string) erro
 
 	// Reuse the outbox mailer so the message format stays in one place. The
 	// long-running Mailer drains the same queue.
-	mailer := email.New(s.Cfg, s.DB, slog.Default())
+	mailer := email.New(s.Cfg, s.DB, slog.Default(), s.Settings)
 	if err := mailer.PasswordReset(ctx, u.Email, u.Handle, raw); err != nil {
 		// The token is useless without the mail, so drop it rather than leave a
 		// dangling row the user cannot reach.

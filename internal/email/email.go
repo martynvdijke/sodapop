@@ -17,6 +17,7 @@ import (
 	"sodapop/ent/emailoutbox"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/settings"
 )
 
 // Mailer owns the durable email outbox.
@@ -24,10 +25,53 @@ type Mailer struct {
 	Cfg    *config.Config
 	Client *ent.Client
 	Log    *slog.Logger
+	// Settings is optional. When present, SMTP and base URL values are read
+	// from its snapshot for every delivery so admin changes apply immediately.
+	Settings *settings.Service
 }
 
-func New(cfg *config.Config, database *db.DB, log *slog.Logger) *Mailer {
-	return &Mailer{Cfg: cfg, Client: database.Client, Log: log}
+func New(cfg *config.Config, database *db.DB, log *slog.Logger, runtime ...*settings.Service) *Mailer {
+	m := &Mailer{Cfg: cfg, Client: database.Client, Log: log}
+	if len(runtime) > 0 {
+		m.Settings = runtime[0]
+	}
+	return m
+}
+
+// smtp returns the effective SMTP configuration. It reads the settings
+// snapshot, falling back to the static config when no service is wired.
+func (m *Mailer) smtp() settings.SMTPSettings {
+	if m.Settings != nil {
+		if snap := m.Settings.Snapshot(); snap != nil {
+			return snap.SMTP()
+		}
+	}
+	return settings.SMTPSettings{
+		Host:     m.Cfg.SMTPHost,
+		Port:     m.Cfg.SMTPPort,
+		Username: m.Cfg.SMTPUser,
+		Password: m.Cfg.SMTPPass,
+		From:     m.Cfg.SMTPFrom,
+		TLS:      m.Cfg.SMTPTLS,
+	}
+}
+
+// baseURL returns the effective public base URL without a trailing slash.
+func (m *Mailer) baseURL() string {
+	if m.Settings != nil {
+		if snap := m.Settings.Snapshot(); snap != nil {
+			return snap.BaseURL()
+		}
+	}
+	return strings.TrimRight(m.Cfg.BaseURL, "/")
+}
+
+// SendTest delivers one message immediately to the given address using the
+// current runtime SMTP settings. It bypasses the outbox and is intended for
+// the admin settings panel. With no SMTP host the development sink is used.
+func (m *Mailer) SendTest(ctx context.Context, to string) error {
+	body := "This is a test message from your Sodapop instance. If you can read it, outgoing mail is configured correctly.\n"
+	return m.deliver(to, payload{Subject: "Sodapop test email", Body: body})
 }
 
 type payload struct {
@@ -38,21 +82,21 @@ type payload struct {
 
 // Verification queues a verification email for a local account.
 func (m *Mailer) Verification(ctx context.Context, to, handle, token string) error {
-	link := m.Cfg.BaseURL + "/verify?token=" + token
+	link := m.baseURL() + "/verify?token=" + token
 	body := fmt.Sprintf("Hi %s,\n\nWelcome to Sodapop. Confirm your email address to start logging sodas:\n\n%s\n\nThis link expires in 24 hours. If you did not create an account, ignore this message.\n", handle, link)
 	return m.enqueue(ctx, to, "verification", payload{Subject: "Confirm your Sodapop email", Body: body, Link: link})
 }
 
 // PasswordReset queues a password reset email.
 func (m *Mailer) PasswordReset(ctx context.Context, to, handle, token string) error {
-	link := m.Cfg.BaseURL + "/reset?token=" + token
+	link := m.baseURL() + "/reset?token=" + token
 	body := fmt.Sprintf("Hi %s,\n\nReset your Sodapop password here:\n\n%s\n\nThis link expires in one hour. If you did not request a reset, ignore this message.\n", handle, link)
 	return m.enqueue(ctx, to, "password_reset", payload{Subject: "Reset your Sodapop password", Body: body, Link: link})
 }
 
 // FriendRequest queues a notification email (opt-out is checked by the caller).
 func (m *Mailer) FriendRequest(ctx context.Context, to, handle, from string) error {
-	body := fmt.Sprintf("Hi %s,\n\n%s sent you a friend request on Sodapop. Open %s/friends to respond.\n", handle, from, m.Cfg.BaseURL)
+	body := fmt.Sprintf("Hi %s,\n\n%s sent you a friend request on Sodapop. Open %s/friends to respond.\n", handle, from, m.baseURL())
 	return m.enqueue(ctx, to, "friend_request", payload{Subject: from + " wants to be friends on Sodapop", Body: body})
 }
 
@@ -123,27 +167,28 @@ func (m *Mailer) fail(ctx context.Context, row *ent.EmailOutbox, cause error) er
 }
 
 func (m *Mailer) deliver(to string, p payload) error {
-	if m.Cfg.SMTPHost == "" {
+	smtpCfg := m.smtp()
+	if smtpCfg.Host == "" {
 		// Development sink: one .eml file per message so verification links are
 		// recoverable without a mail server.
 		if err := os.MkdirAll(m.Cfg.EmailDevDir, 0o750); err != nil {
 			return err
 		}
 		name := fmt.Sprintf("%d-%s.eml", time.Now().UnixNano(), strings.NewReplacer("@", "_at_", "/", "_").Replace(to))
-		raw := "To: " + to + "\r\nFrom: " + m.Cfg.SMTPFrom + "\r\nSubject: " + p.Subject + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + p.Body
+		raw := "To: " + to + "\r\nFrom: " + smtpCfg.From + "\r\nSubject: " + p.Subject + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + p.Body
 		return os.WriteFile(filepath.Join(m.Cfg.EmailDevDir, name), []byte(raw), 0o640)
 	}
-	addr := net.JoinHostPort(m.Cfg.SMTPHost, fmt.Sprintf("%d", m.Cfg.SMTPPort))
-	msg := []byte("To: " + to + "\r\nFrom: " + m.Cfg.SMTPFrom + "\r\nSubject: " + p.Subject + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + p.Body)
+	addr := net.JoinHostPort(smtpCfg.Host, fmt.Sprintf("%d", smtpCfg.Port))
+	msg := []byte("To: " + to + "\r\nFrom: " + smtpCfg.From + "\r\nSubject: " + p.Subject + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + p.Body)
 	var auth smtp.Auth
-	if m.Cfg.SMTPUser != "" {
-		auth = smtp.PlainAuth("", m.Cfg.SMTPUser, m.Cfg.SMTPPass, m.Cfg.SMTPHost)
+	if smtpCfg.Username != "" {
+		auth = smtp.PlainAuth("", smtpCfg.Username, smtpCfg.Password, smtpCfg.Host)
 	}
-	switch strings.ToLower(m.Cfg.SMTPTLS) {
+	switch strings.ToLower(smtpCfg.TLS) {
 	case "tls", "465":
-		return smtpSendTLS(addr, m.Cfg.SMTPHost, auth, m.Cfg.SMTPFrom, to, msg)
+		return smtpSendTLS(addr, smtpCfg.Host, auth, smtpCfg.From, to, msg)
 	default:
-		return smtp.SendMail(addr, auth, m.Cfg.SMTPFrom, []string{to}, msg)
+		return smtp.SendMail(addr, auth, smtpCfg.From, []string{to}, msg)
 	}
 }
 

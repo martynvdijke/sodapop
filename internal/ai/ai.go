@@ -17,6 +17,7 @@ import (
 	"sodapop/internal/catalog"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/settings"
 )
 
 // Service owns AI endpoint configuration and outbound provider calls.
@@ -26,6 +27,8 @@ type Service struct {
 	HTTP    *http.Client
 	Version string
 	Log     *slog.Logger
+	// Settings, when non-nil, is authoritative for the global AI switch.
+	Settings *settings.Service
 	// Catalog commits drafts into provisional drinks. New populates it when a
 	// database is available; callers may override it in tests.
 	Catalog *catalog.Service
@@ -33,12 +36,15 @@ type Service struct {
 
 // New builds the AI service. database may be nil for env-only use; calls that
 // need persisted endpoints then return ErrNoEndpoint unless AI_BASE_URL is set.
-func New(database *db.DB, cfg *config.Config, version string, log *slog.Logger) *Service {
+func New(database *db.DB, cfg *config.Config, version string, log *slog.Logger, runtime ...*settings.Service) *Service {
 	s := &Service{
 		Cfg:     cfg,
 		HTTP:    &http.Client{Timeout: TextTimeout},
 		Version: version,
 		Log:     log,
+	}
+	if len(runtime) > 0 {
+		s.Settings = runtime[0]
 	}
 	if database != nil {
 		s.Client = database.Client
@@ -61,9 +67,15 @@ func (s *Service) secret() string {
 	return os.Getenv("SESSION_SECRET")
 }
 
-// Enabled reports whether AI features are globally switched on. With no
-// ai_enabled row it is true only when env-only provider configuration exists.
+// Enabled reports whether AI features are globally switched on. Runtime
+// settings are authoritative when wired; otherwise it falls back to the legacy
+// app_settings row, then to env-only provider configuration.
 func (s *Service) Enabled(ctx context.Context) (bool, error) {
+	if s != nil && s.Settings != nil {
+		if snap := s.Settings.Snapshot(); snap != nil {
+			return snap.AIEnabled(), nil
+		}
+	}
 	if s != nil && s.Client != nil {
 		setting, err := s.Client.AppSetting.Query().
 			Where(appsetting.KeyEQ("ai_enabled")).

@@ -3,6 +3,7 @@ package web
 import (
 	"crypto/subtle"
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -71,7 +72,7 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	display := strings.TrimSpace(r.FormValue("display_name"))
 
-	_, session, err := s.Setup.ClaimSession(r.Context(), token, handle, email, password, display, clientIP(r), r.UserAgent())
+	_, session, err := s.Setup.ClaimSession(r.Context(), token, handle, email, password, display, s.setupSourceIP(r), r.UserAgent())
 	if err != nil {
 		switch {
 		case errors.Is(err, setup.ErrRateLimited):
@@ -161,6 +162,84 @@ func (s *Server) setupNonceOK(r *http.Request) bool {
 	}
 	want := string(payload)
 	return want != "" && subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+}
+
+// setupSourceIP derives the setup rate-limit key. X-Forwarded-For is honoured
+// only when the direct peer is a configured trusted proxy; the header is then
+// walked from the right so a client cannot prepend a spoofed hop.
+func (s *Server) setupSourceIP(r *http.Request) string {
+	peer := normalizeIP(r.RemoteAddr)
+	if peer == "" {
+		peer = strings.TrimSpace(r.RemoteAddr)
+	}
+	if peer == "" {
+		return "unknown"
+	}
+	if !s.trustedProxy(peer) {
+		return peer
+	}
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff == "" {
+		return peer
+	}
+	hops := strings.Split(xff, ",")
+	for i := len(hops) - 1; i >= 0; i-- {
+		hop := normalizeIP(hops[i])
+		if hop == "" {
+			continue
+		}
+		if !s.trustedProxy(hop) {
+			return hop
+		}
+	}
+	return peer
+}
+
+// trustedProxy reports whether ip matches an exact TRUSTED_PROXIES entry or a
+// configured CIDR. Entries are parsed on each request; the list is tiny.
+func (s *Server) trustedProxy(ipStr string) bool {
+	ip := net.ParseIP(strings.Trim(ipStr, "[]"))
+	if ip == nil || s == nil || s.Cfg == nil {
+		return false
+	}
+	for _, entry := range s.Cfg.TrustedProxies {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if strings.Contains(entry, "/") {
+			_, network, err := net.ParseCIDR(entry)
+			if err == nil && network.Contains(ip) {
+				return true
+			}
+			continue
+		}
+		if allowed := net.ParseIP(strings.Trim(entry, "[]")); allowed != nil && allowed.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// normalizeIP accepts bare IPs and bracketed IPv6, optionally with a port.
+func normalizeIP(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(value); err == nil {
+		value = host
+	} else {
+		value = strings.TrimSuffix(strings.TrimPrefix(value, "["), "]")
+	}
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return ""
+	}
+	if v4 := ip.To4(); v4 != nil {
+		return v4.String()
+	}
+	return ip.String()
 }
 
 func setupSameOrigin(r *http.Request) bool {

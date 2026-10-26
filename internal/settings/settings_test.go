@@ -341,6 +341,8 @@ func TestInvalidValuesRejected(t *testing.T) {
 		{KeyAppName, "   "},
 		{KeyBaseURL, "javascript:alert(1)"},
 		{KeyBaseURL, "https://user:pass@example.test"},
+		{KeyBaseURL, "https://bad_host.example.test"},
+		{KeyBaseURL, "https://exa mple.test"},
 		{KeySMTPPort, "0"},
 		{KeySMTPPort, "65536"},
 		{KeySMTPPort, "smtp"},
@@ -351,6 +353,7 @@ func TestInvalidValuesRejected(t *testing.T) {
 		{KeyUmamiURL, "https://umami.test/script.js"},
 		{KeyUmamiURL, "https://umami.test/?q=1"},
 		{KeyUmamiURL, "//umami.test"},
+		{KeyUmamiURL, "https://umami_host.test"},
 		{KeyRegistrationOpen, "maybe"},
 		{KeyAIEnabled, "2"},
 		{KeyAllowedEmails, "not-an-email"},
@@ -371,6 +374,15 @@ func TestInvalidValuesRejected(t *testing.T) {
 	}
 	if got := s.Snapshot().Umami().URL; got != "https://umami.example:8443" {
 		t.Fatalf("normalized umami = %q", got)
+	}
+	if err := s.Set(ctx, KeyBaseURL, "https://[::1]:8443/", false, "admin-1"); err != nil {
+		t.Fatalf("IPv6 base URL rejected: %v", err)
+	}
+	if got := s.Snapshot().BaseURL(); got != "https://[::1]:8443" {
+		t.Fatalf("IPv6 base URL = %q", got)
+	}
+	if err := s.Set(ctx, KeyUmamiURL, "https://[2001:db8::1]/", false, "admin-1"); err != nil {
+		t.Fatalf("IPv6 Umami URL rejected: %v", err)
 	}
 	if err := s.Set(ctx, KeySMTPPort, " 25 ", false, "admin-1"); err != nil {
 		t.Fatal(err)
@@ -518,6 +530,63 @@ func TestSnapshotSwapIsAtomicForConcurrentReaders(t *testing.T) {
 	}
 	close(stop)
 	wg.Wait()
+}
+
+func TestConcurrentWritesPublishLatestSnapshot(t *testing.T) {
+	ctx := context.Background()
+	s, database := newTestService(t, testConfig(), "", nil)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if err := s.Set(ctx, KeyAppName, fmt.Sprintf("Name %d", i), false, "admin-1"); err != nil {
+				t.Errorf("Set: %v", err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	row, err := database.Client.RuntimeSetting.Query().
+		Where(runtimesetting.KeyEQ(KeyAppName)).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("read final row: %v", err)
+	}
+	if got := s.Snapshot().SiteName(); got != row.Value {
+		t.Fatalf("snapshot site name = %q, committed row = %q", got, row.Value)
+	}
+}
+
+func TestConcurrentLoadCannotPublishStaleSnapshot(t *testing.T) {
+	ctx := context.Background()
+	s, database := newTestService(t, testConfig(), "", nil)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = s.Load(ctx)
+		}()
+	}
+	for i := 0; i < 20; i++ {
+		if err := s.Set(ctx, KeyAppName, fmt.Sprintf("Committed %d", i), false, "admin-1"); err != nil {
+			t.Fatalf("Set: %v", err)
+		}
+	}
+	wg.Wait()
+
+	row, err := database.Client.RuntimeSetting.Query().
+		Where(runtimesetting.KeyEQ(KeyAppName)).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("read final row: %v", err)
+	}
+	if got := s.Snapshot().SiteName(); got != row.Value {
+		t.Fatalf("snapshot site name = %q, committed row = %q", got, row.Value)
+	}
 }
 
 func TestSnapshotMutationIsolation(t *testing.T) {

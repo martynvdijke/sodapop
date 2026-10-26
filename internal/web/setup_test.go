@@ -174,6 +174,78 @@ func TestSetupRateLimitedOverHTTP(t *testing.T) {
 	}
 }
 
+// TestSetupRateLimitIgnoresForwardedFor proves a spoofed header cannot mint a
+// fresh setup bucket; only the socket address counts.
+func TestSetupRateLimitIgnoresForwardedFor(t *testing.T) {
+	h := newSetupHarness(t)
+	for i := 0; i < 5; i++ {
+		nonce := setupNonceFrom(t, h)
+		req := setupFormPost(h, "wrong-token", nonce, "http://sodapop.test")
+		req.RemoteAddr = "192.0.2.10:4567"
+		req.Header.Set("X-Forwarded-For", "203.0.113."+string(rune('1'+i)))
+		rec := httptest.NewRecorder()
+		h.srv.setupSubmit(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("attempt %d = %d, want 403", i+1, rec.Code)
+		}
+	}
+	nonce := setupNonceFrom(t, h)
+	req := setupFormPost(h, "wrong-token", nonce, "http://sodapop.test")
+	req.RemoteAddr = "192.0.2.10:4567"
+	req.Header.Set("X-Forwarded-For", "198.51.100.99")
+	rec := httptest.NewRecorder()
+	h.srv.setupSubmit(rec, req)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("spoofed X-Forwarded-For status = %d, want 429", rec.Code)
+	}
+}
+
+func TestSetupSourceIPTrustedProxies(t *testing.T) {
+	h := newSetupHarness(t)
+	tests := []struct {
+		name    string
+		remote  string
+		trusted []string
+		xff     string
+		want    string
+	}{
+		{
+			name: "untrusted peer ignores spoofed header", remote: "192.0.2.10:4567",
+			trusted: nil, xff: "203.0.113.1", want: "192.0.2.10",
+		},
+		{
+			name: "trusted peer uses client hop", remote: "10.0.0.5:4321",
+			trusted: []string{"10.0.0.0/8"}, xff: "203.0.113.7", want: "203.0.113.7",
+		},
+		{
+			name: "trusted chain picks rightmost untrusted", remote: "10.0.0.5:1",
+			trusted: []string{"10.0.0.0/8", "192.0.2.0/24"},
+			xff:     "203.0.113.9, 192.0.2.50, 10.0.0.7", want: "203.0.113.9",
+		},
+		{
+			name: "trusted peer without header falls back", remote: "10.0.0.5:1",
+			trusted: []string{"10.0.0.5"}, xff: "", want: "10.0.0.5",
+		},
+		{
+			name: "bracketed IPv6 and ports normalize", remote: "[::1]:1234",
+			trusted: []string{"::1"}, xff: "[2001:db8::2]:555", want: "2001:db8::2",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h.srv.Cfg.TrustedProxies = tt.trusted
+			req := httptest.NewRequest(http.MethodPost, "/setup", nil)
+			req.RemoteAddr = tt.remote
+			if tt.xff != "" {
+				req.Header.Set("X-Forwarded-For", tt.xff)
+			}
+			if got := h.srv.setupSourceIP(req); got != tt.want {
+				t.Fatalf("setupSourceIP = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSetupHiddenWhenAdminExists(t *testing.T) {
 	h := newSetupHarness(t)
 	u, err := h.db.Client.User.Create().

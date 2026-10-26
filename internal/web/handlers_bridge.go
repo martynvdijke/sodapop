@@ -36,6 +36,19 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+// requireAdminStrict limits a route to full administrators. Moderators keep
+// their existing moderation tools but cannot change instance-wide settings.
+func (s *Server) requireAdminStrict(next http.HandlerFunc) http.HandlerFunc {
+	return s.requireUser(func(w http.ResponseWriter, r *http.Request) {
+		u := UserFromContext(r)
+		if u == nil || u.Role != "admin" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	})
+}
+
 func (s *Server) mediaServe(w http.ResponseWriter, r *http.Request) {
 	s.serveMedia(w, r, false)
 }
@@ -207,8 +220,8 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
 		"Matrix":          map[string]any{"Enabled": byKind["matrix"], "Target": targets["matrix"]},
 		"TRMNL":           map[string]any{"Enabled": byKind["trmnl"], "Target": targets["trmnl"]},
 		"FeedURL":         feedURL,
-		"FeedToken":       strings.TrimPrefix(feedURL, s.Cfg.BaseURL+"/feeds/"),
-		"BaseURL":         s.Cfg.BaseURL,
+		"FeedToken":       strings.TrimPrefix(feedURL, s.baseURL()+"/feeds/"),
+		"BaseURL":         s.baseURL(),
 		"VAPIDPublicKey":  os.Getenv("VAPID_PUBLIC_KEY"),
 		"InboundTokens":   inboundTokens,
 		"NewInboundToken": newToken,
@@ -324,7 +337,7 @@ func (s *Server) importCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	s.render(w, r, http.StatusOK, "integrations", map[string]any{
 		"Title": "Integrations", "Notice": strconv.Itoa(n) + " check-ins imported.",
-		"BaseURL": s.Cfg.BaseURL, "VAPIDPublicKey": os.Getenv("VAPID_PUBLIC_KEY"),
+		"BaseURL": s.baseURL(), "VAPIDPublicKey": os.Getenv("VAPID_PUBLIC_KEY"),
 	})
 }
 
@@ -559,6 +572,9 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 		"Title": "Admin", "Reports": reportViews, "ProvisionalDrinks": drinkViews,
 		"Users": users, "AIEndpoints": endpoints, "Revisions": revisionViews,
 		"OpenReports": len(reportViews), "Provisional": len(drinkViews),
+	}
+	if u := UserFromContext(r); u != nil {
+		data["Role"] = string(u.Role)
 	}
 	s.render(w, r, http.StatusOK, "admin", data)
 }

@@ -160,12 +160,12 @@ func (s *Server) haInbound(w http.ResponseWriter, r *http.Request) {
 		} else {
 			for _, badgeSlug := range earned {
 				s.Integrations.Dispatch(ctx, integrations.Event{
-					UserID: owner.ID, Kind: "badge", Text: "Earned the " + badgeSlug + " badge.", URL: s.Cfg.BaseURL + "/you",
+					UserID: owner.ID, Kind: "badge", Text: "Earned the " + badgeSlug + " badge.", URL: s.baseURL() + "/you",
 				})
 			}
 		}
 		s.Integrations.Dispatch(ctx, integrations.Event{
-			UserID: owner.ID, Kind: "checkin", Text: "Logged a new soda.", URL: s.Cfg.BaseURL + "/checkins/" + c.ID,
+			UserID: owner.ID, Kind: "checkin", Text: "Logged a new soda.", URL: s.baseURL() + "/checkins/" + c.ID,
 		})
 	}
 

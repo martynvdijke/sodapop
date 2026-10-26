@@ -20,6 +20,7 @@ import (
 	"sodapop/ent/usersetting"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/settings"
 )
 
 // Event kinds emitted by the rest of the application.
@@ -41,22 +42,27 @@ type Event struct {
 // Service owns outbound integrations, push subscriptions, feeds and personal
 // data export/import.
 type Service struct {
-	Client *ent.Client
-	SQL    *sql.DB
-	Cfg    *config.Config
-	HTTP   *http.Client
-	Log    *slog.Logger
+	Client   *ent.Client
+	SQL      *sql.DB
+	Cfg      *config.Config
+	HTTP     *http.Client
+	Log      *slog.Logger
+	Settings *settings.Service
 }
 
 // New wires the service to the shared database, configuration and logger.
-func New(database *db.DB, cfg *config.Config, log *slog.Logger) *Service {
-	return &Service{
+func New(database *db.DB, cfg *config.Config, log *slog.Logger, runtime ...*settings.Service) *Service {
+	s := &Service{
 		Client: database.Client,
 		SQL:    database.SQL,
 		Cfg:    cfg,
 		HTTP:   &http.Client{Timeout: 10 * time.Second},
 		Log:    log,
 	}
+	if len(runtime) > 0 {
+		s.Settings = runtime[0]
+	}
+	return s
 }
 
 // Dispatch fans an event out asynchronously. Callers never block on remote
@@ -186,7 +192,15 @@ func (s *Service) logger() *slog.Logger {
 	return slog.Default()
 }
 
+// BaseURL returns the effective public base URL without a trailing slash.
+func (s *Service) BaseURL() string { return s.baseURL() }
+
 func (s *Service) baseURL() string {
+	if s != nil && s.Settings != nil {
+		if snap := s.Settings.Snapshot(); snap != nil {
+			return snap.BaseURL()
+		}
+	}
 	if s == nil || s.Cfg == nil {
 		return ""
 	}

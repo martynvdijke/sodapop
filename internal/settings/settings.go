@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,6 +27,9 @@ type Service struct {
 	box    *secretbox.Box
 	log    *slog.Logger
 	snap   atomic.Pointer[Snapshot]
+	// writeMu serialises commit + snapshot reload so concurrent admin saves
+	// cannot publish a snapshot older than the last committed write.
+	writeMu sync.Mutex
 }
 
 // New builds the settings service. secret is the raw SESSION_SECRET; when it
@@ -58,11 +62,20 @@ func (s *Service) Snapshot() *Snapshot {
 
 // Load reads every runtime_settings row, merges it over env/default values and
 // atomically publishes the result. A query failure leaves the previous
-// snapshot untouched.
+// snapshot untouched. It shares the write mutex so a load cannot race a writer
+// and republish an older snapshot.
 func (s *Service) Load(ctx context.Context) error {
 	if s == nil {
 		return errors.New("settings: nil service")
 	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.reload(ctx)
+}
+
+// reload performs the query and snapshot swap without locking. Callers must
+// hold writeMu or be outside the write path.
+func (s *Service) reload(ctx context.Context) error {
 	var rows []*ent.RuntimeSetting
 	if s.client != nil {
 		var err error
@@ -84,6 +97,8 @@ func (s *Service) Set(ctx context.Context, key, value string, secret bool, updat
 	if s == nil {
 		return errors.New("settings: nil service")
 	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	spec, ok := specs[key]
 	if !ok {
 		if isEnvOnlyKey(key) {
@@ -169,7 +184,7 @@ func (s *Service) Set(ctx context.Context, key, value string, secret bool, updat
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("settings: commit %s: %w", key, err)
 	}
-	if err := s.Load(ctx); err != nil {
+	if err := s.reload(ctx); err != nil {
 		// The write committed; the caller needs to know the snapshot is stale.
 		return err
 	}
@@ -182,6 +197,8 @@ func (s *Service) Delete(ctx context.Context, key, updatedBy string) error {
 	if s == nil {
 		return errors.New("settings: nil service")
 	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if _, ok := specs[key]; !ok {
 		if isEnvOnlyKey(key) {
 			return fmt.Errorf("%w: %s", ErrEnvOnlyKey, key)
@@ -218,7 +235,7 @@ func (s *Service) Delete(ctx context.Context, key, updatedBy string) error {
 	if deleted == 0 {
 		return nil
 	}
-	return s.Load(ctx)
+	return s.reload(ctx)
 }
 
 // appendAudit records a key name only. Values, plaintext and ciphertext never

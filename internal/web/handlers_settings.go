@@ -17,9 +17,12 @@ import (
 	"sodapop/ent/usersetting"
 	"sodapop/internal/auth"
 	"sodapop/internal/db"
+	"sodapop/internal/setup"
 )
 
 const maxAvatarBytes = 5 << 20
+
+var errLastLiveAdmin = errors.New("the last active admin cannot be deleted")
 
 var clockPattern = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
 
@@ -324,6 +327,10 @@ func (s *Server) settingsDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.deleteAccount(r.Context(), u.ID); err != nil {
+		if errors.Is(err, errLastLiveAdmin) {
+			s.renderSettingsError(w, r, http.StatusConflict, "You are the last active admin. Promote or create another admin before deleting this account.")
+			return
+		}
 		s.fail(w, r, err)
 		return
 	}
@@ -334,6 +341,19 @@ func (s *Server) settingsDelete(w http.ResponseWriter, r *http.Request) {
 // deleteAccount soft-deletes a user and revokes every credential that could
 // still act as them: browser sessions, API tokens, and inbound webhook tokens.
 func (s *Server) deleteAccount(ctx context.Context, userID string) error {
+	target, err := s.Auth.Client.User.Get(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if target.Role == user.RoleAdmin {
+		n, err := setup.CountLiveAdmins(ctx, s.Auth.Client)
+		if err != nil {
+			return err
+		}
+		if n <= 1 {
+			return errLastLiveAdmin
+		}
+	}
 	now := db.Now()
 	tx, err := s.Auth.Client.Tx(ctx)
 	if err != nil {

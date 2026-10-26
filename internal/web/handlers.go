@@ -63,12 +63,12 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "login", map[string]any{
 		"Title":    "Sign in",
 		"Next":     r.URL.Query().Get("next"),
-		"Fallback": s.Cfg.PasswordFallback,
+		"Fallback": s.passwordFallback(),
 	})
 }
 
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
-	if !s.Cfg.PasswordFallback {
+	if !s.passwordFallback() {
 		http.Error(w, "password login is disabled", http.StatusForbidden)
 		return
 	}
@@ -130,16 +130,33 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) registerPage(w http.ResponseWriter, r *http.Request) {
-	if !s.Cfg.PasswordFallback {
+	if !s.passwordFallback() {
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
-	s.render(w, r, http.StatusOK, "register", map[string]any{"Title": "Create an account"})
+	if !s.registrationOpen() {
+		s.render(w, r, http.StatusOK, "register", map[string]any{
+			"Title":            "Create an account",
+			"RegistrationOpen": false,
+		})
+		return
+	}
+	s.render(w, r, http.StatusOK, "register", map[string]any{
+		"Title":            "Create an account",
+		"RegistrationOpen": true,
+	})
 }
 
 func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
-	if !s.Cfg.PasswordFallback {
+	if !s.passwordFallback() {
 		http.Error(w, "password registration is disabled", http.StatusForbidden)
+		return
+	}
+	if !s.registrationOpen() {
+		s.render(w, r, http.StatusForbidden, "register", map[string]any{
+			"Title": "Create an account",
+			"Error": "Registration is currently closed.",
+		})
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -152,7 +169,7 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	renderErr := func(status int, msg string) {
 		s.render(w, r, status, "register", map[string]any{
-			"Title": "Create an account", "Error": msg,
+			"Title": "Create an account", "Error": msg, "RegistrationOpen": true,
 			"Handle": handle, "Email": email, "DisplayName": display,
 		})
 	}
@@ -162,6 +179,10 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := mail.ParseAddress(email); err != nil {
 		renderErr(http.StatusBadRequest, "Enter a valid email address.")
+		return
+	}
+	if !s.emailAllowed(email) {
+		renderErr(http.StatusForbidden, "Registration is not available for this email address.")
 		return
 	}
 	if len(password) < 10 {
@@ -235,7 +256,7 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		"Email":   email,
 	}
 	if s.Cfg.Env != "production" {
-		data["DevLink"] = s.Cfg.BaseURL + "/verify?token=" + raw
+		data["DevLink"] = s.baseURL() + "/verify?token=" + raw
 	}
 	s.render(w, r, http.StatusOK, "verify", data)
 }
@@ -426,11 +447,11 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, slug := range earned {
 			s.Integrations.Dispatch(r.Context(), integrations.Event{
-				UserID: u.ID, Kind: "badge", Text: "Earned the " + slug + " badge.", URL: s.Cfg.BaseURL + "/you",
+				UserID: u.ID, Kind: "badge", Text: "Earned the " + slug + " badge.", URL: s.baseURL() + "/you",
 			})
 		}
 		s.Integrations.Dispatch(r.Context(), integrations.Event{
-			UserID: u.ID, Kind: "checkin", Text: "Logged a new soda.", URL: s.Cfg.BaseURL + "/checkins/" + c.ID,
+			UserID: u.ID, Kind: "checkin", Text: "Logged a new soda.", URL: s.baseURL() + "/checkins/" + c.ID,
 		})
 	}
 	http.Redirect(w, r, "/", http.StatusFound)

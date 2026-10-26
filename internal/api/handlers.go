@@ -274,7 +274,7 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 			}
 		}
 		if s.Integrations != nil {
-			s.Integrations.Dispatch(r.Context(), integrations.Event{UserID: tok.User.ID, Kind: "checkin", Text: "Logged a soda.", URL: s.Cfg.BaseURL + "/you"})
+			s.Integrations.Dispatch(r.Context(), integrations.Event{UserID: tok.User.ID, Kind: "checkin", Text: "Logged a soda.", URL: s.Integrations.BaseURL() + "/you"})
 		}
 	}
 	writeJSON(w, status, map[string]any{"data": map[string]any{

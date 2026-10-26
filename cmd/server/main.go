@@ -24,6 +24,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/settings"
 	"sodapop/internal/setup"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
@@ -83,20 +84,29 @@ func run() error {
 	}
 	defer database.Close()
 
-	authSvc := auth.New(cfg, database)
+	settingsSvc, err := settings.New(database.Client, cfg, string(cfg.SessionKey), log)
+	if err != nil {
+		return err
+	}
+	if err := settingsSvc.Load(context.Background()); err != nil {
+		log.Error("runtime settings could not be loaded", "err", err)
+		return err
+	}
+
+	authSvc := auth.New(cfg, database, settingsSvc)
 	if err := authSvc.InitOIDC(context.Background()); err != nil {
 		log.Warn("oidc disabled", "err", err)
 	}
 
-	mailer := email.New(cfg, database, log)
+	mailer := email.New(cfg, database, log, settingsSvc)
 	catalogSvc := catalog.New(cfg, database)
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
 	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)
 	mediaSvc := media.New(database, cfg)
-	aiSvc := ai.New(database, cfg, cfg.Version, log)
-	integrationSvc := integrations.New(database, cfg, log)
+	aiSvc := ai.New(database, cfg, cfg.Version, log, settingsSvc)
+	integrationSvc := integrations.New(database, cfg, log, settingsSvc)
 	badgeSvc := badges.New(database)
 	tasteSvc := taste.New(database)
 	mixSvc := mix.New(database)
@@ -113,7 +123,7 @@ func run() error {
 		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		DB: database, Media: mediaSvc, AI: aiSvc, Integrations: integrationSvc,
-		Limiter: limiter, Render: renderer, Setup: setupSvc,
+		Limiter: limiter, Render: renderer, Setup: setupSvc, Settings: settingsSvc,
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,

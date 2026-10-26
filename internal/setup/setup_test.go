@@ -123,6 +123,63 @@ func TestWrongTokenIsGenericAndRateLimited(t *testing.T) {
 	}
 }
 
+// TestRateLimitIsPerSourceOnly ensures an unauthenticated source cannot drain a
+// shared setup bucket and lock everyone else out.
+func TestRateLimitIsPerSourceOnly(t *testing.T) {
+	const envToken = "env-token"
+	s, _, _ := newSetupService(t, envToken)
+	ctx := context.Background()
+
+	for ip := 1; ip <= 5; ip++ {
+		for attempt := 0; attempt < 5; attempt++ {
+			_, _, err := s.ClaimSession(ctx, "wrong", "alice", "alice@example.com", "longpassword", "",
+				fmt.Sprintf("192.0.2.%d:1234", ip), "")
+			if !errors.Is(err, ErrInvalidToken) {
+				t.Fatalf("ip %d attempt %d err = %v, want ErrInvalidToken", ip, attempt+1, err)
+			}
+		}
+	}
+	_, _, err := s.ClaimSession(ctx, "wrong", "alice", "alice@example.com", "longpassword", "",
+		"198.51.100.7:1234", "")
+	if !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("fresh source err = %v, want ErrInvalidToken (no global bucket)", err)
+	}
+}
+
+func TestSetupReopensAfterLastAdminDemotedWithLatch(t *testing.T) {
+	const envToken = "env-token"
+	s, database, _ := newSetupServiceSeeded(t, envToken, true)
+	ctx := context.Background()
+	if _, err := database.Client.AppSetting.Create().
+		SetKey(setupCompleteKey).SetValue("1").Save(ctx); err != nil {
+		t.Fatalf("seed setup latch: %v", err)
+	}
+	if _, err := database.Client.User.Update().
+		Where(user.RoleEQ(user.RoleAdmin)).
+		SetRole(user.RoleUser).Save(ctx); err != nil {
+		t.Fatalf("demote last admin: %v", err)
+	}
+
+	required, err := s.Required(ctx)
+	if err != nil || !required {
+		t.Fatalf("Required after demotion = %v, %v; want true despite latch", required, err)
+	}
+	if !s.TokenValid(envToken) {
+		t.Fatal("env token should be lazily installed when setup reopens")
+	}
+	if _, err := s.Claim(ctx, envToken, "replacement", "replacement@example.com", "longpassword", ""); err != nil {
+		t.Fatalf("recovery claim: %v", err)
+	}
+	n, err := CountLiveAdmins(ctx, database.Client)
+	if err != nil || n != 1 {
+		t.Fatalf("live admins after recovery = %d, %v; want 1", n, err)
+	}
+	required, err = s.Required(ctx)
+	if err != nil || required {
+		t.Fatalf("Required after recovery = %v, %v; want false", required, err)
+	}
+}
+
 func TestValidClaimCreatesVerifiedAdminAndSession(t *testing.T) {
 	const envToken = "env-token"
 	s, database, _ := newSetupService(t, envToken)

@@ -19,6 +19,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/settings"
 	"sodapop/internal/setup"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
@@ -48,6 +49,7 @@ type Server struct {
 	Limiter      *ratelimit.Limiter
 	Render       *Renderer
 	Setup        *setup.Service
+	Settings     *settings.Service
 }
 
 // Register wires HTML routes and the OIDC redirect endpoints.
@@ -164,6 +166,13 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /hooks/ha/{token}", s.haInbound)
 
 	mux.HandleFunc("GET /admin", s.requireAdmin(s.adminPage))
+	mux.HandleFunc("GET /admin/settings", s.requireAdminStrict(s.adminSettingsPage))
+	mux.HandleFunc("POST /admin/settings/general", s.requireAdminStrict(s.adminSettingsGeneral))
+	mux.HandleFunc("POST /admin/settings/email", s.requireAdminStrict(s.adminSettingsEmail))
+	mux.HandleFunc("POST /admin/settings/email/test", s.requireAdminStrict(s.adminSettingsEmailTest))
+	mux.HandleFunc("POST /admin/settings/analytics", s.requireAdminStrict(s.adminSettingsAnalytics))
+	mux.HandleFunc("POST /admin/settings/access", s.requireAdminStrict(s.adminSettingsAccess))
+	mux.HandleFunc("POST /admin/settings/ai", s.requireAdminStrict(s.adminSettingsAI))
 	mux.HandleFunc("POST /admin/ai", s.requireAdmin(s.adminAISave))
 	mux.HandleFunc("POST /admin/ai/{id}/toggle", s.requireAdmin(s.adminAIToggle))
 	mux.HandleFunc("POST /admin/ai/{id}/test", s.requireAdmin(s.adminAITest))
@@ -192,9 +201,9 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")
 		} else {
 			csp := "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-			if s.Cfg.UmamiURL != "" {
-				csp = strings.Replace(csp, "script-src 'self'", "script-src 'self' "+s.Cfg.UmamiURL, 1)
-				csp = strings.Replace(csp, "connect-src 'self'", "connect-src 'self' "+s.Cfg.UmamiURL, 1)
+			if umami := s.umami(); umami.URL != "" {
+				csp = strings.Replace(csp, "script-src 'self'", "script-src 'self' "+umami.URL, 1)
+				csp = strings.Replace(csp, "connect-src 'self'", "connect-src 'self' "+umami.URL, 1)
 			}
 			w.Header().Set("Content-Security-Policy", csp)
 		}
@@ -212,12 +221,13 @@ func indexablePath(p string) bool {
 }
 
 func (s *Server) base(r *http.Request) map[string]any {
+	umami := s.umami()
 	d := map[string]any{
-		"AppName":     s.Cfg.AppName,
+		"AppName":     s.siteName(),
 		"Env":         s.Cfg.Env,
 		"Version":     s.Cfg.Version,
-		"UmamiURL":    s.Cfg.UmamiURL,
-		"UmamiID":     s.Cfg.UmamiWebsiteID,
+		"UmamiURL":    umami.URL,
+		"UmamiID":     umami.WebsiteID,
 		"OIDC":        s.Auth.OIDCStatus(),
 		"AssetScript": uiAssets.Script,
 		"Year":        time.Now().Year(),

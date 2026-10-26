@@ -20,6 +20,7 @@ import (
 	"sodapop/ent/user"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/settings"
 )
 
 const (
@@ -42,10 +43,57 @@ type Service struct {
 	Client *ent.Client
 	SQL    *sql.DB
 	OIDC   *OIDC
+	// Settings, when non-nil, supplies runtime values such as SMTP for
+	// password-reset mail. Auth flows fall back to Cfg when it is absent.
+	Settings *settings.Service
 }
 
-func New(cfg *config.Config, database *db.DB) *Service {
-	return &Service{Cfg: cfg, DB: database, Client: database.Client, SQL: database.SQL}
+func New(cfg *config.Config, database *db.DB, runtime ...*settings.Service) *Service {
+	s := &Service{Cfg: cfg, DB: database, Client: database.Client, SQL: database.SQL}
+	if len(runtime) > 0 {
+		s.Settings = runtime[0]
+	}
+	return s
+}
+
+// passwordFallback reports whether local password sign-in is available,
+// preferring the runtime snapshot when one is wired.
+func (s *Service) passwordFallback() bool {
+	if s.Settings != nil {
+		if snap := s.Settings.Snapshot(); snap != nil {
+			return snap.AllowPasswordFallback()
+		}
+	}
+	return s.Cfg.PasswordFallback
+}
+
+// emailAllowed applies the effective allow-lists, preferring runtime settings.
+func (s *Service) emailAllowed(email string) bool {
+	if s.Settings != nil {
+		if snap := s.Settings.Snapshot(); snap != nil {
+			emails, domains := snap.AllowedEmails(), snap.AllowedDomains()
+			if len(emails) == 0 && len(domains) == 0 {
+				return true
+			}
+			email = strings.ToLower(strings.TrimSpace(email))
+			for _, allowed := range emails {
+				if strings.EqualFold(allowed, email) {
+					return true
+				}
+			}
+			domain := ""
+			if i := strings.LastIndexByte(email, '@'); i >= 0 {
+				domain = email[i+1:]
+			}
+			for _, allowed := range domains {
+				if strings.EqualFold(strings.TrimPrefix(allowed, "@"), domain) {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return s.Cfg.EmailAllowed(email)
 }
 
 // HashPassword hashes a plaintext password with the configured bcrypt cost.

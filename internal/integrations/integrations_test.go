@@ -13,6 +13,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/settings"
 )
 
 func newTestService(t *testing.T) (*Service, *db.DB, context.Context) {
@@ -27,6 +28,35 @@ func newTestService(t *testing.T) (*Service, *db.DB, context.Context) {
 	t.Cleanup(func() { _ = database.Close() })
 	svc := New(database, &config.Config{BaseURL: "https://sodapop.test"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return svc, database, context.Background()
+}
+
+func TestRuntimeBaseURLUsesSettingsSnapshot(t *testing.T) {
+	database, err := db.Init(fmt.Sprintf("integrations-settings-%d?mode=memory&cache=shared&", time.Now().UnixNano()))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	cfg := &config.Config{BaseURL: "https://config.example.test"}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	svc := New(database, cfg, log)
+	if got := svc.BaseURL(); got != "https://config.example.test" {
+		t.Fatalf("config fallback BaseURL = %q", got)
+	}
+
+	settingsSvc, err := settings.New(database.Client, cfg, "0123456789abcdef0123456789abcdef", log)
+	if err != nil {
+		t.Fatalf("settings.New: %v", err)
+	}
+	if err := settingsSvc.Load(context.Background()); err != nil {
+		t.Fatalf("settings.Load: %v", err)
+	}
+	if err := settingsSvc.Set(context.Background(), settings.KeyBaseURL, "https://runtime.example.test", false, "admin"); err != nil {
+		t.Fatalf("settings.Set: %v", err)
+	}
+	svc.Settings = settingsSvc
+	if got := svc.BaseURL(); got != "https://runtime.example.test" {
+		t.Fatalf("runtime BaseURL = %q", got)
+	}
 }
 
 func createUser(t *testing.T, database *db.DB, handle string) *ent.User {

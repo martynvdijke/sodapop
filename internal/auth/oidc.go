@@ -157,7 +157,7 @@ func (s *Service) CompleteLogin(ctx context.Context, w http.ResponseWriter, r *h
 	if email == "" {
 		return errors.New("provider returned no email")
 	}
-	if !s.Cfg.EmailAllowed(email) {
+	if !s.emailAllowed(email) {
 		return errors.New("this email address is not allowed")
 	}
 
@@ -285,12 +285,12 @@ func (s *Service) uniqueHandle(ctx context.Context, base string) string {
 // OIDCStatus exposes only non-sensitive discovery information.
 func (s *Service) OIDCStatus() map[string]any {
 	if s.OIDC == nil || !s.OIDC.Enabled {
-		return map[string]any{"enabled": false, "password_fallback": s.Cfg.PasswordFallback}
+		return map[string]any{"enabled": false, "password_fallback": s.passwordFallback()}
 	}
 	return map[string]any{
 		"enabled":           true,
 		"issuer":            s.OIDC.Issuer,
-		"password_fallback": s.Cfg.PasswordFallback,
+		"password_fallback": s.passwordFallback(),
 	}
 }
 
