@@ -123,8 +123,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_error != null)
+                if (_error != null) ...[
                   Text(_error!, style: const TextStyle(color: Color(0xFFFF7A6E))),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(onPressed: _reset, child: const Text('Try again')),
+                  ),
+                ],
                 if (_result != null) _ResultCard(result: _result!, onReset: _reset),
                 const SizedBox(height: 12),
                 Row(

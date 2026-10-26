@@ -81,6 +81,12 @@ tasks:
     cmds:
       - flutter test
 
+  mobile-emulator-test:
+    desc: Run the scanner flow on a booted Android emulator
+    dir: mobile
+    cmds:
+      - flutter test integration_test/scanner_test.dart -d emulator-5554 --dart-define=E2E_BASE_URL=http://10.0.2.2:8097
+
   mobile-apk:
     desc: Build a release APK
     dir: mobile

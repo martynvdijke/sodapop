@@ -74,6 +74,32 @@ flutter test
 flutter build apk --release
 ```
 
+## Scanner emulator test
+
+`mobile/integration_test/scanner_test.dart` runs the scanner on an Android
+emulator. It decodes a generated EAN-13 asset through the same native
+`analyzeImage` path used by the camera, normalizes it to GTIN-14, then resolves
+it against a live seeded server (`10.0.2.2` is the host from the emulator).
+
+```sh
+# terminal 1: seeded Sodapop server on the host
+DATABASE_PATH=/tmp/sodapop-emulator.db SEED_DEMO=1 go run ./cmd/seed
+DATABASE_PATH=/tmp/sodapop-emulator.db PORT=8097 \
+  BASE_URL=http://127.0.0.1:8097 \
+  SESSION_SECRET=android-emulator-secret-android-emulator \
+  ALLOW_PASSWORD_FALLBACK=true ENV=development go run ./cmd/server
+
+# terminal 2: with an emulator already booted
+task mobile-emulator-test
+# or: cd mobile && flutter test integration_test/scanner_test.dart \
+#       -d emulator-5554 \
+#       --dart-define=E2E_BASE_URL=http://10.0.2.2:8097
+```
+
+Debug builds allow cleartext HTTP to the local test server; release builds keep
+cleartext disabled. CI runs the same flow in
+`.github/workflows/android-emulator.yaml` with `reactivecircus/android-emulator-runner`.
+
 Release signing reads `android/key.properties`; without it the build falls back
 to the debug key. CI attaches a signed (or debug-signed) APK to GitHub Releases
 as `sodapop-<version>-android.apk`.
