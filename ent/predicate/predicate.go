@@ -42,6 +42,9 @@ type Checkin func(*sql.Selector)
 // CheckinLike is the predicate function for checkinlike builders.
 type CheckinLike func(*sql.Selector)
 
+// Comment is the predicate function for comment builders.
+type Comment func(*sql.Selector)
+
 // Drink is the predicate function for drink builders.
 type Drink func(*sql.Selector)
 
@@ -128,6 +131,9 @@ type Venue func(*sql.Selector)
 
 // VenueDrink is the predicate function for venuedrink builders.
 type VenueDrink func(*sql.Selector)
+
+// VenueMedia is the predicate function for venuemedia builders.
+type VenueMedia func(*sql.Selector)
 
 // VenueName is the predicate function for venuename builders.
 type VenueName func(*sql.Selector)

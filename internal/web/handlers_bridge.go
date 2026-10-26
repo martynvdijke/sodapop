@@ -12,10 +12,15 @@ import (
 
 	"sodapop/ent"
 	"sodapop/ent/catalogrevision"
+	"sodapop/ent/comment"
 	"sodapop/ent/drink"
 	"sodapop/ent/report"
+	"sodapop/ent/venue"
+	"sodapop/ent/venuemedia"
 	"sodapop/internal/ai"
 	"sodapop/internal/auth"
+	"sodapop/internal/comments"
+	"sodapop/internal/venues"
 )
 
 func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
@@ -45,6 +50,8 @@ func (s *Server) serveMedia(w http.ResponseWriter, r *http.Request, thumb bool) 
 	}
 	ok, err := s.Media.CanView(r.Context(), viewer, id)
 	if err != nil || !ok {
+		// A takedown must not be masked by a previously cached 200 response.
+		w.Header().Set("Cache-Control", "no-store")
 		http.NotFound(w, r)
 		return
 	}
@@ -53,6 +60,7 @@ func (s *Server) serveMedia(w http.ResponseWriter, r *http.Request, thumb bool) 
 	if thumb {
 		f, m, err := s.Media.OpenThumb(r.Context(), id)
 		if err != nil {
+			w.Header().Set("Cache-Control", "no-store")
 			http.NotFound(w, r)
 			return
 		}
@@ -60,6 +68,7 @@ func (s *Server) serveMedia(w http.ResponseWriter, r *http.Request, thumb bool) 
 	} else {
 		f, m, err := s.Media.Open(r.Context(), id)
 		if err != nil {
+			w.Header().Set("Cache-Control", "no-store")
 			http.NotFound(w, r)
 			return
 		}
@@ -332,15 +341,19 @@ func (s *Server) rssFeed(w http.ResponseWriter, r *http.Request) {
 // ---- Admin --------------------------------------------------------------
 
 type adminReportView struct {
-	ID         int
-	Entity     string
-	EntityID   int
-	Reason     string
-	Details    string
-	Status     string
-	CreatedAt  string
-	Reporter   string
-	EntitySlug string
+	ID          int
+	Entity      string
+	EntityID    int
+	EntityRef   string
+	Reason      string
+	Details     string
+	Context     string
+	Status      string
+	CreatedAt   string
+	Reporter    string
+	EntitySlug  string
+	CanRemove   bool
+	RemoveLabel string
 }
 
 type adminDrinkView struct {
@@ -364,19 +377,98 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 	reports, _ := s.Auth.Client.Report.Query().
 		Where(report.StatusEQ(report.StatusOpen)).
 		Order(report.ByCreatedAt()).Limit(50).All(ctx)
+
+	// Batch-load every string-ref target kind once so the queue stays O(kinds)
+	// queries instead of one lookup per report.
+	var commentRefs, mediaRefs []string
+	for _, row := range reports {
+		if row.EntityRef == "" {
+			continue
+		}
+		switch row.Entity {
+		case "comment":
+			commentRefs = append(commentRefs, row.EntityRef)
+		case "venue_media":
+			mediaRefs = append(mediaRefs, row.EntityRef)
+		}
+	}
+	commentBodies := map[string]string{}
+	if len(commentRefs) > 0 {
+		if rows, err := s.Auth.Client.Comment.Query().
+			Where(comment.IDIn(commentRefs...)).All(ctx); err == nil {
+			for _, row := range rows {
+				commentBodies[row.ID] = row.Body
+			}
+		}
+	}
+	type mediaContext struct {
+		venueName string
+		kind      string
+		label     string
+	}
+	mediaContexts := map[string]mediaContext{}
+	if len(mediaRefs) > 0 {
+		if rows, err := s.Auth.Client.VenueMedia.Query().
+			Where(venuemedia.IDIn(mediaRefs...)).All(ctx); err == nil {
+			seen := map[int]bool{}
+			venueIDs := make([]int, 0, len(rows))
+			for _, row := range rows {
+				if !seen[row.VenueID] {
+					seen[row.VenueID] = true
+					venueIDs = append(venueIDs, row.VenueID)
+				}
+			}
+			venueNames := map[int]string{}
+			if len(venueIDs) > 0 {
+				if vs, err := s.Auth.Client.Venue.Query().
+					Where(venue.IDIn(venueIDs...)).All(ctx); err == nil {
+					for _, v := range vs {
+						venueNames[v.ID] = v.Name
+					}
+				}
+			}
+			for _, row := range rows {
+				mediaContexts[row.ID] = mediaContext{
+					venueName: venueNames[row.VenueID], kind: string(row.Kind), label: row.Label,
+				}
+			}
+		}
+	}
+
 	reportViews := make([]adminReportView, 0, len(reports))
 	for _, row := range reports {
 		v := adminReportView{ID: row.ID, Entity: string(row.Entity), EntityID: row.EntityID,
-			Reason: row.Reason, Details: row.Details, Status: string(row.Status), CreatedAt: row.CreatedAt, Reporter: "deleted user"}
+			EntityRef: row.EntityRef, Reason: row.Reason, Details: row.Details,
+			Status: string(row.Status), CreatedAt: row.CreatedAt, Reporter: "deleted user"}
 		if row.UserID != nil {
 			if u, err := s.Auth.Client.User.Get(ctx, *row.UserID); err == nil {
 				v.Reporter = "@" + u.Handle
 			}
 		}
-		if row.Entity == "drink" {
+		switch row.Entity {
+		case "drink":
 			if d, err := s.Auth.Client.Drink.Get(ctx, row.EntityID); err == nil {
 				v.EntitySlug = d.Slug
 			}
+		case "comment":
+			v.EntityRef = shortenRef(row.EntityRef)
+			v.Context = "Comment: " + excerptText(commentBodies[row.EntityRef], 140)
+			v.CanRemove = true
+			v.RemoveLabel = "Remove comment"
+		case "venue_media":
+			v.EntityRef = shortenRef(row.EntityRef)
+			if mc, ok := mediaContexts[row.EntityRef]; ok {
+				label := mc.kind
+				if mc.label != "" {
+					label += " · " + mc.label
+				}
+				if mc.venueName != "" {
+					label = mc.venueName + " · " + label
+				}
+				v.Context = "Venue " + label
+			}
+			v.CanRemove = true
+			v.RemoveLabel = "Remove media"
 		}
 		reportViews = append(reportViews, v)
 	}
@@ -413,11 +505,99 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "admin", data)
 }
 
+// shortenRef trims a user-content ID for the moderation queue while keeping
+// enough prefix to disambiguate it.
+func shortenRef(id string) string {
+	if len(id) <= 12 {
+		return id
+	}
+	return id[:12] + "…"
+}
+
+// excerptText trims a free-text body to at most n runes for queue context.
+func excerptText(s string, n int) string {
+	s = strings.TrimSpace(s)
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return strings.TrimSpace(string(runes[:n])) + "…"
+}
+
 func (s *Server) adminReportResolve(w http.ResponseWriter, r *http.Request) {
 	s.setReportStatus(w, r, "resolved")
 }
 func (s *Server) adminReportDismiss(w http.ResponseWriter, r *http.Request) {
 	s.setReportStatus(w, r, "dismissed")
+}
+
+// adminReportRemove soft-deletes the reported comment or venue media and then
+// resolves the report. An already-deleted target is idempotent: the report is
+// still resolved. An unknown report or target is a 404.
+func (s *Server) adminReportRemove(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	ctx := r.Context()
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	row, err := s.Auth.Client.Report.Get(ctx, id)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			http.NotFound(w, r)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	if row.EntityRef == "" {
+		http.NotFound(w, r)
+		return
+	}
+	u := UserFromContext(r)
+	switch row.Entity {
+	case "comment":
+		if _, err := s.Auth.Client.Comment.Get(ctx, row.EntityRef); err != nil {
+			if ent.IsNotFound(err) {
+				http.NotFound(w, r)
+				return
+			}
+			s.fail(w, r, err)
+			return
+		}
+		if err := s.commentService().Delete(ctx, u.ID, true, row.EntityRef); err != nil &&
+			!errors.Is(err, comments.ErrNotFound) {
+			s.fail(w, r, err)
+			return
+		}
+	case "venue_media":
+		if _, err := s.Auth.Client.VenueMedia.Get(ctx, row.EntityRef); err != nil {
+			if ent.IsNotFound(err) {
+				http.NotFound(w, r)
+				return
+			}
+			s.fail(w, r, err)
+			return
+		}
+		if err := s.Venues.RemoveVenueMedia(ctx, u.ID, true, row.EntityRef); err != nil &&
+			!errors.Is(err, venues.ErrNotFound) {
+			s.fail(w, r, err)
+			return
+		}
+	default:
+		http.Error(w, "report target cannot be removed", http.StatusBadRequest)
+		return
+	}
+	if _, err := s.Auth.Client.Report.UpdateOneID(id).
+		SetStatus(report.StatusResolved).
+		SetResolvedAt(time.Now().UTC().Format(time.RFC3339)).Save(ctx); err != nil {
+		http.Error(w, "could not update report", http.StatusBadRequest)
+		return
+	}
+	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
 func (s *Server) setReportStatus(w http.ResponseWriter, r *http.Request, status string) {

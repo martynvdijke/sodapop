@@ -279,6 +279,21 @@ var (
 			},
 		},
 	}
+	// CommentsColumns holds the columns for the "comments" table.
+	CommentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "checkin_id", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "body", Type: field.TypeString, Size: 1000},
+		{Name: "created_at", Type: field.TypeString},
+		{Name: "deleted_at", Type: field.TypeString, Nullable: true},
+	}
+	// CommentsTable holds the schema information for the "comments" table.
+	CommentsTable = &schema.Table{
+		Name:       "comments",
+		Columns:    CommentsColumns,
+		PrimaryKey: []*schema.Column{CommentsColumns[0]},
+	}
 	// DrinksColumns holds the columns for the "drinks" table.
 	DrinksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -761,8 +776,9 @@ var (
 	// ReportsColumns holds the columns for the "reports" table.
 	ReportsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "entity", Type: field.TypeEnum, Enums: []string{"drink", "brand", "venue", "checkin", "user"}, Default: "drink"},
+		{Name: "entity", Type: field.TypeEnum, Enums: []string{"drink", "brand", "venue", "checkin", "user", "comment", "venue_media"}, Default: "drink"},
 		{Name: "entity_id", Type: field.TypeInt},
+		{Name: "entity_ref", Type: field.TypeString, Default: ""},
 		{Name: "user_id", Type: field.TypeString, Nullable: true},
 		{Name: "reason", Type: field.TypeString, Default: "other"},
 		{Name: "details", Type: field.TypeString, Default: ""},
@@ -779,7 +795,7 @@ var (
 			{
 				Name:    "report_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ReportsColumns[6], ReportsColumns[7]},
+				Columns: []*schema.Column{ReportsColumns[7], ReportsColumns[8]},
 			},
 		},
 	}
@@ -978,6 +994,23 @@ var (
 			},
 		},
 	}
+	// VenueMediaColumns holds the columns for the "venue_media" table.
+	VenueMediaColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "venue_id", Type: field.TypeInt},
+		{Name: "media_id", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"photo", "menu"}, Default: "photo"},
+		{Name: "label", Type: field.TypeString, Default: ""},
+		{Name: "uploaded_by", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeString},
+		{Name: "deleted_at", Type: field.TypeString, Nullable: true},
+	}
+	// VenueMediaTable holds the schema information for the "venue_media" table.
+	VenueMediaTable = &schema.Table{
+		Name:       "venue_media",
+		Columns:    VenueMediaColumns,
+		PrimaryKey: []*schema.Column{VenueMediaColumns[0]},
+	}
 	// VenueNamesColumns holds the columns for the "venue_names" table.
 	VenueNamesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1025,6 +1058,7 @@ var (
 		CatalogRevisionsTable,
 		CheckinsTable,
 		CheckinLikesTable,
+		CommentsTable,
 		DrinksTable,
 		DrinkAliasTable,
 		DrinkBarcodesTable,
@@ -1054,6 +1088,7 @@ var (
 		UserSettingsTable,
 		VenuesTable,
 		VenueDrinksTable,
+		VenueMediaTable,
 		VenueNamesTable,
 		VenueSavesTable,
 	}

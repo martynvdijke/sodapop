@@ -17,6 +17,8 @@ const (
 	FieldEntity = "entity"
 	// FieldEntityID holds the string denoting the entity_id field in the database.
 	FieldEntityID = "entity_id"
+	// FieldEntityRef holds the string denoting the entity_ref field in the database.
+	FieldEntityRef = "entity_ref"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
 	// FieldReason holds the string denoting the reason field in the database.
@@ -38,6 +40,7 @@ var Columns = []string{
 	FieldID,
 	FieldEntity,
 	FieldEntityID,
+	FieldEntityRef,
 	FieldUserID,
 	FieldReason,
 	FieldDetails,
@@ -57,6 +60,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultEntityRef holds the default value on creation for the "entity_ref" field.
+	DefaultEntityRef string
 	// DefaultReason holds the default value on creation for the "reason" field.
 	DefaultReason string
 	// DefaultDetails holds the default value on creation for the "details" field.
@@ -73,11 +78,13 @@ const DefaultEntity = EntityDrink
 
 // Entity values.
 const (
-	EntityDrink   Entity = "drink"
-	EntityBrand   Entity = "brand"
-	EntityVenue   Entity = "venue"
-	EntityCheckin Entity = "checkin"
-	EntityUser    Entity = "user"
+	EntityDrink      Entity = "drink"
+	EntityBrand      Entity = "brand"
+	EntityVenue      Entity = "venue"
+	EntityCheckin    Entity = "checkin"
+	EntityUser       Entity = "user"
+	EntityComment    Entity = "comment"
+	EntityVenueMedia Entity = "venue_media"
 )
 
 func (e Entity) String() string {
@@ -87,7 +94,7 @@ func (e Entity) String() string {
 // EntityValidator is a validator for the "entity" field enum values. It is called by the builders before save.
 func EntityValidator(e Entity) error {
 	switch e {
-	case EntityDrink, EntityBrand, EntityVenue, EntityCheckin, EntityUser:
+	case EntityDrink, EntityBrand, EntityVenue, EntityCheckin, EntityUser, EntityComment, EntityVenueMedia:
 		return nil
 	default:
 		return fmt.Errorf("report: invalid enum value for entity field: %q", e)
@@ -137,6 +144,11 @@ func ByEntity(opts ...sql.OrderTermOption) OrderOption {
 // ByEntityID orders the results by the entity_id field.
 func ByEntityID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEntityID, opts...).ToFunc()
+}
+
+// ByEntityRef orders the results by the entity_ref field.
+func ByEntityRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEntityRef, opts...).ToFunc()
 }
 
 // ByUserID orders the results by the user_id field.

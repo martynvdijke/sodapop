@@ -89,6 +89,30 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Earned badges only: the full ListForUser result includes unearned
+	// definitions, which are teaching material for the owner, not profile data.
+	statuses, err := s.Badges.ListForUser(ctx, target.ID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	badges := make([]profileBadgeView, 0, len(statuses))
+	for _, st := range statuses {
+		if !st.Earned {
+			continue
+		}
+		badges = append(badges, profileBadgeView{
+			Name:        st.Name,
+			Description: st.Description,
+			AwardedAt:   st.AwardedAt,
+		})
+	}
+	topStyles, err := s.Checkins.ProfileTopStyles(ctx, viewerID, target.ID, 3)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+
 	displayName := strings.TrimSpace(target.DisplayName)
 	if displayName == "" {
 		displayName = target.Handle
@@ -142,6 +166,8 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		"Stats":           statMap,
 		"Checkins":        items,
 		"Lists":           lists,
+		"Badges":          badges,
+		"TopStyles":       topStyles,
 		"IsOwner":         isOwner,
 		"IsFriend":        areFriends,
 		"IsFollowing":     isFollowing,
@@ -156,6 +182,14 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		"NextBefore":      nextBefore,
 		"HasMore":         hasMore,
 	})
+}
+
+// profileBadgeView is the safe subset of a badge shown on a public profile.
+// Unearned badge definitions never reach the template.
+type profileBadgeView struct {
+	Name        string
+	Description string
+	AwardedAt   string
 }
 
 func (s *Server) profileNotFound(w http.ResponseWriter, r *http.Request) {

@@ -36,6 +36,8 @@ type Tx struct {
 	Checkin *CheckinClient
 	// CheckinLike is the client for interacting with the CheckinLike builders.
 	CheckinLike *CheckinLikeClient
+	// Comment is the client for interacting with the Comment builders.
+	Comment *CommentClient
 	// Drink is the client for interacting with the Drink builders.
 	Drink *DrinkClient
 	// DrinkAlias is the client for interacting with the DrinkAlias builders.
@@ -94,6 +96,8 @@ type Tx struct {
 	Venue *VenueClient
 	// VenueDrink is the client for interacting with the VenueDrink builders.
 	VenueDrink *VenueDrinkClient
+	// VenueMedia is the client for interacting with the VenueMedia builders.
+	VenueMedia *VenueMediaClient
 	// VenueName is the client for interacting with the VenueName builders.
 	VenueName *VenueNameClient
 	// VenueSave is the client for interacting with the VenueSave builders.
@@ -241,6 +245,7 @@ func (tx *Tx) init() {
 	tx.CatalogRevision = NewCatalogRevisionClient(tx.config)
 	tx.Checkin = NewCheckinClient(tx.config)
 	tx.CheckinLike = NewCheckinLikeClient(tx.config)
+	tx.Comment = NewCommentClient(tx.config)
 	tx.Drink = NewDrinkClient(tx.config)
 	tx.DrinkAlias = NewDrinkAliasClient(tx.config)
 	tx.DrinkBarcode = NewDrinkBarcodeClient(tx.config)
@@ -270,6 +275,7 @@ func (tx *Tx) init() {
 	tx.UserSetting = NewUserSettingClient(tx.config)
 	tx.Venue = NewVenueClient(tx.config)
 	tx.VenueDrink = NewVenueDrinkClient(tx.config)
+	tx.VenueMedia = NewVenueMediaClient(tx.config)
 	tx.VenueName = NewVenueNameClient(tx.config)
 	tx.VenueSave = NewVenueSaveClient(tx.config)
 }

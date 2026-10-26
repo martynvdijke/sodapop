@@ -7,6 +7,7 @@ import (
 	"sodapop/ent"
 	"sodapop/ent/user"
 	"sodapop/internal/checkins"
+	"sodapop/internal/comments"
 )
 
 type notificationView struct {
@@ -106,6 +107,13 @@ func (s *Server) notificationsRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) checkinDetailPage(w http.ResponseWriter, r *http.Request) {
+	s.renderCheckinDetail(w, r, http.StatusOK, commentErrorFromQuery(r.URL.Query().Get("comment_error")))
+}
+
+// renderCheckinDetail loads a visible check-in, its comments, and the viewer's
+// per-comment capabilities. It backs both the GET page and inline validation
+// errors from the comment form.
+func (s *Server) renderCheckinDetail(w http.ResponseWriter, r *http.Request, status int, commentError string) {
 	u := UserFromContext(r)
 	viewerID := ""
 	if u != nil {
@@ -122,13 +130,47 @@ func (s *Server) checkinDetailPage(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	s.render(w, r, http.StatusOK, "checkin_detail", map[string]any{
+
+	list, err := s.commentService().List(r.Context(), viewerID, detail.ID)
+	if err != nil {
+		if errors.Is(err, comments.ErrNotFound) {
+			s.render(w, r, http.StatusNotFound, "error", map[string]any{
+				"Title": "Not found", "Message": "That checkin is not available.",
+			})
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	admin := u != nil && (u.Role == user.RoleAdmin || u.Role == user.RoleModerator)
+	for i := range list {
+		list[i].CanDelete = admin || (u != nil && list[i].UserID == u.ID)
+	}
+
+	s.render(w, r, status, "checkin_detail", map[string]any{
 		"Title":         detail.DrinkName,
 		"Checkin":       detail,
 		"Authenticated": u != nil,
 		"CanDelete":     u != nil && u.ID == detail.UserID,
 		"CanToast":      u != nil && u.ID != detail.UserID,
+		"Comments":      list,
+		"CommentCount":  len(list),
+		"CanComment":    u != nil && u.EmailVerifiedAt != nil,
+		"CommentError":  commentError,
 	})
+}
+
+func commentErrorFromQuery(value string) string {
+	switch value {
+	case "empty":
+		return "Write something before posting."
+	case "long":
+		return "Comments are capped at 1,000 characters."
+	case "rate":
+		return "You're commenting too quickly. Try again later."
+	default:
+		return ""
+	}
 }
 
 func (s *Server) checkinDelete(w http.ResponseWriter, r *http.Request) {

@@ -152,6 +152,18 @@ func (f CheckinLikeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CheckinLikeMutation", m)
 }
 
+// The CommentFunc type is an adapter to allow the use of ordinary
+// function as Comment mutator.
+type CommentFunc func(context.Context, *ent.CommentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CommentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CommentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommentMutation", m)
+}
+
 // The DrinkFunc type is an adapter to allow the use of ordinary
 // function as Drink mutator.
 type DrinkFunc func(context.Context, *ent.DrinkMutation) (ent.Value, error)
@@ -498,6 +510,18 @@ func (f VenueDrinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VenueDrinkMutation", m)
+}
+
+// The VenueMediaFunc type is an adapter to allow the use of ordinary
+// function as VenueMedia mutator.
+type VenueMediaFunc func(context.Context, *ent.VenueMediaMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VenueMediaFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VenueMediaMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VenueMediaMutation", m)
 }
 
 // The VenueNameFunc type is an adapter to allow the use of ordinary

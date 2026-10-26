@@ -62,6 +62,51 @@
     {{end}}
   </div>
 
+  <section id="comments" class="comments" aria-labelledby="comments-heading">
+    <h2 id="comments-heading" class="comments-heading">{{if .CommentCount}}{{.CommentCount}} {{if eq .CommentCount 1}}comment{{else}}comments{{end}}{{else}}Comments{{end}}</h2>
+
+    {{if .CommentError}}<p class="banner error comments-error" role="alert">{{.CommentError}}</p>{{end}}
+
+    {{if .Comments}}
+      <ul class="comments-list">
+        {{range .Comments}}
+          <li class="comment" id="comment-{{.ID}}">
+            <span class="avatar comment-avatar" aria-hidden="true">{{if .Initial}}{{.Initial}}{{else}}?{{end}}</span>
+            <div class="comment-body">
+              <p class="comment-meta">
+                <strong>{{if .DisplayName}}{{.DisplayName}}{{else}}@{{.Handle}}{{end}}</strong>
+                <span class="comment-date">{{.CreatedAt}}</span>
+              </p>
+              <p class="comment-text">{{.Body}}</p>
+              {{if .CanDelete}}
+                <form class="comment-delete" method="post" action="/comments/{{.ID}}/delete">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                  <button class="btn btn-small" type="submit">Delete</button>
+                </form>
+              {{end}}
+            </div>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <p class="comments-empty">No comments yet.</p>
+    {{end}}
+
+    {{if .CanComment}}
+      <form class="comment-form" method="post" action="/checkins/{{$c.ID}}/comments">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <label for="comment-body">Add a comment</label>
+        <textarea id="comment-body" name="body" rows="3" maxlength="1000" required aria-describedby="comment-hint"></textarea>
+        <span class="hint" id="comment-hint">Up to 1000 characters.</span>
+        <div class="form-actions">
+          <button class="btn" type="submit">Post comment</button>
+        </div>
+      </form>
+    {{else if not .Authenticated}}
+      <p class="comments-signin">Sign in to comment. <a href="/login?next=/checkins/{{$c.ID}}">Sign in</a>.</p>
+    {{end}}
+  </section>
+
   {{if .Authenticated}}
     {{if .CanDelete}}
       <div class="danger-zone">

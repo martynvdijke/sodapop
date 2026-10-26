@@ -58,6 +58,11 @@ func EntityID(v int) predicate.Report {
 	return predicate.Report(sql.FieldEQ(FieldEntityID, v))
 }
 
+// EntityRef applies equality check predicate on the "entity_ref" field. It's identical to EntityRefEQ.
+func EntityRef(v string) predicate.Report {
+	return predicate.Report(sql.FieldEQ(FieldEntityRef, v))
+}
+
 // UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
 func UserID(v string) predicate.Report {
 	return predicate.Report(sql.FieldEQ(FieldUserID, v))
@@ -141,6 +146,71 @@ func EntityIDLT(v int) predicate.Report {
 // EntityIDLTE applies the LTE predicate on the "entity_id" field.
 func EntityIDLTE(v int) predicate.Report {
 	return predicate.Report(sql.FieldLTE(FieldEntityID, v))
+}
+
+// EntityRefEQ applies the EQ predicate on the "entity_ref" field.
+func EntityRefEQ(v string) predicate.Report {
+	return predicate.Report(sql.FieldEQ(FieldEntityRef, v))
+}
+
+// EntityRefNEQ applies the NEQ predicate on the "entity_ref" field.
+func EntityRefNEQ(v string) predicate.Report {
+	return predicate.Report(sql.FieldNEQ(FieldEntityRef, v))
+}
+
+// EntityRefIn applies the In predicate on the "entity_ref" field.
+func EntityRefIn(vs ...string) predicate.Report {
+	return predicate.Report(sql.FieldIn(FieldEntityRef, vs...))
+}
+
+// EntityRefNotIn applies the NotIn predicate on the "entity_ref" field.
+func EntityRefNotIn(vs ...string) predicate.Report {
+	return predicate.Report(sql.FieldNotIn(FieldEntityRef, vs...))
+}
+
+// EntityRefGT applies the GT predicate on the "entity_ref" field.
+func EntityRefGT(v string) predicate.Report {
+	return predicate.Report(sql.FieldGT(FieldEntityRef, v))
+}
+
+// EntityRefGTE applies the GTE predicate on the "entity_ref" field.
+func EntityRefGTE(v string) predicate.Report {
+	return predicate.Report(sql.FieldGTE(FieldEntityRef, v))
+}
+
+// EntityRefLT applies the LT predicate on the "entity_ref" field.
+func EntityRefLT(v string) predicate.Report {
+	return predicate.Report(sql.FieldLT(FieldEntityRef, v))
+}
+
+// EntityRefLTE applies the LTE predicate on the "entity_ref" field.
+func EntityRefLTE(v string) predicate.Report {
+	return predicate.Report(sql.FieldLTE(FieldEntityRef, v))
+}
+
+// EntityRefContains applies the Contains predicate on the "entity_ref" field.
+func EntityRefContains(v string) predicate.Report {
+	return predicate.Report(sql.FieldContains(FieldEntityRef, v))
+}
+
+// EntityRefHasPrefix applies the HasPrefix predicate on the "entity_ref" field.
+func EntityRefHasPrefix(v string) predicate.Report {
+	return predicate.Report(sql.FieldHasPrefix(FieldEntityRef, v))
+}
+
+// EntityRefHasSuffix applies the HasSuffix predicate on the "entity_ref" field.
+func EntityRefHasSuffix(v string) predicate.Report {
+	return predicate.Report(sql.FieldHasSuffix(FieldEntityRef, v))
+}
+
+// EntityRefEqualFold applies the EqualFold predicate on the "entity_ref" field.
+func EntityRefEqualFold(v string) predicate.Report {
+	return predicate.Report(sql.FieldEqualFold(FieldEntityRef, v))
+}
+
+// EntityRefContainsFold applies the ContainsFold predicate on the "entity_ref" field.
+func EntityRefContainsFold(v string) predicate.Report {
+	return predicate.Report(sql.FieldContainsFold(FieldEntityRef, v))
 }
 
 // UserIDEQ applies the EQ predicate on the "user_id" field.

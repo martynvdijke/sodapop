@@ -39,6 +39,20 @@ func (_c *ReportCreate) SetEntityID(v int) *ReportCreate {
 	return _c
 }
 
+// SetEntityRef sets the "entity_ref" field.
+func (_c *ReportCreate) SetEntityRef(v string) *ReportCreate {
+	_c.mutation.SetEntityRef(v)
+	return _c
+}
+
+// SetNillableEntityRef sets the "entity_ref" field if the given value is not nil.
+func (_c *ReportCreate) SetNillableEntityRef(v *string) *ReportCreate {
+	if v != nil {
+		_c.SetEntityRef(*v)
+	}
+	return _c
+}
+
 // SetUserID sets the "user_id" field.
 func (_c *ReportCreate) SetUserID(v string) *ReportCreate {
 	_c.mutation.SetUserID(v)
@@ -168,6 +182,10 @@ func (_c *ReportCreate) defaults() {
 		v := report.DefaultEntity
 		_c.mutation.SetEntity(v)
 	}
+	if _, ok := _c.mutation.EntityRef(); !ok {
+		v := report.DefaultEntityRef
+		_c.mutation.SetEntityRef(v)
+	}
 	if _, ok := _c.mutation.Reason(); !ok {
 		v := report.DefaultReason
 		_c.mutation.SetReason(v)
@@ -198,6 +216,9 @@ func (_c *ReportCreate) check() error {
 	}
 	if _, ok := _c.mutation.EntityID(); !ok {
 		return &ValidationError{Name: "entity_id", err: errors.New(`ent: missing required field "Report.entity_id"`)}
+	}
+	if _, ok := _c.mutation.EntityRef(); !ok {
+		return &ValidationError{Name: "entity_ref", err: errors.New(`ent: missing required field "Report.entity_ref"`)}
 	}
 	if _, ok := _c.mutation.Reason(); !ok {
 		return &ValidationError{Name: "reason", err: errors.New(`ent: missing required field "Report.reason"`)}
@@ -255,6 +276,10 @@ func (_c *ReportCreate) createSpec() (*Report, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EntityID(); ok {
 		_spec.SetField(report.FieldEntityID, field.TypeInt, value)
 		_node.EntityID = value
+	}
+	if value, ok := _c.mutation.EntityRef(); ok {
+		_spec.SetField(report.FieldEntityRef, field.TypeString, value)
+		_node.EntityRef = value
 	}
 	if value, ok := _c.mutation.UserID(); ok {
 		_spec.SetField(report.FieldUserID, field.TypeString, value)

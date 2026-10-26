@@ -193,6 +193,114 @@
             "description": "Replaying the same key returns the original check-in."
           }
         }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "handle": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            }
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Author id. Handles are in `user`; ids are stable for deletion checks."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "description": "True when the viewer authored the comment or is a moderator."
+          }
+        }
+      },
+      "CommentInput": {
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "VenueMedia": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "media_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "photo",
+              "menu"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "uploaded_by": {
+            "type": "string"
+          },
+          "uploader_handle": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "can_remove": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VenueMediaInput": {
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "properties": {
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "description": "JPEG, PNG, WebP or GIF; 25 MiB total request body."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "photo",
+              "menu"
+            ],
+            "default": "photo"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 80
+          }
+        }
       }
     },
     "responses": {
@@ -837,6 +945,168 @@
         ]
       }
     },
+    "/api/v1/checkins/{id}/comments": {
+      "get": {
+        "summary": "List a check-in's comments",
+        "description": "Visible only when the parent check-in is visible to the viewer. An invisible parent returns 404. There is no total or pagination count.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comments oldest-first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Comment"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Check-in missing or not visible"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "checkins"
+        ]
+      },
+      "post": {
+        "summary": "Comment on a check-in",
+        "description": "Requires the write scope and a verified email. The parent must be visible to the viewer (404 otherwise). Capped at 1,000 characters and 30 comments per user per hour.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comment created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Comment"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "404": {
+            "description": "Check-in missing or not visible"
+          },
+          "429": {
+            "description": "Hourly comment cap reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "checkins"
+        ]
+      }
+    },
+    "/api/v1/comments/{id}": {
+      "delete": {
+        "summary": "Delete your comment",
+        "description": "Authors may delete their own comment; moderators may delete any. Everyone else receives 404 so the endpoint cannot confirm that a comment exists.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "404": {
+            "description": "Missing or not yours"
+          }
+        },
+        "tags": [
+          "checkins"
+        ]
+      }
+    },
     "/api/v1/users/{handle}": {
       "get": {
         "summary": "Narrow public profile",
@@ -1260,6 +1530,171 @@
         "responses": {
           "200": {
             "description": "Unsaved"
+          }
+        },
+        "tags": [
+          "venues"
+        ]
+      }
+    },
+    "/api/v1/venues/{id}/media": {
+      "get": {
+        "summary": "List a venue's photos and menus",
+        "description": "Active rows only. The list is bounded by the venue cap; there is no total or pagination count.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/VenueMedia"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Venue missing, merged or invalid"
+          }
+        },
+        "tags": [
+          "venues"
+        ]
+      },
+      "post": {
+        "summary": "Upload a venue photo or menu",
+        "description": "Requires the write scope and a verified email. Multipart upload capped at a 25 MiB request body, 6 active rows per uploader per venue and 20 per venue.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VenueMediaInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Media stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueMedia"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing image or invalid kind/label",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "404": {
+            "description": "Venue missing or merged"
+          },
+          "409": {
+            "description": "Venue or uploader media cap reached"
+          },
+          "413": {
+            "description": "Request body exceeds 25 MiB or image exceeds 12 MiB"
+          },
+          "415": {
+            "description": "Unsupported image type"
+          }
+        },
+        "tags": [
+          "venues"
+        ]
+      }
+    },
+    "/api/v1/venues/media/{id}": {
+      "delete": {
+        "summary": "Remove a venue photo or menu",
+        "description": "The uploader or a moderator may remove an active row. Everyone else receives 404 so the endpoint cannot confirm that a row exists.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "404": {
+            "description": "Missing or not yours"
           }
         },
         "tags": [

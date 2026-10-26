@@ -165,8 +165,10 @@ func (s *Service) OpenThumb(ctx context.Context, id string) (io.ReadCloser, *ent
 
 // CanView reports whether viewerID may see the media. Owners always can.
 // Check-in photos follow check-in visibility, with friends-only rows visible to
-// accepted friends. Catalog-shaped media (avatars and drink/brand/venue images)
-// is public.
+// accepted friends. Catalog-shaped media (avatars and drink/brand images) is
+// public. Venue media is public only while an active, non-deleted venue_media
+// row and a non-merged venue still reference it, so a removed photo stops being
+// anonymously fetchable.
 func (s *Service) CanView(ctx context.Context, viewerID, id string) (bool, error) {
 	row, err := s.lookup(ctx, id)
 	if err != nil {
@@ -176,7 +178,7 @@ func (s *Service) CanView(ctx context.Context, viewerID, id string) (bool, error
 		return true, nil
 	}
 	switch row.Kind {
-	case media.KindAvatar, media.KindDrink, media.KindVenue, media.KindBrand:
+	case media.KindAvatar, media.KindDrink, media.KindBrand:
 		return true, nil
 	}
 	if s.sql == nil {
@@ -186,7 +188,7 @@ func (s *Service) CanView(ctx context.Context, viewerID, id string) (bool, error
 	// The friends clause is skipped for anonymous viewers by the ? <> ''
 	// guard before the friendship table is touched.
 	var visible bool
-	err = s.sql.QueryRowContext(ctx, canViewQuery, id, viewerID, viewerID, viewerID, id, id).Scan(&visible)
+	err = s.sql.QueryRowContext(ctx, canViewQuery, id, viewerID, viewerID, viewerID, id, id, id).Scan(&visible)
 	if err != nil {
 		return false, err
 	}
@@ -217,7 +219,8 @@ SELECT EXISTS (
 	  )
 )
 OR EXISTS (SELECT 1 FROM users u WHERE u.avatar_media_id = ? AND u.deleted_at IS NULL)
-OR EXISTS (SELECT 1 FROM brands b WHERE b.logo_media_id = ?)`
+OR EXISTS (SELECT 1 FROM brands b WHERE b.logo_media_id = ?)
+OR EXISTS (SELECT 1 FROM venue_media vm JOIN venues v ON v.id = vm.venue_id WHERE vm.media_id = ? AND vm.deleted_at IS NULL AND v.merged_into_id IS NULL)`
 
 func (s *Service) lookup(ctx context.Context, id string) (*ent.Media, error) {
 	if strings.TrimSpace(id) == "" {

@@ -113,3 +113,20 @@ func (Notification) Indexes() []ent.Index {
 		index.Fields("user_id", "created_at"),
 	}
 }
+
+// Comment is a flat, user-owned comment on a check-in. Threading is not
+// modelled; deleted comments are soft-deleted via deleted_at.
+type Comment struct {
+	ent.Schema
+}
+
+func (Comment) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").DefaultFunc(newID).Immutable(),
+		field.String("checkin_id").NotEmpty(),
+		field.String("user_id").NotEmpty(),
+		field.String("body").NotEmpty().MaxLen(1000),
+		field.String("created_at").DefaultFunc(now),
+		field.String("deleted_at").Optional().Nillable(),
+	}
+}

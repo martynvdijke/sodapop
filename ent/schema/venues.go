@@ -96,3 +96,21 @@ func (VenueSave) Fields() []ent.Field {
 func (VenueSave) Indexes() []ent.Index {
 	return []ent.Index{}
 }
+
+// VenueMedia is a user-contributed photo or menu for a venue.
+type VenueMedia struct {
+	ent.Schema
+}
+
+func (VenueMedia) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").DefaultFunc(newID).Immutable(),
+		field.Int("venue_id"),
+		field.String("media_id").NotEmpty(),
+		field.Enum("kind").Values("photo", "menu").Default("photo"),
+		field.String("label").Default(""),
+		field.String("uploaded_by").NotEmpty(),
+		field.String("created_at").DefaultFunc(now),
+		field.String("deleted_at").Optional().Nillable(),
+	}
+}

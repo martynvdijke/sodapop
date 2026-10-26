@@ -47,7 +47,15 @@ test('no serious accessibility violations across signed-in member pages', async 
   await page.waitForLoadState('load');
   await expect(page.getByRole('checkbox', { name: /Public profile/ })).toBeChecked();
 
-  for (const path of ['/settings', '/notifications', '/insights', '/drinks', '/drops', `/u/${user.handle}`]) {
+  for (const path of [
+    '/settings',
+    '/notifications',
+    '/insights',
+    '/drinks',
+    '/drops',
+    '/compare?drinks=coca-cola-355,fentimans-curiosity-cola-275',
+    `/u/${user.handle}`,
+  ]) {
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expectNoSeriousViolations(page, path);

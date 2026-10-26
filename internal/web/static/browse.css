@@ -2,6 +2,32 @@
 
 /* --- Shared page chrome ------------------------------------------------- */
 
+/* Page title and a single quiet action share a row; the lead sits under both. */
+.browse-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.browse-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 .95rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: .875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.browse-action:hover { background: var(--surface-sunken); }
+
 .browse-header h1,
 .brand-header h1,
 .style-header h1,

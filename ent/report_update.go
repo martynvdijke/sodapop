@@ -62,6 +62,20 @@ func (_u *ReportUpdate) AddEntityID(v int) *ReportUpdate {
 	return _u
 }
 
+// SetEntityRef sets the "entity_ref" field.
+func (_u *ReportUpdate) SetEntityRef(v string) *ReportUpdate {
+	_u.mutation.SetEntityRef(v)
+	return _u
+}
+
+// SetNillableEntityRef sets the "entity_ref" field if the given value is not nil.
+func (_u *ReportUpdate) SetNillableEntityRef(v *string) *ReportUpdate {
+	if v != nil {
+		_u.SetEntityRef(*v)
+	}
+	return _u
+}
+
 // SetUserID sets the "user_id" field.
 func (_u *ReportUpdate) SetUserID(v string) *ReportUpdate {
 	_u.mutation.SetUserID(v)
@@ -226,6 +240,9 @@ func (_u *ReportUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedEntityID(); ok {
 		_spec.AddField(report.FieldEntityID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.EntityRef(); ok {
+		_spec.SetField(report.FieldEntityRef, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(report.FieldUserID, field.TypeString, value)
 	}
@@ -302,6 +319,20 @@ func (_u *ReportUpdateOne) SetNillableEntityID(v *int) *ReportUpdateOne {
 // AddEntityID adds value to the "entity_id" field.
 func (_u *ReportUpdateOne) AddEntityID(v int) *ReportUpdateOne {
 	_u.mutation.AddEntityID(v)
+	return _u
+}
+
+// SetEntityRef sets the "entity_ref" field.
+func (_u *ReportUpdateOne) SetEntityRef(v string) *ReportUpdateOne {
+	_u.mutation.SetEntityRef(v)
+	return _u
+}
+
+// SetNillableEntityRef sets the "entity_ref" field if the given value is not nil.
+func (_u *ReportUpdateOne) SetNillableEntityRef(v *string) *ReportUpdateOne {
+	if v != nil {
+		_u.SetEntityRef(*v)
+	}
 	return _u
 }
 
@@ -498,6 +529,9 @@ func (_u *ReportUpdateOne) sqlSave(ctx context.Context) (_node *Report, err erro
 	}
 	if value, ok := _u.mutation.AddedEntityID(); ok {
 		_spec.AddField(report.FieldEntityID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.EntityRef(); ok {
+		_spec.SetField(report.FieldEntityRef, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(report.FieldUserID, field.TypeString, value)

@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -15,8 +17,10 @@ import (
 	"sodapop/internal/auth"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
+	"sodapop/internal/comments"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/media"
 	"sodapop/internal/ratelimit"
 	"sodapop/internal/social"
 	"sodapop/internal/venues"
@@ -41,6 +45,7 @@ func newHarness(t *testing.T) *harness {
 		SessionTTL:      time.Hour,
 		BcryptCost:      10,
 		RateLimitPerMin: 120,
+		DataDir:         t.TempDir(),
 	}
 	database, err := db.Init(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -55,12 +60,16 @@ func newHarness(t *testing.T) *harness {
 	catalogSvc := catalog.New(cfg, database)
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
+	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)
+	mediaSvc := media.New(database, cfg)
 	limiter := ratelimit.New()
 
 	srv := &Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
-		Social: socialSvc, Venues: venueSvc, Limiter: limiter,
+		Comments: commentSvc, Social: socialSvc, Venues: venueSvc,
+		Limiter: limiter, DB: database, Media: mediaSvc,
+		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	mux := http.NewServeMux()
 	srv.Register(mux)

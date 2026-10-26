@@ -348,6 +348,7 @@ type FeedItem struct {
 	Duration    int    `json:"duration_seconds,omitempty"`
 	Toasts      int    `json:"toasts"`
 	Toasted     bool   `json:"toasted"`
+	Comments    int    `json:"comments"`
 	CSRF        string `json:"-"`
 }
 
@@ -387,7 +388,11 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.kind,''),
 		       COALESCE(m.poster_path,''), COALESCE(m.duration_seconds,0),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
-		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?)
+		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?),
+		       (SELECT COUNT(*) FROM comments cm
+		        JOIN users cu ON cu.id = cm.user_id
+		        WHERE cm.checkin_id = c.id AND cm.deleted_at IS NULL
+		          AND cu.deleted_at IS NULL AND cu.status <> 'deleted')
 		FROM checkins c
 		JOIN users u ON u.id = c.user_id
 		JOIN drinks d ON d.id = c.drink_id
@@ -436,7 +441,7 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 			&f.DrinkID, &f.DrinkName, &f.DrinkSlug, &f.Brand, &f.Container, &f.VolumeML,
 			&f.VenueName, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
 			&f.PhotoID, &f.PhotoMime, &f.PhotoKind, &f.PosterPath, &f.Duration,
-			&f.Toasts, &f.Toasted); err != nil {
+			&f.Toasts, &f.Toasted, &f.Comments); err != nil {
 			return nil, err
 		}
 		if rating.Valid {

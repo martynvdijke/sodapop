@@ -13,21 +13,26 @@
 {{range .Reports}}
   <article class="card">
     <div class="list-row">
-      <div><strong>{{.Entity}} #{{.EntityID}}</strong><div class="muted">{{.Reason}} · {{.CreatedAt}} · by {{.Reporter}}</div></div>
+      <div><strong>{{.Entity}}{{if .EntityRef}} {{.EntityRef}}{{else}} #{{.EntityID}}{{end}}</strong><div class="muted">{{.Reason}} · {{.CreatedAt}} · by {{.Reporter}}</div></div>
       <span class="pill">{{.Status}}</span>
     </div>
+    {{if .Context}}<p class="note">{{.Context}}</p>{{end}}
     {{if .Details}}<p class="note">{{.Details}}</p>{{end}}
     <div class="actions">
       <form method="post" action="/admin/reports/{{.ID}}/resolve" class="inline">
         <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
-        <input type="hidden" name="action" value="resolved">
         <button class="btn btn-small" type="submit">Resolve</button>
       </form>
-      <form method="post" action="/admin/reports/{{.ID}}/resolve" class="inline">
+      <form method="post" action="/admin/reports/{{.ID}}/dismiss" class="inline">
         <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
-        <input type="hidden" name="action" value="dismissed">
         <button class="btn btn-small" type="submit">Dismiss</button>
       </form>
+      {{if .CanRemove}}
+      <form method="post" action="/admin/reports/{{.ID}}/remove" class="inline" onsubmit="return confirm('Remove this content for everyone? The report will be resolved.');">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <button class="btn btn-small" type="submit">{{.RemoveLabel}}</button>
+      </form>
+      {{end}}
       {{if eq .Entity "drink"}}<a class="btn btn-small" href="/drinks/{{.EntitySlug}}">Open soda</a>{{end}}
     </div>
   </article>

@@ -19,6 +19,7 @@ import (
 	"sodapop/ent/catalogrevision"
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
+	"sodapop/ent/comment"
 	"sodapop/ent/drink"
 	"sodapop/ent/drinkalias"
 	"sodapop/ent/drinkbarcode"
@@ -48,6 +49,7 @@ import (
 	"sodapop/ent/usersetting"
 	"sodapop/ent/venue"
 	"sodapop/ent/venuedrink"
+	"sodapop/ent/venuemedia"
 	"sodapop/ent/venuename"
 	"sodapop/ent/venuesave"
 	"sync"
@@ -127,6 +129,7 @@ func checkColumn(t, c string) error {
 			catalogrevision.Table:        catalogrevision.ValidColumn,
 			checkin.Table:                checkin.ValidColumn,
 			checkinlike.Table:            checkinlike.ValidColumn,
+			comment.Table:                comment.ValidColumn,
 			drink.Table:                  drink.ValidColumn,
 			drinkalias.Table:             drinkalias.ValidColumn,
 			drinkbarcode.Table:           drinkbarcode.ValidColumn,
@@ -156,6 +159,7 @@ func checkColumn(t, c string) error {
 			usersetting.Table:            usersetting.ValidColumn,
 			venue.Table:                  venue.ValidColumn,
 			venuedrink.Table:             venuedrink.ValidColumn,
+			venuemedia.Table:             venuemedia.ValidColumn,
 			venuename.Table:              venuename.ValidColumn,
 			venuesave.Table:              venuesave.ValidColumn,
 		})

@@ -1,8 +1,13 @@
 {{define "content"}}
 <section class="browse-page">
   <header class="browse-header">
-    <p class="eyebrow">Catalog</p>
-    <h1>{{.Title}}</h1>
+    <div class="browse-header-top">
+      <div>
+        <p class="eyebrow">Catalog</p>
+        <h1>{{.Title}}</h1>
+      </div>
+      <a class="browse-action" href="/compare">Compare sodas</a>
+    </div>
     {{if eq .Mode "drinks"}}
       <p class="browse-lead">Every soda in the catalog, in one list. Narrow it down here, or start from a brand or style.</p>
     {{else if eq .Mode "brands"}}

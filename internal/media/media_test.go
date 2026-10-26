@@ -311,6 +311,59 @@ func TestCanView(t *testing.T) {
 	}
 }
 
+func TestCanViewVenueMediaFollowsActiveRow(t *testing.T) {
+	svc, database := newTestService(t)
+	ctx := context.Background()
+
+	owner, err := database.Client.User.Create().SetHandle("uploader").SetEmail("uploader@example.com").Save(ctx)
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	venue, err := database.Client.Venue.Create().SetName("Corner Shop").SetSlug("corner-shop").Save(ctx)
+	if err != nil {
+		t.Fatalf("create venue: %v", err)
+	}
+
+	row, err := svc.Store(ctx, owner.ID, "venue", bytes.NewReader(testPNG(t, 16, 16)), "storefront.png", "image/png")
+	if err != nil {
+		t.Fatalf("store venue image: %v", err)
+	}
+	if row.Kind != media.KindVenue {
+		t.Fatalf("kind = %q, want venue", row.Kind)
+	}
+	vm, err := database.Client.VenueMedia.Create().
+		SetVenueID(venue.ID).
+		SetMediaID(row.ID).
+		SetUploadedBy(owner.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create venue media: %v", err)
+	}
+
+	// An active venue_media row is public to anonymous viewers.
+	if ok, err := svc.CanView(ctx, "", row.ID); err != nil || !ok {
+		t.Fatalf("active venue media CanView = %v, %v; want true, nil", ok, err)
+	}
+
+	// Removing the row revokes anonymous access even though the media row and
+	// file are deliberately kept.
+	if _, err := vm.Update().SetDeletedAt(db.Now()).Save(ctx); err != nil {
+		t.Fatalf("soft delete venue media: %v", err)
+	}
+	if ok, err := svc.CanView(ctx, "", row.ID); err != nil || ok {
+		t.Fatalf("removed venue media CanView = %v, %v; want false, nil", ok, err)
+	}
+
+	// A venue-kind media row with no venue_media row (an orphan) is not public.
+	orphan, err := svc.Store(ctx, owner.ID, "venue", bytes.NewReader(testPNG(t, 16, 16)), "orphan.png", "image/png")
+	if err != nil {
+		t.Fatalf("store orphan: %v", err)
+	}
+	if ok, err := svc.CanView(ctx, "", orphan.ID); err != nil || ok {
+		t.Fatalf("orphan venue media CanView = %v, %v; want false, nil", ok, err)
+	}
+}
+
 func TestOpenRejectsTraversal(t *testing.T) {
 	svc, database := newTestService(t)
 	ctx := context.Background()

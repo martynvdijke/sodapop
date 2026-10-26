@@ -16,6 +16,7 @@ import (
 	"sodapop/internal/badges"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
+	"sodapop/internal/comments"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/email"
@@ -90,6 +91,7 @@ func run() error {
 	catalogSvc := catalog.New(cfg, database)
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
+	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)
 	mediaSvc := media.New(database, cfg)
 	aiSvc := ai.New(database, cfg, cfg.Version, log)
@@ -113,7 +115,8 @@ func run() error {
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
-		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
+		Comments: commentSvc,
+		Social:   socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Limiter: limiter, DB: database, Media: mediaSvc, AI: aiSvc,
 		Integrations: integrationSvc, Badges: badgeSvc,
 	}

@@ -64,6 +64,44 @@
     </div>
   </dl>
 
+  {{if .Badges}}
+    <section class="profile-section" aria-labelledby="profile-badges">
+      <h2 id="profile-badges" class="section-heading">Badges</h2>
+      <ul class="badge-grid badge-shelf">
+        {{range .Badges}}
+          <li class="badge-tile earned">
+            <strong>{{.Name}}</strong>
+            {{if .Description}}<span class="badge-shelf-desc">{{.Description}}</span>{{end}}
+            {{if .AwardedAt}}<span class="badge-shelf-date">Earned {{.AwardedAt}}</span>{{end}}
+          </li>
+        {{end}}
+      </ul>
+    </section>
+  {{end}}
+
+  {{if .TopStyles}}
+    <section class="profile-section" aria-labelledby="profile-top-styles">
+      <h2 id="profile-top-styles" class="section-heading">Top styles</h2>
+      <ul class="top-styles">
+        {{range .TopStyles}}
+          <li class="top-style">
+            {{if .Slug}}
+              <a class="top-style-link" href="/styles/{{.Slug}}">
+                <span class="top-style-name">{{.Name}}</span>
+                <span class="top-style-count">{{.Count}} {{if eq .Count 1}}pour{{else}}pours{{end}}</span>
+              </a>
+            {{else}}
+              <span class="top-style-link">
+                <span class="top-style-name">{{.Name}}</span>
+                <span class="top-style-count">{{.Count}} {{if eq .Count 1}}pour{{else}}pours{{end}}</span>
+              </span>
+            {{end}}
+          </li>
+        {{end}}
+      </ul>
+    </section>
+  {{end}}
+
   <section class="profile-section" aria-labelledby="profile-checkins">
     <h2 id="profile-checkins" class="section-heading">Check-ins</h2>
 

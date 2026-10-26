@@ -3,15 +3,19 @@ package web
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"sodapop/ent"
+	"sodapop/ent/comment"
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
 	"sodapop/ent/report"
+	"sodapop/ent/venuemedia"
 	"sodapop/internal/db"
 	"sodapop/internal/mix"
 	"sodapop/internal/venues"
@@ -353,25 +357,98 @@ func (s *Server) reportSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.FormValue("entity")
+	entityRef := strings.TrimSpace(r.FormValue("entity_ref"))
+	entityID, _ := strconv.Atoi(r.FormValue("entity_id"))
 	switch kind {
+	case "comment":
+		if entityRef == "" {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
+		if !s.reportableComment(r.Context(), u.ID, entityRef) {
+			http.NotFound(w, r)
+			return
+		}
+		entityID = 0
+	case "venue_media":
+		if entityRef == "" {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
+		if !s.reportableVenueMedia(r.Context(), entityRef) {
+			http.NotFound(w, r)
+			return
+		}
+		entityID = 0
 	case "drink", "brand", "venue", "checkin", "user":
+		entityRef = ""
+		if entityID <= 0 {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
 	default:
 		kind = "drink"
+		entityRef = ""
+		if entityID <= 0 {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
 	}
-	entityID, _ := strconv.Atoi(r.FormValue("entity_id"))
-	if entityID <= 0 {
-		http.Error(w, "invalid entity", http.StatusBadRequest)
-		return
-	}
-	_, err := s.Auth.Client.Report.Create().
+	create := s.Auth.Client.Report.Create().
 		SetEntity(report.Entity(kind)).SetEntityID(entityID).SetUserID(u.ID).
 		SetReason(strings.TrimSpace(r.FormValue("reason"))).
-		SetDetails(strings.TrimSpace(r.FormValue("details"))).Save(r.Context())
-	if err != nil {
+		SetDetails(strings.TrimSpace(r.FormValue("details")))
+	if entityRef != "" {
+		create.SetEntityRef(entityRef)
+	}
+	if _, err := create.Save(r.Context()); err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	http.Redirect(w, r, r.Referer(), http.StatusFound)
+	target := "/"
+	if ref := r.Header.Get("Referer"); ref != "" {
+		if parsed, err := url.Parse(ref); err == nil &&
+			(parsed.Host == "" || strings.EqualFold(parsed.Host, r.Host)) &&
+			strings.HasPrefix(parsed.Path, "/") && !strings.HasPrefix(parsed.Path, "//") {
+			target = parsed.EscapedPath()
+			if parsed.RawQuery != "" {
+				target += "?" + parsed.RawQuery
+			}
+		}
+	}
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
+// reportableComment reports whether a comment exists, is not soft-deleted, and
+// sits on a check-in the viewer can see. Reporting never grants extra access.
+func (s *Server) reportableComment(ctx context.Context, viewerID, id string) bool {
+	c, err := s.Auth.Client.Comment.Query().
+		Where(comment.ID(id), comment.DeletedAtIsNil()).Only(ctx)
+	if err != nil {
+		return false
+	}
+	_, err = s.Checkins.Get(ctx, viewerID, c.CheckinID)
+	return err == nil
+}
+
+// reportableVenueMedia reports whether venue media exists, is not soft-deleted,
+// and belongs to a venue that is still visible.
+func (s *Server) reportableVenueMedia(ctx context.Context, id string) bool {
+	row, err := s.Auth.Client.VenueMedia.Query().
+		Where(venuemedia.ID(id), venuemedia.DeletedAtIsNil()).Only(ctx)
+	if err != nil {
+		return false
+	}
+	views, err := s.Venues.VenueMedia(ctx, row.VenueID)
+	if err != nil {
+		return false
+	}
+	for _, v := range views {
+		if v.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
@@ -668,7 +745,44 @@ func (s *Server) venuePage(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That venue is not in Sodapop."})
 		return
 	}
-	s.render(w, r, http.StatusOK, "venue", map[string]any{"Title": v.Name, "Venue": v, "Drinks": drinks})
+	mediaRows, err := s.Venues.VenueMedia(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, venues.ErrNotFound) {
+			s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That venue is not in Sodapop."})
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	u := UserFromContext(r)
+	for i := range mediaRows {
+		mediaRows[i].CanRemove = u != nil &&
+			(mediaRows[i].UploadedBy == u.ID || u.Role == "admin" || u.Role == "moderator")
+	}
+	canUpload := u != nil && u.EmailVerifiedAt != nil
+	s.render(w, r, http.StatusOK, "venue", map[string]any{
+		"Title":      v.Name,
+		"Venue":      v,
+		"Drinks":     drinks,
+		"Media":      mediaRows,
+		"CanUpload":  canUpload,
+		"MediaError": mediaErrorFromQuery(r.URL.Query().Get("media_error")),
+	})
+}
+
+// mediaErrorFromQuery maps a fixed set of query codes to display copy. It never
+// reflects arbitrary query text into the page.
+func mediaErrorFromQuery(value string) string {
+	switch value {
+	case "invalid":
+		return "That file must be a JPEG, PNG, WebP or GIF image."
+	case "too_large":
+		return "That image is too large. Photos must be 12 MB or smaller."
+	case "limit":
+		return "This venue has reached its photo and menu limit. Remove one before uploading another."
+	default:
+		return ""
+	}
 }
 
 func (s *Server) venueSave(w http.ResponseWriter, r *http.Request) {

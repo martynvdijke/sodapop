@@ -1,0 +1,142 @@
+{{define "content"}}
+{{$sel := .Compare}}
+{{$n := 0}}
+{{$anyRating := false}}
+{{$anyFlavours := false}}
+{{with $sel}}
+  {{$n = len .}}
+  {{range .}}
+    {{if .Rating.Shown}}{{$anyRating = true}}{{end}}
+    {{if .Flavours}}{{$anyFlavours = true}}{{end}}
+  {{end}}
+{{end}}
+<section class="compare-page">
+  <p class="compare-back"><a href="/drinks">Back to all sodas</a></p>
+
+  <header class="compare-header">
+    <p class="eyebrow">Catalog</p>
+    <h1 id="compare-heading">Compare sodas</h1>
+    <p class="compare-intro">Put two to six sodas side by side and see how they differ.</p>
+  </header>
+
+  {{if .CompareError}}<p class="banner error compare-error" role="alert">{{.CompareError}}</p>{{end}}
+
+  <form class="compare-picker" method="get" action="/compare">
+    <h2 class="compare-picker-title">Pick sodas</h2>
+    <p class="compare-picker-hint">Two to six drinks, by slug.</p>
+    <div class="compare-fields">
+      <label class="compare-field">Drink 1
+        <input name="drinks" type="text" placeholder="drink-slug" autocomplete="off" spellcheck="false" autocapitalize="none"{{if gt $n 0}} value="{{with index $sel 0}}{{.Drink.Slug}}{{end}}"{{end}}>
+      </label>
+      <label class="compare-field">Drink 2
+        <input name="drinks" type="text" placeholder="drink-slug" autocomplete="off" spellcheck="false" autocapitalize="none"{{if gt $n 1}} value="{{with index $sel 1}}{{.Drink.Slug}}{{end}}"{{end}}>
+      </label>
+      <label class="compare-field">Drink 3
+        <input name="drinks" type="text" placeholder="drink-slug" autocomplete="off" spellcheck="false" autocapitalize="none"{{if gt $n 2}} value="{{with index $sel 2}}{{.Drink.Slug}}{{end}}"{{end}}>
+      </label>
+      <label class="compare-field">Drink 4
+        <input name="drinks" type="text" placeholder="drink-slug" autocomplete="off" spellcheck="false" autocapitalize="none"{{if gt $n 3}} value="{{with index $sel 3}}{{.Drink.Slug}}{{end}}"{{end}}>
+      </label>
+      <label class="compare-field">Drink 5
+        <input name="drinks" type="text" placeholder="drink-slug" autocomplete="off" spellcheck="false" autocapitalize="none"{{if gt $n 4}} value="{{with index $sel 4}}{{.Drink.Slug}}{{end}}"{{end}}>
+      </label>
+      <label class="compare-field">Drink 6
+        <input name="drinks" type="text" placeholder="drink-slug" autocomplete="off" spellcheck="false" autocapitalize="none"{{if gt $n 5}} value="{{with index $sel 5}}{{.Drink.Slug}}{{end}}"{{end}}>
+      </label>
+    </div>
+    <div class="compare-picker-actions">
+      <button class="btn btn-primary" type="submit">Compare</button>
+      <a class="compare-picker-link" href="/drinks">Browse sodas</a>
+    </div>
+  </form>
+
+  {{if $sel}}
+    <p class="compare-scroll-hint">Scroll sideways to see every soda.</p>
+    <div class="compare-scroll" role="region" aria-labelledby="compare-heading" tabindex="0">
+      <table class="compare-table">
+        <caption class="sr-only">Sodas compared side by side</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="compare-corner"><span class="sr-only">Detail</span></th>
+            {{range $sel}}
+              <th scope="col">
+                <span class="compare-drink-name"><a href="/drinks/{{.Drink.Slug}}">{{.Drink.Name}}</a></span>
+              </th>
+            {{end}}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Brand</th>
+            {{range $sel}}<td>{{if .BrandName}}{{.BrandName}}{{else}}<span class="compare-missing">—<span class="sr-only">Not recorded</span></span>{{end}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Style</th>
+            {{range $sel}}<td>{{if .StyleName}}{{.StyleName}}{{else}}<span class="compare-missing">—<span class="sr-only">Not recorded</span></span>{{end}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Container</th>
+            {{range $sel}}<td>{{if .Drink.Container}}{{container .Drink.Container}}{{else}}<span class="compare-missing">—<span class="sr-only">Not recorded</span></span>{{end}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Volume</th>
+            {{range $sel}}<td>{{if .Drink.VolumeMl}}{{volume .Drink.VolumeMl}}{{else}}<span class="compare-missing">—<span class="sr-only">Not recorded</span></span>{{end}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Sugar</th>
+            {{range $sel}}<td>{{per100 .Drink.SugarGPer100ml "g"}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Caffeine</th>
+            {{range $sel}}<td>{{per100 .Drink.CaffeineMgPer100ml "mg"}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Calories</th>
+            {{range $sel}}<td>{{per100 .Drink.CaloriesKcalPer100ml "kcal"}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Sweetener</th>
+            {{range $sel}}<td>{{if .Drink.Sweetener}}{{.Drink.Sweetener}}{{else}}<span class="compare-missing">—<span class="sr-only">Not recorded</span></span>{{end}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Carbonation</th>
+            {{range $sel}}<td>{{if .Drink.Carbonation}}{{.Drink.Carbonation}}{{else}}<span class="compare-missing">—<span class="sr-only">Not recorded</span></span>{{end}}</td>{{end}}
+          </tr>
+          <tr>
+            <th scope="row">Acid</th>
+            {{range $sel}}<td>{{if .Drink.Acid}}{{.Drink.Acid}}{{else}}<span class="compare-missing">—<span class="sr-only">Not recorded</span></span>{{end}}</td>{{end}}
+          </tr>
+          {{if $anyRating}}
+            <tr>
+              <th scope="row">Rating</th>
+              {{range $sel}}<td>{{if .Rating.Shown}}<span class="compare-rating">{{stars .Rating.Avg}}</span>{{else}}<span class="compare-missing">—<span class="sr-only">Not enough ratings</span></span>{{end}}</td>{{end}}
+            </tr>
+          {{end}}
+          {{if $anyFlavours}}
+            <tr>
+              <th scope="row">Flavours</th>
+              {{range $sel}}
+                <td>
+                  {{if .Flavours}}
+                    <ul class="compare-tags">
+                      {{range .Flavours}}<li class="compare-tag">{{.Name}}</li>{{end}}
+                    </ul>
+                  {{else}}<span class="compare-missing">—<span class="sr-only">No flavours listed</span></span>{{end}}
+                </td>
+              {{end}}
+            </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  {{else}}
+    {{if not .CompareError}}
+      <div class="empty compare-empty">
+        <p>Pick two sodas above to see them side by side.</p>
+      </div>
+    {{end}}
+  {{end}}
+
+  <p class="compare-note">Merged and provisional sodas are not compared.</p>
+</section>
+{{end}}

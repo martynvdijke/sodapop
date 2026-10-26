@@ -31,6 +31,10 @@
     {{if ne .Visibility "private"}}
     <button class="chip chip-share" type="button" data-share data-share-url="/checkins/{{.ID}}" data-share-title="{{.DrinkName}}" data-share-text="{{.DrinkName}} on Sodapop">Share</button>
     {{end}}
+    <a class="chip chip-comments" href="/checkins/{{.ID}}#comments">
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5.75h12v7.5H9.5L6 16v-2.75H4z"/></svg>
+      Comments{{if .Comments}} <span class="comment-count">{{.Comments}}</span>{{end}}
+    </a>
   </div>
 </article>
 {{end}}

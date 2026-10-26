@@ -20,7 +20,7 @@ func TestRendererKnowsEveryPage(t *testing.T) {
 		"friends", "tokens", "newdrink", "error", "you", "lists", "list",
 		"passport", "taste", "mix", "mix_detail", "integrations", "admin",
 		"venues", "venue", "notifications", "checkin_detail", "settings",
-		"forgot", "reset", "browse", "brand", "style", "profile", "insights", "drops", "venues_saved",
+		"forgot", "reset", "browse", "brand", "style", "profile", "insights", "drops", "venues_saved", "compare",
 	}
 	for _, page := range pages {
 		if _, ok := r.pages[page]; !ok {

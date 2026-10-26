@@ -17,5 +17,81 @@
       <div><strong>{{.Name}}</strong><div class="muted">{{.Brand}}{{if .LastSeen}} · last seen {{.LastSeen}}{{end}}{{if .OnOffer}} · on offer{{end}}</div></div>
     </a>
   {{else}}<div class="empty"><p>No sodas logged here yet. Be the first.</p></div>{{end}}
+
+  <section id="photos" class="venue-media" aria-labelledby="photos-heading">
+    <h2 id="photos-heading">Photos and menus</h2>
+    <p class="venue-media-intro">Photos of the place and its soda menu, added by people who have been here.</p>
+
+    {{if .MediaError}}<p class="banner error venue-media-error" role="alert">{{.MediaError}}</p>{{end}}
+
+    {{if .Media}}
+      <ul class="media-gallery">
+        {{range .Media}}
+          <li class="media-item card">
+            <a class="media-thumb" href="/media/{{.MediaID}}">
+              <img src="/media/{{.MediaID}}/thumb" alt="{{if eq .Kind "menu"}}Menu{{else}}Photo{{end}}{{with .Label}}: {{.}}{{end}} at {{$v.Name}}" loading="lazy" decoding="async" width="480" height="480">
+            </a>
+            <div class="media-meta">
+              <p class="media-kind">{{if eq .Kind "menu"}}Menu{{else}}Photo{{end}}{{with .Label}} · {{.}}{{end}}</p>
+              <p class="media-credit">{{if .UploaderHandle}}by @{{.UploaderHandle}}{{else}}Added by a member{{end}}{{if .CreatedAt}} · {{.CreatedAt}}{{end}}</p>
+            </div>
+            <div class="media-actions">
+              {{if .CanRemove}}
+                <form class="media-delete" method="post" action="/venues/media/{{.ID}}/delete">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                  <button class="btn btn-small" type="submit">Remove</button>
+                </form>
+              {{end}}
+              <details class="media-report">
+                <summary>Report</summary>
+                <form class="media-report-form" method="post" action="/reports">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                  <input type="hidden" name="entity" value="venue_media">
+                  <input type="hidden" name="entity_ref" value="{{.ID}}">
+                  <label>Reason
+                    <select name="reason">
+                      <option value="incorrect">Wrong venue or not a photo or menu</option>
+                      <option value="off">Offensive content</option>
+                      <option value="duplicate">Duplicate upload</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>Details <span class="hint">optional</span>
+                    <textarea name="details" rows="2" maxlength="500"></textarea>
+                  </label>
+                  <button class="btn btn-small" type="submit">Send report</button>
+                </form>
+              </details>
+            </div>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <div class="empty"><p>No photos or menus yet.</p></div>
+    {{end}}
+
+    {{if .CanUpload}}
+      <form class="media-upload" method="post" action="/venues/{{$v.ID}}/media" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <h3>Add a photo or menu</h3>
+        <label>Image
+          <input type="file" name="image" accept="image/*" required>
+          <span class="hint">JPEG, PNG or WebP.</span>
+        </label>
+        <label>Kind
+          <select name="kind">
+            <option value="photo">Photo</option>
+            <option value="menu">Menu</option>
+          </select>
+        </label>
+        <label>Label <span class="hint">optional</span>
+          <input type="text" name="label" maxlength="80" autocomplete="off">
+        </label>
+        <div class="form-actions">
+          <button class="btn" type="submit">Upload</button>
+        </div>
+      </form>
+    {{end}}
+  </section>
 </article>
 {{end}}

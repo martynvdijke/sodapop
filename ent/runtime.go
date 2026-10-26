@@ -15,6 +15,7 @@ import (
 	"sodapop/ent/catalogrevision"
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
+	"sodapop/ent/comment"
 	"sodapop/ent/drink"
 	"sodapop/ent/drinkalias"
 	"sodapop/ent/drinkbarcode"
@@ -45,6 +46,7 @@ import (
 	"sodapop/ent/usersetting"
 	"sodapop/ent/venue"
 	"sodapop/ent/venuedrink"
+	"sodapop/ent/venuemedia"
 	"sodapop/ent/venuename"
 	"sodapop/ent/venuesave"
 )
@@ -309,6 +311,42 @@ func init() {
 	checkinlikeDescCreatedAt := checkinlikeFields[2].Descriptor()
 	// checkinlike.DefaultCreatedAt holds the default value on creation for the created_at field.
 	checkinlike.DefaultCreatedAt = checkinlikeDescCreatedAt.Default.(func() string)
+	commentFields := schema.Comment{}.Fields()
+	_ = commentFields
+	// commentDescCheckinID is the schema descriptor for checkin_id field.
+	commentDescCheckinID := commentFields[1].Descriptor()
+	// comment.CheckinIDValidator is a validator for the "checkin_id" field. It is called by the builders before save.
+	comment.CheckinIDValidator = commentDescCheckinID.Validators[0].(func(string) error)
+	// commentDescUserID is the schema descriptor for user_id field.
+	commentDescUserID := commentFields[2].Descriptor()
+	// comment.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	comment.UserIDValidator = commentDescUserID.Validators[0].(func(string) error)
+	// commentDescBody is the schema descriptor for body field.
+	commentDescBody := commentFields[3].Descriptor()
+	// comment.BodyValidator is a validator for the "body" field. It is called by the builders before save.
+	comment.BodyValidator = func() func(string) error {
+		validators := commentDescBody.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(body string) error {
+			for _, fn := range fns {
+				if err := fn(body); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// commentDescCreatedAt is the schema descriptor for created_at field.
+	commentDescCreatedAt := commentFields[4].Descriptor()
+	// comment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	comment.DefaultCreatedAt = commentDescCreatedAt.Default.(func() string)
+	// commentDescID is the schema descriptor for id field.
+	commentDescID := commentFields[0].Descriptor()
+	// comment.DefaultID holds the default value on creation for the id field.
+	comment.DefaultID = commentDescID.Default.(func() string)
 	drinkFields := schema.Drink{}.Fields()
 	_ = drinkFields
 	// drinkDescName is the schema descriptor for name field.
@@ -745,16 +783,20 @@ func init() {
 	pushsubscription.DefaultCreatedAt = pushsubscriptionDescCreatedAt.Default.(func() string)
 	reportFields := schema.Report{}.Fields()
 	_ = reportFields
+	// reportDescEntityRef is the schema descriptor for entity_ref field.
+	reportDescEntityRef := reportFields[3].Descriptor()
+	// report.DefaultEntityRef holds the default value on creation for the entity_ref field.
+	report.DefaultEntityRef = reportDescEntityRef.Default.(string)
 	// reportDescReason is the schema descriptor for reason field.
-	reportDescReason := reportFields[4].Descriptor()
+	reportDescReason := reportFields[5].Descriptor()
 	// report.DefaultReason holds the default value on creation for the reason field.
 	report.DefaultReason = reportDescReason.Default.(string)
 	// reportDescDetails is the schema descriptor for details field.
-	reportDescDetails := reportFields[5].Descriptor()
+	reportDescDetails := reportFields[6].Descriptor()
 	// report.DefaultDetails holds the default value on creation for the details field.
 	report.DefaultDetails = reportDescDetails.Default.(string)
 	// reportDescCreatedAt is the schema descriptor for created_at field.
-	reportDescCreatedAt := reportFields[7].Descriptor()
+	reportDescCreatedAt := reportFields[8].Descriptor()
 	// report.DefaultCreatedAt holds the default value on creation for the created_at field.
 	report.DefaultCreatedAt = reportDescCreatedAt.Default.(func() string)
 	sessionFields := schema.Session{}.Fields()
@@ -953,6 +995,28 @@ func init() {
 	venuedrinkDescOnOffer := venuedrinkFields[4].Descriptor()
 	// venuedrink.DefaultOnOffer holds the default value on creation for the on_offer field.
 	venuedrink.DefaultOnOffer = venuedrinkDescOnOffer.Default.(bool)
+	venuemediaFields := schema.VenueMedia{}.Fields()
+	_ = venuemediaFields
+	// venuemediaDescMediaID is the schema descriptor for media_id field.
+	venuemediaDescMediaID := venuemediaFields[2].Descriptor()
+	// venuemedia.MediaIDValidator is a validator for the "media_id" field. It is called by the builders before save.
+	venuemedia.MediaIDValidator = venuemediaDescMediaID.Validators[0].(func(string) error)
+	// venuemediaDescLabel is the schema descriptor for label field.
+	venuemediaDescLabel := venuemediaFields[4].Descriptor()
+	// venuemedia.DefaultLabel holds the default value on creation for the label field.
+	venuemedia.DefaultLabel = venuemediaDescLabel.Default.(string)
+	// venuemediaDescUploadedBy is the schema descriptor for uploaded_by field.
+	venuemediaDescUploadedBy := venuemediaFields[5].Descriptor()
+	// venuemedia.UploadedByValidator is a validator for the "uploaded_by" field. It is called by the builders before save.
+	venuemedia.UploadedByValidator = venuemediaDescUploadedBy.Validators[0].(func(string) error)
+	// venuemediaDescCreatedAt is the schema descriptor for created_at field.
+	venuemediaDescCreatedAt := venuemediaFields[6].Descriptor()
+	// venuemedia.DefaultCreatedAt holds the default value on creation for the created_at field.
+	venuemedia.DefaultCreatedAt = venuemediaDescCreatedAt.Default.(func() string)
+	// venuemediaDescID is the schema descriptor for id field.
+	venuemediaDescID := venuemediaFields[0].Descriptor()
+	// venuemedia.DefaultID holds the default value on creation for the id field.
+	venuemedia.DefaultID = venuemediaDescID.Default.(func() string)
 	venuenameFields := schema.VenueName{}.Fields()
 	_ = venuenameFields
 	// venuenameDescName is the schema descriptor for name field.

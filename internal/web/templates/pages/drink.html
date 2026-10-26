@@ -17,6 +17,7 @@
 
   <div class="actions">
     <a class="btn btn-primary" href="/checkins/new?slug={{$d.Drink.Slug}}">Log this soda</a>
+    <a class="btn" href="/compare?drinks={{$d.Drink.Slug}}">Compare</a>
     <a class="btn" href="/search">Back to search</a>
     <button class="btn" type="button" data-share data-share-url="/drinks/{{$d.Drink.Slug}}" data-share-title="{{$d.Drink.Name}}" data-share-text="{{$d.Drink.Name}}{{if $d.BrandName}} by {{$d.BrandName}}{{end}} on Sodapop">Share</button>
   </div>
