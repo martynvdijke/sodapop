@@ -1,3 +1,14 @@
+# [1.3.0](https://github.com/martynvdijke/sodapop/compare/v1.2.0...v1.3.0) (2026-10-26)
+
+
+### Features
+
+* add comments, venue media, comparison, and richer profiles (phase B) ([b2c7bae](https://github.com/martynvdijke/sodapop/commit/b2c7bae4c4504fbea188a40450da00db78d193ae))
+* add first-run admin setup and runtime settings ([e73490a](https://github.com/martynvdijke/sodapop/commit/e73490a829a713342b87fe39e15f73ae852fd87a))
+* add safety controls, galleries, AI drafts, audit, and admin setup foundation (phase C) ([53e0c87](https://github.com/martynvdijke/sodapop/commit/53e0c87f8d6cde9ea863d20755836bcc90c9bc5b))
+* complete v1.2 API and Android parity (phase D) ([16751b0](https://github.com/martynvdijke/sodapop/commit/16751b05c0f2a6b4f199080eaa7ee8983c5565e9))
+* complete v1.2 surface wiring (phase A) ([811a6bf](https://github.com/martynvdijke/sodapop/commit/811a6bf29ae3463dabf4a4b0496b979547b7f8fe))
+
 # [1.2.0](https://github.com/martynvdijke/sodapop/compare/v1.1.0...v1.2.0) (2026-10-25)
 
 
