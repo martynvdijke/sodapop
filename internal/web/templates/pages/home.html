@@ -1,4 +1,21 @@
 {{define "content"}}
+<aside class="install-card" data-install-card hidden aria-labelledby="install-card-title">
+  <svg class="install-card-glyph" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+    <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M10.5 5.25h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M12 17.5v-6m0 0-2.25 2.25M12 11.5l2.25 2.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div class="install-card-body">
+    <p class="install-card-title" id="install-card-title">Install Sodapop</p>
+    <p class="install-card-copy">Add to home screen for offline scanning.</p>
+  </div>
+  <button class="install-card-dismiss" type="button" data-install-dismiss aria-label="Dismiss install tip">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+    </svg>
+  </button>
+</aside>
+
 {{if .User}}
   <section class="hero">
     <div>
@@ -18,7 +35,31 @@
   </section>
   {{end}}
 
+  {{if .AIEnabled}}{{if .AIRecommendations}}
+  <section class="ai-next" aria-labelledby="ai-next-title">
+    <h2 id="ai-next-title" class="section-heading">Try next</h2>
+    <p class="ai-next-intro">Based on what you and your friends have rated.</p>
+    <ul class="ai-next-list">
+      {{range .AIRecommendations}}
+      <li>
+        <a class="card drink-card ai-next-card" href="/drinks/{{.Slug}}">
+          <div class="bottle" aria-hidden="true">{{initial .Name}}</div>
+          <div>
+            <strong>{{.Name}}</strong>
+            {{if .Reason}}<div class="muted">{{.Reason}}</div>{{end}}
+          </div>
+        </a>
+      </li>
+      {{end}}
+    </ul>
+  </section>
+  {{end}}{{end}}
+
   <h2 class="section-title">Your feed</h2>
+  <nav class="feed-tabs" aria-label="Feed">
+    <a class="feed-tab" href="/?tab=friends"{{if ne .FeedTab "following"}} aria-current="page"{{end}}>Friends</a>
+    <a class="feed-tab" href="/?tab=following"{{if eq .FeedTab "following"}} aria-current="page"{{end}}>Following</a>
+  </nav>
   {{range .Feed}}{{template "feed_item" .}}{{else}}
     <div class="empty">
       <p>No check-ins yet. Your first can is waiting.</p>

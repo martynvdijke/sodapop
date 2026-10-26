@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"sodapop/ent"
+	"sodapop/ent/follow"
 	"sodapop/ent/user"
 	"sodapop/internal/checkins"
+	"sodapop/internal/social"
 )
 
 // profilePage renders the opt-in public profile at GET /u/{handle}. Access is
@@ -92,6 +94,15 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		displayName = target.Handle
 	}
 	isOwner := viewerID != "" && viewerID == target.ID
+	isFollowing := false
+	if viewerID != "" && viewerID != target.ID {
+		isFollowing, _ = s.Auth.Client.Follow.Query().
+			Where(follow.FollowerID(viewerID), follow.FolloweeID(target.ID)).Exist(ctx)
+	}
+	followerCount, _ := s.Auth.Client.Follow.Query().
+		Where(follow.FolloweeID(target.ID)).Count(ctx)
+	followingCount, _ := s.Auth.Client.Follow.Query().
+		Where(follow.FollowerID(target.ID)).Count(ctx)
 	indexable := public
 	robots := "noindex,nofollow"
 	if indexable {
@@ -133,6 +144,9 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		"Lists":           lists,
 		"IsOwner":         isOwner,
 		"IsFriend":        areFriends,
+		"IsFollowing":     isFollowing,
+		"FollowerCount":   followerCount,
+		"FollowingCount":  followingCount,
 		"Authenticated":   viewerID != "",
 		"Indexable":       indexable,
 		"CanonicalURL":    s.Cfg.BaseURL + "/u/" + target.Handle,
@@ -149,6 +163,42 @@ func (s *Server) profileNotFound(w http.ResponseWriter, r *http.Request) {
 		"Title":   "Not found",
 		"Message": "That profile is not in Sodapop.",
 	})
+}
+
+func (s *Server) followUser(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	handle := strings.ToLower(strings.TrimSpace(r.PathValue("handle")))
+	// block enforcement lands in Phase C
+	if err := s.Social.Follow(r.Context(), u.ID, handle); err != nil {
+		if err == social.ErrSelfAction {
+			http.Error(w, "you cannot follow yourself", http.StatusBadRequest)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/u/"+url.PathEscape(handle), http.StatusFound)
+}
+
+func (s *Server) unfollowUser(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	handle := strings.ToLower(strings.TrimSpace(r.PathValue("handle")))
+	// block enforcement lands in Phase C
+	if err := s.Social.Unfollow(r.Context(), u.ID, handle); err != nil {
+		if err == social.ErrSelfAction {
+			http.Error(w, "you cannot unfollow yourself", http.StatusBadRequest)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/u/"+url.PathEscape(handle), http.StatusFound)
 }
 
 // profileDescription trims the bio to 155 characters and falls back to a

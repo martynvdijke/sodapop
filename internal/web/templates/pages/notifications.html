@@ -27,6 +27,16 @@
             <p class="notif-line">{{if .ActorName}}<strong>{{.ActorName}}</strong> {{end}}{{.Text}}</p>
             <p class="notif-meta">{{if .ActorHandle}}@{{.ActorHandle}} · {{end}}{{.CreatedAt}}</p>
             <div class="notif-actions">
+              {{if .FriendRequestID}}
+                <form method="post" action="/friends/{{.FriendRequestID}}/accept">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                  <button class="btn btn-accept" type="submit" aria-label="Accept friend request{{if .ActorName}} from {{.ActorName}}{{end}}"><span aria-hidden="true">✓</span> Accept</button>
+                </form>
+                <form method="post" action="/friends/{{.FriendRequestID}}/remove">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                  <button class="btn" type="submit" aria-label="Decline friend request{{if .ActorName}} from {{.ActorName}}{{end}}">Decline</button>
+                </form>
+              {{end}}
               {{if .Href}}<a class="btn" href="{{.Href}}" aria-label="Open notification: {{.Text}}">Open</a>{{end}}
               {{if not .Read}}
                 <form method="post" action="/notifications/read">

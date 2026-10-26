@@ -198,6 +198,31 @@ func (s *Service) findNearby(ctx context.Context, in CreateInput) (*ent.Venue, e
 	return nil, rows.Err()
 }
 
+// Saved lists the venues a user bookmarked, newest first.
+func (s *Service) Saved(ctx context.Context, userID string) ([]Venue, error) {
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT v.id, v.slug, v.name, v.kind, COALESCE(v.address,''), COALESCE(v.city,''),
+		       COALESCE(v.region,''), COALESCE(v.country,''), v.lat, v.lng, COALESCE(v.website,'')
+		FROM venue_saves vs
+		JOIN venues v ON v.id = vs.venue_id
+		WHERE vs.user_id = ? AND v.merged_into_id IS NULL
+		ORDER BY vs.created_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Venue{}
+	for rows.Next() {
+		var v Venue
+		if err := rows.Scan(&v.ID, &v.Slug, &v.Name, &v.Kind, &v.Address, &v.City,
+			&v.Region, &v.Country, &v.Lat, &v.Lng, &v.Website); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
 // Save bookmarks a venue for a user.
 func (s *Service) Save(ctx context.Context, userID string, venueID int) error {
 	exists, err := s.Client.VenueSave.Query().

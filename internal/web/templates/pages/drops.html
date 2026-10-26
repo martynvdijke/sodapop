@@ -21,7 +21,7 @@
             <span class="drops-body">
               <strong class="drops-name">{{.Name}}</strong>
               <span class="drops-meta">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</span>
-              <span class="drops-meta">{{.VolumeML}} ml {{container .Container}}</span>
+              <span class="drops-meta">{{volume .VolumeML}} {{container .Container}}</span>
             </span>
             <span class="drops-side">
               {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{else}}<span class="drops-unrated">Not rated</span>{{end}}
@@ -52,7 +52,7 @@
             <span class="drops-body">
               <strong class="drops-name">{{.Name}}</strong>
               <span class="drops-meta">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</span>
-              <span class="drops-meta">{{.VolumeML}} ml {{container .Container}}</span>
+              <span class="drops-meta">{{volume .VolumeML}} {{container .Container}}</span>
             </span>
             <span class="drops-side">
               {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{else}}<span class="drops-unrated">Not rated</span>{{end}}
@@ -83,7 +83,7 @@
             <span class="drops-body">
               <strong class="drops-name">{{.Name}}</strong>
               <span class="drops-meta">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</span>
-              <span class="drops-meta">{{.VolumeML}} ml {{container .Container}}</span>
+              <span class="drops-meta">{{volume .VolumeML}} {{container .Container}}</span>
             </span>
             <span class="drops-side">
               {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{else}}<span class="drops-unrated">Not rated</span>{{end}}

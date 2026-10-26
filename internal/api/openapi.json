@@ -228,6 +228,64 @@
       }
     }
   },
+  "tags": [
+    {
+      "name": "system",
+      "description": "Interactive documentation and service metadata."
+    },
+    {
+      "name": "auth",
+      "description": "Token exchange for the web and Android clients."
+    },
+    {
+      "name": "me",
+      "description": "Your own profile, stats and notifications."
+    },
+    {
+      "name": "feed",
+      "description": "Your viewer-scoped friends-and-follows feed."
+    },
+    {
+      "name": "friends",
+      "description": "Friend requests and the accepted friend graph."
+    },
+    {
+      "name": "notifications",
+      "description": "Your notification inbox."
+    },
+    {
+      "name": "checkins",
+      "description": "Your check-ins and toasts."
+    },
+    {
+      "name": "users",
+      "description": "Profiles visible to you."
+    },
+    {
+      "name": "drinks",
+      "description": "Single-drink reads and community submissions."
+    },
+    {
+      "name": "search",
+      "description": "Capped catalog search."
+    },
+    {
+      "name": "barcodes",
+      "description": "GTIN-14 barcode resolution."
+    },
+    {
+      "name": "venues",
+      "description": "Venue reads, submissions and saves."
+    },
+    {
+      "name": "ai",
+      "description": "Optional Soda Sommelier helpers."
+    },
+    {
+      "name": "integrations",
+      "description": "Personal integration status."
+    }
+  ],
   "paths": {
     "/api/openapi.json": {
       "get": {
@@ -237,7 +295,10 @@
           "200": {
             "description": "OpenAPI 3.1 JSON"
           }
-        }
+        },
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/docs/": {
@@ -248,7 +309,10 @@
           "200": {
             "description": "Interactive API documentation"
           }
-        }
+        },
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/v1/auth/oidc/status": {
@@ -279,7 +343,10 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/api/v1/auth/mobile-token": {
@@ -304,6 +371,63 @@
           "403": {
             "description": "CSRF failure or unverified email"
           }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/token": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Exchange email/handle and password for a token",
+        "description": "Password sign-in for first-party clients when password login is enabled. Returns a personal `sd_` token shown once. Generic errors avoid account enumeration.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "login",
+                  "password"
+                ],
+                "properties": {
+                  "login": {
+                    "type": "string",
+                    "description": "Email address or handle",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Optional token label",
+                    "maxLength": 60
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token created (shown once)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Password sign-in disabled or email not verified"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
         }
       }
     },
@@ -324,7 +448,10 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "me"
+        ]
       }
     },
     "/api/v1/me/checkins": {
@@ -353,7 +480,10 @@
           "200": {
             "description": "Check-ins"
           }
-        }
+        },
+        "tags": [
+          "me"
+        ]
       }
     },
     "/api/v1/stats/me": {
@@ -363,7 +493,10 @@
           "200": {
             "description": "Totals"
           }
-        }
+        },
+        "tags": [
+          "me"
+        ]
       }
     },
     "/api/v1/stats/me/insights": {
@@ -377,7 +510,11 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "enum": [7, 30, 90],
+              "enum": [
+                7,
+                30,
+                90
+              ],
               "default": 30
             }
           }
@@ -389,7 +526,10 @@
           "401": {
             "description": "Missing or invalid token"
           }
-        }
+        },
+        "tags": [
+          "me"
+        ]
       }
     },
     "/api/v1/notifications": {
@@ -403,7 +543,10 @@
           "401": {
             "description": "Missing or invalid token"
           }
-        }
+        },
+        "tags": [
+          "notifications"
+        ]
       }
     },
     "/api/v1/notifications/read": {
@@ -431,7 +574,10 @@
           "401": {
             "description": "Missing or invalid token"
           }
-        }
+        },
+        "tags": [
+          "notifications"
+        ]
       }
     },
     "/api/v1/feed": {
@@ -460,7 +606,10 @@
           "200": {
             "description": "Feed"
           }
-        }
+        },
+        "tags": [
+          "feed"
+        ]
       }
     },
     "/api/v1/friends": {
@@ -470,7 +619,10 @@
           "200": {
             "description": "Friend graph"
           }
-        }
+        },
+        "tags": [
+          "friends"
+        ]
       }
     },
     "/api/v1/friends/requests": {
@@ -502,7 +654,10 @@
           "429": {
             "description": "Too many requests"
           }
-        }
+        },
+        "tags": [
+          "friends"
+        ]
       }
     },
     "/api/v1/friends/requests/{id}/accept": {
@@ -525,7 +680,10 @@
           "403": {
             "description": "Not addressed to you"
           }
-        }
+        },
+        "tags": [
+          "friends"
+        ]
       }
     },
     "/api/v1/friends/{id}": {
@@ -545,7 +703,10 @@
           "204": {
             "description": "Removed"
           }
-        }
+        },
+        "tags": [
+          "friends"
+        ]
       }
     },
     "/api/v1/checkins": {
@@ -575,7 +736,10 @@
           "403": {
             "description": "Unverified email or insufficient scope"
           }
-        }
+        },
+        "tags": [
+          "checkins"
+        ]
       }
     },
     "/api/v1/checkins/{id}": {
@@ -599,7 +763,10 @@
           "404": {
             "description": "Missing or not visible"
           }
-        }
+        },
+        "tags": [
+          "checkins"
+        ]
       },
       "delete": {
         "summary": "Soft-delete your check-in",
@@ -620,7 +787,10 @@
           "403": {
             "description": "Not yours"
           }
-        }
+        },
+        "tags": [
+          "checkins"
+        ]
       }
     },
     "/api/v1/checkins/{id}/toast": {
@@ -640,7 +810,10 @@
           "200": {
             "description": "Toasted"
           }
-        }
+        },
+        "tags": [
+          "checkins"
+        ]
       },
       "delete": {
         "summary": "Remove your toast",
@@ -658,7 +831,10 @@
           "200": {
             "description": "Untoasted"
           }
-        }
+        },
+        "tags": [
+          "checkins"
+        ]
       }
     },
     "/api/v1/users/{handle}": {
@@ -682,7 +858,10 @@
           "404": {
             "description": "Unknown handle"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       }
     },
     "/api/v1/users/{handle}/checkins": {
@@ -715,7 +894,10 @@
           "404": {
             "description": "Not a friend or unknown user"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       }
     },
     "/api/v1/drinks/{slug}": {
@@ -738,7 +920,10 @@
           "404": {
             "description": "Not found"
           }
-        }
+        },
+        "tags": [
+          "drinks"
+        ]
       }
     },
     "/api/v1/search": {
@@ -782,7 +967,10 @@
           "429": {
             "description": "Rate limited (30/min/token)"
           }
-        }
+        },
+        "tags": [
+          "search"
+        ]
       }
     },
     "/api/v1/barcodes/{gtin}": {
@@ -810,7 +998,10 @@
           "429": {
             "description": "Rate limited"
           }
-        }
+        },
+        "tags": [
+          "barcodes"
+        ]
       }
     },
     "/api/v1/drinks": {
@@ -877,7 +1068,10 @@
           "200": {
             "description": "Existing equivalent returned"
           }
-        }
+        },
+        "tags": [
+          "drinks"
+        ]
       }
     },
     "/api/v1/integrations/home-assistant": {
@@ -891,7 +1085,10 @@
           "401": {
             "description": "Missing or invalid token"
           }
-        }
+        },
+        "tags": [
+          "integrations"
+        ]
       }
     },
     "/api/v1/venues/search": {
@@ -925,7 +1122,10 @@
           "400": {
             "description": "Query too short"
           }
-        }
+        },
+        "tags": [
+          "venues"
+        ]
       }
     },
     "/api/v1/venues/{id}": {
@@ -948,7 +1148,10 @@
           "404": {
             "description": "Not found"
           }
-        }
+        },
+        "tags": [
+          "venues"
+        ]
       }
     },
     "/api/v1/venues": {
@@ -1014,7 +1217,10 @@
           "200": {
             "description": "Nearby duplicate returned"
           }
-        }
+        },
+        "tags": [
+          "venues"
+        ]
       }
     },
     "/api/v1/venues/{id}/save": {
@@ -1034,7 +1240,10 @@
           "200": {
             "description": "Saved"
           }
-        }
+        },
+        "tags": [
+          "venues"
+        ]
       },
       "delete": {
         "summary": "Unsave a venue",
@@ -1052,7 +1261,10 @@
           "200": {
             "description": "Unsaved"
           }
-        }
+        },
+        "tags": [
+          "venues"
+        ]
       }
     },
     "/api/v1/ai/drafts": {
@@ -1102,7 +1314,10 @@
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           }
-        }
+        },
+        "tags": [
+          "ai"
+        ]
       }
     },
     "/api/v1/ai/tasting-note": {
@@ -1146,7 +1361,10 @@
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           }
-        }
+        },
+        "tags": [
+          "ai"
+        ]
       }
     },
     "/api/v1/ai/recommend": {
@@ -1185,7 +1403,10 @@
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           }
-        }
+        },
+        "tags": [
+          "ai"
+        ]
       }
     }
   }

@@ -31,7 +31,14 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	u := UserFromContext(r)
 	data := map[string]any{"Title": "Sodapop"}
 	if u != nil {
-		feed, _ := s.Social.Feed(r.Context(), u.ID, 20, "")
+		var feed []social.FeedItem
+		if r.URL.Query().Get("tab") == "following" {
+			feed, _ = s.Social.FeedFollowing(r.Context(), u.ID, 20, "")
+			data["FeedTab"] = "following"
+		} else {
+			feed, _ = s.Social.Feed(r.Context(), u.ID, 20, "")
+			data["FeedTab"] = "friends"
+		}
 		csrf := ""
 		if sess := SessionFromContext(r); sess != nil {
 			csrf = sess.CsrfToken
@@ -41,6 +48,9 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		}
 		data["Feed"] = feed
 		data["Stats"], _ = s.Checkins.Stats(r.Context(), u.ID)
+		aiEnabled, aiRecs := s.aiRecommendations(r.Context(), u.ID)
+		data["AIEnabled"] = aiEnabled
+		data["AIRecommendations"] = aiRecs
 	}
 	s.render(w, r, http.StatusOK, "home", data)
 }
@@ -545,6 +555,23 @@ func (s *Server) checkinToast(w http.ResponseWriter, r *http.Request) {
 		err = s.Social.Toast(r.Context(), u.ID, id)
 	}
 	if err != nil && !errors.Is(err, social.ErrNotFound) {
+		s.fail(w, r, err)
+		return
+	}
+	target := r.Referer()
+	if target == "" {
+		target = "/"
+	}
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
+func (s *Server) untoast(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	if err := s.Social.Untoast(r.Context(), u.ID, r.PathValue("id")); err != nil &&
+		!errors.Is(err, social.ErrNotFound) {
 		s.fail(w, r, err)
 		return
 	}

@@ -1,15 +1,55 @@
 {{define "content"}}
 <p class="eyebrow">List</p>
 <h1>{{.List.Name}}</h1>
-<p class="muted">{{.List.Visibility}} · {{len .Items}} saved</p>
+<p class="list-meta muted">
+  <span class="pill">{{if eq .List.Visibility "public"}}Anyone{{else if eq .List.Visibility "friends"}}Friends{{else}}Only me{{end}}</span>
+  <span>{{len .Items}} saved</span>
+</p>
 {{if .List.Description}}<p>{{.List.Description}}</p>{{end}}
+
+{{if ne .List.Visibility "private"}}
+<div class="list-toolbar">
+  <button class="btn" type="button" data-share data-share-url="/lists/{{.List.ID}}" data-share-title="{{.List.Name}}" data-share-text="{{.List.Name}} on Sodapop">Share</button>
+</div>
+{{end}}
+
+{{if .CanEdit}}
+<details class="card list-edit">
+  <summary class="list-edit-summary">Edit list</summary>
+  <form method="post" action="/lists/{{.List.ID}}/edit" class="stack list-edit-form">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label>Name <input name="name" value="{{.List.Name}}" maxlength="80" required></label>
+    <label>Description <input name="description" value="{{.List.Description}}" maxlength="500" placeholder="Optional"></label>
+    <label>Visibility
+      <select name="visibility">
+        <option value="private"{{if eq .List.Visibility "private"}} selected{{end}}>Only me</option>
+        <option value="friends"{{if eq .List.Visibility "friends"}} selected{{end}}>Friends</option>
+        <option value="public"{{if eq .List.Visibility "public"}} selected{{end}}>Anyone signed in</option>
+      </select>
+      <span class="hint">Changing this hides the list from people who cannot see it now.</span>
+    </label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Save list</button>
+    </div>
+  </form>
+
+  <details class="list-delete">
+    <summary>Delete this list</summary>
+    <p class="list-delete-copy">The list and its saved sodas are removed. Your check-ins stay.</p>
+    <form method="post" action="/lists/{{.List.ID}}/delete">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <button class="btn btn-danger" type="submit">Delete list</button>
+    </form>
+  </details>
+</details>
+{{end}}
 
 {{range .Items}}
   <article class="card list-row">
     <div>
       <strong><a href="/drinks/{{.Slug}}">{{.Name}}</a></strong>
-      <div class="muted">{{.Brand}}{{if .Style}} · {{.Style}}{{end}} · {{.VolumeML}} ml</div>
-      {{if .Note}}<p class="note">{{.Note}}</p>{{end}}
+      <div class="muted">{{.Brand}}{{if .Style}} · {{.Style}}{{end}} · {{volume .VolumeML}}</div>
+      {{if .Note}}<p class="note list-item-note">{{.Note}}</p>{{end}}
     </div>
     {{if .CanEdit}}
     <form method="post" action="/lists/{{$.List.ID}}/items/{{.DrinkID}}/remove" class="inline">

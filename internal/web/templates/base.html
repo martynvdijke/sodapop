@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="{{.Theme}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -15,7 +15,8 @@
   {{if .MetaTitle}}<meta name="twitter:title" content="{{.MetaTitle}}">{{end}}
   {{if .MetaDescription}}<meta name="twitter:description" content="{{.MetaDescription}}">{{end}}
   <meta name="twitter:card" content="summary">
-  <meta name="theme-color" content="#B4E32C">
+  <meta name="theme-color" content="#F2F4E6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0C130E" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" href="/static/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icon-180.png">
@@ -58,7 +59,7 @@
   </header>
 
   <main id="main" class="wrap">
-    <p class="banner" id="offline-status" hidden>Offline. Check-ins are saved on this device and sync when you reconnect.</p>
+    <p class="banner" id="offline-status" data-announcer role="status" aria-live="polite" hidden>Offline. Check-ins are saved on this device and sync when you reconnect.</p>
     {{if .User}}{{if not .User.EmailVerifiedAt}}
       <p class="banner warn">Your email is not verified yet. You can browse, but check-ins and friends are disabled. <a href="/verify">Verify email</a>.</p>
     {{end}}{{end}}

@@ -11,6 +11,10 @@
       {{with .Profile.JoinedAt}}
         <p class="profile-joined">Joined {{if ge (len .) 10}}{{slice . 0 10}}{{else}}{{.}}{{end}}</p>
       {{end}}
+      <p class="profile-counts">
+        <span><strong>{{.FollowerCount}}</strong> {{if eq .FollowerCount 1}}follower{{else}}followers{{end}}</span>
+        <span><strong>{{.FollowingCount}}</strong> following</span>
+      </p>
     </div>
   </header>
 
@@ -18,6 +22,27 @@
 
   {{if .IsOwner}}
     <p class="profile-owner"><a class="btn btn-small" href="/settings">Edit profile</a></p>
+  {{else}}
+    {{if or .Authenticated .Profile.PublicProfile}}
+    <div class="profile-actions">
+      {{if .Authenticated}}
+        {{if .IsFollowing}}
+          <form method="post" action="/u/{{.Profile.Handle}}/unfollow" class="inline">
+            <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+            <button class="btn btn-following" type="submit" aria-pressed="true"><span aria-hidden="true">✓</span> Following</button>
+          </form>
+        {{else}}
+          <form method="post" action="/u/{{.Profile.Handle}}/follow" class="inline">
+            <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+            <button class="btn btn-primary" type="submit">Follow</button>
+          </form>
+        {{end}}
+      {{end}}
+      {{if .Profile.PublicProfile}}
+        <button class="btn" type="button" data-share data-share-url="/u/{{.Profile.Handle}}" data-share-title="{{.Profile.DisplayName}} on Sodapop" data-share-text="@{{.Profile.Handle}} on Sodapop">Share</button>
+      {{end}}
+    </div>
+    {{end}}
   {{end}}
 
   <dl class="profile-stats" aria-label="Profile totals">

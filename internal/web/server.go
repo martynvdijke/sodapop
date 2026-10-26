@@ -70,12 +70,15 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /checkins/new", s.requireVerified(s.checkinPage))
 	mux.HandleFunc("POST /checkins", s.requireVerified(s.checkinSubmit))
 	mux.HandleFunc("POST /checkins/{id}/toast", s.requireVerified(s.checkinToast))
+	mux.HandleFunc("POST /checkins/{id}/untoast", s.requireVerified(s.untoast))
 	mux.HandleFunc("GET /new", s.requireVerified(s.newDrinkPage))
 	mux.HandleFunc("POST /new", s.requireVerified(s.newDrinkSubmit))
 	mux.HandleFunc("GET /venues", s.requireUser(s.venuesPage))
+	mux.HandleFunc("GET /venues/saved", s.requireUser(s.venuesSavedPage))
 	mux.HandleFunc("POST /venues", s.requireVerified(s.venueCreate))
 	mux.HandleFunc("GET /venues/{id}", s.requireUser(s.venuePage))
 	mux.HandleFunc("POST /venues/{id}/save", s.requireVerified(s.venueSave))
+	mux.HandleFunc("POST /venues/{id}/unsave", s.requireVerified(s.venueUnsave))
 	mux.HandleFunc("GET /sw.js", s.serviceWorker)
 	mux.HandleFunc("GET /manifest.webmanifest", s.webManifest)
 	mux.HandleFunc("GET /friends", s.requireUser(s.friendsPage))
@@ -89,6 +92,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /lists", s.requireUser(s.listCreate))
 	mux.HandleFunc("POST /lists/add", s.requireUser(s.listAdd))
 	mux.HandleFunc("GET /lists/{id}", s.requireUser(s.listPage))
+	mux.HandleFunc("POST /lists/{id}/edit", s.requireUser(s.listEdit))
+	mux.HandleFunc("POST /lists/{id}/delete", s.requireUser(s.listDelete))
 	mux.HandleFunc("POST /lists/{id}/add", s.requireUser(s.listAdd))
 	mux.HandleFunc("POST /lists/{id}/items/{drink}/remove", s.requireUser(s.listRemove))
 	mux.HandleFunc("GET /passport", s.requireUser(s.passportPage))
@@ -137,6 +142,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /styles/{slug}", s.requireUser(s.stylePage))
 	mux.HandleFunc("GET /drops", s.requireUser(s.dropsPage))
 	mux.HandleFunc("GET /u/{handle}", s.profilePage)
+	mux.HandleFunc("POST /u/{handle}/follow", s.requireVerified(s.followUser))
+	mux.HandleFunc("POST /u/{handle}/unfollow", s.requireVerified(s.unfollowUser))
 	mux.HandleFunc("GET /insights", s.requireUser(s.insightsPage))
 	mux.HandleFunc("POST /admin/drinks/{id}/status", s.requireAdmin(s.adminDrinkStatus))
 	mux.HandleFunc("POST /integrations/ha-token", s.requireUser(s.haTokenCreate))
@@ -209,7 +216,7 @@ func (s *Server) base(r *http.Request) map[string]any {
 			if prefs.Theme != "" {
 				d["Theme"] = prefs.Theme
 			}
-			d["Units"] = prefs.Units
+			d["Units"] = string(prefs.Units)
 		}
 		if u.AnalyticsOptOut {
 			// The opt-out removes the analytics script entirely.

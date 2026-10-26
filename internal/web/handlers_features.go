@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"regexp"
@@ -94,14 +95,91 @@ func (s *Server) listPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	items, err := s.listItems(r, l.ID, canEdit)
+	items, err := s.listItems(r, l.ID, canEdit && !l.IsSystem)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
 	s.render(w, r, http.StatusOK, "list", map[string]any{
-		"Title": l.Name, "List": l, "Items": items,
+		"Title": l.Name, "List": l, "Items": items, "CanEdit": canEdit && !l.IsSystem,
 	})
+}
+
+func (s *Server) listEdit(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	l, err := s.Auth.Client.List.Get(r.Context(), r.PathValue("id"))
+	if err != nil || l.UserID != u.ID {
+		http.NotFound(w, r)
+		return
+	}
+	if l.IsSystem {
+		http.Error(w, "built-in lists cannot be modified", http.StatusBadRequest)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if n := len([]rune(name)); n < 1 || n > 80 {
+		http.Error(w, "name must be 1–80 characters", http.StatusBadRequest)
+		return
+	}
+	description := strings.TrimSpace(r.FormValue("description"))
+	if len([]rune(description)) > 500 {
+		http.Error(w, "description must be 500 characters or fewer", http.StatusBadRequest)
+		return
+	}
+	vis := r.FormValue("visibility")
+	if vis != "public" && vis != "friends" && vis != "private" {
+		http.Error(w, "choose a valid visibility", http.StatusBadRequest)
+		return
+	}
+	if _, err := l.Update().
+		SetName(name).
+		SetDescription(description).
+		SetVisibility(list.Visibility(vis)).
+		SetUpdatedAt(db.Now()).
+		Save(r.Context()); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/lists/"+l.ID, http.StatusFound)
+}
+
+func (s *Server) listDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	l, err := s.Auth.Client.List.Get(r.Context(), r.PathValue("id"))
+	if err != nil || l.UserID != u.ID {
+		http.NotFound(w, r)
+		return
+	}
+	if l.IsSystem {
+		http.Error(w, "built-in lists cannot be deleted", http.StatusBadRequest)
+		return
+	}
+	tx, err := s.Auth.Client.Tx(r.Context())
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if _, err := tx.ListItem.Delete().Where(listitem.ListID(l.ID)).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		s.fail(w, r, err)
+		return
+	}
+	if err := tx.List.DeleteOneID(l.ID).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		s.fail(w, r, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/lists", http.StatusFound)
 }
 
 func (s *Server) listItems(r *http.Request, listID string, canEdit bool) ([]listItemView, error) {
@@ -376,9 +454,39 @@ func (s *Server) tastePage(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	aiEnabled, aiRecs := s.aiRecommendations(r.Context(), u.ID)
 	s.render(w, r, http.StatusOK, "taste", map[string]any{
 		"Title": "Taste twin", "Twins": twins, "Recommendations": recs,
+		"AIEnabled": aiEnabled, "AIRecommendations": aiRecs,
 	})
+}
+
+// aiRecommendationView is the template-facing AI recommendation shape.
+type aiRecommendationView struct {
+	Slug   string
+	Name   string
+	Reason string
+}
+
+// aiRecommendations returns recommendations only when AI is enabled. Any
+// disabled state or error leaves the deterministic page to render normally.
+func (s *Server) aiRecommendations(ctx context.Context, userID string) (bool, []aiRecommendationView) {
+	if s.AI == nil {
+		return false, []aiRecommendationView{}
+	}
+	enabled, err := s.AI.Enabled(ctx)
+	if err != nil || !enabled {
+		return false, []aiRecommendationView{}
+	}
+	recs, err := s.Taste.Recommendations(ctx, userID, 10)
+	if err != nil {
+		return true, []aiRecommendationView{}
+	}
+	out := make([]aiRecommendationView, 0, len(recs))
+	for _, rec := range recs {
+		out = append(out, aiRecommendationView{Slug: rec.Slug, Name: rec.Name, Reason: rec.Reason})
+	}
+	return true, out
 }
 
 type mixView struct {
@@ -504,6 +612,31 @@ func (s *Server) venuesPage(w http.ResponseWriter, r *http.Request) {
 		data["Venues"] = rows
 	}
 	s.render(w, r, http.StatusOK, "venues", data)
+}
+
+func (s *Server) venuesSavedPage(w http.ResponseWriter, r *http.Request) {
+	u := UserFromContext(r)
+	rows, err := s.Venues.Saved(r.Context(), u.ID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.render(w, r, http.StatusOK, "venues_saved", map[string]any{
+		"Title": "Saved venues", "Venues": rows,
+	})
+}
+
+func (s *Server) venueUnsave(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	if err := s.Venues.Unsave(r.Context(), u.ID, id); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/venues/saved", http.StatusFound)
 }
 
 func (s *Server) venueCreate(w http.ResponseWriter, r *http.Request) {

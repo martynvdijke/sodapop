@@ -13,7 +13,7 @@
     { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Scan a soda", "url": "/search", "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Scan a soda", "url": "/scan", "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }] },
     { "name": "Friends", "url": "/friends" },
     { "name": "Passport", "url": "/passport" }
   ]

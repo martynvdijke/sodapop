@@ -4,7 +4,7 @@
   {{if $d}}
     <p class="eyebrow">Log a soda</p>
     <h1>{{$d.Drink.Name}}</h1>
-    <p class="muted">{{$d.BrandName}} · {{$d.Drink.VolumeMl}} ml {{container $d.Drink.Container}}</p>
+    <p class="muted">{{$d.BrandName}} · {{volume $d.Drink.VolumeMl}} {{container $d.Drink.Container}}</p>
     <p class="checkin-scan">
       <button class="btn btn-small" type="button" data-scanner-open>Scan barcode</button>
     </p>

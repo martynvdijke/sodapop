@@ -10,15 +10,16 @@ import (
 )
 
 type notificationView struct {
-	ID           string
-	Kind         string
-	ActorHandle  string
-	ActorName    string
-	ActorInitial string
-	Text         string
-	Href         string
-	CreatedAt    string
-	Read         bool
+	ID              string
+	Kind            string
+	ActorHandle     string
+	ActorName       string
+	ActorInitial    string
+	Text            string
+	Href            string
+	CreatedAt       string
+	Read            bool
+	FriendRequestID string
 }
 
 func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +54,11 @@ func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	views := make([]notificationView, 0, len(rows))
+	pending, err := s.Social.IncomingPendingRequests(r.Context(), u.ID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	for _, n := range rows {
 		v := notificationView{
 			ID:        n.ID,
@@ -71,6 +77,9 @@ func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
 					name = actor.Handle
 				}
 				v.ActorInitial = initial(name)
+			}
+			if id, ok := pending[*n.ActorID]; ok && string(n.Kind) == "friend_request" {
+				v.FriendRequestID = id
 			}
 		}
 		views = append(views, v)

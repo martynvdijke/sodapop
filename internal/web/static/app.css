@@ -1,5 +1,10 @@
-:root {
-  color-scheme: light dark;
+/* Theme tokens. `<html data-theme>` is set server-side from the member's
+   setting: light, dark or system. `system` (and a page rendered without the
+   attribute) follows the OS. `:root` holds the light palette, so a browser
+   with no attribute and no JS still gets a readable app. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
   --bg: #F2F4E6;
   --surface: #FBFBF2;
   --surface-raised: #FFFFFF;
@@ -26,7 +31,10 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  /* System (the default) and any page that never set the attribute. An
+     explicit light choice is excluded so it wins over a dark OS. */
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
     --bg: #0C130E;
     --surface: #151E17;
     --surface-raised: #1E2A20;
@@ -50,6 +58,34 @@
     --danger-contrast: #0C130E;
     --shadow: 0 1px 2px rgb(0 0 0 / 40%);
   }
+}
+
+/* Explicit dark choice. Same palette as the system block above; kept in two
+   places because CSS has no way to share a declaration block. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0C130E;
+  --surface: #151E17;
+  --surface-raised: #1E2A20;
+  --surface-sunken: #080E09;
+  --border: #31402F;
+  --border-strong: #6B7A63;
+  --text: #EEF2E0;
+  --text-muted: #A8B49A;
+  --primary: #B9E63A;
+  --primary-hover: #C9F04F;
+  --primary-press: #9FD11A;
+  --primary-contrast: #0C130E;
+  --primary-tint: #26331C;
+  --accent: #FF8A57;
+  --accent-ink: #FFB08B;
+  --accent-tint: #33201A;
+  --success: #5FD39A;
+  --success-tint: #122E23;
+  --danger: #FF7A6E;
+  --danger-tint: #3A1B18;
+  --danger-contrast: #0C130E;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%);
 }
 
 * { box-sizing: border-box; }
@@ -157,8 +193,10 @@ button.link { border: 0; background: none; color: inherit; font: inherit; paddin
 }
 .rating-pill { background: var(--accent-tint); color: var(--accent-ink); border-radius: 999px; padding: .2rem .6rem; font-size: .8rem; font-weight: 700; white-space: nowrap; }
 .note { margin-top: .5rem; }
-.checkin-actions { margin-top: .75rem; }
+.checkin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .75rem; }
+.checkin-actions form { margin: 0; }
 .chip { display: inline-flex; align-items: center; min-height: 32px; border: 1px solid var(--border-strong); background: var(--surface-raised); border-radius: 999px; padding: .2rem .75rem; font: inherit; font-size: .85rem; cursor: pointer; }
+.checkin-actions .chip { min-height: 44px; padding: .35rem .9rem; }
 .chip.on { background: var(--primary); border-color: var(--primary); color: var(--primary-contrast); }
 .chips { display: flex; flex-wrap: wrap; gap: .5rem; list-style: none; padding: 0; }
 
@@ -1042,3 +1080,290 @@ label { display: grid; gap: .3rem; font-weight: 600; }
   margin: 0;
 }
 .lifecycle-form .hint { font-size: .75rem; }
+
+/* =========================================================================
+   5. v1.2 wiring: theme, install card, feed toast toggle, sharing, list
+   maintenance, saved venues, notification actions, follows, AI picks.
+
+   Everything here is additive. Spacing, radii and type sizes follow the
+   existing scale (4px grid, 10/14/20px radii) so the new controls sit in the
+   same rhythm as the rest of the app.
+   ========================================================================= */
+
+/* 5.1 Theme ---------------------------------------------------------------
+   `data-theme` lives on <html>. The palette blocks are at the top of this
+   file; select controls follow through `color-scheme`, which is why no
+   per-control overrides are needed here. Theme switches never animate: no
+   rule in this file transitions a colour token. */
+
+/* 5.2 Install card -------------------------------------------------------
+   Ships hidden; the client layer reveals it when installing is worthwhile
+   and no dismissal is remembered. Copy stays true for every browser. */
+.install-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 8px 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--primary-tint);
+  color: var(--text);
+}
+.install-card[hidden] { display: none; }
+.install-card-glyph { flex: 0 0 auto; color: var(--text); }
+.install-card-body { flex: 1; min-width: 0; }
+.install-card-title {
+  margin: 0;
+  font-size: .9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.install-card-copy {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+.install-card-dismiss {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.install-card-dismiss:hover { background: var(--surface-sunken); }
+
+/* 5.3 Feed toast toggle and share ---------------------------------------- */
+.toast-toggle { gap: 6px; font-weight: 600; }
+.toast-toggle .toast-glyph { display: none; font-size: .8125rem; line-height: 1; }
+/* Pressed: lime fill, a check glyph and a heavier label. Never colour alone. */
+.toast-toggle[aria-pressed="true"],
+.toast-toggle[aria-pressed="true"]:hover {
+  background: var(--primary);
+  border-color: var(--primary-press);
+  box-shadow: inset 0 0 0 1px var(--primary-press);
+  color: var(--primary-contrast);
+  font-weight: 700;
+}
+.toast-toggle[aria-pressed="true"] .toast-glyph { display: inline; }
+.toast-count { font-variant-numeric: tabular-nums; }
+.chip-share { color: var(--text); }
+.chip-share:hover { background: var(--surface-sunken); }
+[data-share] { cursor: pointer; }
+[data-share]:active { transform: none; }
+
+/* 5.4 List maintenance --------------------------------------------------- */
+.list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.list-meta .pill { background: var(--surface); }
+.list-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+
+.list-edit {
+  margin: 0 0 16px;
+  padding: 0;
+}
+.list-edit-summary,
+.list-delete > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.list-edit-summary::-webkit-details-marker,
+.list-delete > summary::-webkit-details-marker { display: none; }
+.list-edit-summary::after,
+.list-delete > summary::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 120ms ease;
+}
+.list-edit[open] > .list-edit-summary::after,
+.list-delete[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(225deg);
+}
+.list-edit-form {
+  gap: 12px;
+  margin: 0;
+  padding: 0 16px 16px;
+}
+.list-edit-form .hint { font-weight: 400; }
+.list-delete {
+  margin: 0 16px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  background: var(--danger-tint);
+}
+.list-delete > summary {
+  min-height: 44px;
+  padding: 0;
+  color: var(--text);
+}
+.list-delete[open] > summary { margin-bottom: 4px; }
+.list-delete-copy {
+  margin: 0 0 12px;
+  font-size: .875rem;
+  line-height: 1.45;
+}
+.list-delete form { margin: 0; }
+.list-item-note { max-width: 60ch; color: var(--text); }
+
+/* 5.5 Saved venues ------------------------------------------------------- */
+.saved-venues-page { padding-bottom: 16px; }
+.saved-venues {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.saved-venue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.saved-venue-body {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.saved-venue-body strong { font-size: 1rem; letter-spacing: -0.01em; }
+.saved-venue-body strong a { text-decoration: none; }
+.saved-venue-body strong a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.saved-venue form { margin: 0; }
+.saved-venues-more { margin: 20px 0 0; font-size: .875rem; }
+.page-actions { margin: 0 0 12px; }
+
+/* 5.6 Notification actions ---------------------------------------------- */
+/* Accept reads as the affirmative action with a glyph, a mint surface and a
+   deeper border; declining stays neutral because it is not destructive. */
+.btn-accept {
+  gap: 6px;
+  border-color: var(--success);
+  background: var(--success-tint);
+  color: var(--success);
+  font-weight: 700;
+}
+.btn-accept:hover {
+  border-color: var(--success);
+  background: var(--success-tint);
+  box-shadow: inset 0 0 0 1px var(--success);
+}
+.notif-actions .btn { min-height: 44px; }
+.notif-actions .btn-small { min-height: 44px; }
+
+/* 5.7 Follows ------------------------------------------------------------ */
+.profile-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: .8125rem;
+}
+.profile-counts strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.profile-actions form { margin: 0; }
+/* Following: quiet pressed state, not a second lime action. */
+.btn-following {
+  gap: 6px;
+  border-color: var(--border-strong);
+  background: var(--primary-tint);
+  color: var(--text);
+  font-weight: 700;
+}
+.btn-following:hover { border-color: var(--text); background: var(--primary-tint); }
+
+/* 5.8 AI picks ----------------------------------------------------------- */
+.ai-next { margin: 0 0 8px; }
+.ai-next h2 { margin-top: 0; }
+.ai-next-intro {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: .875rem;
+}
+.ai-next-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.ai-next-card { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .list-edit-summary::after,
+  .list-delete > summary::after { transition: none; }
+}
+
+/* 5.9 Feed tabs ----------------------------------------------------------- */
+/* Two quiet chips: Friends is the default feed, Following is the narrower one.
+   Same shape and states as .range-tabs on Insights, so the app has one tab
+   idiom. The current tab carries lime fill, an inset edge and a heavier label
+   so it is not signalled by colour alone. */
+.feed-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.feed-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: .875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.feed-tab:hover { background: var(--surface-sunken); }
+.feed-tab[aria-current="page"] {
+  background: var(--primary);
+  border-color: var(--primary-press);
+  box-shadow: inset 0 0 0 1px var(--primary-press);
+  color: var(--primary-contrast);
+  font-weight: 700;
+}
+.feed-tab[aria-current="page"]:hover { background: var(--primary-hover); }

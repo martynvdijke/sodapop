@@ -1,0 +1,32 @@
+{{define "content"}}
+<section class="narrow saved-venues-page">
+  <p class="eyebrow">Where soda lives</p>
+  <h1>Saved venues</h1>
+  <p class="lede">Places you bookmarked. Unsave one and it leaves this list.</p>
+
+  {{if .Venues}}
+    <ul class="saved-venues">
+      {{range .Venues}}
+        <li class="card saved-venue">
+          <div class="saved-venue-body">
+            <strong><a href="/venues/{{.ID}}">{{.Name}}</a></strong>
+            <span class="muted">{{container .Kind}}{{if .City}} · {{.City}}{{end}}</span>
+          </div>
+          <form method="post" action="/venues/{{.ID}}/unsave">
+            <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+            <button class="btn btn-small" type="submit" aria-label="Unsave {{.Name}}">Unsave</button>
+          </form>
+        </li>
+      {{end}}
+    </ul>
+  {{else}}
+    <div class="empty">
+      <p class="empty-title">No saved venues yet</p>
+      <p>Open a venue and save it, and it shows up here.</p>
+      <p class="empty-actions"><a class="btn btn-primary" href="/venues">Find a venue</a></p>
+    </div>
+  {{end}}
+
+  <p class="saved-venues-more"><a href="/venues">Search venues</a></p>
+</section>
+{{end}}

@@ -3,7 +3,7 @@
 <article class="drink-detail">
   <p class="eyebrow">{{$d.BrandName}}{{if $d.StyleName}} · {{$d.StyleName}}{{end}}</p>
   <h1>{{$d.Drink.Name}}</h1>
-  <p class="muted">{{$d.Drink.VolumeMl}} ml {{container $d.Drink.Container}} · {{$d.Drink.Status}}</p>
+  <p class="muted">{{volume $d.Drink.VolumeMl}} {{container $d.Drink.Container}} · {{$d.Drink.Status}}</p>
 
   <div class="rating-block">
     {{if $d.Rating.Shown}}
@@ -18,6 +18,7 @@
   <div class="actions">
     <a class="btn btn-primary" href="/checkins/new?slug={{$d.Drink.Slug}}">Log this soda</a>
     <a class="btn" href="/search">Back to search</a>
+    <button class="btn" type="button" data-share data-share-url="/drinks/{{$d.Drink.Slug}}" data-share-title="{{$d.Drink.Name}}" data-share-text="{{$d.Drink.Name}}{{if $d.BrandName}} by {{$d.BrandName}}{{end}} on Sodapop">Share</button>
   </div>
 
   {{if .Lists}}
@@ -38,8 +39,8 @@
     <div><dt>Sweetener</dt><dd>{{$d.Drink.Sweetener}}</dd></div>
     <div><dt>Carbonation</dt><dd>{{$d.Drink.Carbonation}}</dd></div>
     <div><dt>Acid</dt><dd>{{$d.Drink.Acid}}</dd></div>
-    <div><dt>Caffeine</dt><dd>{{$d.Drink.CaffeineMgPer100ml}} mg / 100 ml</dd></div>
-    <div><dt>Sugar</dt><dd>{{printf "%.1f" $d.Drink.SugarGPer100ml}} g / 100 ml</dd></div>
+    <div><dt>Caffeine</dt><dd>{{per100 $d.Drink.CaffeineMgPer100ml "mg"}}</dd></div>
+    <div><dt>Sugar</dt><dd>{{per100 $d.Drink.SugarGPer100ml "g"}}</dd></div>
     <div><dt>Barcodes</dt><dd>{{$d.BarcodeNum}}</dd></div>
   </dl>
 

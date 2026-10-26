@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -247,6 +246,50 @@ func (s *Service) Remove(ctx context.Context, userID, friendshipID string) error
 	return s.Client.Friendship.DeleteOne(f).Exec(ctx)
 }
 
+// FolloweeIDs returns the users userID follows.
+func (s *Service) FolloweeIDs(ctx context.Context, userID string) ([]string, error) {
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT followee_id FROM follows
+		WHERE follower_id = ?
+		ORDER BY followee_id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// IncomingPendingRequests maps requester ID to friendship ID for pending
+// requests addressed to userID. Outgoing and accepted requests are excluded.
+func (s *Service) IncomingPendingRequests(ctx context.Context, userID string) (map[string]string, error) {
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT requested_by, id FROM friendships
+		WHERE status = 'pending'
+		  AND (user_a = ? OR user_b = ?)
+		  AND requested_by <> ?`, userID, userID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var requester, id string
+		if err := rows.Scan(&requester, &id); err != nil {
+			return nil, err
+		}
+		out[requester] = id
+	}
+	return out, rows.Err()
+}
+
 // Follow creates a one-way follow.
 func (s *Service) Follow(ctx context.Context, followerID, handle string) error {
 	target, err := s.Client.User.Query().Where(user.HandleEqualFold(strings.ToLower(handle))).Only(ctx)
@@ -271,6 +314,9 @@ func (s *Service) Follow(ctx context.Context, followerID, handle string) error {
 func (s *Service) Unfollow(ctx context.Context, followerID, handle string) error {
 	target, err := s.Client.User.Query().Where(user.HandleEqualFold(strings.ToLower(handle))).Only(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	_, err = s.Client.Follow.Delete().
@@ -305,23 +351,35 @@ type FeedItem struct {
 	CSRF        string `json:"-"`
 }
 
-// Feed returns check-ins from the user and accepted friends, newest first.
-// There is no public/global feed endpoint by design.
+// Feed returns check-ins from the user, accepted friends and followed users,
+// newest first. A followed user who is not a friend only contributes public
+// check-ins. There is no public/global feed endpoint by design.
 func (s *Service) Feed(ctx context.Context, userID string, limit int, before string) ([]FeedItem, error) {
+	return s.feed(ctx, userID, limit, before, false)
+}
+
+// FeedFollowing returns the viewer's own check-ins plus those of users they
+// follow. It backs the explicit "following" tab on the home feed.
+func (s *Service) FeedFollowing(ctx context.Context, userID string, limit int, before string) ([]FeedItem, error) {
+	return s.feed(ctx, userID, limit, before, true)
+}
+
+func (s *Service) feed(ctx context.Context, userID string, limit int, before string, followingOnly bool) ([]FeedItem, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	ids, err := s.FriendIDs(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	ids = append(ids, userID)
-	sort.Strings(ids)
-	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	// Relationship scope is expressed with SQL subqueries rather than
+	// interpolated IN lists so a very large follow or friend set cannot exceed
+	// SQLite's bound-variable limit.
+	const friendOfViewer = `EXISTS (
+		SELECT 1 FROM friendships f
+		WHERE f.status = 'accepted'
+		  AND (
+			(f.user_a = ? AND f.user_b = c.user_id)
+			OR (f.user_b = ? AND f.user_a = c.user_id)
+		  )
+	)`
 	args := []any{userID}
-	for _, id := range ids {
-		args = append(args, id)
-	}
 	query := `
 		SELECT c.id, c.user_id, u.handle, u.display_name,
 		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
@@ -337,9 +395,27 @@ func (s *Service) Feed(ctx context.Context, userID string, limit int, before str
 		LEFT JOIN venues v ON v.id = c.venue_id
 		LEFT JOIN media m ON m.id = c.photo_media_id
 		WHERE c.deleted_at IS NULL
-		  AND c.user_id IN (` + placeholders + `)
-		  AND (c.user_id = ? OR c.visibility IN ('public','friends'))`
-	args = append(args, userID)
+		  AND (
+			c.user_id = ?
+			OR (
+				c.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)
+				AND (
+					c.visibility = 'public'
+					OR (c.visibility = 'friends' AND ` + friendOfViewer + `)
+				)
+			)`
+	args = append(args, userID, userID, userID, userID)
+	if !followingOnly {
+		// The main feed also includes accepted friends who are not followed.
+		query += `
+			OR (
+				c.visibility IN ('public', 'friends')
+				AND ` + friendOfViewer + `
+			)`
+		args = append(args, userID, userID)
+	}
+	query += `
+		  )`
 	if before != "" {
 		query += ` AND c.created_at < ?`
 		args = append(args, before)
@@ -375,30 +451,9 @@ func (s *Service) Feed(ctx context.Context, userID string, limit int, before str
 // Toast adds a like. Self-toasting is ignored. The check-in must be visible to
 // the toaster and its author must still be an active account.
 func (s *Service) Toast(ctx context.Context, userID, checkinID string) error {
-	var ownerID string
-	if err := s.SQL.QueryRowContext(ctx, `
-		SELECT c.user_id
-		FROM checkins c
-		JOIN users u ON u.id = c.user_id
-		WHERE c.id = ? AND c.deleted_at IS NULL
-		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
-		  AND (
-			c.visibility = 'public'
-			OR c.user_id = ?
-			OR (
-				c.visibility = 'friends'
-				AND ? <> ''
-				AND EXISTS (
-					SELECT 1 FROM friendships f
-					WHERE f.status = 'accepted'
-					  AND (
-						(f.user_a = ? AND f.user_b = c.user_id)
-						OR (f.user_b = ? AND f.user_a = c.user_id)
-					  )
-				)
-			)
-		  )`, checkinID, userID, userID, userID, userID).Scan(&ownerID); err != nil {
-		return ErrNotFound
+	ownerID, err := s.visibleCheckinOwner(ctx, userID, checkinID)
+	if err != nil {
+		return err
 	}
 	exists, err := s.Client.CheckinLike.Query().
 		Where(checkinlike.CheckinID(checkinID), checkinlike.UserID(userID)).Exist(ctx)
@@ -424,11 +479,58 @@ func (s *Service) Toast(ctx context.Context, userID, checkinID string) error {
 	return nil
 }
 
-// Untoast removes a like.
+// Untoast removes a like. The check-in must be visible to the user; unlike
+// Toast, an already-absent like is not an error, so the action is idempotent.
 func (s *Service) Untoast(ctx context.Context, userID, checkinID string) error {
-	_, err := s.Client.CheckinLike.Delete().
-		Where(checkinlike.CheckinID(checkinID), checkinlike.UserID(userID)).Exec(ctx)
-	return err
+	ownerID, err := s.visibleCheckinOwner(ctx, userID, checkinID)
+	if err != nil {
+		return err
+	}
+	if _, err := s.Client.CheckinLike.Delete().
+		Where(checkinlike.CheckinID(checkinID), checkinlike.UserID(userID)).Exec(ctx); err != nil {
+		return err
+	}
+	// Best effort, idempotent: removing an absent notification is a no-op.
+	_, _ = s.Client.Notification.Delete().
+		Where(
+			notification.UserID(ownerID),
+			notification.KindEQ(notification.KindToast),
+			notification.ActorID(userID),
+			notification.SubjectID(checkinID),
+		).Exec(ctx)
+	return nil
+}
+
+// visibleCheckinOwner returns the author of a check-in the viewer may interact
+// with, or ErrNotFound when it is private to a stranger or the author is gone.
+func (s *Service) visibleCheckinOwner(ctx context.Context, userID, checkinID string) (string, error) {
+	var ownerID string
+	err := s.SQL.QueryRowContext(ctx, `
+		SELECT c.user_id
+		FROM checkins c
+		JOIN users u ON u.id = c.user_id
+		WHERE c.id = ? AND c.deleted_at IS NULL
+		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
+		  AND (
+			c.visibility = 'public'
+			OR c.user_id = ?
+			OR (
+				c.visibility = 'friends'
+				AND ? <> ''
+				AND EXISTS (
+					SELECT 1 FROM friendships f
+					WHERE f.status = 'accepted'
+					  AND (
+						(f.user_a = ? AND f.user_b = c.user_id)
+						OR (f.user_b = ? AND f.user_a = c.user_id)
+					  )
+				)
+			)
+		  )`, checkinID, userID, userID, userID, userID).Scan(&ownerID)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	return ownerID, nil
 }
 
 // Notifications returns unread-first notifications.

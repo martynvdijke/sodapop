@@ -17,6 +17,26 @@
   <div class="empty"><p>No twins yet. Rate at least three sodas your friends have also rated.</p></div>
 {{end}}
 
+{{if .AIEnabled}}{{if .AIRecommendations}}
+<section class="ai-next" aria-labelledby="ai-next-title">
+  <h2 id="ai-next-title">Try next</h2>
+  <p class="ai-next-intro">Picked from your ratings and your friends'.</p>
+  <ul class="ai-next-list">
+    {{range .AIRecommendations}}
+    <li>
+      <a class="card drink-card ai-next-card" href="/drinks/{{.Slug}}">
+        <div class="bottle" aria-hidden="true">{{initial .Name}}</div>
+        <div>
+          <strong>{{.Name}}</strong>
+          {{if .Reason}}<div class="muted">{{.Reason}}</div>{{end}}
+        </div>
+      </a>
+    </li>
+    {{end}}
+  </ul>
+</section>
+{{end}}{{end}}
+
 <h2>Recommended next</h2>
 {{range .Recommendations}}
   <a class="card drink-card" href="/drinks/{{.Slug}}">

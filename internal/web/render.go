@@ -20,35 +20,66 @@ var templateFS embed.FS
 var staticFS embed.FS
 
 type Renderer struct {
-	pages map[string]*template.Template
+	// pages and imperialPages are fully parsed at startup and never mutated, so
+	// concurrent renders share them safely. imperialPages exists because
+	// text/template cannot rebind funcs after a shared template has executed.
+	pages         map[string]*template.Template
+	imperialPages map[string]*template.Template
 }
 
 func NewRenderer() (*Renderer, error) {
 	names := []string{"home", "login", "register", "verify", "search", "drink", "checkin", "friends", "tokens", "newdrink", "error",
 		"you", "lists", "list", "passport", "taste", "mix", "mix_detail", "integrations", "admin", "venues", "venue",
 		"notifications", "checkin_detail", "settings", "forgot", "reset",
-		"browse", "brand", "style", "profile", "insights", "drops"}
-	r := &Renderer{pages: map[string]*template.Template{}}
+		"browse", "brand", "style", "profile", "insights", "drops", "venues_saved"}
+	r := &Renderer{
+		pages:         map[string]*template.Template{},
+		imperialPages: map[string]*template.Template{},
+	}
 	for _, name := range names {
-		t, err := template.New("base").Funcs(template.FuncMap{
-			"rating":    ratingLabel,
-			"stars":     starsValue,
-			"deref":     deref,
-			"initial":   initial,
-			"percent":   percent,
-			"container": func(v any) string { return titleCase(fmt.Sprint(v)) },
-			"hasPrefix": strings.HasPrefix,
-		}).ParseFS(templateFS,
-			"templates/base.html",
-			"templates/partials.html",
-			"templates/pages/"+name+".html",
-		)
+		t, err := parsePage(name, metricFuncs())
 		if err != nil {
 			return nil, fmt.Errorf("parse template %s: %w", name, err)
 		}
 		r.pages[name] = t
+		it, err := parsePage(name, imperialFuncs())
+		if err != nil {
+			return nil, fmt.Errorf("parse imperial template %s: %w", name, err)
+		}
+		r.imperialPages[name] = it
 	}
 	return r, nil
+}
+
+func metricFuncs() template.FuncMap {
+	return template.FuncMap{
+		"rating":    ratingLabel,
+		"stars":     starsValue,
+		"deref":     deref,
+		"initial":   initial,
+		"percent":   percent,
+		"container": func(v any) string { return titleCase(fmt.Sprint(v)) },
+		"hasPrefix": strings.HasPrefix,
+		"volume":    templateVolume,
+		"per100":    templatePer100,
+	}
+}
+
+func imperialFuncs() template.FuncMap {
+	funcs := metricFuncs()
+	funcs["volume"] = func(ml int) string { return FormatVolume(ml, "imperial") }
+	funcs["per100"] = func(v any, label string) string {
+		return formatPer100Label(numericValue(v), label, "imperial")
+	}
+	return funcs
+}
+
+func parsePage(name string, funcs template.FuncMap) (*template.Template, error) {
+	return template.New("base").Funcs(funcs).ParseFS(templateFS,
+		"templates/base.html",
+		"templates/partials.html",
+		"templates/pages/"+name+".html",
+	)
 }
 
 // Render executes a page template into a buffer before writing, so a template
@@ -61,6 +92,11 @@ func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data m
 	}
 	if data == nil {
 		data = map[string]any{}
+	}
+	if units, _ := data["Units"].(string); units == "imperial" {
+		if it, ok := r.imperialPages[page]; ok {
+			t = it
+		}
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "base.html", data); err != nil {

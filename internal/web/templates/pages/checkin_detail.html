@@ -57,6 +57,9 @@
       <p class="detail-signin">Sign in to toast this check-in. <a href="/login?next=/checkins/{{$c.ID}}">Sign in</a>.</p>
     {{end}}
     <p class="detail-toasts muted">{{if $c.Toasts}}{{if eq $c.Toasts 1}}1 toast{{else}}{{$c.Toasts}} toasts{{end}}{{else}}No toasts yet{{end}}</p>
+    {{if ne $c.Visibility "private"}}
+      <button class="btn" type="button" data-share data-share-url="/checkins/{{$c.ID}}" data-share-title="{{$c.DrinkName}}" data-share-text="{{$c.DrinkName}} on Sodapop">Share</button>
+    {{end}}
   </div>
 
   {{if .Authenticated}}

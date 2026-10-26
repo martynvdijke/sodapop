@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE = 'sodapop-v2'
+const CACHE = 'sodapop-v3'
 const SHELL = [
   '/',
   '/static/app.css',

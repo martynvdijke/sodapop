@@ -24,9 +24,9 @@
   <a class="card list-row" href="/lists/{{.ID}}">
     <div>
       <strong>{{.Name}}</strong>
-      <div class="muted">{{.Visibility}} · {{.Count}} {{if eq .Count 1}}soda{{else}}sodas{{end}}{{if .IsSystem}} · built in{{end}}</div>
+      <div class="muted">{{if eq .Visibility "public"}}Anyone{{else if eq .Visibility "friends"}}Friends{{else}}Only me{{end}} · {{.Count}} {{if eq .Count 1}}soda{{else}}sodas{{end}}{{if .IsSystem}} · built in{{end}}</div>
     </div>
-    <span class="pill">{{.Visibility}}</span>
+    <span class="pill">{{if eq .Visibility "public"}}Anyone{{else if eq .Visibility "friends"}}Friends{{else}}Only me{{end}}</span>
   </a>
 {{else}}
   <div class="empty"><p>No lists yet. A wishlist is created with your account.</p></div>
