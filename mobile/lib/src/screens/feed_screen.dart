@@ -7,6 +7,10 @@ import '../auth/auth_controller.dart';
 import '../offline/checkin_outbox.dart';
 import '../theme/soda_theme.dart';
 import '../utils/url.dart';
+import '../widgets/soda_ui.dart';
+import 'checkin_detail_screen.dart';
+import 'notifications_screen.dart';
+import 'user_profile_screen.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -27,11 +31,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final sent = await CheckinOutbox().flush(ref.read(apiProvider));
       final items = await ref.read(apiProvider).feed();
@@ -39,15 +45,36 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       setState(() {
         _items = items;
         _loading = false;
-        if (sent > 0) _notice = '$sent offline check-in${sent == 1 ? '' : 's'} uploaded';
+        _error = null;
+        if (sent > 0) {
+          _notice = '$sent offline check-in${sent == 1 ? '' : 's'} uploaded';
+        }
       });
     } catch (error) {
       if (!mounted) return;
+      final message = ApiClient.describe(error).message;
+      if (quiet && _items.isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+        return;
+      }
       setState(() {
         _loading = false;
-        _error = ApiClient.describe(error).message;
+        _error = message;
       });
     }
+  }
+
+  Future<void> _openDetail(FeedItem item) async {
+    await CheckinDetailScreen.open(context, item.id);
+    if (!mounted) return;
+    await _load(quiet: true);
+  }
+
+  void _openAuthor(FeedItem item) {
+    if (item.handle.isEmpty) return;
+    UserProfileScreen.open(context, item.handle);
   }
 
   Future<void> _toast(FeedItem item) async {
@@ -57,20 +84,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       if (!mounted) return;
       setState(() {
         _items = _items
-            .map((row) => row.id == item.id
-                ? FeedItem(
-                    id: row.id,
-                    handle: row.handle,
-                    displayName: row.displayName,
-                    drinkName: row.drinkName,
-                    drinkSlug: row.drinkSlug,
-                    rating: row.rating,
-                    note: row.note,
-                    venueName: row.venueName,
-                    toasts: row.toasts + 1,
-                    toasted: true,
-                  )
-                : row)
+            .map(
+              (row) => row.id == item.id
+                  ? FeedItem(
+                      id: row.id,
+                      handle: row.handle,
+                      displayName: row.displayName,
+                      drinkName: row.drinkName,
+                      drinkSlug: row.drinkSlug,
+                      rating: row.rating,
+                      note: row.note,
+                      venueName: row.venueName,
+                      toasts: row.toasts + 1,
+                      toasted: true,
+                    )
+                  : row,
+            )
             .toList();
       });
     } catch (error) {
@@ -87,7 +116,16 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       appBar: AppBar(
         title: const Text('Sodapop'),
         actions: [
-          IconButton(onPressed: _load, tooltip: 'Refresh', icon: const Icon(Icons.refresh_rounded)),
+          IconButton(
+            onPressed: () => NotificationsScreen.open(context),
+            tooltip: 'Notifications',
+            icon: const Icon(Icons.notifications_none_rounded),
+          ),
+          IconButton(
+            onPressed: _load,
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded),
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -99,7 +137,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Widget _body(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Soda.lime));
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: Soda.lime));
+    }
     if (_error != null) {
       return ListView(
         children: [
@@ -136,78 +176,138 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(_notice!),
           );
         }
         final item = _items[_notice == null ? index : index - 1];
-        return _FeedCard(item: item, onToast: () => _toast(item));
+        return _FeedCard(
+          item: item,
+          onToast: () => _toast(item),
+          onOpen: () => _openDetail(item),
+          onOpenAuthor: () => _openAuthor(item),
+        );
       },
     );
   }
 }
 
 class _FeedCard extends StatelessWidget {
-  const _FeedCard({required this.item, required this.onToast});
+  const _FeedCard({
+    required this.item,
+    required this.onToast,
+    required this.onOpen,
+    required this.onOpenAuthor,
+  });
 
   final FeedItem item;
   final VoidCallback onToast;
+  final VoidCallback onOpen;
+  final VoidCallback onOpenAuthor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.3),
-                  child: Text(item.displayName.characters.first.toUpperCase()),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item.displayName, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                      Text('@${item.handle}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                    ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: onOpenAuthor,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            SodaAvatar(
+                              initial: item.displayName.isEmpty
+                                  ? item.handle
+                                  : item.displayName,
+                              size: 36,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.displayName,
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    '@${item.handle}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                Text(
-                  ratingLabel((item.rating ?? 0).round()),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Soda.tangerine,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(width: 8),
+                  Text(
+                    ratingLabel((item.rating ?? 0).round()),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: Soda.tangerine,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(item.drinkName, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-            if (item.venueName.isNotEmpty)
-              Text('at ${item.venueName}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            if (item.note.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(item.note, style: theme.textTheme.bodyMedium),
-            ],
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: item.toasted ? null : onToast,
-                icon: Icon(item.toasted ? Icons.celebration : Icons.celebration_outlined, size: 18),
-                label: Text('${item.toasts} toast${item.toasts == 1 ? '' : 's'}'),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              Text(
+                item.drinkName,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (item.venueName.isNotEmpty)
+                Text(
+                  'at ${item.venueName}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              if (item.note.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(item.note, style: theme.textTheme.bodyMedium),
+              ],
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: item.toasted ? null : onToast,
+                  icon: Icon(
+                    item.toasted
+                        ? Icons.celebration
+                        : Icons.celebration_outlined,
+                    size: 18,
+                  ),
+                  label: Text(
+                    '${item.toasts} toast${item.toasts == 1 ? '' : 's'}',
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

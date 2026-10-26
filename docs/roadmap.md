@@ -2,7 +2,7 @@
 
 Twelve phases, dependency-ordered. Estimates assume one experienced Go developer working alone, part-time at ~30 h/week. Each phase ends with a demoable slice, tests, and a green CI run — not a branch full of scaffolding.
 
-Status: P0–P11 have shipped for v1.0. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
+Status: P0–P11 shipped for v1.0. v1.1 and v1.2 have shipped on top of that baseline; the v1.2 additions are recorded below and Phase E is the next open phase. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
 
 | Shipped surface | Phase |
 |---|---|
@@ -15,6 +15,23 @@ Status: P0–P11 have shipped for v1.0. The build lists below remain the origina
 | Opt-in public profiles `/u/{handle}` with friend-aware visibility and indexability rules | P7/P9 |
 | Insights `/insights` and `GET /api/v1/stats/me/insights` with `range=7`, `30` or `90` | P4 |
 | Home Assistant inbound webhook and `/integrations` token management; TRMNL dispatch; `push_enabled` gating | P9/P10 |
+| Comments and venue photos/menus, with block enforcement and `/settings/blocked` | v1.1/v1.2 |
+| `/compare`, drink galleries, AI draft sessions, report admin notes, first-run `/setup` and `/admin/settings` | v1.2 |
+| Lists, mixes, taste, badges/passport and saved-venue HTML and API surfaces | v1.2 |
+| Flutter social screens: check-in comments, user profile follow/block, notifications, lists, saved venues | v1.2 |
+| Flutter insights, taste, passport/badges, mixes and venue search/detail; photo upload and offline photo parity | v1.2 |
+
+## Next — Phase E (unreleased)
+
+- `DeliveryOutbox` entity and migration `0008`; `Integrations.Dispatch` writes rows and a 30 s worker drains 20 per batch with 5 attempts and exponential backoff.
+- Digest scheduler catch-up on restart and a single-instance lock so a restart cannot double-send.
+- OTel follow-ups: HTTP latency, outbox depth and integration-failure metrics, plus DB spans through `TraceQueryEx`.
+- Unified drink/brand/style/venue/flavour search that still caps at 10 results and exposes no totals, keeping the anti-enumeration E2E green.
+- `registration_open` admin toggle with a closed-state registration page.
+- Remaining coverage: Phase E outbox retry/backoff with a fake clock, digest idempotency, metric registration, unified search caps, registration toggle, and `integrations-v12.spec.ts`.
+- Nearby feed remains a documented deferral: there is no geo feed in v1.2.
+
+Phase E work is not shipped and is not part of the v1.2 API or schema.
 
 
 ## Dependency graph
@@ -136,7 +153,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 **Build**
 - `follows`, `friendships`, `blocks`, `activities`, `notifications`, `checkin_likes`.
 - Friend request/accept/decline/cancel, follow/unfollow, block/unblock with cascade rules.
-- Feed: own + friends + follows, visibility + block filtering, keyset pagination, tabs (Following / You / Nearby).
+- Feed: own + friends + follows, visibility + block filtering, keyset pagination, tabs (Friends / Following; Nearby deferred from v1.2).
 - Toast with optimistic UI, idempotent like, 5 s undo (deferred delete), notification batching.
 - Notification centre and unread badge; mark read.
 - User search and profile pages with privacy filtering.
@@ -222,11 +239,11 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 ## P10 — Flutter Android Companion App (`mobile/`) (2 weeks)
 
 **Build**
-- `mobile/` Flutter project (`pubspec.yaml`, Dart `^3.13.2`, Material 3, `flutter_riverpod`, `go_router`, `dio`, `flutter_secure_storage`, `shared_preferences`, `webview_flutter`, `mobile_scanner`, `cached_network_image`).
+- `mobile/` Flutter project (`pubspec.yaml`, Dart `^3.9.0`, Material 3, `flutter_riverpod`, `go_router`, `dio`, `flutter_secure_storage`, `shared_preferences`, `webview_flutter`, `mobile_scanner`, `image_picker`).
 - Onboarding screen with **zero hardcoded default server URL**, URL validation/normalization, `GET /api/v1/auth/oidc/status` discovery, primary **“Sign in with Authelia”** button (in-app WebView `/auth/oidc/login`, native Android cookie capture channel `xyz.vandijke.sodapop/cookies`, `POST /api/v1/auth/mobile-token` exchange), plus `sd_` personal API token paste and optional password fallback.
-- 5-slot bottom navigation shell (`Feed`, `Discover`, lifted lime `Scan` button, `Venues`, `Profile`) styled with Sodapop's lime/forest tokens (`#B4E32C` / `#16241A` / `#F2F4E6` / `#0C130E`) and self-hosted `BricolageGrotesque` font.
+- 4-slot bottom navigation shell (`Friends`, `Discover`, lifted lime `Scan` button, `You`) styled with Sodapop's lime/forest tokens (`#B4E32C` / `#16241A` / `#F2F4E6` / `#0C130E`).
 - Native `mobile_scanner` CameraX + ML Kit barcode scanner with torch/zoom, GTIN-14 normalization, GS1 check-digit validation, local cache + `/api/v1/barcodes/{gtin}` resolution, and unknown-soda creation + AI drafting sheet.
-- Quarter-star check-in bottom sheet with photo upload, AI tasting-note polish, venue picker, and offline check-in outbox with idempotency keys.
+- Quarter-star check-in bottom sheet with one-photo upload, AI tasting-note polish, and a `shared_preferences` offline outbox with idempotency keys.
 - Native Android polish: vector adaptive launcher icon, Android 13 monochrome icon, API 31+ splash screen, `.github/workflows/flutter-android.yaml` CI, and `.releaserc.yaml` + `.github/workflows/release.yaml` APK release asset attachment.
 
 **Exit criteria**

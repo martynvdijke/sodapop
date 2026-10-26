@@ -11,13 +11,13 @@ Every domain table is declared as a strongly-typed Ent schema under `ent/schema/
 |---|---|
 | **Auth & Users** | `User`, `UserIdentity`, `Session`, `APIToken`, `EmailVerificationToken`, `PasswordResetToken`, `EmailOutbox`, `UserSetting`, `LoginAttempt`, `Media` |
 | **Catalog** | `Brand`, `Style`, `Flavour`, `Drink`, `DrinkBarcode`, `DrinkFlavour`, `DrinkAlias`, `DrinkImage`, `OffProduct`, `CatalogRevision` |
-| **Venues** | `Venue`, `VenueDrink`, `VenueName`, `VenueSave` |
-| **Check-ins** | `Checkin`, `CheckinLike` |
+| **Venues** | `Venue`, `VenueDrink`, `VenueName`, `VenueSave`, `VenueMedia` |
+| **Check-ins** | `Checkin`, `CheckinLike`, `Comment` |
 | **Social** | `Follow`, `Friendship`, `Block`, `Activity`, `Notification` |
 | **Badges & Lists** | `Badge`, `UserBadge`, `List`, `ListItem` |
 | **Moderation** | `Report`, `AdminNote` |
 | **Integrations** | `Integration`, `PushSubscription`, `InboundToken` |
-| **OpenCode AI** | `AppSetting`, `AIEndpoint`, `AIDraftSession` |
+| **Settings & AI** | `AppSetting`, `RuntimeSetting`, `AIEndpoint`, `AIDraftSession` |
 
 Conventions in `ent/schema`:
 - User-owned and high-volume rows (`User`, `Session`, `APIToken`, `Media`, `Checkin`, `List`, `AIDraftSession`) use `field.String("id")` with a default 16-byte `crypto/rand` hex generator.
@@ -43,6 +43,11 @@ Boot sequence in `internal/db.Init(dbPath)`:
 | `0003` | `0003_checkin_ratings_view.sql` | `drink_ratings` SQL view (`checkin_count`, `rater_count`, `avg_rating`) |
 | `0004` | `0004_seed_defaults.sql` | Core badge definitions, idempotent seed |
 | `0005` | `0005_composite_indexes.sql` | Composite unique indexes for `venue_saves`, `venue_drinks`, `list_items` and `user_badges` |
+| `0006` | `0006_comments.sql` | `comments` thread lookup and per-user hourly rate-limit indexes |
+| `0007` | `0007_venue_media.sql` | `venue_media` gallery ordering and uploader/venue cap indexes |
+| `0009` | `0009_audit_indexes.sql` | `catalog_revisions(entity, created_at)` and `admin_notes(entity, created_at)` audit indexes |
+
+`0008_delivery_outbox.sql` belongs to Phase E and is not part of the v1.2 schema.
 
 ### 1.3 Mechanical Schema Guard (`internal/db/schema_consistency_test.go`)
 Just like `dnd/db/schema_consistency_test.go`, `TestSchemaConsistency` initializes an in-memory database (`Init(":memory:")`) and asserts that every table in `sqlite_master` is either present in `ent/migrate.Tables` or listed in `rawOnlyTables` (`schema_migrations` and `drinks_fts*`). Any ad-hoc raw `CREATE TABLE` outside Ent + the migration registry fails CI immediately.
@@ -59,9 +64,12 @@ The SQL DDL below shows the exact resulting SQLite schema produced by `Client.Sc
 CREATE TABLE media (
   id         TEXT PRIMARY KEY,
   user_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
-  kind       TEXT NOT NULL CHECK (kind IN ('checkin','avatar','drink','venue','brand')),
+  kind       TEXT NOT NULL CHECK (kind IN ('checkin','avatar','drink','venue','brand','video')),
   path       TEXT NOT NULL,
+  thumb_path TEXT NOT NULL DEFAULT '',
+  poster_path TEXT NOT NULL DEFAULT '',
   mime       TEXT NOT NULL,
+  duration_seconds INTEGER NOT NULL DEFAULT 0,
   width      INTEGER, height INTEGER, bytes INTEGER,
   created_at TEXT NOT NULL
 );
@@ -387,7 +395,22 @@ CREATE TABLE venue_saves (
   created_at TEXT NOT NULL,
   PRIMARY KEY (user_id, venue_id)
 );
+
+CREATE TABLE venue_media (               -- user-contributed photo or menu image
+  id          TEXT PRIMARY KEY,          -- 32-char hex
+  venue_id    INTEGER NOT NULL,
+  media_id    TEXT NOT NULL,
+  kind        TEXT NOT NULL DEFAULT 'photo' CHECK (kind IN ('photo','menu')),
+  label       TEXT NOT NULL DEFAULT '',  -- optional caption, <= 80 runes
+  uploaded_by TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  deleted_at  TEXT
+);
+CREATE INDEX idx_venue_media_venue_created ON venue_media(venue_id, created_at);
+CREATE INDEX idx_venue_media_uploader_venue ON venue_media(uploaded_by, venue_id);
 ```
+
+`venue_media` is the attachment row; `media` owns the bytes. Active rows are public and follow the venue; removal is a soft delete that revokes media access while keeping the file. Caps are 6 active rows per uploader per venue and 20 per venue, enforced in the service. A deleted or merged venue stops serving its media.
 
 Venue dedupe: exact normalized name + city wins; otherwise within ~150 m and same kind prompts "is this the same place?" on the create flow. A venue is never deleted once check-ins reference it — only merged via `venues.merged_into_id`, which redirects reads and returns 409 + canonical ID on write.
 
@@ -431,6 +454,23 @@ GROUP BY drink_id;
 
 Rules enforced in the service layer: a check-in photo must belong to the uploader; private check-ins never join feed queries; deleting a check-in is soft-delete and removes its activity row in the same tx.
 
+### Comments
+
+```sql
+CREATE TABLE comments (                  -- flat, user-owned, soft-deleted
+  id         TEXT PRIMARY KEY,           -- 32-char hex
+  checkin_id TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  body       TEXT NOT NULL,              -- 1..1000 runes, enforced in the service
+  created_at TEXT NOT NULL,
+  deleted_at TEXT
+);
+CREATE INDEX idx_comments_checkin_created ON comments(checkin_id, created_at);
+CREATE INDEX idx_comments_user_created ON comments(user_id, created_at);
+```
+
+Comments have no threading columns and no Ent edges, so the service enforces the parent check-in and author lookups. Reads call `checkins.Get` first, which makes comment visibility identical to the parent check-in; rows from deleted users and blocked pairs are excluded in SQL. Writes are capped at 30 per user per rolling hour and 200 live comments per check-in (newest kept). Deleting a comment sets `deleted_at`; the row is retained for moderation history.
+
 ## 6. Social
 
 ```sql
@@ -445,7 +485,7 @@ CREATE TABLE follows (
 CREATE TABLE friendships (
   user_a      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   user_b      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status      TEXT NOT NULL CHECK (status IN ('pending','accepted','blocked')),
+  status      TEXT NOT NULL CHECK (status IN ('pending','accepted','declined')),
   requested_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
@@ -482,7 +522,7 @@ CREATE INDEX idx_activities_time ON activities(created_at DESC, id DESC);
 CREATE TABLE notifications (
   id         TEXT PRIMARY KEY,       -- 32-char hex
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  kind       TEXT NOT NULL,          -- friend_request, friend_accept, toast, badge, comment (unused), system
+  kind       TEXT NOT NULL,          -- friend_request, friend_accept, toast, badge, comment, system
   actor_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
   subject_id TEXT NOT NULL DEFAULT '',
   text       TEXT NOT NULL DEFAULT '',
@@ -547,29 +587,50 @@ Badge evaluation runs after each check-in inside the same transaction: count thr
 ```sql
 CREATE TABLE reports (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  reporter_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-  entity     TEXT NOT NULL CHECK (entity IN ('drink','brand','venue','checkin','user')),
-  entity_id  TEXT NOT NULL,
-  reason     TEXT NOT NULL CHECK (reason IN ('duplicate','wrong_data','spam','abuse','copyright','other')),
+  entity     TEXT NOT NULL CHECK (entity IN ('drink','brand','venue','checkin','user','comment','venue_media','drink_image')),
+  entity_id  INTEGER NOT NULL,              -- integer target id (0 for text-keyed rows)
+  entity_ref TEXT NOT NULL DEFAULT '',      -- string target id for comments/venue_media
+  user_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+  reason     TEXT NOT NULL DEFAULT 'other',
   details    TEXT NOT NULL DEFAULT '',
-  status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved','rejected')),
-  resolved_by TEXT REFERENCES users(id) ON DELETE SET NULL,
-  resolved_at TEXT,
-  created_at TEXT NOT NULL
+  status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved','dismissed')),
+  created_at TEXT NOT NULL,
+  resolved_at TEXT
 );
 CREATE INDEX idx_reports_open ON reports(status, created_at) WHERE status = 'open';
 
-CREATE TABLE admin_notes (
+CREATE TABLE admin_notes (              -- internal notes and runtime-setting audit
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  entity     TEXT NOT NULL,
-  entity_id  TEXT NOT NULL,
-  author_id  TEXT REFERENCES users(id) ON DELETE SET NULL,
+  author_id  TEXT NOT NULL,
+  entity     TEXT NOT NULL DEFAULT 'system' CHECK (entity IN ('drink','brand','venue','checkin','user','system')),
+  entity_id  INTEGER NOT NULL DEFAULT 0,
   body       TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+CREATE INDEX idx_admin_notes_entity_created ON admin_notes(entity, created_at);
 ```
 
-## 9. OpenCode ("opencode2") AI (`0010_ai.sql`)
+Report notes reuse `admin_notes` with `entity='system'` and the report id as `entity_id`; they are admin-only and removed with a hard delete. `catalog_revisions` remains the audit trail for catalog writes, and migration `0009_audit_indexes.sql` adds the `(entity, created_at)` indexes used by the admin queue and revision feed.
+
+## 9. Runtime settings
+
+`runtime_settings` overlays audited operational values on env config. Precedence is built-in default < env < database. The row stores only allowlisted keys; env-only keys (`ENV`, `PORT`, `DATABASE_PATH`, `DATA_DIR`, `SESSION_SECRET`, `OTEL_*`, `EMAIL_DEV_DIR`, `SEED_DEMO`) are rejected by the settings service before insert.
+
+```sql
+CREATE TABLE runtime_settings (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  key             TEXT NOT NULL UNIQUE,
+  value           TEXT NOT NULL DEFAULT '',
+  encrypted_value TEXT NOT NULL DEFAULT '', -- AES-256-GCM ciphertext for secrets
+  is_secret       INTEGER NOT NULL DEFAULT 0,
+  updated_by      TEXT,
+  updated_at      TEXT NOT NULL
+);
+```
+
+Non-secret values live in `value`; secrets (currently the SMTP password) live only as `enc:v1:` ciphertext in `encrypted_value` under a key derived from `SESSION_SECRET`. A blank secret field preserves the stored value and an explicit clear removes it. Every write appends an `admin_notes` audit row with key names only. The table is read once at boot into an immutable snapshot, so request paths never query it.
+
+## 10. OpenCode ("opencode2") AI (`0010_ai.sql`)
 
 Matches `dnd` (`ai_endpoints`, `app_settings`, and conversational drafting sessions):
 
@@ -610,7 +671,7 @@ CREATE TABLE ai_draft_sessions (
 CREATE INDEX idx_ai_draft_sessions_user ON ai_draft_sessions(user_id, updated_at DESC);
 ```
 
-## 10. Integrity rules that live in code, not DDL
+## 11. Integrity rules that live in code, not DDL
 
 - Barcode GTIN checksum validated before insert; normalize UPC-A to EAN-13 by zero-prefixing, then store as GTIN-14 with leading zeros where the source is 12/13 digits.
 - One primary image per drink enforced by `idx_drink_images_primary`; changing the primary is a single transaction that clears the old flag before setting the new one.

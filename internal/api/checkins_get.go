@@ -30,12 +30,16 @@ func (s *Server) getCheckin(w http.ResponseWriter, r *http.Request, tok *auth.AP
 			"brand": detail.Brand,
 			"style": detail.Style,
 		},
-		"rating":     detail.Rating,
-		"note":       detail.Note,
-		"visibility": detail.Visibility,
-		"toasts":     detail.Toasts,
-		"toasted":    detail.Toasted,
-		"created_at": detail.CreatedAt,
+		"rating":         detail.Rating,
+		"note":           detail.Note,
+		"visibility":     detail.Visibility,
+		"toasts":         detail.Toasts,
+		"toasted":        detail.Toasted,
+		"comments_count": detail.CommentsCount,
+		"can_delete":     tok.User.ID == detail.UserID && tok.HasScope("write"),
+		"can_toast":      tok.User.ID != detail.UserID && !detail.Toasted && tok.HasScope("write") && tok.User.EmailVerifiedAt != nil,
+		"can_comment":    tok.HasScope("write") && tok.User.EmailVerifiedAt != nil,
+		"created_at":     detail.CreatedAt,
 	}
 	if detail.VenueID != nil {
 		data["venue"] = map[string]any{"id": *detail.VenueID, "name": detail.VenueName}

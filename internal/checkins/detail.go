@@ -10,26 +10,27 @@ import (
 // Detail is the full read model for a single check-in. Visibility rules are
 // applied by Get: callers must treat a refused row exactly like a missing one.
 type Detail struct {
-	ID          string
-	UserID      string
-	UserHandle  string
-	UserName    string
-	UserInitial string
-	DrinkID     int
-	DrinkSlug   string
-	DrinkName   string
-	Brand       string
-	Style       string
-	Rating      *int
-	Note        string
-	CreatedAt   string
-	Visibility  string
-	VenueID     *int
-	VenueName   string
-	MediaID     string
-	MediaMime   string
-	Toasts      int
-	Toasted     bool
+	ID            string
+	UserID        string
+	UserHandle    string
+	UserName      string
+	UserInitial   string
+	DrinkID       int
+	DrinkSlug     string
+	DrinkName     string
+	Brand         string
+	Style         string
+	Rating        *int
+	Note          string
+	CreatedAt     string
+	Visibility    string
+	VenueID       *int
+	VenueName     string
+	MediaID       string
+	MediaMime     string
+	Toasts        int
+	Toasted       bool
+	CommentsCount int
 }
 
 // Initial exposes the avatar initial under the name the detail template uses.
@@ -93,7 +94,11 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		       c.venue_id, COALESCE(v.name,''),
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
-		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?)
+		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?),
+		       (SELECT COUNT(*) FROM comments cm
+		        JOIN users cu ON cu.id = cm.user_id
+		        WHERE cm.checkin_id = c.id AND cm.deleted_at IS NULL
+		          AND cu.deleted_at IS NULL AND cu.status <> 'deleted')
 		FROM checkins c
 		JOIN users u ON u.id = c.user_id
 		JOIN drinks d ON d.id = c.drink_id
@@ -108,7 +113,7 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		&rating, &d.Note, &d.CreatedAt, &d.Visibility,
 		&venueID, &d.VenueName,
 		&d.MediaID, &d.MediaMime,
-		&d.Toasts, &toasted,
+		&d.Toasts, &toasted, &d.CommentsCount,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound

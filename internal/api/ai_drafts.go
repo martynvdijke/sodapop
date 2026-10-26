@@ -29,9 +29,9 @@ func (s *Server) RegisterAIAPI(mux *http.ServeMux) {
 }
 
 func (s *Server) registerAIDraftRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/v1/ai/drafts/{id}/messages", s.protectStrict("write", true, s.aiDraftMessage))
-	mux.HandleFunc("POST /api/v1/ai/drafts/{id}/revise", s.protectStrict("write", true, s.aiDraftRevise))
-	mux.HandleFunc("POST /api/v1/ai/drafts/{id}/commit", s.protectStrict("write", true, s.aiDraftCommit))
+	s.route(mux, "POST /api/v1/ai/drafts/{id}/messages", s.protectStrict("write", true, s.aiDraftMessage))
+	s.route(mux, "POST /api/v1/ai/drafts/{id}/revise", s.protectStrict("write", true, s.aiDraftRevise))
+	s.route(mux, "POST /api/v1/ai/drafts/{id}/commit", s.protectStrict("write", true, s.aiDraftCommit))
 }
 
 func (s *Server) aiDraftMessage(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {

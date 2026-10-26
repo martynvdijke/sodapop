@@ -95,10 +95,12 @@ type ProfileItem struct {
 
 // ProfileStats summarises what one viewer is allowed to see of a profile.
 type ProfileStats struct {
-	Pours  int
-	Styles int
-	Venues int
-	Badges int
+	Pours        int
+	Styles       int
+	Venues       int
+	Badges       int
+	UniqueDrinks int
+	Toasts       int
 }
 
 // ProfileList is a list visible on a profile page.
@@ -235,7 +237,8 @@ func (s *Service) ProfileStats(ctx context.Context, viewerID, targetID string) (
 	visit := s.ProfileVisitFor(ctx, viewerID, targetID)
 	vis := profileVisibilitySet(visit)
 	q := `
-		SELECT COUNT(*), COUNT(DISTINCT d.style_id), COUNT(DISTINCT c.venue_id)
+		SELECT COUNT(*), COUNT(DISTINCT d.style_id), COUNT(DISTINCT c.venue_id),
+		       COUNT(DISTINCT c.drink_id)
 		FROM checkins c
 		JOIN users u ON u.id = c.user_id
 		JOIN drinks d ON d.id = c.drink_id
@@ -245,7 +248,20 @@ func (s *Service) ProfileStats(ctx context.Context, viewerID, targetID string) (
 	args := []any{targetID}
 	args = append(args, visibilityArgs(vis)...)
 	if err := s.SQL.QueryRowContext(ctx, q, args...).
-		Scan(&out.Pours, &out.Styles, &out.Venues); err != nil && err != sql.ErrNoRows {
+		Scan(&out.Pours, &out.Styles, &out.Venues, &out.UniqueDrinks); err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	// Toasts received are counted only on check-ins this viewer may see, so the
+	// public counter can never reveal activity on private rows.
+	toastQuery := `
+		SELECT COUNT(*)
+		FROM checkin_likes l
+		JOIN checkins c ON c.id = l.checkin_id
+		JOIN users u ON u.id = c.user_id
+		WHERE c.user_id = ? AND c.deleted_at IS NULL
+		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
+		  AND c.visibility IN (` + placeholders(len(vis)) + `)`
+	if err := s.SQL.QueryRowContext(ctx, toastQuery, args...).Scan(&out.Toasts); err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 	out.Badges, _ = s.Client.UserBadge.Query().Where(userbadge.UserID(targetID)).Count(ctx)

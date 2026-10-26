@@ -6,6 +6,7 @@ import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
 import 'checkin_sheet.dart';
+import 'venues_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -58,7 +59,16 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Discover')),
+      appBar: AppBar(
+        title: const Text('Discover'),
+        actions: [
+          IconButton(
+            onPressed: () => VenuesScreen.open(context),
+            tooltip: 'Venues',
+            icon: const Icon(Icons.place_outlined),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -69,16 +79,22 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   child: TextField(
                     controller: _query,
                     textInputAction: TextInputAction.search,
-                    decoration: const InputDecoration(hintText: 'Cola, ginger beer, cherry…'),
+                    decoration: const InputDecoration(
+                      hintText: 'Cola, ginger beer, cherry…',
+                    ),
                     onSubmitted: (_) => _search(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.filled(onPressed: _search, icon: const Icon(Icons.search_rounded)),
+                IconButton.filled(
+                  onPressed: _search,
+                  icon: const Icon(Icons.search_rounded),
+                ),
               ],
             ),
           ),
-          if (_error != null) Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
+          if (_error != null)
+            Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
           if (_searching) const LinearProgressIndicator(color: Soda.lime),
           Expanded(
             child: !_searched
@@ -90,32 +106,40 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                     ),
                   )
                 : _results.isEmpty
-                    ? const Center(child: Text('No sodas matched.'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _results.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final drink = _results[index];
-                          return Card(
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              title: Text(drink.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                              subtitle: Text(drink.subtitle),
-                              trailing: FilledButton(
-                                onPressed: () => showCheckinSheet(context, drink),
-                                child: const Text('Log'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                ? const Center(child: Text('No sodas matched.'))
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _results.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final drink = _results[index];
+                      return Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          title: Text(
+                            drink.name,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(drink.subtitle),
+                          trailing: FilledButton(
+                            onPressed: () => showCheckinSheet(context, drink),
+                            child: const Text('Log'),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
               'Tip: scanning a barcode is faster than typing.',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],

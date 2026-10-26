@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"sodapop/ent"
 	"sodapop/ent/notification"
@@ -15,13 +16,16 @@ type notificationActorDTO struct {
 }
 
 type notificationDTO struct {
-	ID        string                `json:"id"`
-	Kind      string                `json:"kind"`
-	Text      string                `json:"text"`
-	Read      bool                  `json:"read"`
-	CreatedAt string                `json:"created_at"`
-	SubjectID string                `json:"subject_id"`
-	Actor     *notificationActorDTO `json:"actor"`
+	ID              string                `json:"id"`
+	Kind            string                `json:"kind"`
+	Text            string                `json:"text"`
+	Read            bool                  `json:"read"`
+	CreatedAt       string                `json:"created_at"`
+	SubjectID       string                `json:"subject_id"`
+	Actor           *notificationActorDTO `json:"actor"`
+	ActorInitial    string                `json:"actor_initial"`
+	Href            string                `json:"href"`
+	FriendRequestID string                `json:"friend_request_id,omitempty"`
 }
 
 func (s *Server) notifications(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
@@ -53,6 +57,10 @@ func (s *Server) notifications(w http.ResponseWriter, r *http.Request, tok *auth
 	}
 
 	data := make([]notificationDTO, 0, len(rows))
+	pending, err := s.Social.IncomingPendingRequests(r.Context(), tok.User.ID)
+	if err != nil {
+		return err
+	}
 	for _, n := range rows {
 		dto := notificationDTO{
 			ID:        n.ID,
@@ -61,10 +69,15 @@ func (s *Server) notifications(w http.ResponseWriter, r *http.Request, tok *auth
 			Read:      n.ReadAt != nil,
 			CreatedAt: n.CreatedAt,
 			SubjectID: n.SubjectID,
+			Href:      notificationHref(string(n.Kind), n.SubjectID),
 		}
 		if n.ActorID != nil {
 			if actor, ok := actors[*n.ActorID]; ok {
 				dto.Actor = &notificationActorDTO{Handle: actor.Handle, DisplayName: actor.DisplayName}
+				dto.ActorInitial = notificationInitial(actor.DisplayName, actor.Handle)
+			}
+			if id, ok := pending[*n.ActorID]; ok && string(n.Kind) == "friend_request" {
+				dto.FriendRequestID = id
 			}
 		}
 		data = append(data, dto)
@@ -109,4 +122,33 @@ func (s *Server) notificationsRead(w http.ResponseWriter, r *http.Request, tok *
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"marked": marked}})
 	return nil
+}
+
+// notificationHref returns a same-origin relative path for the notification's
+// subject. It never echoes a URL supplied by another user.
+func notificationHref(kind, subjectID string) string {
+	switch kind {
+	case "toast", "comment":
+		if subjectID != "" {
+			return "/checkins/" + subjectID
+		}
+		return "/"
+	case "badge":
+		return "/you"
+	case "friend_request", "friend_accept":
+		return "/friends"
+	default:
+		return "/"
+	}
+}
+
+func notificationInitial(displayName, handle string) string {
+	name := strings.TrimSpace(displayName)
+	if name == "" {
+		name = strings.TrimSpace(handle)
+	}
+	if name == "" {
+		return "?"
+	}
+	return strings.ToUpper(string([]rune(name)[0]))
 }

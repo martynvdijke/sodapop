@@ -269,7 +269,11 @@ type ProfileLookup struct {
 
 func LookupProfile(ctx context.Context, client *ent.Client, handle string) (*ProfileLookup, error) {
 	u, err := client.User.Query().
-		Where(user.HandleEqualFold(strings.ToLower(strings.TrimSpace(handle))), user.DeletedAtIsNil()).
+		Where(
+			user.HandleEqualFold(strings.ToLower(strings.TrimSpace(handle))),
+			user.DeletedAtIsNil(),
+			user.StatusNEQ(user.StatusDeleted),
+		).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

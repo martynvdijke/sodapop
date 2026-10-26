@@ -45,11 +45,15 @@ func New(database *db.DB) *Service {
 }
 
 // Component is one line of a recipe: an existing drink and its part count.
+// VolumeML is an optional absolute pour volume; when set it is used instead of
+// the drink's own package size. Persisted recipes carry whichever the author
+// supplied so existing parts-based mixes keep rendering unchanged.
 type Component struct {
-	DrinkID int    `json:"drink_id"`
-	Slug    string `json:"slug,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Parts   int    `json:"parts"`
+	DrinkID  int    `json:"drink_id"`
+	Slug     string `json:"slug,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Parts    int    `json:"parts"`
+	VolumeML int    `json:"volume_ml,omitempty"`
 }
 
 // Input describes a mix to create.
@@ -122,10 +126,19 @@ func (s *Service) Create(ctx context.Context, in Input) (*Mix, error) {
 			return nil, fmt.Errorf("%w: component drinks must be distinct", ErrInvalidInput)
 		}
 		seen[c.DrinkID] = true
-		if c.Parts < 1 || c.Parts > 10 {
+		parts := c.Parts
+		if parts == 0 {
+			parts = 1
+		}
+		if parts < 1 || parts > 10 {
 			return nil, fmt.Errorf("%w: parts must be 1..10", ErrInvalidInput)
 		}
-		components = append(components, Component{DrinkID: c.DrinkID, Parts: c.Parts})
+		if c.VolumeML < 0 || c.VolumeML > 4000 {
+			return nil, fmt.Errorf("%w: component volume is out of range", ErrInvalidInput)
+		}
+		components = append(components, Component{
+			DrinkID: c.DrinkID, Parts: parts, VolumeML: c.VolumeML,
+		})
 		ids = append(ids, c.DrinkID)
 	}
 
@@ -211,6 +224,32 @@ func (s *Service) GetForViewer(ctx context.Context, slug, viewerID string) (*Mix
 		}
 		return nil, err
 	}
+	return s.viewerMix(ctx, d, viewerID)
+}
+
+// GetForViewerByID is GetForViewer keyed by the numeric drink id that the API
+// exposes as the mix id.
+func (s *Service) GetForViewerByID(ctx context.Context, id int, viewerID string) (*Mix, error) {
+	if id <= 0 {
+		return nil, ErrNotFound
+	}
+	d, err := s.Client.Drink.Query().
+		Where(
+			drink.ID(id),
+			drink.KindEQ(drink.KindMix),
+			drink.StatusNEQ(drink.StatusMerged),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return s.viewerMix(ctx, d, viewerID)
+}
+
+func (s *Service) viewerMix(ctx context.Context, d *ent.Drink, viewerID string) (*Mix, error) {
 	owner := ""
 	if d.CreatedBy != nil {
 		owner = *d.CreatedBy
@@ -421,7 +460,7 @@ func weightedVolume(components []Component, byID map[int]*ent.Drink) int {
 			continue
 		}
 		totalParts += c.Parts
-		totalVolume += d.VolumeMl * c.Parts
+		totalVolume += componentVolume(c, d) * c.Parts
 	}
 	if totalParts == 0 || totalVolume == 0 {
 		return defaultVolume
@@ -431,6 +470,15 @@ func weightedVolume(components []Component, byID map[int]*ent.Drink) int {
 		return defaultVolume
 	}
 	return volume
+}
+
+// componentVolume returns the absolute pour volume when the recipe supplied one,
+// otherwise the drink's package size.
+func componentVolume(c Component, d *ent.Drink) int {
+	if c.VolumeML > 0 {
+		return c.VolumeML
+	}
+	return d.VolumeMl
 }
 
 // mixSlug builds mix-<slugified-name>-<4hex>.

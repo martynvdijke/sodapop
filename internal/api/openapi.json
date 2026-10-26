@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Sodapop API",
-    "version": "1.0.0",
-    "summary": "Authenticated, friend-scoped soda check-in API.",
+    "version": "1.2.0",
+    "summary": "Authenticated, friend-scoped soda check-in API (v1.2 surface).",
     "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. All data endpoints require a personal `sd_` bearer token; requests are rate limited per token.",
     "license": {
       "name": "MIT",
@@ -492,6 +492,694 @@
             "type": "string"
           }
         }
+      },
+      "CheckinDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "handle": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            }
+          },
+          "drink": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "brand": {
+                "type": "string"
+              },
+              "style": {
+                "type": "string"
+              }
+            }
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 20,
+            "description": "Quarter-star rating, 0..20."
+          },
+          "note": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "toasts": {
+            "type": "integer"
+          },
+          "toasted": {
+            "type": "boolean"
+          },
+          "comments_count": {
+            "type": "integer",
+            "description": "Live comments only; deleted comments and deleted authors are excluded."
+          },
+          "can_delete": {
+            "type": "boolean"
+          },
+          "can_toast": {
+            "type": "boolean"
+          },
+          "can_comment": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "venue": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "photo": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "mime": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "id",
+          "user",
+          "drink",
+          "visibility",
+          "toasts",
+          "toasted",
+          "comments_count",
+          "can_delete",
+          "can_toast",
+          "can_comment",
+          "created_at"
+        ]
+      },
+      "ProfileStats": {
+        "type": "object",
+        "properties": {
+          "checkins": {
+            "type": "integer"
+          },
+          "distinct_drinks": {
+            "type": "integer"
+          },
+          "toasts_received": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "checkins",
+          "distinct_drinks",
+          "toasts_received"
+        ]
+      },
+      "EarnedBadge": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "awarded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "awarded_at"
+        ]
+      },
+      "TopStyle": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "count"
+        ]
+      },
+      "ListSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "is_system": {
+            "type": "boolean"
+          },
+          "item_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "item_count"
+        ]
+      },
+      "ListItem": {
+        "type": "object",
+        "properties": {
+          "drink_id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "drink_id",
+          "slug",
+          "name",
+          "created_at"
+        ]
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ProfileStats"
+          },
+          "follower_count": {
+            "type": "integer"
+          },
+          "following_count": {
+            "type": "integer"
+          },
+          "is_following": {
+            "type": "boolean"
+          },
+          "is_friend": {
+            "type": "boolean"
+          },
+          "can_block": {
+            "type": "boolean"
+          },
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EarnedBadge"
+            }
+          },
+          "top_styles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopStyle"
+            }
+          },
+          "lists": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListSummary"
+            }
+          }
+        },
+        "required": [
+          "handle",
+          "stats",
+          "follower_count",
+          "following_count",
+          "is_following",
+          "is_friend",
+          "can_block",
+          "badges",
+          "top_styles",
+          "lists"
+        ]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subject_id": {
+            "type": "string"
+          },
+          "actor": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "handle": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            }
+          },
+          "actor_initial": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string",
+            "description": "Safe same-origin relative path."
+          },
+          "friend_request_id": {
+            "type": "string",
+            "description": "Present only for an incoming pending friend request."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "read",
+          "created_at",
+          "subject_id",
+          "actor_initial",
+          "href"
+        ]
+      },
+      "SavedVenue": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ]
+      },
+      "ListDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ListSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "$ref": "#/components/schemas/ListItem"
+                }
+              }
+            },
+            "required": [
+              "items"
+            ]
+          }
+        ]
+      },
+      "MixComponent": {
+        "type": "object",
+        "properties": {
+          "drink_id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "volume_ml": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "drink_id",
+          "parts"
+        ]
+      },
+      "Mix": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "components": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 6,
+            "items": {
+              "$ref": "#/components/schemas/MixComponent"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "visibility",
+          "created_at",
+          "components"
+        ]
+      },
+      "MixInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "components": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "properties": {
+                "drink_id": {
+                  "type": "integer"
+                },
+                "volume_ml": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4000
+                },
+                "parts": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "drink_id"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "components"
+        ]
+      },
+      "TasteTwin": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "common_drinks": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "handle",
+          "score",
+          "common_drinks"
+        ]
+      },
+      "TasteRecommendation": {
+        "type": "object",
+        "properties": {
+          "drink_id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "drink_id",
+          "slug",
+          "name",
+          "score",
+          "reason"
+        ]
+      },
+      "BadgeStatus": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "earned": {
+            "type": "boolean"
+          },
+          "level": {
+            "type": "integer"
+          },
+          "awarded_at": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "integer"
+          },
+          "target": {
+            "type": "integer"
+          },
+          "percent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "kind",
+          "earned",
+          "level",
+          "progress",
+          "target",
+          "percent"
+        ]
+      },
+      "Passport": {
+        "type": "object",
+        "properties": {
+          "stats": {
+            "type": "object",
+            "properties": {
+              "checkins": {
+                "type": "integer"
+              },
+              "unique_drinks": {
+                "type": "integer"
+              },
+              "avg_rating": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "toasts_received": {
+                "type": "integer"
+              },
+              "badges": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "checkins",
+              "unique_drinks",
+              "toasts_received",
+              "badges"
+            ]
+          },
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EarnedBadge"
+            }
+          }
+        },
+        "required": [
+          "stats",
+          "badges"
+        ]
       }
     },
     "responses": {
@@ -555,6 +1243,10 @@
     {
       "name": "checkins",
       "description": "Your check-ins and toasts."
+    },
+    {
+      "name": "media",
+      "description": "Authenticated photo and video bytes with web-identical visibility."
     },
     {
       "name": "users",
@@ -834,10 +1526,44 @@
     "/api/v1/notifications": {
       "get": {
         "summary": "Your notifications",
-        "description": "Most recent 50 notifications for the token owner.",
+        "description": "Most recent 50 notifications for the token owner. Each row carries a safe relative `href` and, for an incoming pending friend request, a `friend_request_id`. No totals are returned.",
         "responses": {
           "200": {
-            "description": "Notifications plus unread count"
+            "description": "Notifications plus unread count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Notification"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "unread": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "unread"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid token"
@@ -1019,6 +1745,64 @@
               "schema": {
                 "$ref": "#/components/schemas/CheckinInput"
               }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "drink_id"
+                ],
+                "properties": {
+                  "drink_id": {
+                    "type": "integer"
+                  },
+                  "venue_id": {
+                    "type": "integer"
+                  },
+                  "rating": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 5,
+                    "multipleOf": 0.25
+                  },
+                  "serving": {
+                    "type": "string",
+                    "enum": [
+                      "can",
+                      "bottle",
+                      "glass",
+                      "fountain",
+                      "other"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "friends",
+                      "private"
+                    ]
+                  },
+                  "idempotency_key": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG, PNG, WebP or GIF. Optional; omit to create a text-only check-in."
+                  },
+                  "photo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Alias for `image`."
+                  }
+                }
+              }
             }
           }
         },
@@ -1034,6 +1818,12 @@
           },
           "403": {
             "description": "Unverified email or insufficient scope"
+          },
+          "413": {
+            "description": "Image is too large"
+          },
+          "415": {
+            "description": "Unsupported image type"
           }
         },
         "tags": [
@@ -1044,7 +1834,7 @@
     "/api/v1/checkins/{id}": {
       "get": {
         "summary": "Read one check-in",
-        "description": "Owner, accepted friends (for `friends` check-ins) or anyone (for `public` check-ins). Other users' private rows return 404.",
+        "description": "Owner, accepted friends (for `friends` check-ins) or anyone (for `public` check-ins). Other users' private rows return 404. Capability flags mirror the web detail page and the token's scopes.",
         "parameters": [
           {
             "name": "id",
@@ -1057,10 +1847,28 @@
         ],
         "responses": {
           "200": {
-            "description": "The check-in"
+            "description": "The check-in with viewer capability flags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CheckinDetail"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Missing or not visible"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "tags": [
@@ -1089,6 +1897,110 @@
         },
         "tags": [
           "checkins"
+        ]
+      }
+    },
+    "/api/v1/media/{id}": {
+      "get": {
+        "summary": "Fetch one photo or video",
+        "description": "Binary media for a check-in photo, avatar, drink/brand image or active venue photo. Visibility matches the web app: the owner always; anyone for `public` check-ins and catalog media; accepted friends for `friends` check-ins. Missing, deleted and not-visible rows all return 404. There is no media listing endpoint.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stored image or video",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "video/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Missing, soft-deleted or not visible to this viewer"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}/thumb": {
+      "get": {
+        "summary": "Fetch one thumbnail",
+        "description": "The 480px thumbnail for a media row, falling back to the original for videos that have no thumbnail. Access rules are identical to `/api/v1/media/{id}`; invisible rows return 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stored thumbnail (or the original when none exists)",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "video/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Missing, soft-deleted or not visible to this viewer"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "media"
         ]
       }
     },
@@ -1300,8 +2212,8 @@
     },
     "/api/v1/users/{handle}": {
       "get": {
-        "summary": "Narrow public profile",
-        "description": "Handle, display name and bio only. Never returns an email address. There is no user directory.",
+        "summary": "Friend-scoped public profile",
+        "description": "Handle, display name, bio, visible stats, follow/friend state, earned badges, top styles and visible lists. Missing, blocked and deleted accounts return 404. Unearned badge definitions and unearned progress are never exposed. There is no user directory.",
         "parameters": [
           {
             "name": "handle",
@@ -1314,10 +2226,28 @@
         ],
         "responses": {
           "200": {
-            "description": "Profile"
+            "description": "Profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserProfile"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Unknown handle"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "tags": [
@@ -3022,6 +3952,482 @@
         },
         "tags": [
           "ai"
+        ]
+      }
+    },
+    "/api/v1/users/{handle}/follow": {
+      "post": {
+        "summary": "Follow a user",
+        "description": "Requires the write scope and a verified email. Unknown, deleted and blocked targets return 404; a self-follow returns 400. Repeating a successful follow still returns 204.",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Following"
+          },
+          "400": {
+            "description": "Cannot follow yourself"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "404": {
+            "description": "Missing, invisible or blocked"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "delete": {
+        "summary": "Unfollow a user",
+        "description": "Requires the write scope and a verified email. Unknown, deleted and blocked targets return 404; a self-unfollow returns 400. Removing an absent follow is an idempotent 204.",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Not following"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "404": {
+            "description": "Missing, invisible or blocked"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/venues/saved": {
+      "get": {
+        "summary": "Your saved venues",
+        "description": "The viewer's bookmarked venues only, newest first. Read scope; no totals.",
+        "responses": {
+          "200": {
+            "description": "Saved venues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SavedVenue"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "venues"
+        ]
+      }
+    },
+    "/api/v1/me/lists": {
+      "get": {
+        "summary": "Your lists",
+        "description": "Every list you own, including the system wishlist, with item counts. This is never another user's collection.",
+        "responses": {
+          "200": {
+            "description": "Lists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ListSummary"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/lists/{id}": {
+      "get": {
+        "summary": "Read one list",
+        "description": "Public and friends lists follow the same visibility ladder as check-ins. System lists are owner-only. Missing, invisible and blocked-owner lists return 404. Items are newest-first and capped at 200; no totals.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List with items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ListDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "404": {
+            "description": "Missing, invisible or blocked"
+          }
+        },
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/mix": {
+      "get": {
+        "summary": "Your mixes",
+        "description": "Recipes authored by the viewer, newest first.",
+        "responses": {
+          "200": {
+            "description": "Mixes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Mix"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "mix"
+        ]
+      },
+      "post": {
+        "summary": "Create a mix",
+        "description": "Requires the write scope and a verified email. A mix needs a name and 2..6 distinct catalog drinks, each with a pour volume or part count.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MixInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created mix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Mix"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "404": {
+            "description": "Missing, invisible or blocked"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          }
+        },
+        "tags": [
+          "mix"
+        ]
+      }
+    },
+    "/api/v1/mix/{id}": {
+      "get": {
+        "summary": "Read one mix",
+        "description": "Accepts the numeric mix id or slug. The viewer must be the owner or allowed by the mix visibility (public, or friends for friends-only). Everything else is 404.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Mix"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "404": {
+            "description": "Missing, invisible or blocked"
+          }
+        },
+        "tags": [
+          "mix"
+        ]
+      }
+    },
+    "/api/v1/taste/twins": {
+      "get": {
+        "summary": "Your taste twins",
+        "description": "Accepted friends ranked by rating similarity. Personal to the token owner; there is no user directory.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Taste twins",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TasteTwin"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "taste"
+        ]
+      }
+    },
+    "/api/v1/taste/recommendations": {
+      "get": {
+        "summary": "Your taste recommendations",
+        "description": "Drinks loved by compatible friends that the viewer has not checked in yet. Personal and capped; no totals.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommendations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TasteRecommendation"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "taste"
+        ]
+      }
+    },
+    "/api/v1/badges": {
+      "get": {
+        "summary": "Your badges and progress",
+        "description": "Every badge definition with the viewer's earned state and rule progress. Personal only.",
+        "responses": {
+          "200": {
+            "description": "Badges",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BadgeStatus"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "badges"
+        ]
+      }
+    },
+    "/api/v1/passport": {
+      "get": {
+        "summary": "Your soda passport",
+        "description": "The viewer's lifetime stats plus earned badges. No endpoint exposes another user's passport.",
+        "responses": {
+          "200": {
+            "description": "Passport",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Passport"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "badges"
         ]
       }
     }

@@ -131,6 +131,7 @@ func run() error {
 		Social:   socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Limiter: limiter, DB: database, Media: mediaSvc, AI: aiSvc,
 		Integrations: integrationSvc, Badges: badgeSvc,
+		Taste: tasteSvc, Mix: mixSvc,
 	}
 
 	mux := http.NewServeMux()

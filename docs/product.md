@@ -21,14 +21,17 @@ Self-hosted, single binary, SQLite. No cloud account, no feed algorithm, no ads.
 
 ## 2. Scope
 
-### v1 (must ship)
+### v1 (shipped)
 Barcode scanning with manual fallback · shared drink catalog with styles and flavours · catalog browse with filters and lifecycle statuses including drops · check-ins with quarter-star ratings, serving, venue, photo, notes · check-in detail with toasts · search and filters · friends and follows · chronological feed with toasts · in-app notifications with an unread badge · venues including hotels, shops, cafés, vending · personal stats and nutrition insights · lists and wishlist · badges · Authelia OIDC login + local email verification & password reset · account settings with profile, preferences, privacy, security and data controls · opt-in public profiles · Home Assistant inbound and outbound integrations · OpenCode ("opencode2") AI drink drafting, tasting-note polish & recommendations · admin moderation, drink lifecycle and AI endpoint settings · Umami analytics · OTel traces/metrics/logs · PWA install + offline check-in queue · Flutter Android companion app (`mobile/`).
 
-### v1.1 (fast follow)
+### v1.1 (shipped)
 Comments on check-ins · user-submitted venue photos and menus · weekly email digest · drink comparison view · richer public-profile metadata.
 
+### v1.2 (shipped)
+Blocks and a blocked-accounts settings page · drink image galleries · persisted AI draft sessions with message, revise and commit · catalog revisions and internal admin notes on reports · first-run `/setup` admin creation and the `/admin/settings` runtime panel · expanded `/api/v1` for comments, media, lists, mixes, taste, badges/passport, saved venues, follows and blocks · Android parity for check-in comments, profiles with follow/block, notifications, lists, saved venues, venues, insights, taste, passport/badges and mixes, including check-in photo upload.
+
 ### Explicit non-goals
-Native iOS app · real-time chat · ActivityPub federation · paid business accounts · advertising · video · multi-tenant hosting · Postgres.
+Native iOS app · real-time chat · ActivityPub federation · paid business accounts · advertising · a video platform, standalone video hosting or an algorithmic video feed (short MP4/WebM check-in clips are supported) · multi-tenant hosting · Postgres.
 
 ## 3. Domain vocabulary
 
@@ -129,14 +132,17 @@ Rules:
 - Success: the form returns to the feed and the new row appears at the top.
 - Editing a check-in updates `updated_at` and the activity row; editing a rating recomputes aggregates asynchronously (immediate on read via view).
 
-**Check-in detail** (`/checkins/{id}`) renders one check-in with author, drink, rating, note, venue, photo or clip, visibility and toast count. The owner sees delete; a signed-in non-owner sees the toast action; an anonymous visitor sees a sign-in prompt. Visibility follows the same rule as the API: owner, then `public` for anyone, then `friends` for accepted friends, otherwise a 404. `GET /api/v1/checkins/{id}` returns the same record with the same 404 behaviour. Delete is a soft delete and returns to `/you`.
+**Check-in detail** (`/checkins/{id}`) renders one check-in with author, drink, rating, note, venue, photo or clip, visibility, toast count and comments. The owner sees delete; a signed-in non-owner sees the toast and comment actions; an anonymous visitor sees a sign-in prompt. Visibility follows the same rule as the API: owner, then `public` for anyone, then `friends` for accepted friends, otherwise a 404. `GET /api/v1/checkins/{id}` returns the same record with the same 404 behaviour. Delete is a soft delete and returns to `/you`.
+
+**Comments** are flat, 1,000-character messages on a check-in. A viewer can read or post only when the parent check-in is visible to them; the thread inherits that visibility and returns 404 for an invisible parent. Authors can delete their own comments; moderators can remove any. Comments are capped at 30 per user per hour and 200 per thread, newest kept. A comment on someone else's check-in notifies the owner and is skipped when either side has blocked the other.
 
 ### 5.4 Discover
 
-- **Search** (`/search?q=`): FTS5 over drink name, brand, style, aliases; grouped results (Drinks, Brands, Venues, Users). Debounced 250 ms, keyboard-navigable, empty state offers “Add a soda”.
+- **Search** (`/search?q=`): FTS5 over drink name, brand, style, aliases; grouped results (Drinks, Brands, Venues) with no user directory. Debounced 250 ms, keyboard-navigable, empty state offers “Add a soda”. The API search is capped at 10 results and returns no total.
 - **Browse** (`/drinks`): filters for style (a parent also matches its children), brand, flavour, caffeine-free, sugar-free, and lifecycle status (active, limited, seasonal, discontinued); sorts for name, rated and newest; 24 per page with a next-page link. Filters live in the URL and are plain HTML, with no collection API behind them. `/brands` and `/styles` index every brand and style family, and their detail pages list the drinks in each.
 - **Drops** (`/drops`): limited editions with a `limited_until` date, seasonal sodas, and discontinued sodas with `discontinued_at`. Admins move a drink between active, limited, seasonal and discontinued from the drink page or admin view; wishlist owners get one in-app notification when a wishlisted soda is discontinued.
-- **Drink page**: image, brand, style chips, flavour chips, nutrition facts, average rating with count (hidden below 3 ratings, “Not enough ratings yet”), your history, friend ratings, “Found at” venue list, similar drinks by style, actions “Check in” and “Add to list”.
+- **Compare** (`/compare?drinks=slug-a,slug-b`): a read-only side-by-side view of 2–6 drinks. It shows container, style, flavour, sweetener, carbonation, acid and nutrition per 100 ml, plus the average rating only when at least three distinct users have rated. Duplicate, unknown or merged drinks keep the user on the page with a clear message rather than a broken request. There is no comparison API or stored comparison.
+- **Drink page**: image gallery, brand, style chips, flavour chips, nutrition facts, average rating with count (hidden below 3 ratings, “Not enough ratings yet”), your history, friend ratings, “Found at” venue list, similar drinks by style, actions “Check in”, “Add to list” and “Compare”.
 - **Brand page**: drinks grid, country, description, top-rated.
 - **Style page**: description, top drinks, your count, badge progress.
 
@@ -146,17 +152,19 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 
 - **Friend request** from a profile or search row. Pending → accepted. Blocking removes friendship and follows in both directions and hides content both ways.
 - **Follow** is one-way and separate: following someone adds their public check-ins to the feed without a request.
-- **Feed** (`/`): own activity plus accepted friends plus followed users, newest first, keyset paginated 20 at a time, `visibility` respected. Tabs: Following / You / Nearby (venue check-ins within 25 km, requires location permission on demand).
+- **Feed** (`/`): own activity plus accepted friends plus followed users, newest first, keyset paginated 20 at a time, `visibility` respected. Tabs: Friends / Following.
 - **Toast**: one tap on the check-in icon; optimistic UI; undo while the page is open; the author gets a notification (in-app, and push when enabled).
-- **Notifications**: kinds are friend request, friend accepted, toast on your check-in, badge earned, and system (a wishlist drop, for example). The nav shows an unread count. `/notifications` lists the newest 50 with an actor, text, time and link; each row can be marked read, and “Mark all read” clears the rest. The same personal list is available at `GET /api/v1/notifications`, with `POST /api/v1/notifications/read` accepting an `id` or marking everything.
+- **Blocks**: block or unblock from a profile, and manage the list at `/settings/blocked`. Blocking ends an accepted or pending friendship and every follow in either direction in one transaction, then hides both accounts from each other's feed, profiles, comments, toasts and notifications. The API returns 404 for a blocked list; profiles return 404 rather than confirming an account, and a blocked follow or friend request is a silent no-op. Unblocking removes only the caller's block; it does not restore the old friendship or follows.
+- **Notifications**: kinds are friend request, friend accepted, toast on your check-in, comment on your check-in, badge earned, and system (a wishlist drop, for example). The nav shows an unread count. `/notifications` lists the newest 50 with an actor, text, time and link; each row can be marked read, and “Mark all read” clears the rest. The same personal list is available at `GET /api/v1/notifications`, with `POST /api/v1/notifications/read` accepting an `id` or marking everything.
 - No public like counts on profiles. Check-in detail shows the toast count and the viewer's own toast state.
 
 ### 5.6 Venues and locations
 
 - **Venue kinds**: hotel, bar, restaurant, café, shop, festival, vending, other. Hotels matter because minibar and lobby-fridge finds are a real use case, not because of lodging features.
-- **Venue page**: name, kind, address, map link (OSM), what's been checked in here, recent activity, average rating of drinks logged here, “Check in here”, save.
+- **Venue page**: name, kind, address, map link (OSM), what's been checked in here, recent activity, average rating of drinks logged here, community photos and menus, “Check in here”, save.
 - **Create venue**: name, kind, address search (Nominatim proxy, optional), or “use my location”. Dedupe: normalized name + city exact match blocks creation and offers the existing venue; within 150 m and same kind shows “Is this the same place?”.
 - **Menu / stock**: any user can attach a drink to a venue (“seen here”); admins can mark “on offer”. Each row stores `last_seen_at` so stale data decays out of the default view.
+- **Venue photos and menus**: verified members can add an image as a `photo` or `menu` with an optional 80-character label. Each uploader can keep 6 active rows at one venue and the venue can hold 20 in total. The uploader, a moderator or an admin can remove a row; removal is a soft delete of the attachment, and the file is kept. Images follow the same 12 MiB image pipeline as check-in photos (JPEG/PNG/WebP/GIF, EXIF stripped, resized). Menus are images, not documents.
 - **Venue check-in**: a check-in with `venue_id`. Untappd's “purchase location” distinction is simplified: one venue field, plus the venue kind tells you whether it was consumed or bought.
 - **Verification**: admins can verify venues; verified venues show a subtle badge and can have a curated menu. No paid business tier.
 - **Location data**: never store continuous location. Coordinates are stored only on venues, plus an optional one-shot “near me” query. No background geolocation.
@@ -170,7 +178,7 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 
 ### 5.8 Profile, stats and insights
 
-A profile is opt-in public (`user_settings.public_profile`). The page lives at `/u/{handle}` and shows avatar, handle, display name, bio, member since, counts, recent check-ins, badges, lists and friend state.
+A profile is opt-in public (`user_settings.public_profile`). The page lives at `/u/{handle}` and shows avatar, handle, display name, bio, member since, counts, recent check-ins, earned badges, top styles, lists and friend state. Top styles rank the styles in the check-ins the viewer may see; unearned badge definitions and unearned progress are never shown on another user's profile.
 
 Access rules:
 - Account deleted → 404.
@@ -200,8 +208,10 @@ Role-gated (`moderator`, `admin`):
 - **Users**: search, suspend, unsuspend, grant roles, revoke sessions.
 - **Email**: outbox status, failed messages, retry.
 - **AI ("opencode2")**: global `ai_enabled` toggle, OpenAI-compatible / OpenCode Zen (`https://opencode.ai/zen/go/v1`) endpoint CRUD (`text`, `vision`, `image`), AES-GCM encrypted API keys masked in UI, tag assignment (`draft`, `tasting_note`, `recommend`, `default`), `temperature`/`max_tokens`, and one-click **Test endpoint** probing upstream connectivity with actual status code and preview.
-- **System**: version, DB size, backup now, job status, OTel status (enabled/endpoint), Umami config check.
-- Every mutation writes `catalog_revisions` or an admin audit entry.
+- **System**: version, DB size, backup now, job status, OTel status (enabled/endpoint), Umami config check, and the `/admin/settings` runtime panel for site name, SMTP, analytics, registration, password fallback, allowlists and AI enablement.
+- **Reports and notes**: the moderation queue resolves, dismisses or removes a report and can append an internal note. Report notes are admin-only; non-admins receive 404. Note author and timestamp are shown, and a note can be deleted by an admin.
+- **First-run setup**: a fresh instance prints a one-time `setup required:` token (or reads `SETUP_TOKEN`); `/setup` creates the first verified admin atomically and then closes. It reopens only when no live admin remains, which is also the recovery path after an OIDC group demotion.
+- Every mutation writes `catalog_revisions` or an admin audit entry. Runtime setting writes append an `admin_notes` row containing key names only, never secret values.
 
 ### 5.10 Settings
 
@@ -211,14 +221,14 @@ All account controls live on one page at `/settings`:
 - **Preferences**: theme system/light/dark, units metric or imperial, and an optional caffeine bedtime (`HH:MM`) used by insights.
 - **Notifications**: weekly email digest, friend-request email, and push (HTTPS and a supporting browser required).
 - **Privacy**: default visibility for new check-ins, opt-in public profile, and an analytics opt-out that removes the Umami script entirely.
-- **Security**: change password (current password required; the form asks for at least 10 characters and other sessions are revoked), API token management at `/settings/tokens`, active session list with per-session revoke, and “Sign out everywhere”.
+- **Security**: change password (current password required; the form asks for at least 10 characters and other sessions are revoked), API token management at `/settings/tokens`, active session list with per-session revoke, “Sign out everywhere”, and blocked accounts at `/settings/blocked` with unblock.
 - **Data**: JSON export of the account's data and soft-delete account closure (type the handle to confirm). Deletion marks the row deleted, removes sessions and revokes tokens.
 - **Password reset**: `/forgot` always shows the same anti-enumerated response, and `/reset/{token}` accepts a 1-hour, single-use link that revokes every session on success.
 
 ### 5.11 OpenCode ("opencode2") AI assistant
 
 Ported from `dnd` (`internal/ai`), completely optional and hidden whenever `ai_enabled=0` or no enabled endpoint exists:
-1. **Conversational & Vision Drink Drafting**: from the unknown-barcode create screen or `/admin/drinks`, users/moderators can open “Draft with AI”, paste rough tasting notes or label text (or attach a photo when a `vision` endpoint is enabled), and converse with the assistant to fill structured drink fields (`brand`, `name`, `style`, `flavours`, `sweetener`, `acid`, `carbonation`, nutrition per 100 ml, description). Multi-turn sessions preserve the same `x-opencode-session` header and `User-Agent: sodapop/<version>`.
+1. **Conversational & Vision Drink Drafting**: from the unknown-barcode create screen or `/admin/drinks`, users/moderators can open “Draft with AI”, paste rough tasting notes or label text (or attach a photo when a `vision` endpoint is enabled), and converse with the assistant to fill structured drink fields (`brand`, `name`, `style`, `flavours`, `sweetener`, `acid`, `carbonation`, nutrition per 100 ml, description). The conversation is stored in `ai_draft_sessions` and can be continued, revised or committed; each turn preserves the same `x-opencode-session` header and `User-Agent: sodapop/<version>`.
 2. **Tasting Note Polish**: inside the check-in sheet, a “Polish note” chip turns rough bullet points + selected flavour chips into a 1–2 sentence note matching Sodapop's voice (crisp, unpretentious, no exclamation marks, no sugar shaming). The user reviews and edits before submitting.
 3. **Soda Sommelier (“What to try next”)**: on `/drinks` and the user profile, an optional card suggests 3 sodas from the catalog based on the user's top-rated styles, flavours, and sweetener preferences, with a one-sentence explanation for each.
 
@@ -227,7 +237,7 @@ Ported from `dnd` (`internal/ai`), completely optional and hidden whenever `ai_e
 Companion Android client modeled on `board-games/mobile` and `dnd/mobile` (full spec in [mobile.md](mobile.md)):
 - **Onboarding**: starts with an empty server URL field (zero hardcoded default URL), validates and normalizes `http(s)` URLs, probes `GET /api/v1/auth/oidc/status`, and offers **“Sign in with Authelia”** (in-app WebView + native cookie capture + `sd_` device token exchange) alongside personal API token (`sd_…`) and optional password fallback.
 - **Native barcode scanner**: uses `mobile_scanner` (CameraX + ML Kit) with hardware torch and pinch-to-zoom, normalizing scans to GTIN-14 and resolving against the same local cache → `/api/v1/barcodes/{gtin}` ladder.
-- **Feature parity**: 5-slot bottom navigation (`Feed`, `Discover`, lifted lime `Scan` button, `Venues`, `Profile`), quarter-star check-in sheet with photo upload and AI tasting-note polish, offline check-in queue with idempotency keys, and lime/forest Material 3 theme (`#B4E32C` / `#16241A` / `#F2F4E6` / `#0C130E`).
+- **Feature parity**: 4-slot bottom navigation (`Friends`, lifted lime `Scan`, `Discover`, `You`), quarter-star check-in sheet with photo attachment, AI tasting-note polish and an offline check-in queue with idempotency keys (photos up to 2 MiB included), and lime/forest Material 3 theme (`#B4E32C` / `#16241A` / `#F2F4E6` / `#0C130E`). The v1.2 app adds check-in detail with comments, other-user profiles with follow and block, notification actions, lists, saved venues, venue search/detail, insights, taste twins, passport/badges and mixes. It has an authenticated media path (`ApiClient.mediaUrl` → `/api/v1/media/{id}`); short video clips are shown as a "watch on web" notice.
 
 ### 5.13 Integrations
 
@@ -368,7 +378,17 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 - Nightly backup produces a restorable file.
 - Umami unset means no script tag and no CSP entry.
 
-## 12. Risks and open questions
+## 12. Acceptance criteria (v1.2)
+
+- A comment on an invisible check-in returns 404, and a comment thread stops showing rows from a blocked author in either direction.
+- Blocking removes the friendship and both follow directions, hides the profile, feed, comments, toasts and notifications, and `/settings/blocked` can undo only the caller's block.
+- A venue photo/menu stops being fetchable after an uploader or moderator removes it, and the 6-per-uploader/20-per-venue caps hold.
+- A drink gallery upload by a verified member appears without becoming primary; only an admin can promote or delete it.
+- `/compare` rejects fewer than 2 or more than 6 drinks, duplicate slugs and unknown/merged drinks without a server error.
+- `GET /api/v1/checkins/{id}/comments`, the venue media list and the drink gallery never return a total or an unbounded collection.
+- The Android app posts a comment, follows/blocks a profile, opens a list/saved venue/insight/taste/passport/mix/venue screen, and replays an offline check-in with its idempotency key.
+
+## 13. Risks and open questions
 
 | Risk | Mitigation |
 |---|---|
@@ -381,7 +401,7 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 
 Open: whether to seed a starter catalog (e.g. 500 common sodas) to make first-run useful; whether to default units by locale now that a metric/imperial toggle exists; whether to expose a public read-only API without weakening the friend-scoped `/api/v1` contract.
 
-## 13. Success signals
+## 14. Success signals
 
 - First-run: signup → verified → first check-in completes in under 3 minutes.
 - ≥ 60% of check-ins start from a scan.

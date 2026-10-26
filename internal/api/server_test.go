@@ -15,14 +15,17 @@ import (
 
 	"sodapop/ent"
 	"sodapop/internal/auth"
+	"sodapop/internal/badges"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
 	"sodapop/internal/comments"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/media"
+	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
 	"sodapop/internal/social"
+	"sodapop/internal/taste"
 	"sodapop/internal/venues"
 )
 
@@ -63,12 +66,16 @@ func newHarness(t *testing.T) *harness {
 	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)
 	mediaSvc := media.New(database, cfg)
+	badgeSvc := badges.New(database)
+	tasteSvc := taste.New(database)
+	mixSvc := mix.New(database)
 	limiter := ratelimit.New()
 
 	srv := &Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
 		Comments: commentSvc, Social: socialSvc, Venues: venueSvc,
 		Limiter: limiter, DB: database, Media: mediaSvc,
+		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	mux := http.NewServeMux()

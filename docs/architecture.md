@@ -35,16 +35,25 @@ sodapop/
 ├── internal/
 │   ├── config/            # typed env config + Validate + redacted LogValue
 │   ├── db/                # sql.DB + ent.Client init, pragmas, TraceQueryEx, schema_consistency_test.go
-│   │   └── migrations/    # versioned migration registry + SQL/Go migrations (0001_auth_indexes … 0005_composite_indexes)
+│   │   └── migrations/    # versioned migration registry + SQL/Go migrations (0001_auth_indexes … 0009_audit_indexes)
 │   ├── auth/              # OIDC (PKCE/JWKS), local signup/login, sessions, CSRF, tokens, verification
+│   ├── adminnotes/        # internal report-scoped admin notes
 │   ├── ai/                # OpenCode ("opencode2") client, endpoint crypto, URL normalization, drink drafting
+│   ├── badges/            # badge catalogue, evaluation, passport support
+│   ├── comments/          # check-in comments, visibility inheritance, block filter, rate limit
 │   ├── email/             # SMTP sender, templates, outbox retry
-│   ├── catalog/           # drinks, brands, styles, barcodes, OFF import
-│   ├── checkins/          # check-in create/edit/delete, ratings, photos
-│   ├── social/            # friends, follows, activity feed, notifications
-│   ├── venues/            # venues, venue check-ins, menus, geocoding
+│   ├── catalog/           # drinks, brands, styles, barcodes, OFF import, galleries, revisions
+│   ├── checkins/          # check-in create/edit/delete, ratings, photos, lists
+│   ├── mix/               # mix recipes stored as kind=mix drinks
+│   ├── ratelimit/         # in-process token buckets
+│   ├── settings/          # runtime setting keys, validation, immutable snapshot
+│   ├── setup/             # first-run token, atomic first-admin creation
+│   ├── secretbox/         # AES-GCM for runtime secrets
+│   ├── social/            # friends, follows, blocks, activity feed, notifications
+│   ├── taste/             # taste twins and recommendations
+│   ├── venues/            # venues, venue check-ins, menus, venue media, geocoding
 │   ├── users/             # profiles, settings, privacy
-│   ├── media/             # photo upload, resize, cache, image proxy
+│   ├── media/             # photo/video upload, resize, cache, image proxy, visibility checks
 │   ├── web/               # router, middleware, render, assets, handlers
 │   ├── api/               # /api/v1 JSON handlers + OpenAPI
 │   ├── telemetry/         # OTel providers, slog bridge, metrics
@@ -67,7 +76,7 @@ Rules: handlers stay thin (parse → service → render); all business logic in 
 
 ### Data access seam: Ent ORM + versioned migrations (`ent/` + `internal/db/`)
 Adopted directly from `dnd` (`dnd/docs/adr-data-access.md`, `dnd/db/db.go`, `dnd/db/migrations/registry.go`, `dnd/db/schema_consistency_test.go`):
-1. **Ent (`entgo.io/ent v0.14.6`) is canonical for entity schema and CRUD:** `ent/schema/*.go` defines all domain entities (`User`, `UserIdentity`, `Session`, `APIToken`, `EmailVerificationToken`, `PasswordResetToken`, `EmailOutbox`, `UserSetting`, `Media`, `Brand`, `Style`, `Flavour`, `Drink`, `DrinkBarcode`, `DrinkFlavour`, `DrinkAlias`, `DrinkImage`, `OffProduct`, `CatalogRevision`, `Venue`, `VenueDrink`, `VenueName`, `VenueSave`, `Checkin`, `CheckinLike`, `Follow`, `Friendship`, `Block`, `Activity`, `Notification`, `Badge`, `UserBadge`, `List`, `ListItem`, `Report`, `AdminNote`, `AppSetting`, `AIEndpoint`, `AIDraftSession`, `Integration`, `PushSubscription`, `InboundToken`). `go generate ./ent` produces `ent/migrate/schema.go` (`migrate.Tables`).
+1. **Ent (`entgo.io/ent v0.14.6`) is canonical for entity schema and CRUD:** `ent/schema/*.go` defines all domain entities (`User`, `UserIdentity`, `Session`, `APIToken`, `EmailVerificationToken`, `PasswordResetToken`, `EmailOutbox`, `UserSetting`, `Media`, `Brand`, `Style`, `Flavour`, `Drink`, `DrinkBarcode`, `DrinkFlavour`, `DrinkAlias`, `DrinkImage`, `OffProduct`, `CatalogRevision`, `Venue`, `VenueDrink`, `VenueName`, `VenueSave`, `VenueMedia`, `Checkin`, `CheckinLike`, `Comment`, `Follow`, `Friendship`, `Block`, `Activity`, `Notification`, `Badge`, `UserBadge`, `List`, `ListItem`, `Report`, `AdminNote`, `AppSetting`, `RuntimeSetting`, `AIEndpoint`, `AIDraftSession`, `Integration`, `PushSubscription`, `InboundToken`). `go generate ./ent` produces `ent/migrate/schema.go` (`migrate.Tables`).
 2. **Shared connection pool:** `internal/db.Init(dbPath)` opens `modernc.org/sqlite` with connection-level `_pragma` params (`busy_timeout(10000)`, `synchronous(NORMAL)`, `cache_size(-64000)`, `temp_store(MEMORY)`, `mmap_size`, `foreign_keys(ON)`), runs `PRAGMA journal_mode=WAL` and `PRAGMA auto_vacuum=INCREMENTAL`, and wraps the same `*sql.DB` with `entsql.OpenDB(dialect.SQLite, DB)` → `ent.NewClient(ent.Driver(drv))`.
 3. **Two-stage deterministic migration pipeline on boot:**
    - **Stage 1 — Ent schema migration (`Client.Schema.Create(ctx)`):** idempotently creates/updates all Ent-managed tables, columns, foreign keys, and indexes from `ent/migrate/schema.go`.
@@ -95,9 +104,20 @@ GET  /checkins/new              check-in form for a drink (?slug=)
 POST /checkins                  create check-in
 GET  /checkins/{id}             check-in detail (owner, friend, or public)
 POST /checkins/{id}/toast       toast or undo
+POST /checkins/{id}/comments    comment on a visible check-in
+POST /comments/{id}/delete      soft-delete own comment (moderator may remove any)
 POST /checkins/{id}/delete      soft-delete (owner only)
-GET  /venues/{slug}             venue page + menu/on-offer list
-GET  /u/{handle}                profile, badges, recent (opt-in public profiles)
+GET  /compare?drinks=           side-by-side comparison of 2–6 drinks (HTML only)
+GET  /venues/{id}               venue page, menu/on-offer list, photos and menus
+GET  /venues/saved              venues the member bookmarked
+POST /venues/{id}/media         upload a venue photo or menu
+POST /venues/media/{id}/delete  remove own venue media (moderator may remove any)
+GET  /u/{handle}                profile, badges, top styles, lists, recent (opt-in public)
+POST /u/{handle}/follow         follow
+POST /u/{handle}/unfollow       unfollow
+POST /u/{handle}/block          block (removes friendship and follows both ways)
+POST /u/{handle}/unblock        remove only the caller's block
+GET  /settings/blocked          blocked accounts + unblock
 GET  /friends                   friends + requests
 GET  /notifications             notification centre
 POST /notifications/read        mark one or all read
@@ -105,6 +125,16 @@ GET  /settings                  profile, preferences, privacy, security, data
 POST /settings/{profile,avatar,preferences,privacy,password,delete}
 POST /settings/sessions/{id}/revoke   revoke one session
 POST /settings/logout-all       revoke every session including this device
+GET  /lists                     own lists including the wishlist
+POST /lists                     create a list; add, edit, delete and remove items
+GET  /lists/{id}                visibility-scoped list
+GET  /taste                     taste twins and recommendations
+GET  /passport                  style, venue-kind and country passport
+GET  /mix  GET /mix/{slug}      mix list and detail
+POST /mix                       publish a mix of 2–6 drinks
+POST /drinks/{slug}/images      add a drink gallery image
+POST /drinks/images/{id}/primary  set primary image (admin only)
+POST /drinks/images/{id}/delete   remove a gallery image (admin only)
 GET  /integrations              outbound integrations + Home Assistant tokens
 POST /integrations/ha-token     mint a Home Assistant inbound token
 POST /integrations/ha-token/{id}/revoke
@@ -125,6 +155,36 @@ GET  /api/v1/auth/oidc/status   public OIDC discovery for web + Flutter onboardi
 GET  /api/v1/notifications      personal notifications (friend-scoped, no firehose)
 POST /api/v1/notifications/read mark one notification or all
 GET  /api/v1/checkins/{id}      one check-in, visibility-scoped (404 when private)
+GET  /api/v1/media/{id}         original photo/video, same visibility rules as the web
+GET  /api/v1/media/{id}/thumb   thumbnail (falls back to the original for video)
+GET  /api/v1/checkins/{id}/comments   comments on a visible check-in
+POST /api/v1/checkins/{id}/comments   comment (write scope + verified email)
+DELETE /api/v1/comments/{id}    delete own comment (moderator may remove any)
+POST /api/v1/users/{handle}/follow    follow (404 for blocked/unknown)
+DELETE /api/v1/users/{handle}/follow  unfollow
+POST /api/v1/users/{handle}/block     block
+DELETE /api/v1/users/{handle}/block   unblock
+GET  /api/v1/me/lists           own lists including the wishlist
+GET  /api/v1/lists/{id}         visibility-scoped list
+GET  /api/v1/mix                own mixes
+POST /api/v1/mix                create a mix (2–6 drinks)
+GET  /api/v1/mix/{id}           mix by id or slug, visibility-scoped
+GET  /api/v1/taste/twins        taste twins (accepted friends)
+GET  /api/v1/taste/recommendations   drink recommendations
+GET  /api/v1/badges             own badges and progress
+GET  /api/v1/passport           own passport stats and badges
+GET  /api/v1/venues/saved       saved venues
+GET  /api/v1/venues/{id}/media  active venue photos and menus
+POST /api/v1/venues/{id}/media  upload a venue photo or menu
+DELETE /api/v1/venues/{id}/save   unsave a venue
+DELETE /api/v1/venues/media/{id}  remove own venue media
+GET  /api/v1/drinks/{slug}/images     one drink's gallery
+POST /api/v1/drinks/{slug}/images     upload a gallery image
+POST /api/v1/drinks/images/{id}/primary  set primary (admin)
+DELETE /api/v1/drinks/images/{id}     delete image (admin)
+GET  /api/v1/admin/reports/{id}/notes   internal report notes (admin)
+POST /api/v1/admin/reports/{id}/notes   add an internal note (admin)
+DELETE /api/v1/admin/notes/{id}         delete an internal note (admin)
 GET  /api/v1/stats/me/insights  personal sugar/caffeine/calorie series (?range=7|30|90)
 GET  /api/v1/integrations/home-assistant  integration wiring state for a sensor
 POST /api/v1/ai/drafts          conversational drink/venue AI drafting ("opencode2")
@@ -134,6 +194,8 @@ POST /api/v1/ai/recommend       personalized soda sommelier recommendations
 ```
 
 Public HTML surfaces are `/` and `/u/{handle}` when the owner opted into a public profile. Catalog browse (`/drinks`, `/brands`, `/styles`, `/drops` and the brand/style detail pages), search, drink pages, notifications, settings and insights all require a signed-in member. Every `/api/v1` route remains Bearer-authenticated and friend-scoped, so crawlable HTML never widens the API boundary.
+
+The v1.2 `internal/api/openapi.json` surface is deliberately bounded. There is no collection endpoint for drinks, brands, venues, users, check-ins, comments or lists. Search is capped at 10 results with no total, one drink's gallery and one venue's media are bounded lists without totals, `GET /api/v1/me/lists` returns only the caller's lists, and mix/taste/badges/passport reads are personal or visibility-scoped. Cross-user reads that fail visibility or hit a block return `404`; only the owner's own resources are addressed by id. The OpenAPI contract test fails if a registered `/api/v1` route is missing from the spec or a documented data route is not registered.
 
 Middleware order: `requestID → otelhttp → securityHeaders → LoadSession → RequireCSRF → mux`; API mux: `AuthenticateBearer → rateLimit → mux`.
 
@@ -220,15 +282,21 @@ Licensing boundary (non-negotiable): OFF data is ODbL 1.0 (contents DbCL, images
 - `activities` rows are written in the same transaction as the action: kinds `checkin`, `badge`, `list`, `venue`, `friend`. Columns: `id, user_id, kind, subject_id, visibility, created_at`.
 - Feed query: own + accepted friends' + followed users' activities, `visibility IN ('public','friends')`, keyset paginated on `(created_at, id)`, 20 per page. Materialized fan-out is deliberately avoided; SQLite handles this at self-hosted scale.
 - Privacy: `public | friends | private` per check-in and per profile default; private check-ins still count for personal stats, never appear in feeds.
-- Notifications: in-app table with kinds `friend_request`, `friend_accept`, `toast`, `badge` and `system` (`comment` exists in the enum but has no producer yet). The nav shows an unread count, `/notifications` lists the newest 50, and `POST /notifications/read` marks one item (with `id`) or all. `GET /api/v1/notifications` and `POST /api/v1/notifications/read` expose the same personal scope. Friend-request email is sent only when the target's `email_friend_req` setting is on.
+- Notifications: in-app table with kinds `friend_request`, `friend_accept`, `toast`, `comment`, `badge` and `system`. The nav shows an unread count, `/notifications` lists the newest 50, and `POST /notifications/read` marks one item (with `id`) or all. `GET /api/v1/notifications` and `POST /api/v1/notifications/read` expose the same personal scope. Friend-request email is sent only when the target's `email_friend_req` setting is on.
+- Blocks are enforced on read, not only stored: feed queries exclude either direction, check-in detail returns 404, comments and toasts reject blocked pairs, notifications are dropped or hidden, profiles return 404, and API list reads return 404. Blocking also deletes the friendship row and both follow directions in one transaction; unblocking removes only the caller's block and does not restore them. There is no user-returning search surface to filter; catalog and venue search contain no user rows. `/settings/blocked` lists the accounts the viewer blocked and offers unblock.
 - Check-in visibility is enforced by `checkins.Service.Get`: owner sees everything, a friend sees `public` and `friends`, an anonymous or non-friend viewer sees only `public`. Everything else returns `ErrNotFound`, which the web and API layers map to 404.
+- Comments inherit the parent check-in's visibility. `comments.Service.List` and `Create` call the same `checkins.Get`, so an invisible parent is a 404 for both; rows from blocked authors are filtered in SQL. Comments are flat, 1,000 characters, 30 per user per hour, capped at the newest 200 per thread, and soft-deleted by the author or a moderator. A comment notifies the check-in owner unless they wrote it or either side has blocked the other.
 - Public profiles are opt-in through `user_settings.public_profile`. A deleted account is always hidden. When public, anonymous visitors see the profile and only `public` check-ins; a signed-in stranger sees the same; the owner and accepted friends see `public`, `friends` and `private` rows. When not public, anonymous visitors are redirected to `/login` and a signed-in non-friend gets a 404.
 - Insights are self-only. Sugar, caffeine and calories are derived from the drink's per-100 ml facts multiplied by the logged volume; merged and provisional drinks are excluded from the top-drinks list but still counted in totals. The series is zero-filled for each of the 7, 30 or 90 calendar days, caffeine clearance halves the last dose every 5 hours until it falls below 20 mg, and `late_caffeine` is true when the last dose plus 8 hours lands after `caffeine_bedtime`.
 - Outbound integrations are stored one row per user and kind (`home_assistant`, `matrix`, `trmnl`) with an optional secret and an enabled flag. Event dispatch is fire-and-forget: Home Assistant receives `{event,text,url}`, Matrix receives an `m.text` message, TRMNL receives a `merge_variables` JSON body, and push delivery is skipped unless `user_settings.push_enabled` is on. The shared HTTP client has a 10 s timeout and each dispatched event runs under a 5 s context. Integration failures are logged and never block the check-in write.
 
 ## 8. Media
 
-Uploads via multipart, 10 MiB cap, MIME sniffed and re-decoded (`image/jpeg|png|webp`), max dimension 1600px, re-encoded to WebP/JPEG, stored under `/data/media/<yy>/<mm>/<id>.webp` with a deterministic placeholder for failures. Served with long cache headers and content-addressed filenames. EXIF stripped. Rate limited per user (20/day). Optional S3-compatible backend behind an interface, not in v1.
+Uploads via multipart. Images are capped at 12 MiB, MIME-sniffed and re-decoded (`image/jpeg|png|webp|gif`), resized to a 1600 px longest edge with a 480 px thumbnail, EXIF-stripped, and stored under `/data/media/<yy>/<mm>/<id>.jpg`. Short MP4/WebM/QuickTime clips are capped at 120 MiB, sniffed rather than trusted by extension, streamed to disk untouched, and have no poster or thumbnail without ffmpeg; the check-in detail page renders a `<video>` with a download fallback and the Android app links to the web app. There is no gallery transcoding, no standalone video hosting and no video feed. Served with private, long cache headers and content-addressed filenames. Check-in uploads follow the check-in rate limit; drink and venue galleries add a 10-per-hour upload cap per user.
+
+`media.Service.CanView` is the single access check for the web `/media/{id}` routes and the Bearer-authenticated `/api/v1/media/{id}` and `/thumb` routes. The owner always sees their own row. Avatars, drink images and brand logos are public. A check-in photo or clip follows the parent check-in's `public`/`friends` visibility and stops being visible when the check-in is soft-deleted; a `friends` row requires an accepted friendship. Venue media is public while its `venue_media` row is active and the venue is not merged away; deleting the attachment revokes access while keeping the file. Orphan media rows are not public. Blocks are enforced on the feed, detail, comment, notification and list read paths; media access is derived from the owning row's visibility rather than a separate grant table. The API exposes the same check through the Bearer-authenticated `/api/v1/media/{id}` path, and the Flutter client has a helper (`ApiClient.mediaUrl`) for that authenticated path.
+
+Drink galleries are stored in `drink_images` plus `media`; any verified member may add an image with attribution (new uploads are not auto-promoted), while setting the primary image and deleting an image are admin-only. Venue photos and menus are stored in `venue_media` (`kind` `photo|menu`, optional 80-character label) with a 6-per-uploader/venue and 20-per-venue active cap. Gallery reports reuse the shared `reports` table with `entity` `drink_image` or `venue_media`; admin removal soft-deletes the attachment (venue media) or deletes the image row (drink gallery). Open Food Facts images remain proxied and attributed separately under §6.
 
 ## 9. Observability (OTel)
 
@@ -274,14 +342,14 @@ Ported directly from `dnd` (`dnd/ai/client.go`, `dnd/ent/schema/aiendpoint.go`, 
 
 Matches `board-games/mobile` and `dnd/mobile` (documented in [mobile.md](mobile.md)):
 
-- **Stack:** Flutter (Dart `^3.13.2`, Material 3), `flutter_riverpod`, `go_router`, `dio`, `flutter_secure_storage`, `shared_preferences`, `webview_flutter`, `mobile_scanner` (native Android CameraX + ML Kit barcode decoding with hardware torch/zoom), `cached_network_image`.
+- **Stack:** Flutter (Dart `^3.9.0`, Material 3), `flutter_riverpod`, `go_router`, `dio`, `flutter_secure_storage`, `shared_preferences`, `webview_flutter`, `mobile_scanner` (native Android CameraX + ML Kit barcode decoding with hardware torch/zoom), `image_picker`.
 - **Zero hardcoded server URL:** the onboarding screen starts with an empty server URL field, validates `http(s)` origin format, persists the normalized URL in `flutter_secure_storage`, and blocks API traffic until configured.
 - **Authentication:**
   - Probes `GET /api/v1/auth/oidc/status` for the entered server URL.
   - When OIDC is enabled, displays **"Sign in with Authelia"** as the primary button, opens `/auth/oidc/login` in an in-app WebView after clearing stale cookies, captures the `sd_session` cookie via the native Android cookie channel (`xyz.vandijke.sodapop/cookies`), and exchanges it for a long-lived device `sd_` Bearer token (`POST /api/v1/auth/mobile-token`).
   - Also supports pasting a personal API token (`sd_…`) or using email/password when `ALLOW_PASSWORD_FALLBACK=true`.
-- **Parity & offline:** native bottom nav (`Feed`, `Discover`, lifted lime `Scan` button, `Venues`, `Profile`), instant ML Kit GTIN-14 barcode scan → check-in sheet, AI tasting-note polish & drink drafting, SQLite/shared-prefs offline check-in outbox with idempotency keys, OTLP/HTTP trace propagation (`traceparent`), and opt-out-aware Umami event ping.
-- **Branding:** vector adaptive launcher icon (`#B4E32C` lime fill + `#16241A` forest mark), Android 13+ monochrome themed icon, API 31+ splash screen, self-hosted `BricolageGrotesque` font.
+- **Parity & offline:** native bottom nav (`Friends`, `Discover`, lifted lime `Scan` button, `You`), instant ML Kit GTIN-14 barcode scan → check-in sheet, AI tasting-note polish, one-photo check-in upload, and a `shared_preferences` check-in outbox with idempotency keys (photos up to 2 MiB, dropped with a message above that). The v1.2 screens cover check-in detail/comments, user profiles with follow/block, notifications, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes. The client exposes an authenticated media helper (`ApiClient.mediaUrl` → `/api/v1/media/{id}`); video clips link to the web app. Every API call carries a W3C `traceparent`.
+- **Branding:** vector adaptive launcher icon (`#B4E32C` lime fill + `#16241A` forest mark), Android 13+ monochrome themed icon, API 31+ splash screen.
 
 ## 13. Configuration
 
@@ -306,9 +374,11 @@ Secrets accept `_FILE` variants. Invalid config fails fast with a readable error
 
 ### Runtime settings
 
-`/admin/settings` overlays a small, audited set of operational values on top of env config. Precedence is **built-in default < env < database**, loaded once into an immutable snapshot so request paths never query settings tables. Database overrides are denied for bootstrap-only keys (`ENV`, `PORT`, `DATABASE_PATH`, `DATA_DIR`, `SESSION_SECRET`, `OTEL_*`, `EMAIL_DEV_DIR`, `SEED_DEMO`); OTel is shown read-only with a restart label. Runtime-overridable keys include `APP_NAME`, `BASE_URL`, SMTP host/port/username/password/from/TLS, `UMAMI_URL`, `UMAMI_WEBSITE_ID`, registration, password fallback, allowlists and AI enablement.
+`/admin/settings` overlays a small, audited set of operational values on top of env config. Precedence is **built-in default < env < database**, loaded once into an immutable snapshot so request paths never query settings tables. Database overrides are denied for bootstrap-only keys (`ENV`, `PORT`, `DATABASE_PATH`, `DATA_DIR`, `SESSION_SECRET`, `OTEL_*`, `EMAIL_DEV_DIR`, `SEED_DEMO`); OTel is shown read-only with a restart label. Runtime-overridable keys include `APP_NAME`, `BASE_URL`, SMTP host/port/username/password/from/TLS, `UMAMI_URL`, `UMAMI_WEBSITE_ID`, registration, password fallback, allowlists and AI enablement. The settings page is limited to full admins (`requireAdminStrict`); moderators keep their moderation tools but cannot change instance-wide values.
 
 Secrets are stored only as AES-256-GCM ciphertext (`enc:v1:`) under a domain-separated key derived from `SESSION_SECRET`; the UI shows `set` plus the last four characters, a blank field preserves the stored value, and an explicit clear removes it. Changing `SESSION_SECRET` makes old ciphertext unreadable (the instance falls back to env/default and logs a warning). Each write is transactional and appends an `admin_notes` audit row containing key names only. First-run setup uses the same storage to record `setup_complete` and create the first verified admin atomically; the one-time token comes from `SETUP_TOKEN` or a generated value logged once on a fresh database.
+
+Report-scoped internal notes use the same `admin_notes` table with `entity='system'` and the report id as `entity_id`; they are appended from `/admin/reports/{id}/notes` and removed from `/admin/notes/{id}/delete`. Non-admins get `404` on both the HTML and API surfaces. Catalog edits continue to append `catalog_revisions`, and migration `0009_audit_indexes.sql` adds the `(entity, created_at)` lookup indexes used by the admin queue and revision feed.
 
 ## 14. Ops
 
@@ -325,7 +395,8 @@ Secrets are stored only as AES-256-GCM ciphertext (`enc:v1:`) under a domain-sep
 - AI & OIDC: unit + `httptest` suites verifying `NormalizeAIBaseURL`, `SetAIProviderHeaders` (`User-Agent: sodapop/<version>`, `x-opencode-session` continuity), AES-GCM key encryption, truncated response handling, and OIDC PKCE/JWKS callback verification.
 - Barcode: fixture GTINs (EAN-13, UPC-A, EAN-8), decoder output parsing, OFF payload fixtures, dedupe/merge cases.
 - Frontend: Vitest for scanning state machine and offline queue; Playwright (serial workers) for signup→verify→scan→check-in; axe pass on all top-level pages.
-- Mobile: `flutter analyze` and `flutter test` widget/unit suites covering URL validation, OIDC status probe, GTIN-14 check digit, and check-in queue serialization.
+- Mobile: `flutter analyze` and `flutter test` widget/unit suites covering URL validation, OIDC status probe, GTIN-14 check digit, check-in queue serialization, comments, profiles, notifications, lists, insights, taste, passport/badges, mixes and venues.
+- v1.2 contract tests: `internal/api/contract_test.go` asserts every registered `/api/v1` route appears in `openapi.json` and no documented data route is unregistered; `e2e/api-parity.spec.ts` covers the friend-scoped/no-totals/404 rules.
 - Integration: `cmd/fakeoff` and a mail sink (files) so no network is required in CI.
 - Coverage floors: Go ≥45% overall, handlers/middleware ≥60%; TS ≥50%.
 
@@ -340,5 +411,5 @@ Secrets are stored only as AES-256-GCM ciphertext (`enc:v1:`) under a domain-sep
 - Native iOS app (iOS uses the installable PWA with WebAssembly barcode fallback; Android has both the PWA and the native Flutter app in `mobile/`).
 - Federation/ActivityPub, real-time chat.
 - Multi-region or Postgres; SQLite is the product.
-- Server-side image CDN, video, stories.
+- Server-side image CDN, a video platform/feed or stories. Short check-in clips are supported through the media service; there is no standalone video hosting, transcoding pipeline or algorithmic video feed.
 - Paid business accounts or subscriptions.

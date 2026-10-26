@@ -19,10 +19,10 @@ const maxDrinkImageBytes = 25 << 20
 // Server.Register; it returns no collection endpoints beyond one drink's
 // bounded gallery.
 func (s *Server) RegisterGalleryRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/drinks/{slug}/images", s.protect("read", false, s.listDrinkImages))
-	mux.HandleFunc("POST /api/v1/drinks/{slug}/images", s.protect("write", true, s.uploadDrinkImage))
-	mux.HandleFunc("POST /api/v1/drinks/images/{id}/primary", s.protect("write", true, s.setDrinkImagePrimary))
-	mux.HandleFunc("DELETE /api/v1/drinks/images/{id}", s.protect("write", true, s.deleteDrinkImage))
+	s.route(mux, "GET /api/v1/drinks/{slug}/images", s.protect("read", false, s.listDrinkImages))
+	s.route(mux, "POST /api/v1/drinks/{slug}/images", s.protect("write", true, s.uploadDrinkImage))
+	s.route(mux, "POST /api/v1/drinks/images/{id}/primary", s.protect("write", true, s.setDrinkImagePrimary))
+	s.route(mux, "DELETE /api/v1/drinks/images/{id}", s.protect("write", true, s.deleteDrinkImage))
 }
 
 // listDrinkImages returns one drink's gallery, newest first. There is no total

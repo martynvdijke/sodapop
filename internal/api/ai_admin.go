@@ -13,12 +13,12 @@ import (
 )
 
 func (s *Server) registerAIAdminRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/admin/ai-endpoints", s.protect("read", false, s.adminAIEndpointsList))
-	mux.HandleFunc("POST /api/v1/admin/ai-endpoints", s.protectStrict("write", true, s.adminAIEndpointsCreate))
-	mux.HandleFunc("PUT /api/v1/admin/ai-endpoints/{id}", s.protectStrict("write", true, s.adminAIEndpointsUpdate))
-	mux.HandleFunc("DELETE /api/v1/admin/ai-endpoints/{id}", s.protect("write", true, s.adminAIEndpointsDelete))
-	mux.HandleFunc("POST /api/v1/admin/ai-endpoints/{id}/toggle", s.protectStrict("write", true, s.adminAIEndpointsToggle))
-	mux.HandleFunc("POST /api/v1/admin/ai-endpoints/{id}/test", s.protectStrict("write", true, s.adminAIEndpointsTest))
+	s.route(mux, "GET /api/v1/admin/ai-endpoints", s.protect("read", false, s.adminAIEndpointsList))
+	s.route(mux, "POST /api/v1/admin/ai-endpoints", s.protectStrict("write", true, s.adminAIEndpointsCreate))
+	s.route(mux, "PUT /api/v1/admin/ai-endpoints/{id}", s.protectStrict("write", true, s.adminAIEndpointsUpdate))
+	s.route(mux, "DELETE /api/v1/admin/ai-endpoints/{id}", s.protect("write", true, s.adminAIEndpointsDelete))
+	s.route(mux, "POST /api/v1/admin/ai-endpoints/{id}/toggle", s.protectStrict("write", true, s.adminAIEndpointsToggle))
+	s.route(mux, "POST /api/v1/admin/ai-endpoints/{id}/test", s.protectStrict("write", true, s.adminAIEndpointsTest))
 }
 
 type aiEndpointBody struct {

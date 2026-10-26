@@ -1,18 +1,25 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"math"
+	"mime"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"sodapop/ent"
+	"sodapop/ent/follow"
 	"sodapop/internal/auth"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
 	"sodapop/internal/integrations"
+	"sodapop/internal/media"
 	"sodapop/internal/social"
 	"sodapop/internal/venues"
 )
@@ -117,22 +124,93 @@ func (s *Server) removeFriend(w http.ResponseWriter, r *http.Request, tok *auth.
 }
 
 func (s *Server) userProfile(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
-	p, err := checkins.LookupProfile(r.Context(), s.Auth.Client, r.PathValue("handle"))
+	ctx := r.Context()
+	p, err := checkins.LookupProfile(ctx, s.Auth.Client, r.PathValue("handle"))
 	if err != nil {
 		return err
 	}
+	isBlocked := false
 	if p.ID != tok.User.ID {
-		blocked, err := s.Social.AreBlocked(r.Context(), tok.User.ID, p.ID)
+		isBlocked, err = s.Social.AreBlocked(ctx, tok.User.ID, p.ID)
 		if err != nil {
 			return err
 		}
-		if blocked {
+		if isBlocked {
 			writeError(w, http.StatusNotFound, "not_found", "not found")
 			return nil
 		}
 	}
+
+	stats, err := s.Checkins.ProfileStats(ctx, tok.User.ID, p.ID)
+	if err != nil {
+		return err
+	}
+	topStyles, err := s.Checkins.ProfileTopStyles(ctx, tok.User.ID, p.ID, 3)
+	if err != nil {
+		return err
+	}
+	lists, err := s.Checkins.ProfileLists(ctx, tok.User.ID, p.ID)
+	if err != nil {
+		return err
+	}
+
+	// Only earned badges are profile data. Unearned definitions stay private to
+	// the owner's badge page.
+	statuses, err := s.Badges.ListForUser(ctx, p.ID)
+	if err != nil {
+		return err
+	}
+	badges := make([]map[string]any, 0, len(statuses))
+	for _, st := range statuses {
+		if !st.Earned {
+			continue
+		}
+		badges = append(badges, map[string]any{
+			"slug": st.Slug, "name": st.Name, "description": st.Description,
+			"awarded_at": st.AwardedAt,
+		})
+	}
+
+	isFollowing := false
+	if p.ID != tok.User.ID {
+		isFollowing, _ = s.Auth.Client.Follow.Query().
+			Where(follow.FollowerID(tok.User.ID), follow.FolloweeID(p.ID)).Exist(ctx)
+	}
+	followerCount, _ := s.Auth.Client.Follow.Query().Where(follow.FolloweeID(p.ID)).Count(ctx)
+	followingCount, _ := s.Auth.Client.Follow.Query().Where(follow.FollowerID(p.ID)).Count(ctx)
+
+	listOut := make([]map[string]any, 0, len(lists))
+	for _, l := range lists {
+		listOut = append(listOut, map[string]any{
+			"id": l.ID, "name": l.Name, "description": l.Description,
+			"visibility": l.Visibility, "item_count": l.Items,
+		})
+	}
+	styleOut := make([]map[string]any, 0, len(topStyles))
+	for _, st := range topStyles {
+		styleOut = append(styleOut, map[string]any{
+			"slug": st.Slug, "name": st.Name, "count": st.Count,
+		})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
-		"handle": p.Handle, "display_name": p.DisplayName, "bio": p.Bio, "created_at": p.CreatedAt,
+		"handle":       p.Handle,
+		"display_name": p.DisplayName,
+		"bio":          p.Bio,
+		"created_at":   p.CreatedAt,
+		"stats": map[string]any{
+			"checkins":        stats.Pours,
+			"distinct_drinks": stats.UniqueDrinks,
+			"toasts_received": stats.Toasts,
+		},
+		"follower_count":  followerCount,
+		"following_count": followingCount,
+		"is_following":    isFollowing,
+		"is_friend":       s.Social.AreFriends(ctx, tok.User.ID, p.ID),
+		"can_block":       p.ID != tok.User.ID,
+		"badges":          badges,
+		"top_styles":      styleOut,
+		"lists":           listOut,
 	}})
 	return nil
 }
@@ -234,7 +312,28 @@ func (s *Server) createDrink(w http.ResponseWriter, r *http.Request, tok *auth.A
 	return nil
 }
 
+// maxCheckinUploadBytes matches the other media uploads. The small extra
+// allowance covers multipart framing around the 25 MiB file.
+const maxCheckinUploadBytes = 25 << 20
+
+// checkinRequest carries the fields shared by the JSON and multipart forms.
+type checkinRequest struct {
+	DrinkID        int
+	VenueID        *int
+	Rating         *float64
+	Serving        string
+	Note           string
+	Visibility     string
+	IdempotencyKey string
+}
+
+// createCheckin accepts JSON, or multipart/form-data with an optional `image`
+// (alias `photo`) so the Android app can upload a photo in one request.
 func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
+	if mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mediaType == "multipart/form-data" {
+		return s.createCheckinMultipart(w, r, tok)
+	}
+
 	var in struct {
 		DrinkID        int      `json:"drink_id"`
 		VenueID        *int     `json:"venue_id"`
@@ -247,20 +346,110 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
 	}
+	return s.saveCheckin(w, r, tok, checkinRequest{
+		DrinkID: in.DrinkID, VenueID: in.VenueID, Rating: in.Rating, Serving: in.Serving,
+		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
+	}, nil)
+}
+
+// createCheckinMultipart parses the photo form. The body is capped before
+// parsing so an oversized upload never reaches the media service.
+func (s *Server) createCheckinMultipart(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxCheckinUploadBytes+4096)
+	if err := r.ParseMultipartForm(maxCheckinUploadBytes); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "image exceeds the 25 MiB request limit")
+			return nil
+		}
+		return bad("invalid multipart upload")
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+
+	in := checkinRequest{
+		Serving:        strings.TrimSpace(r.FormValue("serving")),
+		Note:           r.FormValue("note"),
+		Visibility:     strings.TrimSpace(r.FormValue("visibility")),
+		IdempotencyKey: strings.TrimSpace(r.FormValue("idempotency_key")),
+	}
+	drinkID, err := strconv.Atoi(strings.TrimSpace(r.FormValue("drink_id")))
+	if err != nil || drinkID <= 0 {
+		return bad("drink_id is required")
+	}
+	in.DrinkID = drinkID
+	if raw := strings.TrimSpace(r.FormValue("venue_id")); raw != "" {
+		venueID, err := strconv.Atoi(raw)
+		if err != nil || venueID <= 0 {
+			return bad("invalid venue_id")
+		}
+		in.VenueID = &venueID
+	}
+	if raw := strings.TrimSpace(r.FormValue("rating")); raw != "" {
+		rating, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return bad("invalid rating")
+		}
+		in.Rating = &rating
+	}
+
+	file, hdr, err := r.FormFile("image")
+	if err != nil {
+		if !errors.Is(err, http.ErrMissingFile) {
+			return bad("invalid image upload")
+		}
+		file, hdr, err = r.FormFile("photo")
+		if err != nil {
+			if !errors.Is(err, http.ErrMissingFile) {
+				return bad("invalid image upload")
+			}
+			file, hdr = nil, nil
+		}
+	}
+	var stored *ent.Media
+	if file != nil {
+		defer file.Close()
+		stored, err = s.Media.Store(r.Context(), tok.User.ID, "checkin", file, hdr.Filename, hdr.Header.Get("Content-Type"))
+		if err != nil {
+			if writeCheckinMediaError(w, err) {
+				return nil
+			}
+			return err
+		}
+	}
+	return s.saveCheckin(w, r, tok, in, stored)
+}
+
+// saveCheckin validates the shared fields and writes the check-in. A stored
+// upload that the write cannot use is discarded so no orphan remains.
+func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.APIToken, in checkinRequest, stored *ent.Media) error {
 	var rating *int
 	if in.Rating != nil {
 		scaled := int(math.Round(*in.Rating * 4))
 		if *in.Rating < 0 || *in.Rating > 5 || math.Abs(*in.Rating*4-float64(scaled)) > 1e-9 {
+			s.discardCheckinMedia(r.Context(), stored)
 			return checkins.ErrInvalidRating
 		}
 		rating = &scaled
 	}
+	photoMediaID := ""
+	if stored != nil {
+		photoMediaID = stored.ID
+	}
 	c, created, err := s.Checkins.Create(r.Context(), tok.User, checkins.CreateInput{
 		DrinkID: in.DrinkID, VenueID: in.VenueID, Rating: rating, Serving: in.Serving,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
+		PhotoMediaID: photoMediaID,
 	})
 	if err != nil {
+		s.discardCheckinMedia(r.Context(), stored)
 		return err
+	}
+	if !created && stored != nil {
+		// Idempotent replay: the original row keeps its own photo, so the fresh
+		// upload is unreachable.
+		s.discardCheckinMedia(r.Context(), stored)
 	}
 	status := http.StatusOK
 	if created {
@@ -277,11 +466,56 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 			s.Integrations.Dispatch(r.Context(), integrations.Event{UserID: tok.User.ID, Kind: "checkin", Text: "Logged a soda.", URL: s.Integrations.BaseURL() + "/you"})
 		}
 	}
-	writeJSON(w, status, map[string]any{"data": map[string]any{
+	data := map[string]any{
 		"id": c.ID, "drink_id": c.DrinkID, "rating": c.Rating, "visibility": c.Visibility,
 		"created_at": c.CreatedAt, "created": created,
-	}})
+	}
+	if c.PhotoMediaID != nil && *c.PhotoMediaID != "" {
+		data["photo_media_id"] = *c.PhotoMediaID
+	}
+	writeJSON(w, status, map[string]any{"data": data})
 	return nil
+}
+
+// discardCheckinMedia best-effort removes a stored upload and its files when
+// the check-in write cannot use it. Cleanup failures are ignored: the original
+// error is the one worth reporting.
+func (s *Server) discardCheckinMedia(ctx context.Context, row *ent.Media) {
+	if row == nil || s.DB == nil || s.DB.Client == nil {
+		return
+	}
+	cleanupCtx := context.WithoutCancel(ctx)
+	_ = s.DB.Client.Media.DeleteOneID(row.ID).Exec(cleanupCtx)
+	if s.Media == nil || s.Media.Dir == "" {
+		return
+	}
+	dir := filepath.Clean(s.Media.Dir)
+	for _, rel := range []string{row.Path, row.ThumbPath, row.PosterPath} {
+		if strings.TrimSpace(rel) == "" {
+			continue
+		}
+		full := filepath.Join(dir, filepath.FromSlash(rel))
+		if !strings.HasPrefix(full, dir+string(os.PathSeparator)) {
+			continue
+		}
+		_ = os.Remove(full)
+	}
+}
+
+// writeCheckinMediaError maps media errors to the API's existing shapes. It
+// reports whether it wrote a response.
+func writeCheckinMediaError(w http.ResponseWriter, err error) bool {
+	switch {
+	case errors.Is(err, media.ErrUnsupported), errors.Is(err, media.ErrUnsupportedImage):
+		writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "that file must be a JPEG, PNG, WebP or GIF image")
+	case errors.Is(err, media.ErrTooLarge):
+		writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "image is too large")
+	case errors.Is(err, media.ErrInvalidKind):
+		writeError(w, http.StatusBadRequest, "invalid_request", "invalid media kind")
+	default:
+		return false
+	}
+	return true
 }
 
 func (s *Server) deleteCheckin(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
