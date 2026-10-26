@@ -1,11 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { createToken, registerAndVerify } from './helpers';
+
+const version = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 test.describe('public surface', () => {
   test('landing page explains the product', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('A quiet place for loud fizz.');
     await expect(page.getByRole('link', { name: 'Create an account' })).toBeVisible();
+    await expect(page.locator('footer')).toContainText(`Sodapop ${version}`);
   });
 
   test('swagger UI is published', async ({ page }) => {

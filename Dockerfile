@@ -11,13 +11,15 @@ RUN npm run build
 
 FROM golang:1.27-alpine AS build
 WORKDIR /src
-ARG VERSION=0.0.0-dev
+ARG VERSION=
 ENV CGO_ENABLED=0
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/internal/web/static ./internal/web/static
-RUN go build -trimpath -ldflags="-s -w -X main.Version=${VERSION}" -o /out/sodapop ./cmd/server \
+RUN VERSION="${VERSION:-$(grep -m1 '"version"' package.json | sed -E 's/.*"version": *"([^"]+)".*/\1/')}" \
+    && test -n "$VERSION" \
+    && go build -trimpath -ldflags="-s -w -X main.Version=${VERSION}" -o /out/sodapop ./cmd/server \
     && go build -trimpath -ldflags="-s -w" -o /out/sodapop-seed ./cmd/seed
 
 FROM alpine:3.24
