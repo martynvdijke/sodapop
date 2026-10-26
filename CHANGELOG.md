@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/martynvdijke/sodapop/compare/v1.4.1...v1.4.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* derive the footer version from the semantic-release version ([c6062e0](https://github.com/martynvdijke/sodapop/commit/c6062e0a1519b62358c5428dbc4ae3948b9fe09b))
+
 ## [1.4.1](https://github.com/martynvdijke/sodapop/compare/v1.4.0...v1.4.1) (2026-10-26)
 
 
