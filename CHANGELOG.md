@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/martynvdijke/sodapop/compare/v1.4.3...v1.5.0) (2026-10-27)
+
+
+### Features
+
+* **release:** publish android bundles to google play ([fbf5856](https://github.com/martynvdijke/sodapop/commit/fbf5856dd7517454179f959ea6c8ace1f9646f59))
+
 ## [1.4.3](https://github.com/martynvdijke/sodapop/compare/v1.4.2...v1.4.3) (2026-10-27)
 
 
