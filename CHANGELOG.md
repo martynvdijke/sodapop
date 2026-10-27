@@ -1,3 +1,10 @@
+## [1.4.3](https://github.com/martynvdijke/sodapop/compare/v1.4.2...v1.4.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* add Android barcode scanner emulator coverage ([ce0a03d](https://github.com/martynvdijke/sodapop/commit/ce0a03d8e1f09ef665b331d076946decc626c2d1))
+
 ## [1.4.2](https://github.com/martynvdijke/sodapop/compare/v1.4.1...v1.4.2) (2026-10-26)
 
 
