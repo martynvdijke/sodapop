@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/martynvdijke/sodapop/compare/v1.5.2...v1.6.0) (2026-10-27)
+
+
+### Features
+
+* add post bookmarks, mentions, pagination and reporting ([e7818f2](https://github.com/martynvdijke/sodapop/commit/e7818f2d700d339804d5fcac3f5782230b72ca14))
+
 ## [1.5.2](https://github.com/martynvdijke/sodapop/compare/v1.5.1...v1.5.2) (2026-10-27)
 
 ## [1.5.1](https://github.com/martynvdijke/sodapop/compare/v1.5.0...v1.5.1) (2026-10-27)
