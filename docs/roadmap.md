@@ -2,7 +2,7 @@
 
 Twelve phases, dependency-ordered. Estimates assume one experienced Go developer working alone, part-time at ~30 h/week. Each phase ends with a demoable slice, tests, and a green CI run — not a branch full of scaffolding.
 
-Status: P0–P11 shipped for v1.0. v1.1 and v1.2 have shipped on top of that baseline; the v1.2 additions are recorded below and Phase E is the next open phase. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
+Status: P0–P11 shipped for v1.0. v1.1–v1.5 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work and the v1.5 Google Play release. The v1.6 post-interactions slice is recorded below. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
 
 | Shipped surface | Phase |
 |---|---|
@@ -20,18 +20,21 @@ Status: P0–P11 shipped for v1.0. v1.1 and v1.2 have shipped on top of that bas
 | Lists, mixes, taste, badges/passport and saved-venue HTML and API surfaces | v1.2 |
 | Flutter social screens: check-in comments, user profile follow/block, notifications, lists, saved venues | v1.2 |
 | Flutter insights, taste, passport/badges, mixes and venue search/detail; photo upload and offline photo parity | v1.2 |
+| Post interactions: saved check-ins and `/saved`, `@mentions` with notifications, comment pagination, comment/gallery report controls | v1.6 |
 
-## Next — Phase E (unreleased)
+## Shipped in v1.4–v1.6
 
-- `DeliveryOutbox` entity and migration `0008`; `Integrations.Dispatch` writes rows and a 30 s worker drains 20 per batch with 5 attempts and exponential backoff.
-- Digest scheduler catch-up on restart and a single-instance lock so a restart cannot double-send.
-- OTel follow-ups: HTTP latency, outbox depth and integration-failure metrics, plus DB spans through `TraceQueryEx`.
-- Unified drink/brand/style/venue/flavour search that still caps at 10 results and exposes no totals, keeping the anti-enumeration E2E green.
-- `registration_open` admin toggle with a closed-state registration page.
-- Remaining coverage: Phase E outbox retry/backoff with a fake clock, digest idempotency, metric registration, unified search caps, registration toggle, and `integrations-v12.spec.ts`.
-- Nearby feed remains a documented deferral: there is no geo feed in v1.2.
+Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`delivery_outbox` plus migration `0008_delivery_outbox.sql`), digest scheduler catch-up with a single-instance lease, the OTel follow-up metrics and DB spans, unified search that still caps at 10 results with no totals, and the `registration_open` admin toggle all landed. The v1.6 post-interactions slice shipped saved check-ins (`/saved`, `/api/v1/me/saved`), `@handle` mentions with mention notifications and deep links, keyset comment pagination (50 default, 100 maximum, no total), and report controls for comments and drink gallery images.
 
-Phase E work is not shipped and is not part of the v1.2 API or schema.
+## Next
+
+- Nearby feed: still deferred because location data stays venue-only and any geo feed needs a privacy review first.
+- Backup/restore job: the admin backup path does not use `VACUUM INTO` yet, so there is no consistent online snapshot.
+- Starter catalog seed: first-run usefulness still depends on the community or OFF lookups.
+- Admin badge management: badge definitions are seeded, not editable in the admin UI.
+- Public read-only API: deliberately deferred to keep `/api/v1` friend-scoped and non-enumerable.
+- PWA offline photos: the web offline queue covers check-in fields, not photo bytes.
+- Mobile parity gaps: video capture, AI drafting, push registration and list CRUD are still web-only.
 
 
 ## Dependency graph
@@ -54,7 +57,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 
 **Build**
 - `go.mod` (module `sodapop`, Go 1.27, `modernc.org/sqlite`, `entgo.io/ent v0.14.6`), `cmd/server`, typed `internal/config` with `Validate()` and redacted `LogValue`.
-- `ent/` + `internal/db`: open `modernc.org/sqlite` with WAL/busy_timeout/foreign_keys/synchronous/cache_size/mmap_size, attach Ent driver (`entsql.OpenDB(dialect.SQLite, DB)`), run `Client.Schema.Create(ctx)` + versioned migration registry (`internal/db/migrations/registry.go` recording `schema_migrations`), `TraceQueryEx` OTel span + slow-query `EXPLAIN QUERY PLAN`, `OpenMemory` for tests, and `schema_consistency_test.go` mechanical guard.
+- `ent/` + `internal/db`: open `modernc.org/sqlite` with WAL/busy_timeout/foreign_keys/synchronous/cache_size/mmap_size, attach Ent driver (`entsql.OpenDB(dialect.SQLite, DB)`), run `Client.Schema.Create(ctx)` + versioned migration registry (`internal/db/migrations.go` recording `schema_migrations`), `TraceQueryEx` OTel span + slow-query `EXPLAIN QUERY PLAN`, `OpenMemory` for tests, and `schema_consistency_test.go` mechanical guard.
 - `internal/telemetry`: OTel providers, `OTEL_SDK_DISABLED` and sampler env handling, `otelhttp` handler, `otelslog` fanout, Prometheus exporter, graceful 10 s flush.
 - `internal/web`: stdlib mux, middleware chain, render helper (`base.html` + partials), embedded assets with Vite manifest, security headers, `/healthz`, `/readyz`, `/metrics`.
 - Design tokens: copy `docs/design-direction.md` §2.4 into `web/src/styles/tokens.css` verbatim; Tailwind theme maps 1:1 to tokens.
@@ -204,7 +207,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 ## P8 — OpenCode ("opencode2") AI Subsystem (1.5 weeks)
 
 **Build**
-- Ent schemas `AppSetting`, `AIEndpoint`, `AIDraftSession` + migration `0010_ai_defaults.sql`.
+- Ent schemas `AppSetting`, `AIEndpoint`, `AIDraftSession` (Ent-managed; no separate SQL migration).
 - `internal/ai`: OpenCode Zen (`https://opencode.ai/zen/go/v1`) and OpenAI-compatible HTTP client ported from `dnd/ai`:
   - `NormalizeAIBaseURL`, `AIRequestURL`, `ValidateAIBaseURL` (strips trailing `/`, `/chat/completions`, `/images/generations`, `/completions` on save and request construction).
   - `SetAIProviderHeaders`: honest `User-Agent: sodapop/<version>` and multi-turn `x-opencode-session` continuity (`16` random bytes hex generated on turn 1 and returned in responses).

@@ -22,6 +22,7 @@ import (
 	"sodapop/internal/db"
 	"sodapop/internal/integrations"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/saves"
 	"sodapop/internal/social"
 )
 
@@ -61,6 +62,7 @@ func newHookHarness(t *testing.T) *hookHarness {
 		Auth:         authSvc,
 		Catalog:      catalogSvc,
 		Checkins:     checkinSvc,
+		Saves:        saves.New(database, checkinSvc),
 		Social:       socialSvc,
 		Badges:       badges.New(database),
 		Integrations: integrations.New(database, cfg, log),

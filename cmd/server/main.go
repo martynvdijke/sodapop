@@ -25,6 +25,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/saves"
 	"sodapop/internal/settings"
 	"sodapop/internal/setup"
 	"sodapop/internal/social"
@@ -123,6 +124,7 @@ func run() error {
 	catalogSvc := catalog.New(cfg, database)
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
+	savesSvc := saves.New(database, checkinSvc)
 	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)
 	mediaSvc := media.New(database, cfg)
@@ -145,6 +147,7 @@ func run() error {
 
 	webSrv := &web.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
+		Saves:  savesSvc,
 		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		DB: database, Media: mediaSvc, AI: aiSvc, Integrations: integrationSvc,
@@ -152,6 +155,7 @@ func run() error {
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
+		Saves:    savesSvc,
 		Comments: commentSvc,
 		Social:   socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Limiter: limiter, DB: database, Media: mediaSvc, AI: aiSvc,

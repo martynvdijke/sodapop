@@ -17,7 +17,16 @@ Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product s
 - **AI draft sessions:** conversational drink drafting persists turns in `ai_draft_sessions` with message, revise and commit endpoints, reusing the same `x-opencode-session` across the conversation.
 - **Catalog audit and admin notes:** reports carry internal admin notes, catalog writes keep their revision trail, and runtime settings changes are audited.
 - **First-run setup and runtime settings:** a fresh instance prints a one-time `setup required:` token, `/setup` creates the first verified admin, and `/admin/settings` overlays audited runtime values with `default|env|db` source badges.
-- **Expanded API and Android:** OpenAPI `1.2.0` adds comments, media, lists, mixes, taste, badges/passport, saved venues, follows/blocks and admin notes. The Android app covers check-in detail and comments, other-user profiles with follow/block, notification actions, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes; video clips still open in the web app.
+- **Expanded API and Android:** OpenAPI `1.2.0` added comments, media, lists, mixes, taste, badges/passport, saved venues, follows/blocks and admin notes. The Android app covers check-in detail and comments, other-user profiles with follow/block, notification actions, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes; video clips still open in the web app.
+
+## v1.6 highlights
+
+Shipped on top of v1.5. The OpenAPI surface is now `1.3.0`.
+
+- **Saved check-ins:** bookmark any check-in you can see (including your own), idempotently, from the feed or detail page. `/saved` pages them newest-save-first, and `GET /api/v1/me/saved` returns the same list with `saved: true` and no totals. A bookmark never widens visibility.
+- **@mentions:** `@handle` in a comment links to the profile and sends a best-effort mention notification that respects blocks and the parent check-in's visibility.
+- **Comment pagination:** threads load oldest-first in keyset pages via `before`, 50 per page by default and 100 maximum, with `has_more`/`next_before` and no total, so long threads are not silently cut off.
+- **Report controls:** comments and drink gallery images can be reported through the same moderation queue, and comment/mention notifications deep-link to `/checkins/{id}#comments`.
 
 ## Planning & Specification Docs
 

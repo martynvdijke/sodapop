@@ -30,6 +30,9 @@ Comments on check-ins · user-submitted venue photos and menus · weekly email d
 ### v1.2 (shipped)
 Blocks and a blocked-accounts settings page · drink image galleries · persisted AI draft sessions with message, revise and commit · catalog revisions and internal admin notes on reports · first-run `/setup` admin creation and the `/admin/settings` runtime panel · expanded `/api/v1` for comments, media, lists, mixes, taste, badges/passport, saved venues, follows and blocks · Android parity for check-in comments, profiles with follow/block, notifications, lists, saved venues, venues, insights, taste, passport/badges and mixes, including check-in photo upload.
 
+### v1.6 (shipped)
+Private bookmarks on any check-in the viewer can see, with a `/saved` page and `GET /api/v1/me/saved` · `@handle` mentions in comments, with mention notifications and deep links to `/checkins/{id}#comments` · comment pagination at 50 per page by default and 100 maximum, using a keyset `before` cursor, so a long thread is never silently truncated at 200 rows · report controls on comments and drink gallery images · comment and mention notifications link straight to the comment thread.
+
 ### Explicit non-goals
 Native iOS app · real-time chat · ActivityPub federation · paid business accounts · advertising · a video platform, standalone video hosting or an algorithmic video feed (short MP4/WebM check-in clips are supported) · multi-tenant hosting · Postgres.
 
@@ -134,7 +137,7 @@ Rules:
 
 **Check-in detail** (`/checkins/{id}`) renders one check-in with author, drink, rating, note, venue, photo or clip, visibility, toast count and comments. The owner sees delete; a signed-in non-owner sees the toast and comment actions; an anonymous visitor sees a sign-in prompt. Visibility follows the same rule as the API: owner, then `public` for anyone, then `friends` for accepted friends, otherwise a 404. `GET /api/v1/checkins/{id}` returns the same record with the same 404 behaviour. Delete is a soft delete and returns to `/you`.
 
-**Comments** are flat, 1,000-character messages on a check-in. A viewer can read or post only when the parent check-in is visible to them; the thread inherits that visibility and returns 404 for an invisible parent. Authors can delete their own comments; moderators can remove any. Comments are capped at 30 per user per hour and 200 per thread, newest kept. A comment on someone else's check-in notifies the owner and is skipped when either side has blocked the other.
+**Comments** are flat, 1,000-character messages on a check-in. A viewer can read or post only when the parent check-in is visible to them; the thread inherits that visibility and returns 404 for an invisible parent. Authors can delete their own comments; moderators can remove any. Comments are capped at 30 per user per hour. Reading is paginated oldest-first with a `before` cursor, 50 per page by default and 100 maximum; an older page is fetched rather than silently dropping comments past a fixed read limit. `@handle` mentions in the body link to `/u/{handle}` and notify the mentioned user when they can see the parent check-in and neither side has blocked the other. A comment on someone else's check-in notifies the owner and is skipped when either side has blocked the other.
 
 ### 5.4 Discover
 
@@ -155,7 +158,7 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 - **Feed** (`/`): own activity plus accepted friends plus followed users, newest first, keyset paginated 20 at a time, `visibility` respected. Tabs: Friends / Following.
 - **Toast**: one tap on the check-in icon; optimistic UI; undo while the page is open; the author gets a notification (in-app, and push when enabled).
 - **Blocks**: block or unblock from a profile, and manage the list at `/settings/blocked`. Blocking ends an accepted or pending friendship and every follow in either direction in one transaction, then hides both accounts from each other's feed, profiles, comments, toasts and notifications. The API returns 404 for a blocked list; profiles return 404 rather than confirming an account, and a blocked follow or friend request is a silent no-op. Unblocking removes only the caller's block; it does not restore the old friendship or follows.
-- **Notifications**: kinds are friend request, friend accepted, toast on your check-in, comment on your check-in, badge earned, and system (a wishlist drop, for example). The nav shows an unread count. `/notifications` lists the newest 50 with an actor, text, time and link; each row can be marked read, and “Mark all read” clears the rest. The same personal list is available at `GET /api/v1/notifications`, with `POST /api/v1/notifications/read` accepting an `id` or marking everything.
+- **Notifications**: kinds are friend request, friend accepted, toast on your check-in, comment on your check-in, mention in a comment, badge earned, and system (a wishlist drop, for example). Comment and mention rows link to `/checkins/{id}#comments`. The nav shows an unread count. `/notifications` lists the newest 50 with an actor, text, time and link; each row can be marked read, and “Mark all read” clears the rest. The same personal list is available at `GET /api/v1/notifications`, with `POST /api/v1/notifications/read` accepting an `id` or marking everything.
 - No public like counts on profiles. Check-in detail shows the toast count and the viewer's own toast state.
 
 ### 5.6 Venues and locations

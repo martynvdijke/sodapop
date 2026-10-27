@@ -65,3 +65,24 @@ func (CheckinLike) Indexes() []ent.Index {
 		index.Fields("checkin_id", "user_id").Unique(),
 	}
 }
+
+// CheckinSave is a private bookmark of a check-in.
+type CheckinSave struct {
+	ent.Schema
+}
+
+func (CheckinSave) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").DefaultFunc(newID).Immutable(),
+		field.String("checkin_id").NotEmpty(),
+		field.String("user_id").NotEmpty(),
+		field.String("created_at").DefaultFunc(now),
+	}
+}
+
+func (CheckinSave) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("checkin_id", "user_id").Unique(),
+		index.Fields("user_id", "created_at"),
+	}
+}

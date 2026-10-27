@@ -128,7 +128,12 @@ func (s *Server) notificationsRead(w http.ResponseWriter, r *http.Request, tok *
 // subject. It never echoes a URL supplied by another user.
 func notificationHref(kind, subjectID string) string {
 	switch kind {
-	case "toast", "comment":
+	case "comment", "mention":
+		if subjectID != "" {
+			return "/checkins/" + subjectID + "#comments"
+		}
+		return "/"
+	case "toast":
 		if subjectID != "" {
 			return "/checkins/" + subjectID
 		}

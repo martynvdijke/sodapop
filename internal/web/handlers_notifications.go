@@ -3,6 +3,8 @@ package web
 import (
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"sodapop/ent"
 	"sodapop/ent/user"
@@ -131,7 +133,14 @@ func (s *Server) renderCheckinDetail(w http.ResponseWriter, r *http.Request, sta
 		return
 	}
 
-	list, err := s.commentService().List(r.Context(), viewerID, detail.ID)
+	before := strings.TrimSpace(r.URL.Query().Get("before"))
+	limit := 50
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		if n, convErr := strconv.Atoi(raw); convErr == nil && n > 0 {
+			limit = n
+		}
+	}
+	list, total, hasMore, err := s.commentService().ListPage(r.Context(), viewerID, detail.ID, before, limit)
 	if err != nil {
 		if errors.Is(err, comments.ErrNotFound) {
 			s.render(w, r, http.StatusNotFound, "error", map[string]any{
@@ -139,24 +148,54 @@ func (s *Server) renderCheckinDetail(w http.ResponseWriter, r *http.Request, sta
 			})
 			return
 		}
-		s.fail(w, r, err)
-		return
+		if errors.Is(err, comments.ErrInvalid) {
+			// A stale or foreign cursor is treated as the newest page rather
+			// than an error page.
+			before = ""
+			list, total, hasMore, err = s.commentService().ListPage(r.Context(), viewerID, detail.ID, "", limit)
+		}
+		if err != nil {
+			if errors.Is(err, comments.ErrNotFound) {
+				s.render(w, r, http.StatusNotFound, "error", map[string]any{
+					"Title": "Not found", "Message": "That checkin is not available.",
+				})
+				return
+			}
+			s.fail(w, r, err)
+			return
+		}
 	}
 	admin := u != nil && (u.Role == user.RoleAdmin || u.Role == user.RoleModerator)
 	for i := range list {
 		list[i].CanDelete = admin || (u != nil && list[i].UserID == u.ID)
+		list[i].CanReport = u != nil && u.EmailVerifiedAt != nil && list[i].UserID != u.ID
+	}
+
+	beforeCursor := ""
+	if hasMore && len(list) > 0 {
+		beforeCursor = list[0].ID
+	}
+
+	saved := false
+	if u != nil {
+		saved, _ = s.Saves.IsSaved(r.Context(), u.ID, detail.ID)
 	}
 
 	s.render(w, r, status, "checkin_detail", map[string]any{
-		"Title":         detail.DrinkName,
-		"Checkin":       detail,
-		"Authenticated": u != nil,
-		"CanDelete":     u != nil && u.ID == detail.UserID,
-		"CanToast":      u != nil && u.ID != detail.UserID,
-		"Comments":      list,
-		"CommentCount":  len(list),
-		"CanComment":    u != nil && u.EmailVerifiedAt != nil,
-		"CommentError":  commentError,
+		"Title":          detail.DrinkName,
+		"Checkin":        detail,
+		"Authenticated":  u != nil,
+		"CanDelete":      u != nil && u.ID == detail.UserID,
+		"CanToast":       u != nil && u.ID != detail.UserID,
+		"CanSave":        u != nil,
+		"Saved":          saved,
+		"Comments":       list,
+		"CommentCount":   total,
+		"HasEarlier":     hasMore,
+		"BeforeCursor":   beforeCursor,
+		"ShowingEarlier": before != "",
+		"CanComment":     u != nil && u.EmailVerifiedAt != nil,
+		"CommentError":   commentError,
 	})
 }
 
@@ -191,6 +230,11 @@ func (s *Server) checkinDelete(w http.ResponseWriter, r *http.Request) {
 
 func notificationHref(kind, subjectID string) string {
 	switch kind {
+	case "comment", "mention":
+		if subjectID != "" {
+			return "/checkins/" + subjectID + "#comments"
+		}
+		return "/"
 	case "toast":
 		if subjectID != "" {
 			return "/checkins/" + subjectID

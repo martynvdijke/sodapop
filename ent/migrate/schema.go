@@ -280,6 +280,31 @@ var (
 			},
 		},
 	}
+	// CheckinSavesColumns holds the columns for the "checkin_saves" table.
+	CheckinSavesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "checkin_id", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeString},
+	}
+	// CheckinSavesTable holds the schema information for the "checkin_saves" table.
+	CheckinSavesTable = &schema.Table{
+		Name:       "checkin_saves",
+		Columns:    CheckinSavesColumns,
+		PrimaryKey: []*schema.Column{CheckinSavesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "checkinsave_checkin_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{CheckinSavesColumns[1], CheckinSavesColumns[2]},
+			},
+			{
+				Name:    "checkinsave_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinSavesColumns[2], CheckinSavesColumns[3]},
+			},
+		},
+	}
 	// CommentsColumns holds the columns for the "comments" table.
 	CommentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
@@ -717,7 +742,7 @@ var (
 	NotificationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
 		{Name: "user_id", Type: field.TypeString},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "badge", "system"}, Default: "system"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "mention", "badge", "system"}, Default: "system"},
 		{Name: "actor_id", Type: field.TypeString, Nullable: true},
 		{Name: "subject_id", Type: field.TypeString, Default: ""},
 		{Name: "text", Type: field.TypeString, Default: ""},
@@ -1109,6 +1134,7 @@ var (
 		CatalogRevisionsTable,
 		CheckinsTable,
 		CheckinLikesTable,
+		CheckinSavesTable,
 		CommentsTable,
 		DeliveryOutboxTable,
 		DrinksTable,

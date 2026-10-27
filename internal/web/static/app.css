@@ -1167,6 +1167,21 @@ label { display: grid; gap: .3rem; font-weight: 600; }
 [data-share] { cursor: pointer; }
 [data-share]:active { transform: none; }
 
+/* Save mirrors the toast chip: a filled, checked state is never colour alone. */
+.save-form { margin: 0; }
+.save-toggle { gap: 6px; font-weight: 600; }
+.save-toggle .save-glyph { flex: 0 0 auto; }
+.save-toggle[aria-pressed="true"],
+.save-toggle[aria-pressed="true"]:hover {
+  background: var(--primary);
+  border-color: var(--primary-press);
+  box-shadow: inset 0 0 0 1px var(--primary-press);
+  color: var(--primary-contrast);
+  font-weight: 700;
+}
+.save-toggle[aria-pressed="true"] .save-glyph { fill: currentColor; }
+.detail-actions .chip { min-height: 44px; padding: .35rem .9rem; }
+
 /* 5.4 List maintenance --------------------------------------------------- */
 .list-meta {
   display: flex;
@@ -1269,6 +1284,14 @@ label { display: grid; gap: .3rem; font-weight: 600; }
 .saved-venue form { margin: 0; }
 .saved-venues-more { margin: 20px 0 0; font-size: .875rem; }
 .page-actions { margin: 0 0 12px; }
+
+/* 5.5b Saved posts --------------------------------------------------------- */
+.saved-page { padding-bottom: 8px; }
+.saved-head { margin: 0 0 20px; }
+.saved-head h1 { margin-bottom: .35rem; }
+.saved-head .lede { margin: 0; }
+.saved-page .empty { margin-top: 20px; }
+.saved-more { margin: 20px 0 0; }
 
 /* 5.6 Notification actions ---------------------------------------------- */
 /* Accept reads as the affirmative action with a glyph, a mint surface and a
@@ -1423,9 +1446,95 @@ label { display: grid; gap: .3rem; font-weight: 600; }
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
-.comment-delete { margin: 8px 0 0; }
+/* Mention links are pre-linkified by the server; keep them quiet until hover. */
+.comment-text .mention {
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.comment-text .mention:hover,
+.comment-text .mention:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}
+.comment-actions form { margin: 0; }
+.comment-actions .btn { min-height: 44px; }
+.comment-reply { color: var(--text-muted); }
+.comment-delete { margin: 0; }
 /* A "Delete" that is quiet but still a full 44px target. */
 .comment-delete .btn { min-height: 44px; }
+
+/* Per-comment reporting stays folded away; the summary is the only control
+   until it opens, then the fields stack at full comment width. */
+.comment-report { flex: 0 1 auto; }
+.comment-report[open] { flex: 1 1 100%; }
+.comment-report > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 2px;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.comment-report > summary::-webkit-details-marker { display: none; }
+.comment-report > summary:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.comment-report > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.comment-report[open] > summary { color: var(--text); }
+.comment-report[open] > summary::after {
+  margin-top: 3px;
+  transform: rotate(225deg);
+}
+.comment-report-form {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 4px;
+  padding: 12px;
+  background: var(--surface-sunken);
+  border-radius: 10px;
+}
+.comment-report-form label { font-size: .8125rem; }
+.comment-report-form .hint { font-weight: 400; }
+.comment-report-form select,
+.comment-report-form textarea { width: 100%; min-width: 0; }
+.comment-report-form .btn { justify-self: start; min-height: 44px; }
+
+.comments-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 12px 0 0;
+}
+.comments-pagination a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text);
+  font-size: .875rem;
+  font-weight: 600;
+}
 .comments-empty {
   margin: 16px 0 0;
   padding: 16px;
@@ -2094,6 +2203,11 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
 }
 .gallery-actions form { margin: 0; }
 .gallery-actions .btn { min-height: 44px; }
+/* The gallery card is narrow, so keep the report fields inside it. */
+.gallery-report { min-width: 0; }
+.gallery-report .media-report-form { grid-template-columns: minmax(0, 1fr); }
+.gallery-report select,
+.gallery-report textarea { width: 100%; min-width: 0; }
 .gallery-remove {
   border-color: var(--danger);
   background: var(--surface-raised);

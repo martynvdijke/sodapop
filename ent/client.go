@@ -23,6 +23,7 @@ import (
 	"sodapop/ent/catalogrevision"
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
+	"sodapop/ent/checkinsave"
 	"sodapop/ent/comment"
 	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
@@ -95,6 +96,8 @@ type Client struct {
 	Checkin *CheckinClient
 	// CheckinLike is the client for interacting with the CheckinLike builders.
 	CheckinLike *CheckinLikeClient
+	// CheckinSave is the client for interacting with the CheckinSave builders.
+	CheckinSave *CheckinSaveClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
 	// DeliveryOutbox is the client for interacting with the DeliveryOutbox builders.
@@ -190,6 +193,7 @@ func (c *Client) init() {
 	c.CatalogRevision = NewCatalogRevisionClient(c.config)
 	c.Checkin = NewCheckinClient(c.config)
 	c.CheckinLike = NewCheckinLikeClient(c.config)
+	c.CheckinSave = NewCheckinSaveClient(c.config)
 	c.Comment = NewCommentClient(c.config)
 	c.DeliveryOutbox = NewDeliveryOutboxClient(c.config)
 	c.Drink = NewDrinkClient(c.config)
@@ -330,6 +334,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CatalogRevision:        NewCatalogRevisionClient(cfg),
 		Checkin:                NewCheckinClient(cfg),
 		CheckinLike:            NewCheckinLikeClient(cfg),
+		CheckinSave:            NewCheckinSaveClient(cfg),
 		Comment:                NewCommentClient(cfg),
 		DeliveryOutbox:         NewDeliveryOutboxClient(cfg),
 		Drink:                  NewDrinkClient(cfg),
@@ -397,6 +402,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CatalogRevision:        NewCatalogRevisionClient(cfg),
 		Checkin:                NewCheckinClient(cfg),
 		CheckinLike:            NewCheckinLikeClient(cfg),
+		CheckinSave:            NewCheckinSaveClient(cfg),
 		Comment:                NewCommentClient(cfg),
 		DeliveryOutbox:         NewDeliveryOutboxClient(cfg),
 		Drink:                  NewDrinkClient(cfg),
@@ -464,8 +470,8 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AIDraftSession, c.AIEndpoint, c.APIToken, c.Activity, c.AdminNote,
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
-		c.CheckinLike, c.Comment, c.DeliveryOutbox, c.Drink, c.DrinkAlias,
-		c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
+		c.CheckinLike, c.CheckinSave, c.Comment, c.DeliveryOutbox, c.Drink,
+		c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
 		c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship, c.InboundToken,
 		c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
 		c.OffProduct, c.PasswordResetToken, c.PushSubscription, c.Report,
@@ -483,8 +489,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AIDraftSession, c.AIEndpoint, c.APIToken, c.Activity, c.AdminNote,
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
-		c.CheckinLike, c.Comment, c.DeliveryOutbox, c.Drink, c.DrinkAlias,
-		c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
+		c.CheckinLike, c.CheckinSave, c.Comment, c.DeliveryOutbox, c.Drink,
+		c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
 		c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship, c.InboundToken,
 		c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
 		c.OffProduct, c.PasswordResetToken, c.PushSubscription, c.Report,
@@ -523,6 +529,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Checkin.mutate(ctx, m)
 	case *CheckinLikeMutation:
 		return c.CheckinLike.mutate(ctx, m)
+	case *CheckinSaveMutation:
+		return c.CheckinSave.mutate(ctx, m)
 	case *CommentMutation:
 		return c.Comment.mutate(ctx, m)
 	case *DeliveryOutboxMutation:
@@ -2273,6 +2281,139 @@ func (c *CheckinLikeClient) mutate(ctx context.Context, m *CheckinLikeMutation) 
 		return (&CheckinLikeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CheckinLike mutation op: %q", m.Op())
+	}
+}
+
+// CheckinSaveClient is a client for the CheckinSave schema.
+type CheckinSaveClient struct {
+	config
+}
+
+// NewCheckinSaveClient returns a client for the CheckinSave from the given config.
+func NewCheckinSaveClient(c config) *CheckinSaveClient {
+	return &CheckinSaveClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `checkinsave.Hooks(f(g(h())))`.
+func (c *CheckinSaveClient) Use(hooks ...Hook) {
+	c.hooks.CheckinSave = append(c.hooks.CheckinSave, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `checkinsave.Intercept(f(g(h())))`.
+func (c *CheckinSaveClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CheckinSave = append(c.inters.CheckinSave, interceptors...)
+}
+
+// Create returns a builder for creating a CheckinSave entity.
+func (c *CheckinSaveClient) Create() *CheckinSaveCreate {
+	mutation := newCheckinSaveMutation(c.config, OpCreate)
+	return &CheckinSaveCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CheckinSave entities.
+func (c *CheckinSaveClient) CreateBulk(builders ...*CheckinSaveCreate) *CheckinSaveCreateBulk {
+	return &CheckinSaveCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CheckinSaveClient) MapCreateBulk(slice any, setFunc func(*CheckinSaveCreate, int)) *CheckinSaveCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CheckinSaveCreateBulk{err: fmt.Errorf("calling to CheckinSaveClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CheckinSaveCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CheckinSaveCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CheckinSave.
+func (c *CheckinSaveClient) Update() *CheckinSaveUpdate {
+	mutation := newCheckinSaveMutation(c.config, OpUpdate)
+	return &CheckinSaveUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CheckinSaveClient) UpdateOne(_m *CheckinSave) *CheckinSaveUpdateOne {
+	mutation := newCheckinSaveMutation(c.config, OpUpdateOne, withCheckinSave(_m))
+	return &CheckinSaveUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CheckinSaveClient) UpdateOneID(id string) *CheckinSaveUpdateOne {
+	mutation := newCheckinSaveMutation(c.config, OpUpdateOne, withCheckinSaveID(id))
+	return &CheckinSaveUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CheckinSave.
+func (c *CheckinSaveClient) Delete() *CheckinSaveDelete {
+	mutation := newCheckinSaveMutation(c.config, OpDelete)
+	return &CheckinSaveDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CheckinSaveClient) DeleteOne(_m *CheckinSave) *CheckinSaveDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CheckinSaveClient) DeleteOneID(id string) *CheckinSaveDeleteOne {
+	builder := c.Delete().Where(checkinsave.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CheckinSaveDeleteOne{builder}
+}
+
+// Query returns a query builder for CheckinSave.
+func (c *CheckinSaveClient) Query() *CheckinSaveQuery {
+	return &CheckinSaveQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCheckinSave},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CheckinSave entity by its id.
+func (c *CheckinSaveClient) Get(ctx context.Context, id string) (*CheckinSave, error) {
+	return c.Query().Where(checkinsave.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CheckinSaveClient) GetX(ctx context.Context, id string) *CheckinSave {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CheckinSaveClient) Hooks() []Hook {
+	return c.hooks.CheckinSave
+}
+
+// Interceptors returns the client interceptors.
+func (c *CheckinSaveClient) Interceptors() []Interceptor {
+	return c.inters.CheckinSave
+}
+
+func (c *CheckinSaveClient) mutate(ctx context.Context, m *CheckinSaveMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CheckinSaveCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CheckinSaveUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CheckinSaveUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CheckinSaveDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CheckinSave mutation op: %q", m.Op())
 	}
 }
 
@@ -7532,20 +7673,20 @@ func (c *VenueSaveClient) mutate(ctx context.Context, m *VenueSaveMutation) (Val
 type (
 	hooks struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
-		Block, Brand, CatalogRevision, Checkin, CheckinLike, Comment, DeliveryOutbox,
-		Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox,
-		EmailVerificationToken, Flavour, Follow, Friendship, InboundToken, Integration,
-		List, ListItem, LoginAttempt, Media, Notification, OffProduct,
+		Block, Brand, CatalogRevision, Checkin, CheckinLike, CheckinSave, Comment,
+		DeliveryOutbox, Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage,
+		EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship, InboundToken,
+		Integration, List, ListItem, LoginAttempt, Media, Notification, OffProduct,
 		PasswordResetToken, PushSubscription, Report, RuntimeSetting, SchedulerState,
 		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
 		VenueMedia, VenueName, VenueSave []ent.Hook
 	}
 	inters struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
-		Block, Brand, CatalogRevision, Checkin, CheckinLike, Comment, DeliveryOutbox,
-		Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage, EmailOutbox,
-		EmailVerificationToken, Flavour, Follow, Friendship, InboundToken, Integration,
-		List, ListItem, LoginAttempt, Media, Notification, OffProduct,
+		Block, Brand, CatalogRevision, Checkin, CheckinLike, CheckinSave, Comment,
+		DeliveryOutbox, Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage,
+		EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship, InboundToken,
+		Integration, List, ListItem, LoginAttempt, Media, Notification, OffProduct,
 		PasswordResetToken, PushSubscription, Report, RuntimeSetting, SchedulerState,
 		Session, Style, User, UserBadge, UserIdentity, UserSetting, Venue, VenueDrink,
 		VenueMedia, VenueName, VenueSave []ent.Interceptor

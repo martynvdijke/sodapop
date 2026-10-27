@@ -78,6 +78,7 @@ const (
 	KindFriendAccept  Kind = "friend_accept"
 	KindToast         Kind = "toast"
 	KindComment       Kind = "comment"
+	KindMention       Kind = "mention"
 	KindBadge         Kind = "badge"
 	KindSystem        Kind = "system"
 )
@@ -89,7 +90,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindFriendRequest, KindFriendAccept, KindToast, KindComment, KindBadge, KindSystem:
+	case KindFriendRequest, KindFriendAccept, KindToast, KindComment, KindMention, KindBadge, KindSystem:
 		return nil
 	default:
 		return fmt.Errorf("notification: invalid enum value for kind field: %q", k)

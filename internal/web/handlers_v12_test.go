@@ -28,6 +28,7 @@ import (
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/saves"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
 	"sodapop/internal/venues"
@@ -60,11 +61,13 @@ func newV12Harness(t *testing.T) *v12Harness {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	authSvc := auth.New(cfg, database)
 	socialSvc := social.New(database)
+	checkinSvc := checkins.New(database, socialSvc)
 	srv := &Server{
 		Cfg:      cfg,
 		Auth:     authSvc,
 		Catalog:  catalog.New(cfg, database),
-		Checkins: checkins.New(database, socialSvc),
+		Checkins: checkinSvc,
+		Saves:    saves.New(database, checkinSvc),
 		Social:   socialSvc,
 		Venues:   venues.New(database),
 		Badges:   badges.New(database),

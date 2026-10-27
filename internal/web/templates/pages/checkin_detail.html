@@ -57,6 +57,15 @@
       <p class="detail-signin">Sign in to toast this check-in. <a href="/login?next=/checkins/{{$c.ID}}">Sign in</a>.</p>
     {{end}}
     <p class="detail-toasts muted">{{if $c.Toasts}}{{if eq $c.Toasts 1}}1 toast{{else}}{{$c.Toasts}} toasts{{end}}{{else}}No toasts yet{{end}}</p>
+    {{if .CanSave}}
+      <form method="post" action="/checkins/{{$c.ID}}/{{if .Saved}}unsave{{else}}save{{end}}" class="save-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <button class="chip save-toggle{{if .Saved}} on{{end}}" type="submit" aria-pressed="{{if .Saved}}true{{else}}false{{end}}">
+          <svg class="save-glyph" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3.75h8v12.5l-4-2.75-4 2.75z"/></svg>
+          {{if .Saved}}Saved{{else}}Save{{end}}
+        </button>
+      </form>
+    {{end}}
     {{if ne $c.Visibility "private"}}
       <button class="btn" type="button" data-share data-share-url="/checkins/{{$c.ID}}" data-share-title="{{$c.DrinkName}}" data-share-text="{{$c.DrinkName}} on Sodapop">Share</button>
     {{end}}
@@ -67,22 +76,57 @@
 
     {{if .CommentError}}<p class="banner error comments-error" role="alert">{{.CommentError}}</p>{{end}}
 
+    {{if or .HasEarlier .ShowingEarlier}}
+      <nav class="comments-pagination" aria-label="Comment history">
+        {{if .HasEarlier}}<a href="?before={{.BeforeCursor}}#comments">Show earlier comments</a>{{end}}
+        {{if .ShowingEarlier}}<a href="/checkins/{{$c.ID}}#comments">Back to latest comments</a>{{end}}
+      </nav>
+    {{end}}
+
     {{if .Comments}}
       <ul class="comments-list">
         {{range .Comments}}
           <li class="comment" id="comment-{{.ID}}">
-            <span class="avatar comment-avatar" aria-hidden="true">{{if .Initial}}{{.Initial}}{{else}}?{{end}}</span>
+            <span class="avatar comment-avatar" aria-hidden="true">{{initial .Handle}}</span>
             <div class="comment-body">
               <p class="comment-meta">
                 <strong>{{if .DisplayName}}{{.DisplayName}}{{else}}@{{.Handle}}{{end}}</strong>
                 <span class="comment-date">{{.CreatedAt}}</span>
               </p>
-              <p class="comment-text">{{.Body}}</p>
-              {{if .CanDelete}}
-                <form class="comment-delete" method="post" action="/comments/{{.ID}}/delete">
-                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
-                  <button class="btn btn-small" type="submit">Delete</button>
-                </form>
+              <div class="comment-text">{{.BodyHTML}}</div>
+              {{if or .CanDelete .CanReport $.CanComment}}
+                <div class="comment-actions">
+                  {{if $.CanComment}}
+                    <button class="btn btn-small comment-reply" type="button" data-reply-to="{{.Handle}}">Reply</button>
+                  {{end}}
+                  {{if .CanDelete}}
+                    <form class="comment-delete" method="post" action="/comments/{{.ID}}/delete">
+                      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                      <button class="btn btn-small" type="submit">Delete</button>
+                    </form>
+                  {{end}}
+                  {{if .CanReport}}
+                    <details class="comment-report">
+                      <summary>Report</summary>
+                      <form class="comment-report-form" method="post" action="/reports">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                        <input type="hidden" name="entity" value="comment">
+                        <input type="hidden" name="entity_ref" value="{{.ID}}">
+                        <label>Reason
+                          <select name="reason">
+                            <option value="off">Offensive content</option>
+                            <option value="incorrect">Incorrect or misleading</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </label>
+                        <label>Details <span class="hint">optional</span>
+                          <textarea name="details" rows="2" maxlength="500"></textarea>
+                        </label>
+                        <button class="btn btn-small" type="submit">Send report</button>
+                      </form>
+                    </details>
+                  {{end}}
+                </div>
               {{end}}
             </div>
           </li>

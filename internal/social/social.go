@@ -391,6 +391,7 @@ type FeedItem struct {
 	Toasts      int    `json:"toasts"`
 	Toasted     bool   `json:"toasted"`
 	Comments    int    `json:"comments"`
+	Saved       bool   `json:"saved"`
 	CSRF        string `json:"-"`
 }
 
@@ -498,6 +499,78 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+// ByIDs loads check-ins by ID using the same projection as the feed, then
+// restores the order of the incoming ids. It applies no relationship filter:
+// callers must have already enforced visibility (saves.ListIDs does this via
+// checkins.Get). Soft-deleted rows are still excluded.
+func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]FeedItem, error) {
+	if len(ids) == 0 {
+		return []FeedItem{}, nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids)+1)
+	args = append(args, viewerID)
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	query := `
+		SELECT c.id, c.user_id, u.handle, u.display_name,
+		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
+		       COALESCE(v.name,''), c.rating, c.note, c.visibility, c.created_at,
+		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.kind,''),
+		       COALESCE(m.poster_path,''), COALESCE(m.duration_seconds,0),
+		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
+		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?),
+		       (SELECT COUNT(*) FROM comments cm
+		        JOIN users cu ON cu.id = cm.user_id
+		        WHERE cm.checkin_id = c.id AND cm.deleted_at IS NULL
+		          AND cu.deleted_at IS NULL AND cu.status <> 'deleted')
+		FROM checkins c
+		JOIN users u ON u.id = c.user_id
+		JOIN drinks d ON d.id = c.drink_id
+		LEFT JOIN brands b ON b.id = d.brand_id
+		LEFT JOIN venues v ON v.id = c.venue_id
+		LEFT JOIN media m ON m.id = c.photo_media_id
+		WHERE c.deleted_at IS NULL
+		  AND c.id IN (` + strings.Join(placeholders, ",") + `)`
+
+	rows, err := s.SQL.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	byID := make(map[string]FeedItem, len(ids))
+	for rows.Next() {
+		var f FeedItem
+		var rating sql.NullInt64
+		if err := rows.Scan(&f.ID, &f.UserID, &f.Handle, &f.DisplayName,
+			&f.DrinkID, &f.DrinkName, &f.DrinkSlug, &f.Brand, &f.Container, &f.VolumeML,
+			&f.VenueName, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
+			&f.PhotoID, &f.PhotoMime, &f.PhotoKind, &f.PosterPath, &f.Duration,
+			&f.Toasts, &f.Toasted, &f.Comments); err != nil {
+			return nil, err
+		}
+		if rating.Valid {
+			v := int(rating.Int64)
+			f.Rating = &v
+		}
+		byID[f.ID] = f
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	out := make([]FeedItem, 0, len(byID))
+	for _, id := range ids {
+		if f, ok := byID[id]; ok {
+			out = append(out, f)
+		}
+	}
+	return out, nil
 }
 
 // Toast adds a like. Self-toasting is ignored. The check-in must be visible to

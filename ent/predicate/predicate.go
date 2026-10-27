@@ -42,6 +42,9 @@ type Checkin func(*sql.Selector)
 // CheckinLike is the predicate function for checkinlike builders.
 type CheckinLike func(*sql.Selector)
 
+// CheckinSave is the predicate function for checkinsave builders.
+type CheckinSave func(*sql.Selector)
+
 // Comment is the predicate function for comment builders.
 type Comment func(*sql.Selector)
 

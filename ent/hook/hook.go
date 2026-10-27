@@ -152,6 +152,18 @@ func (f CheckinLikeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CheckinLikeMutation", m)
 }
 
+// The CheckinSaveFunc type is an adapter to allow the use of ordinary
+// function as CheckinSave mutator.
+type CheckinSaveFunc func(context.Context, *ent.CheckinSaveMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CheckinSaveFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CheckinSaveMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CheckinSaveMutation", m)
+}
+
 // The CommentFunc type is an adapter to allow the use of ordinary
 // function as Comment mutator.
 type CommentFunc func(context.Context, *ent.CommentMutation) (ent.Value, error)

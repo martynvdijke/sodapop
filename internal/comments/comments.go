@@ -7,6 +7,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"html"
+	"html/template"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -14,8 +17,10 @@ import (
 	"sodapop/ent"
 	"sodapop/ent/comment"
 	"sodapop/ent/notification"
+	"sodapop/ent/user"
 	"sodapop/internal/checkins"
 	"sodapop/internal/db"
+	"sodapop/internal/social"
 )
 
 var (
@@ -25,35 +30,130 @@ var (
 )
 
 const (
-	maxBodyRunes   = 1000
-	rateLimitCount = 30
-	rateLimitSpan  = time.Hour
-	// maxComments bounds a thread so one check-in cannot make the detail page
-	// arbitrarily expensive. The newest comments are kept.
-	maxComments = 200
+	maxBodyRunes    = 1000
+	rateLimitCount  = 30
+	rateLimitSpan   = time.Hour
+	maxMentions     = 5
+	defaultPageSize = 50
+	maxPageSize     = 100
 )
+
+// mentionPattern matches an @handle token. Handles are lowercase ASCII letters,
+// digits and underscores, 3-24 characters long. Matching is case-insensitive so
+// "@Alice" mentions alice. The leading group captures the optional boundary
+// character so "foo@bar" is not treated as a mention.
+var mentionPattern = regexp.MustCompile(`(?i)(^|[^a-z0-9_])@([a-z0-9_]{3,24})`)
+
+func isHandleChar(b byte) bool {
+	switch {
+	case b >= 'a' && b <= 'z':
+		return true
+	case b >= 'A' && b <= 'Z':
+		return true
+	case b >= '0' && b <= '9':
+		return true
+	case b == '_':
+		return true
+	}
+	return false
+}
 
 // Service owns check-in comments.
 type Service struct {
 	Client   *ent.Client
 	SQL      *sql.DB
 	Checkins *checkins.Service
+	Social   *social.Service
 }
 
 func New(database *db.DB, checkinsSvc *checkins.Service) *Service {
-	return &Service{Client: database.Client, SQL: database.SQL, Checkins: checkinsSvc}
+	s := &Service{Client: database.Client, SQL: database.SQL, Checkins: checkinsSvc}
+	// Reuse the check-ins social service when one is wired in, so mentions get
+	// block-aware notifications without a second constructor argument.
+	if checkinsSvc != nil {
+		s.Social = checkinsSvc.Social
+	}
+	return s
 }
 
-// Comment is the read model a template renders. CanDelete is set by the caller
-// because it depends on the viewer's role, not the row.
+func (s *Service) socialService() *social.Service {
+	if s.Social != nil {
+		return s.Social
+	}
+	if s.Checkins != nil {
+		return s.Checkins.Social
+	}
+	return nil
+}
+
+// Comment is the read model a template renders. CanDelete and CanReport are set
+// by the caller because they depend on the viewer's role, not the row.
 type Comment struct {
 	ID          string
 	UserID      string
 	Handle      string
 	DisplayName string
 	Body        string
+	BodyHTML    template.HTML
 	CreatedAt   string
 	CanDelete   bool
+	CanReport   bool
+}
+
+// MentionHandles returns the distinct handles mentioned in body, lowercased,
+// in first-appearance order, capped at maxMentions.
+func MentionHandles(body string) []string {
+	matches := mentionPattern.FindAllStringSubmatchIndex(body, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(matches))
+	out := make([]string, 0, len(matches))
+	for _, loc := range matches {
+		hs, he := loc[4], loc[5]
+		// Reject the prefix of a longer handle such as @this_handle_is_too_long.
+		if he < len(body) && isHandleChar(body[he]) {
+			continue
+		}
+		handle := strings.ToLower(body[hs:he])
+		if seen[handle] {
+			continue
+		}
+		seen[handle] = true
+		out = append(out, handle)
+		if len(out) == maxMentions {
+			break
+		}
+	}
+	return out
+}
+
+// RenderBody escapes a comment body and turns valid @handle tokens into profile
+// links. Raw HTML never survives: escaping happens before linkification.
+func RenderBody(body string) template.HTML {
+	escaped := html.EscapeString(body)
+	matches := mentionPattern.FindAllStringSubmatchIndex(escaped, -1)
+	if len(matches) == 0 {
+		return template.HTML(escaped)
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range matches {
+		start, end := loc[0], loc[1]
+		hs, he := loc[4], loc[5]
+		if he < len(escaped) && isHandleChar(escaped[he]) {
+			continue
+		}
+		handle := strings.ToLower(escaped[hs:he])
+		b.WriteString(escaped[last:start])
+		b.WriteString(escaped[start : hs-1]) // boundary character, if any
+		b.WriteString(`<a href="/u/` + handle + `" class="mention">@`)
+		b.WriteString(escaped[hs:he])
+		b.WriteString(`</a>`)
+		last = end
+	}
+	b.WriteString(escaped[last:])
+	return template.HTML(b.String())
 }
 
 // Initial returns the uppercase first rune of the display name, falling back to
@@ -138,35 +238,132 @@ func (s *Service) Create(ctx context.Context, userID, checkinID, body string) (*
 			SetText("commented on your check-in").
 			Save(ctx)
 	}
+
+	// Mention notifications are best effort: a failure here must never undo or
+	// fail the comment itself.
+	s.notifyMentions(ctx, userID, parent, body)
 	return c, nil
 }
 
-// List returns a visible check-in's live comments oldest-first, capped at the
-// newest maxComments. An invisible or missing parent is reported as ErrNotFound,
+// notifyMentions records a mention notification for each eligible @handle. It
+// skips the commenter, the check-in owner (already notified as a comment),
+// blocked pairs, and users who cannot see the parent check-in.
+func (s *Service) notifyMentions(ctx context.Context, commenterID string, parent *checkins.Detail, body string) {
+	soc := s.socialService()
+	for _, handle := range MentionHandles(body) {
+		mentioned, err := s.Client.User.Query().
+			Where(
+				user.HandleEqualFold(handle),
+				user.DeletedAtIsNil(),
+				user.StatusEQ(user.StatusActive),
+			).
+			Only(ctx)
+		if err != nil {
+			continue
+		}
+		if mentioned.ID == commenterID || mentioned.ID == parent.UserID {
+			continue
+		}
+		if soc != nil {
+			blocked, err := soc.AreBlocked(ctx, commenterID, mentioned.ID)
+			if err != nil || blocked {
+				continue
+			}
+		}
+		// The mentioned user must be able to see the parent check-in.
+		if _, err := s.Checkins.Get(ctx, mentioned.ID, parent.ID); err != nil {
+			continue
+		}
+		if soc != nil {
+			_ = soc.Notify(ctx, mentioned.ID, string(notification.KindMention), commenterID, parent.ID, "mentioned you in a comment")
+			continue
+		}
+		_, _ = s.Client.Notification.Create().
+			SetUserID(mentioned.ID).
+			SetKind(notification.KindMention).
+			SetActorID(commenterID).
+			SetSubjectID(parent.ID).
+			SetText("mentioned you in a comment").
+			Save(ctx)
+	}
+}
+
+// visibleCommentScope is the SQL predicate shared by the page and total
+// queries. It takes the viewer ID twice, in that order.
+const visibleCommentScope = `
+	cm.deleted_at IS NULL
+	AND u.deleted_at IS NULL AND u.status <> 'deleted'
+	AND NOT EXISTS (
+		SELECT 1 FROM blocks bl
+		WHERE (bl.blocker_id = ? AND bl.blocked_id = cm.user_id)
+		   OR (bl.blocked_id = ? AND bl.blocker_id = cm.user_id)
+	)`
+
+// List returns the newest page of a visible check-in's live comments
+// oldest-first. An invisible or missing parent is reported as ErrNotFound,
 // never as a forbidden response.
 func (s *Service) List(ctx context.Context, viewerID, checkinID string) ([]Comment, error) {
+	items, _, _, err := s.ListPage(ctx, viewerID, checkinID, "", defaultPageSize)
+	return items, err
+}
+
+// ListPage returns one page of visible comments oldest-first. before is the ID
+// of the oldest comment already shown; the page then contains strictly older
+// comments. total counts every visible comment on the check-in for display.
+func (s *Service) ListPage(ctx context.Context, viewerID, checkinID, before string, limit int) (items []Comment, total int, hasMore bool, err error) {
 	if _, err := s.Checkins.Get(ctx, viewerID, checkinID); err != nil {
 		if errors.Is(err, checkins.ErrNotFound) {
-			return nil, ErrNotFound
+			return nil, 0, false, ErrNotFound
 		}
-		return nil, err
+		return nil, 0, false, err
 	}
 
-	rows, err := s.SQL.QueryContext(ctx, `
+	if limit <= 0 {
+		limit = defaultPageSize
+	}
+	if limit > maxPageSize {
+		limit = maxPageSize
+	}
+
+	if err := s.SQL.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM comments cm
+		JOIN users u ON u.id = cm.user_id
+		WHERE cm.checkin_id = ? AND `+visibleCommentScope,
+		checkinID, viewerID, viewerID).Scan(&total); err != nil {
+		return nil, 0, false, err
+	}
+
+	query := `
 		SELECT cm.id, cm.user_id, u.handle, COALESCE(u.display_name,''), cm.body, cm.created_at
 		FROM comments cm
 		JOIN users u ON u.id = cm.user_id
-		WHERE cm.checkin_id = ? AND cm.deleted_at IS NULL
-		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
-		  AND NOT EXISTS (
-			SELECT 1 FROM blocks bl
-			WHERE (bl.blocker_id = ? AND bl.blocked_id = cm.user_id)
-			   OR (bl.blocked_id = ? AND bl.blocker_id = cm.user_id)
-		  )
-		ORDER BY cm.created_at DESC, cm.id DESC
-		LIMIT ?`, checkinID, viewerID, viewerID, maxComments)
+		WHERE cm.checkin_id = ? AND ` + visibleCommentScope
+	args := []any{checkinID, viewerID, viewerID}
+
+	if before != "" {
+		var beforeCreatedAt string
+		err := s.SQL.QueryRowContext(ctx,
+			`SELECT created_at FROM comments WHERE id = ? AND checkin_id = ? AND deleted_at IS NULL`,
+			before, checkinID).Scan(&beforeCreatedAt)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, 0, false, ErrInvalid
+		}
+		if err != nil {
+			return nil, 0, false, err
+		}
+		query += ` AND ((cm.created_at < ?) OR (cm.created_at = ? AND cm.id < ?))`
+		args = append(args, beforeCreatedAt, beforeCreatedAt, before)
+	}
+
+	// Read one extra row to learn whether an older page exists. The query is
+	// newest-first so LIMIT keeps the newest rows of the requested window.
+	query += ` ORDER BY cm.created_at DESC, cm.id DESC LIMIT ?`
+	args = append(args, limit+1)
+
+	rows, err := s.SQL.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, false, err
 	}
 	defer rows.Close()
 
@@ -174,19 +371,24 @@ func (s *Service) List(ctx context.Context, viewerID, checkinID string) ([]Comme
 	for rows.Next() {
 		var c Comment
 		if err := rows.Scan(&c.ID, &c.UserID, &c.Handle, &c.DisplayName, &c.Body, &c.CreatedAt); err != nil {
-			return nil, err
+			return nil, 0, false, err
 		}
+		c.BodyHTML = RenderBody(c.Body)
 		out = append(out, c)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, false, err
 	}
-	// The query reads newest-first so LIMIT keeps the newest rows; callers
-	// render threads oldest-first.
+
+	if len(out) > limit {
+		hasMore = true
+		out = out[:limit]
+	}
+	// Callers render threads oldest-first.
 	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
 		out[i], out[j] = out[j], out[i]
 	}
-	return out, nil
+	return out, total, hasMore, nil
 }
 
 // Delete soft-deletes a comment. Non-authors cannot tell a comment exists unless

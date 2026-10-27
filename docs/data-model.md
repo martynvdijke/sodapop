@@ -1,6 +1,6 @@
 # Sodapop — Data model (Ent ORM + SQLite Migrations)
 
-Persistence uses SQLite (`modernc.org/sqlite`, WAL mode) managed by **Ent ORM (`entgo.io/ent v0.14.6`)** plus a **versioned transactional migration registry (`internal/db/migrations`)**, following the exact architecture proven in `dnd` (`dnd/docs/adr-data-access.md`, `dnd/db/db.go`, `dnd/db/schema_consistency_test.go`) and `datey`.
+Persistence uses SQLite (`modernc.org/sqlite`, WAL mode) managed by **Ent ORM (`entgo.io/ent v0.14.6`)** plus a **versioned transactional migration registry (`internal/db/migrations.go`)**, following the exact architecture proven in `dnd` (`dnd/docs/adr-data-access.md`, `dnd/db/db.go`, `dnd/db/schema_consistency_test.go`) and `datey`.
 
 ## 1. ORM & Migration Architecture
 
@@ -12,7 +12,7 @@ Every domain table is declared as a strongly-typed Ent schema under `ent/schema/
 | **Auth & Users** | `User`, `UserIdentity`, `Session`, `APIToken`, `EmailVerificationToken`, `PasswordResetToken`, `EmailOutbox`, `UserSetting`, `LoginAttempt`, `Media` |
 | **Catalog** | `Brand`, `Style`, `Flavour`, `Drink`, `DrinkBarcode`, `DrinkFlavour`, `DrinkAlias`, `DrinkImage`, `OffProduct`, `CatalogRevision` |
 | **Venues** | `Venue`, `VenueDrink`, `VenueName`, `VenueSave`, `VenueMedia` |
-| **Check-ins** | `Checkin`, `CheckinLike`, `Comment` |
+| **Check-ins** | `Checkin`, `CheckinLike`, `CheckinSave`, `Comment` |
 | **Social** | `Follow`, `Friendship`, `Block`, `Activity`, `Notification` |
 | **Badges & Lists** | `Badge`, `UserBadge`, `List`, `ListItem` |
 | **Moderation** | `Report`, `AdminNote` |
@@ -27,7 +27,7 @@ Conventions in `ent/schema`:
 - Edges define explicit foreign keys and `entsql.OnDelete(entsql.Cascade)` / `entsql.SetNull` / `entsql.Restrict` annotations.
 
 ### 1.2 Versioned Migration Registry (`internal/db/migrations/`)
-Ent's `Client.Schema.Create(ctx)` handles additive schema creation/evolution from `ent/migrate/schema.go`, while `internal/db/migrations/registry.go` applies ordered, transactional versioned migrations tracked in `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`.
+Ent's `Client.Schema.Create(ctx)` handles additive schema creation/evolution from `ent/migrate/schema.go`, while `internal/db/migrations.go` applies ordered, transactional versioned migrations tracked in `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`.
 
 Boot sequence in `internal/db.Init(dbPath)`:
 1. Open `*sql.DB` (`modernc.org/sqlite`) with connection-level `_pragma` parameters (`busy_timeout(10000)`, `synchronous(NORMAL)`, `cache_size(-64000)`, `temp_store(MEMORY)`, `mmap_size`, `foreign_keys(ON)`) and DB-level `PRAGMA journal_mode=WAL`, `PRAGMA auto_vacuum=INCREMENTAL`.
@@ -45,9 +45,10 @@ Boot sequence in `internal/db.Init(dbPath)`:
 | `0005` | `0005_composite_indexes.sql` | Composite unique indexes for `venue_saves`, `venue_drinks`, `list_items` and `user_badges` |
 | `0006` | `0006_comments.sql` | `comments` thread lookup and per-user hourly rate-limit indexes |
 | `0007` | `0007_venue_media.sql` | `venue_media` gallery ordering and uploader/venue cap indexes |
+| `0008` | `0008_delivery_outbox.sql` | `delivery_outbox` due-lookup and per-user history indexes |
 | `0009` | `0009_audit_indexes.sql` | `catalog_revisions(entity, created_at)` and `admin_notes(entity, created_at)` audit indexes |
 
-`0008_delivery_outbox.sql` belongs to Phase E and is not part of the v1.2 schema.
+There is no `0010` migration: the AI tables are Ent-managed, and no `0010_ai.sql` file exists.
 
 ### 1.3 Mechanical Schema Guard (`internal/db/schema_consistency_test.go`)
 Just like `dnd/db/schema_consistency_test.go`, `TestSchemaConsistency` initializes an in-memory database (`Init(":memory:")`) and asserts that every table in `sqlite_master` is either present in `ent/migrate.Tables` or listed in `rawOnlyTables` (`schema_migrations` and `drinks_fts*`). Any ad-hoc raw `CREATE TABLE` outside Ent + the migration registry fails CI immediately.
@@ -469,7 +470,24 @@ CREATE INDEX idx_comments_checkin_created ON comments(checkin_id, created_at);
 CREATE INDEX idx_comments_user_created ON comments(user_id, created_at);
 ```
 
-Comments have no threading columns and no Ent edges, so the service enforces the parent check-in and author lookups. Reads call `checkins.Get` first, which makes comment visibility identical to the parent check-in; rows from deleted users and blocked pairs are excluded in SQL. Writes are capped at 30 per user per rolling hour and 200 live comments per check-in (newest kept). Deleting a comment sets `deleted_at`; the row is retained for moderation history.
+Comments have no threading columns and no Ent edges, so the service enforces the parent check-in and author lookups. Reads call `checkins.Get` first, which makes comment visibility identical to the parent check-in; rows from deleted users and blocked pairs are excluded in SQL. Reads are keyset-paginated oldest-first (`before` cursor, 50 default, 100 maximum). Writes are capped at 30 per user per rolling hour; there is no per-thread row cap, so older comments remain readable across pages. `@handle` mentions link to `/u/{handle}` and produce a best-effort `mention` notification unless the target is the commenter, the check-in owner, blocked with the commenter, or unable to see the parent check-in. Deleting a comment sets `deleted_at`; the row is retained for moderation history.
+
+### Check-in saves (bookmarks)
+
+```sql
+CREATE TABLE checkin_saves (              -- private bookmark of one check-in
+  id         TEXT PRIMARY KEY,            -- 32-char hex
+  checkin_id TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX checkinsave_checkin_id_user_id
+  ON checkin_saves(checkin_id, user_id);
+CREATE INDEX checkinsave_user_id_created_at
+  ON checkin_saves(user_id, created_at);
+```
+
+A save is owned by one user and is idempotent on `(checkin_id, user_id)`; saving your own check-in is allowed. `checkins.Get` guards every save, and the saved list re-checks visibility per row, so a bookmark never widens access or keeps a deleted/private check-in visible. The `/saved` page and `GET /api/v1/me/saved` page by `(created_at DESC, id DESC)`.
 
 ## 6. Social
 
@@ -522,7 +540,7 @@ CREATE INDEX idx_activities_time ON activities(created_at DESC, id DESC);
 CREATE TABLE notifications (
   id         TEXT PRIMARY KEY,       -- 32-char hex
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  kind       TEXT NOT NULL,          -- friend_request, friend_accept, toast, badge, comment, system
+  kind       TEXT NOT NULL,          -- friend_request, friend_accept, toast, badge, comment, mention, system
   actor_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
   subject_id TEXT NOT NULL DEFAULT '',
   text       TEXT NOT NULL DEFAULT '',
@@ -630,9 +648,9 @@ CREATE TABLE runtime_settings (
 
 Non-secret values live in `value`; secrets (currently the SMTP password) live only as `enc:v1:` ciphertext in `encrypted_value` under a key derived from `SESSION_SECRET`. A blank secret field preserves the stored value and an explicit clear removes it. Every write appends an `admin_notes` audit row with key names only. The table is read once at boot into an immutable snapshot, so request paths never query it.
 
-## 10. OpenCode ("opencode2") AI (`0010_ai.sql`)
+## 10. OpenCode ("opencode2") AI
 
-Matches `dnd` (`ai_endpoints`, `app_settings`, and conversational drafting sessions):
+Matches `dnd` (`ai_endpoints`, `app_settings`, and conversational drafting sessions). These tables are Ent-managed; no SQL migration file is involved:
 
 ```sql
 CREATE TABLE app_settings (

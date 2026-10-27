@@ -318,6 +318,77 @@ func TestNotificationForOwnerOnly(t *testing.T) {
 	}
 }
 
+func TestMentionNotifications(t *testing.T) {
+	f := newFixture(t)
+	c := f.checkin(t, "public")
+	soc := social.New(f.db)
+
+	if _, err := f.svc.Create(f.ctx, f.friend.ID, c.ID, "hey @carol and @Carol, also @alice and @bob"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	rows, err := f.db.Client.Notification.Query().All(f.ctx)
+	if err != nil {
+		t.Fatalf("notifications: %v", err)
+	}
+	// One comment notification for the owner, one mention for carol. The owner
+	// and the commenter are excluded from mentions; carol is deduplicated.
+	if len(rows) != 2 {
+		t.Fatalf("notifications = %d (%+v), want 2", len(rows), rows)
+	}
+	var mention *ent.Notification
+	for _, n := range rows {
+		if n.Kind == notification.KindMention {
+			mention = n
+		}
+	}
+	if mention == nil {
+		t.Fatalf("no mention notification: %+v", rows)
+	}
+	if mention.UserID != f.stranger.ID || mention.ActorID == nil || *mention.ActorID != f.friend.ID {
+		t.Fatalf("mention target/actor = %+v", mention)
+	}
+	if mention.SubjectID != c.ID || mention.Text != "mentioned you in a comment" {
+		t.Fatalf("mention fields = %+v", mention)
+	}
+
+	// A block suppresses the mention but never the comment itself.
+	if err := soc.Block(f.ctx, f.stranger.ID, f.friend.Handle); err != nil {
+		t.Fatalf("block: %v", err)
+	}
+	if _, err := f.svc.Create(f.ctx, f.friend.ID, c.ID, "blocked mention @carol"); err != nil {
+		t.Fatalf("create after block: %v", err)
+	}
+	count, err := f.db.Client.Notification.Query().
+		Where(notification.KindEQ(notification.KindMention), notification.UserID(f.stranger.ID)).
+		Count(f.ctx)
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("mentions after block = %d, want 1", count)
+	}
+}
+
+func TestMentionSkipsUsersWhoCannotSeeParent(t *testing.T) {
+	f := newFixture(t)
+	// Friends-only: carol is a stranger and must not be told about a check-in
+	// she cannot open.
+	c := f.checkin(t, "friends")
+	if _, err := f.svc.Create(f.ctx, f.friend.ID, c.ID, "secret @carol"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	count, err := f.db.Client.Notification.Query().
+		Where(notification.KindEQ(notification.KindMention), notification.UserID(f.stranger.ID)).
+		Count(f.ctx)
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("mentions for hidden parent = %d, want 0", count)
+	}
+}
+
 func TestListHidesSoftDeletedUsers(t *testing.T) {
 	f := newFixture(t)
 	c := f.checkin(t, "public")
@@ -349,11 +420,11 @@ func TestListHidesSoftDeletedUsers(t *testing.T) {
 	}
 }
 
-func TestListCapsAtNewest200OldestFirst(t *testing.T) {
+func TestListPagePaginatesOlderComments(t *testing.T) {
 	f := newFixture(t)
 	c := f.checkin(t, "public")
 
-	const total = 201
+	const total = 120
 	for i := 0; i < total; i++ {
 		if _, err := f.db.SQL.ExecContext(f.ctx,
 			`INSERT INTO comments (id, checkin_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -364,23 +435,109 @@ func TestListCapsAtNewest200OldestFirst(t *testing.T) {
 		}
 	}
 
+	seen := map[string]bool{}
+	var pages [][]comments.Comment
+	before := ""
+	for page := 0; page < 3; page++ {
+		items, gotTotal, hasMore, err := f.svc.ListPage(f.ctx, f.owner.ID, c.ID, before, 50)
+		if err != nil {
+			t.Fatalf("page %d: %v", page, err)
+		}
+		if gotTotal != total {
+			t.Fatalf("page %d total = %d, want %d", page, gotTotal, total)
+		}
+		wantMore := page < 2
+		if hasMore != wantMore {
+			t.Fatalf("page %d hasMore = %v, want %v", page, hasMore, wantMore)
+		}
+		wantLen := 50
+		if page == 2 {
+			wantLen = 20
+		}
+		if len(items) != wantLen {
+			t.Fatalf("page %d len = %d, want %d", page, len(items), wantLen)
+		}
+		for i := 1; i < len(items); i++ {
+			if items[i-1].CreatedAt > items[i].CreatedAt {
+				t.Fatalf("page %d not oldest-first at %d: %q > %q", page, i, items[i-1].CreatedAt, items[i].CreatedAt)
+			}
+		}
+		for _, item := range items {
+			if seen[item.ID] {
+				t.Fatalf("duplicate comment %s across pages", item.ID)
+			}
+			seen[item.ID] = true
+		}
+		pages = append(pages, items)
+		if hasMore {
+			before = items[0].ID
+		}
+	}
+	if pages[0][0].Body != "body-070" || pages[2][0].Body != "body-000" {
+		t.Fatalf("unexpected page boundaries: first=%q last=%q", pages[0][0].Body, pages[2][len(pages[2])-1].Body)
+	}
+
+	// An unknown or foreign cursor is rejected.
+	if _, _, _, err := f.svc.ListPage(f.ctx, f.owner.ID, c.ID, "does-not-exist", 50); !errors.Is(err, comments.ErrInvalid) {
+		t.Fatalf("invalid before = %v, want ErrInvalid", err)
+	}
+	other := f.checkin(t, "public")
+	foreign, err := f.db.Client.Comment.Create().SetCheckinID(other.ID).SetUserID(f.owner.ID).SetBody("elsewhere").Save(f.ctx)
+	if err != nil {
+		t.Fatalf("foreign comment: %v", err)
+	}
+	if _, _, _, err := f.svc.ListPage(f.ctx, f.owner.ID, c.ID, foreign.ID, 50); !errors.Is(err, comments.ErrInvalid) {
+		t.Fatalf("foreign before = %v, want ErrInvalid", err)
+	}
+
+	// List remains the newest-page wrapper.
 	list, err := f.svc.List(f.ctx, f.owner.ID, c.ID)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(list) != total-1 {
-		t.Fatalf("comments = %d, want %d", len(list), total-1)
+	if len(list) != 50 {
+		t.Fatalf("List len = %d, want 50", len(list))
 	}
-	if list[0].Body != "body-001" {
-		t.Fatalf("first body = %q, want body-001 (oldest of the kept window)", list[0].Body)
+	if list[0].ID != pages[0][0].ID || list[len(list)-1].ID != pages[0][len(pages[0])-1].ID {
+		t.Fatalf("List did not return the newest page")
 	}
-	if list[len(list)-1].Body != "body-200" {
-		t.Fatalf("last body = %q, want body-200", list[len(list)-1].Body)
+}
+
+func TestMentionHandles(t *testing.T) {
+	body := "@Alice hi @bob @ALICE @carol_1 @dave @erin @frank @grace"
+	got := comments.MentionHandles(body)
+	want := []string{"alice", "bob", "carol_1", "dave", "erin"}
+	if len(got) != len(want) {
+		t.Fatalf("handles = %v, want %v", got, want)
 	}
-	for i := 1; i < len(list); i++ {
-		if list[i-1].CreatedAt > list[i].CreatedAt {
-			t.Fatalf("comments not oldest-first at %d: %q > %q", i, list[i-1].CreatedAt, list[i].CreatedAt)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("handles = %v, want %v", got, want)
 		}
+	}
+	for _, bad := range []string{"@ab", "@this_handle_is_far_too_long", "no mentions"} {
+		if got := comments.MentionHandles(bad); len(got) != 0 {
+			t.Fatalf("MentionHandles(%q) = %v, want none", bad, got)
+		}
+	}
+}
+
+func TestRenderBodyEscapesThenLinksMentions(t *testing.T) {
+	got := string(comments.RenderBody(`<script>alert(1)</script> hi @Alice and @bob`))
+	if strings.Contains(got, "<script>") {
+		t.Fatalf("raw script survived: %s", got)
+	}
+	if !strings.Contains(got, "&lt;script&gt;") {
+		t.Fatalf("script not escaped: %s", got)
+	}
+	if !strings.Contains(got, `<a href="/u/alice" class="mention">@Alice</a>`) {
+		t.Fatalf("alice mention not linked: %s", got)
+	}
+	if !strings.Contains(got, `<a href="/u/bob" class="mention">@bob</a>`) {
+		t.Fatalf("bob mention not linked: %s", got)
+	}
+	if strings.Contains(got, "<a href=\"/u/ab\"") {
+		t.Fatalf("short handle linked: %s", got)
 	}
 }
 

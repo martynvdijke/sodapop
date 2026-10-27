@@ -19,6 +19,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/saves"
 	"sodapop/internal/settings"
 	"sodapop/internal/setup"
 	"sodapop/internal/social"
@@ -36,6 +37,7 @@ type Server struct {
 	Auth         *auth.Service
 	Catalog      *catalog.Service
 	Checkins     *checkins.Service
+	Saves        *saves.Service
 	Social       *social.Service
 	Venues       *venues.Service
 	Badges       *badges.Service
@@ -79,6 +81,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /checkins", s.requireVerified(s.checkinSubmit))
 	mux.HandleFunc("POST /checkins/{id}/toast", s.requireVerified(s.checkinToast))
 	mux.HandleFunc("POST /checkins/{id}/untoast", s.requireVerified(s.untoast))
+	mux.HandleFunc("POST /checkins/{id}/save", s.requireVerified(s.saveCheckin))
+	mux.HandleFunc("POST /checkins/{id}/unsave", s.requireVerified(s.unsaveCheckin))
+	mux.HandleFunc("GET /saved", s.requireUser(s.savedPage))
 	mux.HandleFunc("POST /checkins/{id}/comments", s.requireVerified(s.commentCreate))
 	mux.HandleFunc("POST /comments/{id}/delete", s.requireUser(s.commentDelete))
 	mux.HandleFunc("GET /compare", s.requireUser(s.comparePage))

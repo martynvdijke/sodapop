@@ -26,6 +26,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/saves"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
 	"sodapop/internal/venues"
@@ -37,6 +38,7 @@ type Server struct {
 	Auth         *auth.Service
 	Catalog      *catalog.Service
 	Checkins     *checkins.Service
+	Saves        *saves.Service
 	Comments     *comments.Service
 	Social       *social.Service
 	Venues       *venues.Service
@@ -108,6 +110,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "DELETE /api/v1/checkins/{id}", s.protect("write", true, s.deleteCheckin))
 	s.route(mux, "POST /api/v1/checkins/{id}/toast", s.protect("write", true, s.toast))
 	s.route(mux, "DELETE /api/v1/checkins/{id}/toast", s.protect("write", true, s.untoast))
+	s.route(mux, "POST /api/v1/checkins/{id}/save", s.protect("write", true, s.bookmarkCheckin))
+	s.route(mux, "DELETE /api/v1/checkins/{id}/save", s.protect("write", true, s.unbookmarkCheckin))
+	s.route(mux, "GET /api/v1/me/saved", s.protect("read", false, s.listSaved))
 	s.route(mux, "GET /api/v1/checkins/{id}/comments", s.protect("read", false, s.listComments))
 	s.route(mux, "POST /api/v1/checkins/{id}/comments", s.protect("write", true, s.createComment))
 	s.route(mux, "DELETE /api/v1/comments/{id}", s.protect("write", true, s.deleteComment))
@@ -207,7 +212,8 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 	case errors.Is(err, catalog.ErrQueryTooShort):
 		writeError(w, http.StatusBadRequest, "query_too_short", "query must be at least 2 characters")
 	case errors.Is(err, catalog.ErrNotFound), errors.Is(err, checkins.ErrNotFound), errors.Is(err, venues.ErrNotFound),
-		errors.Is(err, comments.ErrNotFound), errors.Is(err, social.ErrNotFound), errors.Is(err, mix.ErrNotFound):
+		errors.Is(err, comments.ErrNotFound), errors.Is(err, social.ErrNotFound), errors.Is(err, mix.ErrNotFound),
+		errors.Is(err, saves.ErrNotFound):
 		writeError(w, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, catalog.ErrInvalidBarcode):
 		writeError(w, http.StatusBadRequest, "invalid_barcode", "barcode must be a valid GTIN-8/12/13/14")
@@ -219,7 +225,7 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, "forbidden", "you do not have access to this resource")
 	case errors.Is(err, checkins.ErrInvalidRating), errors.Is(err, checkins.ErrInvalidInput), errors.Is(err, venues.ErrInvalid),
 		errors.Is(err, comments.ErrInvalid), errors.Is(err, venues.ErrInvalidKind), errors.Is(err, venues.ErrInvalidLabel),
-		errors.Is(err, mix.ErrInvalidInput):
+		errors.Is(err, mix.ErrInvalidInput), errors.Is(err, saves.ErrInvalid):
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 	case errors.Is(err, comments.ErrRateLimited):
 		w.Header().Set("Retry-After", "60")

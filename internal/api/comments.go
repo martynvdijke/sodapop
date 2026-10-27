@@ -11,7 +11,9 @@ import (
 // An invisible parent is reported as 404 so the endpoint cannot be used to
 // probe for check-in identifiers.
 func (s *Server) listComments(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
-	items, err := s.Comments.List(r.Context(), tok.User.ID, r.PathValue("id"))
+	limit := queryInt(r, "limit", 50, 100)
+	before := r.URL.Query().Get("before")
+	items, _, hasMore, err := s.Comments.ListPage(r.Context(), tok.User.ID, r.PathValue("id"), before, limit)
 	if err != nil {
 		return err
 	}
@@ -20,7 +22,11 @@ func (s *Server) listComments(w http.ResponseWriter, r *http.Request, tok *auth.
 	for _, c := range items {
 		out = append(out, commentDTO(c, admin || c.UserID == tok.User.ID))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": out})
+	meta := map[string]any{"count": len(out), "has_more": hasMore}
+	if hasMore && len(items) > 0 {
+		meta["next_before"] = items[0].ID
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": out, "meta": meta})
 	return nil
 }
 

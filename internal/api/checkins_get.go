@@ -18,6 +18,15 @@ func (s *Server) getCheckin(w http.ResponseWriter, r *http.Request, tok *auth.AP
 		return err
 	}
 
+	data := checkinDTO(detail, tok)
+	writeJSON(w, http.StatusOK, map[string]any{"data": data})
+	return nil
+}
+
+// checkinDTO is the single check-in shape shared by the detail endpoint and
+// the personal saved list. Keeping it in one place stops the two responses
+// drifting apart.
+func checkinDTO(detail *checkins.Detail, tok *auth.APIToken) map[string]any {
 	data := map[string]any{
 		"id": detail.ID,
 		"user": map[string]any{
@@ -47,6 +56,5 @@ func (s *Server) getCheckin(w http.ResponseWriter, r *http.Request, tok *auth.AP
 	if detail.MediaID != "" {
 		data["photo"] = map[string]any{"id": detail.MediaID, "mime": detail.MediaMime}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": data})
-	return nil
+	return data
 }

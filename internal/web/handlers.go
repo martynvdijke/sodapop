@@ -47,6 +47,17 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		for i := range feed {
 			feed[i].CSRF = csrf
 		}
+		// Mark bookmarks in one query; a lookup failure leaves them unmarked
+		// rather than breaking the feed.
+		ids := make([]string, len(feed))
+		for i := range feed {
+			ids[i] = feed[i].ID
+		}
+		if saved, err := s.Saves.SavedIDs(r.Context(), u.ID, ids); err == nil {
+			for i := range feed {
+				feed[i].Saved = saved[feed[i].ID]
+			}
+		}
 		data["Feed"] = feed
 		data["Stats"], _ = s.Checkins.Stats(r.Context(), u.ID)
 		aiEnabled, aiRecs := s.aiRecommendations(r.Context(), u.ID)

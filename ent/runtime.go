@@ -15,6 +15,7 @@ import (
 	"sodapop/ent/catalogrevision"
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
+	"sodapop/ent/checkinsave"
 	"sodapop/ent/comment"
 	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
@@ -314,6 +315,24 @@ func init() {
 	checkinlikeDescCreatedAt := checkinlikeFields[2].Descriptor()
 	// checkinlike.DefaultCreatedAt holds the default value on creation for the created_at field.
 	checkinlike.DefaultCreatedAt = checkinlikeDescCreatedAt.Default.(func() string)
+	checkinsaveFields := schema.CheckinSave{}.Fields()
+	_ = checkinsaveFields
+	// checkinsaveDescCheckinID is the schema descriptor for checkin_id field.
+	checkinsaveDescCheckinID := checkinsaveFields[1].Descriptor()
+	// checkinsave.CheckinIDValidator is a validator for the "checkin_id" field. It is called by the builders before save.
+	checkinsave.CheckinIDValidator = checkinsaveDescCheckinID.Validators[0].(func(string) error)
+	// checkinsaveDescUserID is the schema descriptor for user_id field.
+	checkinsaveDescUserID := checkinsaveFields[2].Descriptor()
+	// checkinsave.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	checkinsave.UserIDValidator = checkinsaveDescUserID.Validators[0].(func(string) error)
+	// checkinsaveDescCreatedAt is the schema descriptor for created_at field.
+	checkinsaveDescCreatedAt := checkinsaveFields[3].Descriptor()
+	// checkinsave.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkinsave.DefaultCreatedAt = checkinsaveDescCreatedAt.Default.(func() string)
+	// checkinsaveDescID is the schema descriptor for id field.
+	checkinsaveDescID := checkinsaveFields[0].Descriptor()
+	// checkinsave.DefaultID holds the default value on creation for the id field.
+	checkinsave.DefaultID = checkinsaveDescID.Default.(func() string)
 	commentFields := schema.Comment{}.Fields()
 	_ = commentFields
 	// commentDescCheckinID is the schema descriptor for checkin_id field.

@@ -65,18 +65,42 @@
               {{end}}
               <p class="gallery-credit">{{if .Attribution}}{{.Attribution}}{{else}}Added by a member{{end}}</p>
             </div>
-            {{if $.CanModerate}}
+            {{if or $.CanModerate $.CanReport}}
               <div class="gallery-actions">
-                {{if not .IsPrimary}}
-                  <form method="post" action="/drinks/images/{{.ID}}/primary">
+                {{if $.CanModerate}}
+                  {{if not .IsPrimary}}
+                    <form method="post" action="/drinks/images/{{.ID}}/primary">
+                      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                      <button class="btn btn-small" type="submit" aria-label="Make primary photo">Make primary</button>
+                    </form>
+                  {{end}}
+                  <form method="post" action="/drinks/images/{{.ID}}/delete">
                     <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
-                    <button class="btn btn-small" type="submit" aria-label="Make primary photo">Make primary</button>
+                    <button class="btn btn-small gallery-remove" type="submit" aria-label="Remove photo">Remove</button>
                   </form>
                 {{end}}
-                <form method="post" action="/drinks/images/{{.ID}}/delete">
-                  <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
-                  <button class="btn btn-small gallery-remove" type="submit" aria-label="Remove photo">Remove</button>
-                </form>
+                {{if $.CanReport}}
+                  <details class="media-report gallery-report">
+                    <summary>Report</summary>
+                    <form class="media-report-form" method="post" action="/reports">
+                      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                      <input type="hidden" name="entity" value="drink_image">
+                      <input type="hidden" name="entity_ref" value="{{.ID}}">
+                      <label>Reason
+                        <select name="reason">
+                          <option value="incorrect">Wrong photo for this soda</option>
+                          <option value="off">Offensive content</option>
+                          <option value="duplicate">Duplicate upload</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </label>
+                      <label>Details <span class="hint">optional</span>
+                        <textarea name="details" rows="2" maxlength="500"></textarea>
+                      </label>
+                      <button class="btn btn-small" type="submit">Send report</button>
+                    </form>
+                  </details>
+                {{end}}
               </div>
             {{end}}
           </li>

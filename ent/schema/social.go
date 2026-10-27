@@ -99,7 +99,7 @@ func (Notification) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").DefaultFunc(newID).Immutable(),
 		field.String("user_id").NotEmpty(),
-		field.Enum("kind").Values("friend_request", "friend_accept", "toast", "comment", "badge", "system").Default("system"),
+		field.Enum("kind").Values("friend_request", "friend_accept", "toast", "comment", "mention", "badge", "system").Default("system"),
 		field.String("actor_id").Optional().Nillable(),
 		field.String("subject_id").Default(""),
 		field.String("text").Default(""),

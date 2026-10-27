@@ -18,6 +18,7 @@ import (
 	"sodapop/ent/catalogrevision"
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
+	"sodapop/ent/checkinsave"
 	"sodapop/ent/comment"
 	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
@@ -82,6 +83,7 @@ const (
 	TypeCatalogRevision        = "CatalogRevision"
 	TypeCheckin                = "Checkin"
 	TypeCheckinLike            = "CheckinLike"
+	TypeCheckinSave            = "CheckinSave"
 	TypeComment                = "Comment"
 	TypeDeliveryOutbox         = "DeliveryOutbox"
 	TypeDrink                  = "Drink"
@@ -8510,6 +8512,446 @@ func (m *CheckinLikeMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *CheckinLikeMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown CheckinLike edge %s", name)
+}
+
+// CheckinSaveMutation represents an operation that mutates the CheckinSave nodes in the graph.
+type CheckinSaveMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	checkin_id    *string
+	user_id       *string
+	created_at    *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*CheckinSave, error)
+	predicates    []predicate.CheckinSave
+}
+
+var _ ent.Mutation = (*CheckinSaveMutation)(nil)
+
+// checkinsaveOption allows management of the mutation configuration using functional options.
+type checkinsaveOption func(*CheckinSaveMutation)
+
+// newCheckinSaveMutation creates new mutation for the CheckinSave entity.
+func newCheckinSaveMutation(c config, op Op, opts ...checkinsaveOption) *CheckinSaveMutation {
+	m := &CheckinSaveMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCheckinSave,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCheckinSaveID sets the ID field of the mutation.
+func withCheckinSaveID(id string) checkinsaveOption {
+	return func(m *CheckinSaveMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CheckinSave
+		)
+		m.oldValue = func(ctx context.Context) (*CheckinSave, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CheckinSave.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCheckinSave sets the old CheckinSave of the mutation.
+func withCheckinSave(node *CheckinSave) checkinsaveOption {
+	return func(m *CheckinSaveMutation) {
+		m.oldValue = func(context.Context) (*CheckinSave, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CheckinSaveMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CheckinSaveMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of CheckinSave entities.
+func (m *CheckinSaveMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CheckinSaveMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CheckinSaveMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CheckinSave.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCheckinID sets the "checkin_id" field.
+func (m *CheckinSaveMutation) SetCheckinID(s string) {
+	m.checkin_id = &s
+}
+
+// CheckinID returns the value of the "checkin_id" field in the mutation.
+func (m *CheckinSaveMutation) CheckinID() (r string, exists bool) {
+	v := m.checkin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckinID returns the old "checkin_id" field's value of the CheckinSave entity.
+// If the CheckinSave object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinSaveMutation) OldCheckinID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckinID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckinID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckinID: %w", err)
+	}
+	return oldValue.CheckinID, nil
+}
+
+// ResetCheckinID resets all changes to the "checkin_id" field.
+func (m *CheckinSaveMutation) ResetCheckinID() {
+	m.checkin_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *CheckinSaveMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *CheckinSaveMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the CheckinSave entity.
+// If the CheckinSave object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinSaveMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *CheckinSaveMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CheckinSaveMutation) SetCreatedAt(s string) {
+	m.created_at = &s
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CheckinSaveMutation) CreatedAt() (r string, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CheckinSave entity.
+// If the CheckinSave object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinSaveMutation) OldCreatedAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CheckinSaveMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the CheckinSaveMutation builder.
+func (m *CheckinSaveMutation) Where(ps ...predicate.CheckinSave) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CheckinSaveMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CheckinSaveMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CheckinSave, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CheckinSaveMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CheckinSaveMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CheckinSave).
+func (m *CheckinSaveMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CheckinSaveMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.checkin_id != nil {
+		fields = append(fields, checkinsave.FieldCheckinID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, checkinsave.FieldUserID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, checkinsave.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CheckinSaveMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case checkinsave.FieldCheckinID:
+		return m.CheckinID()
+	case checkinsave.FieldUserID:
+		return m.UserID()
+	case checkinsave.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CheckinSaveMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case checkinsave.FieldCheckinID:
+		return m.OldCheckinID(ctx)
+	case checkinsave.FieldUserID:
+		return m.OldUserID(ctx)
+	case checkinsave.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CheckinSave field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinSaveMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case checkinsave.FieldCheckinID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckinID(v)
+		return nil
+	case checkinsave.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case checkinsave.FieldCreatedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinSave field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CheckinSaveMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CheckinSaveMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinSaveMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CheckinSave numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CheckinSaveMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CheckinSaveMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CheckinSaveMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown CheckinSave nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CheckinSaveMutation) ResetField(name string) error {
+	switch name {
+	case checkinsave.FieldCheckinID:
+		m.ResetCheckinID()
+		return nil
+	case checkinsave.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case checkinsave.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinSave field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CheckinSaveMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CheckinSaveMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CheckinSaveMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CheckinSaveMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CheckinSaveMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CheckinSaveMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CheckinSaveMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CheckinSave unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CheckinSaveMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CheckinSave edge %s", name)
 }
 
 // CommentMutation represents an operation that mutates the Comment nodes in the graph.

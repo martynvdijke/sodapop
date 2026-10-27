@@ -4,6 +4,7 @@
 import { initInstall } from './install'
 import { announce, isAnnouncing } from './notice'
 import { loadPhoto, prunePhotos, removePhoto, savePhoto } from './photo-queue'
+import { initReply } from './reply'
 import { initScanner } from './scanner'
 import { initShare } from './share'
 
@@ -467,4 +468,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 initScanner()
 initShare()
+initReply()
 initInstall()

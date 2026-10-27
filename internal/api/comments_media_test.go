@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -15,6 +16,7 @@ import (
 	"testing"
 
 	"sodapop/ent"
+	"sodapop/ent/notification"
 	"sodapop/ent/user"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
@@ -224,8 +226,8 @@ func TestCommentVisibilityMatrix(t *testing.T) {
 				t.Fatalf("write: got %d, want %d (%s)", write.Code, tc.wantWrite, write.Body.String())
 			}
 			if tc.wantRead == http.StatusOK {
-				if strings.Contains(read.Body.String(), "total") || strings.Contains(read.Body.String(), "count") {
-					t.Fatalf("comment list leaks a total/count: %s", read.Body.String())
+				if strings.Contains(read.Body.String(), "total") {
+					t.Fatalf("comment list leaks a total: %s", read.Body.String())
 				}
 			}
 		})
@@ -486,6 +488,122 @@ func TestVenueSaveRoutesSurviveMediaDispatch(t *testing.T) {
 	}
 	if rec := doAs(t, h, http.MethodDelete, path, "", tok); rec.Code != http.StatusOK {
 		t.Fatalf("unsave: got %d (%s)", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCommentListPagination(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	bob := mustUser(t, h, h.bob)
+	c := mustCheckin(t, h, bob, mustDrink(t, h).ID, "public")
+	path := "/api/v1/checkins/" + c.ID + "/comments"
+	tok := tokenFor(t, h, h.alice, []string{"read"})
+
+	const total = 120
+	for i := 0; i < total; i++ {
+		if _, err := h.server.DB.SQL.ExecContext(ctx,
+			`INSERT INTO comments (id, checkin_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)`,
+			fmt.Sprintf("api-comment-%03d", i), c.ID, h.alice, fmt.Sprintf("body-%03d", i),
+			fmt.Sprintf("2026-02-01T00:%02d:%02dZ", i/60, i%60)); err != nil {
+			t.Fatalf("insert comment %d: %v", i, err)
+		}
+	}
+
+	type page struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+		Meta struct {
+			Count      int    `json:"count"`
+			HasMore    bool   `json:"has_more"`
+			NextBefore string `json:"next_before"`
+		} `json:"meta"`
+	}
+
+	seen := map[string]bool{}
+	before := ""
+	for i := 0; i < 3; i++ {
+		url := path + "?limit=50"
+		if before != "" {
+			url += "&before=" + before
+		}
+		rec := doAs(t, h, http.MethodGet, url, "", tok)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("page %d: got %d (%s)", i, rec.Code, rec.Body.String())
+		}
+		var p page
+		if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
+			t.Fatalf("decode page %d: %v", i, err)
+		}
+		if p.Meta.Count != len(p.Data) {
+			t.Fatalf("page %d count = %d, len = %d", i, p.Meta.Count, len(p.Data))
+		}
+		wantLen := 50
+		wantMore := true
+		if i == 2 {
+			wantLen = 20
+			wantMore = false
+		}
+		if len(p.Data) != wantLen {
+			t.Fatalf("page %d len = %d, want %d", i, len(p.Data), wantLen)
+		}
+		if p.Meta.HasMore != wantMore {
+			t.Fatalf("page %d has_more = %v, want %v", i, p.Meta.HasMore, wantMore)
+		}
+		for _, item := range p.Data {
+			if seen[item.ID] {
+				t.Fatalf("duplicate %s across pages", item.ID)
+			}
+			seen[item.ID] = true
+		}
+		if wantMore {
+			if p.Meta.NextBefore != p.Data[0].ID {
+				t.Fatalf("page %d next_before = %q, want %q", i, p.Meta.NextBefore, p.Data[0].ID)
+			}
+			before = p.Meta.NextBefore
+		}
+	}
+	if strings.Contains(doAs(t, h, http.MethodGet, path, "", tok).Body.String(), "total") {
+		t.Fatalf("pagination response leaks a total")
+	}
+}
+
+func TestMentionNotificationAndHref(t *testing.T) {
+	h := newHarness(t)
+	bob := mustUser(t, h, h.bob)
+	carol := newUser(t, h, "carol", true, user.RoleUser)
+	c := mustCheckin(t, h, bob, mustDrink(t, h).ID, "public")
+	tok := tokenFor(t, h, h.alice, []string{"read", "write"})
+
+	rec := doAs(t, h, http.MethodPost, "/api/v1/checkins/"+c.ID+"/comments", `{"body":"hi @carol"}`, tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	rows, err := h.server.DB.Client.Notification.Query().
+		Where(notification.KindEQ(notification.KindMention), notification.UserID(carol.ID)).
+		All(context.Background())
+	if err != nil {
+		t.Fatalf("notifications: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("mention notifications = %d, want 1", len(rows))
+	}
+	if rows[0].SubjectID != c.ID || rows[0].ActorID == nil || *rows[0].ActorID != h.alice {
+		t.Fatalf("mention row = %+v", rows[0])
+	}
+
+	cases := map[string]string{
+		"comment":        "/checkins/" + c.ID + "#comments",
+		"mention":        "/checkins/" + c.ID + "#comments",
+		"toast":          "/checkins/" + c.ID,
+		"badge":          "/you",
+		"friend_request": "/friends",
+	}
+	for kind, want := range cases {
+		if got := notificationHref(kind, c.ID); got != want {
+			t.Fatalf("notificationHref(%q) = %q, want %q", kind, got, want)
+		}
 	}
 }
 

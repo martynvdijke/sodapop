@@ -30,7 +30,11 @@ func (s *Server) commentCreate(w http.ResponseWriter, r *http.Request) {
 	body := r.FormValue("body")
 	_, err := s.commentService().Create(r.Context(), u.ID, checkinID, body)
 	if err == nil {
-		http.Redirect(w, r, "/checkins/"+checkinID+"#comments", http.StatusFound)
+		target := "/checkins/" + checkinID + "#comments"
+		if before := strings.TrimSpace(r.FormValue("before")); before != "" {
+			target = "/checkins/" + checkinID + "?before=" + url.QueryEscape(before) + "#comments"
+		}
+		http.Redirect(w, r, target, http.StatusFound)
 		return
 	}
 	switch {
