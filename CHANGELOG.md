@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/martynvdijke/sodapop/compare/v1.5.0...v1.5.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* **deps:** update dependency cupertino_icons to v2 ([#3](https://github.com/martynvdijke/sodapop/issues/3)) ([bcaebfc](https://github.com/martynvdijke/sodapop/commit/bcaebfcd37e0072f9a62e671a28b081943055ebd))
+
 # [1.5.0](https://github.com/martynvdijke/sodapop/compare/v1.4.3...v1.5.0) (2026-10-27)
 
 
