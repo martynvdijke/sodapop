@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/martynvdijke/sodapop/compare/v1.9.2...v1.10.0) (2026-10-28)
+
+
+### Features
+
+* add badge levels, streaks, activity timeline and venue offers ([3705250](https://github.com/martynvdijke/sodapop/commit/3705250e79dfd5eeec8f9f48f8153d5460b40df5))
+
 ## [1.9.2](https://github.com/martynvdijke/sodapop/compare/v1.9.1...v1.9.2) (2026-10-28)
 
 ## [1.9.1](https://github.com/martynvdijke/sodapop/compare/v1.9.0...v1.9.1) (2026-10-28)
