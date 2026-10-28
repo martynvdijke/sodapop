@@ -87,17 +87,8 @@ func main() {
 	defer database.Close()
 	ctx := context.Background()
 
-	for _, f := range families {
-		parent, err := ensureStyle(ctx, database, f.Name, f.Slug, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, child := range f.Children {
-			slug := slugify(child)
-			if _, err := ensureStyle(ctx, database, child, slug, &parent.ID); err != nil {
-				log.Fatal(err)
-			}
-		}
+	if err := seedStyleTaxonomy(ctx, database); err != nil {
+		log.Fatal(err)
 	}
 
 	for _, f := range flavours {
@@ -116,6 +107,12 @@ func main() {
 		}
 	}
 
+	if os.Getenv("SEED_CATALOG") == "1" {
+		if err := seedStarterCatalog(ctx, database); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	if os.Getenv("SEED_DEMO") == "1" {
 		if err := seedDemo(ctx, database); err != nil {
 			log.Fatal(err)
@@ -128,6 +125,24 @@ func main() {
 	count, _ := database.Client.Style.Query().Count(ctx)
 	flavourCount, _ := database.Client.Flavour.Query().Count(ctx)
 	fmt.Fprintf(os.Stdout, "seeded %d styles and %d flavours\n", count, flavourCount)
+}
+
+// seedStyleTaxonomy ensures every family and child style from families exists.
+// It is idempotent and shared by `seed` and the starter catalog.
+func seedStyleTaxonomy(ctx context.Context, database *db.DB) error {
+	for _, f := range families {
+		parent, err := ensureStyle(ctx, database, f.Name, f.Slug, nil)
+		if err != nil {
+			return err
+		}
+		for _, child := range f.Children {
+			slug := slugify(child)
+			if _, err := ensureStyle(ctx, database, child, slug, &parent.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func ensureStyle(ctx context.Context, database *db.DB, name, slug string, parentID *int) (*styleRow, error) {

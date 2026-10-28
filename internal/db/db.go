@@ -19,6 +19,7 @@ import (
 type DB struct {
 	SQL    *sql.DB
 	Client *ent.Client
+	Path   string
 }
 
 // Init opens the SQLite database, applies the Ent schema, then runs the
@@ -54,7 +55,7 @@ func Init(path string) (*DB, error) {
 		_ = client.Close()
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
-	return &DB{SQL: sqlDB, Client: client}, nil
+	return &DB{SQL: sqlDB, Client: client, Path: path}, nil
 }
 
 func dsnFor(path string) string {

@@ -59,3 +59,16 @@
   {{if .RatingShown}}<span class="rating-pill">{{stars .AvgRating}}</span>{{end}}
 </a>
 {{end}}
+
+{{define "adminnav"}}
+<nav class="admin-nav" aria-label="Admin sections">
+  <ul>
+    <li><a href="/admin"{{if eq . "overview"}} aria-current="page"{{end}}>Overview</a></li>
+    <li><a href="/admin/settings"{{if eq . "settings"}} aria-current="page"{{end}}>Settings</a></li>
+    <li><a href="/admin/badges"{{if eq . "badges"}} aria-current="page"{{end}}>Badges</a></li>
+    <li><a href="/admin/venues"{{if eq . "venues"}} aria-current="page"{{end}}>Venues</a></li>
+    <li><a href="/admin/digest"{{if eq . "digest"}} aria-current="page"{{end}}>Digest</a></li>
+    <li><a href="/admin/system"{{if eq . "system"}} aria-current="page"{{end}}>System</a></li>
+  </ul>
+</nav>
+{{end}}

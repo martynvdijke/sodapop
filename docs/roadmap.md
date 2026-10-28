@@ -2,7 +2,7 @@
 
 Twelve phases, dependency-ordered. Estimates assume one experienced Go developer working alone, part-time at ~30 h/week. Each phase ends with a demoable slice, tests, and a green CI run — not a branch full of scaffolding.
 
-Status: P0–P11 shipped for v1.0. v1.1–v1.5 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work and the v1.5 Google Play release. The v1.6 post-interactions slice is recorded below. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
+Status: P0–P11 shipped for v1.0. v1.1–v1.7 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work, the v1.5 Google Play release, the v1.6 post-interactions slice and the v1.7 operations slice. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
 
 | Shipped surface | Phase |
 |---|---|
@@ -21,20 +21,19 @@ Status: P0–P11 shipped for v1.0. v1.1–v1.5 have shipped on top of that basel
 | Flutter social screens: check-in comments, user profile follow/block, notifications, lists, saved venues | v1.2 |
 | Flutter insights, taste, passport/badges, mixes and venue search/detail; photo upload and offline photo parity | v1.2 |
 | Post interactions: saved check-ins and `/saved`, `@mentions` with notifications, comment pagination, comment/gallery report controls | v1.6 |
+| Operations: automatic `VACUUM INTO` backups with retention and offline restore, `/admin/system`, badge management, venue merge, digest status, starter catalog seed | v1.7 |
 
-## Shipped in v1.4–v1.6
+## Shipped in v1.4–v1.7
 
-Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`delivery_outbox` plus migration `0008_delivery_outbox.sql`), digest scheduler catch-up with a single-instance lease, the OTel follow-up metrics and DB spans, unified search that still caps at 10 results with no totals, and the `registration_open` admin toggle all landed. The v1.6 post-interactions slice shipped saved check-ins (`/saved`, `/api/v1/me/saved`), `@handle` mentions with mention notifications and deep links, keyset comment pagination (50 default, 100 maximum, no total), and report controls for comments and drink gallery images.
+Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`delivery_outbox` plus migration `0008_delivery_outbox.sql`), digest scheduler catch-up with a single-instance lease, the OTel follow-up metrics and DB spans, unified search that still caps at 10 results with no totals, and the `registration_open` admin toggle all landed. The v1.6 post-interactions slice shipped saved check-ins (`/saved`, `/api/v1/me/saved`), `@handle` mentions with mention notifications and deep links, keyset comment pagination (50 default, 100 maximum, no total), and report controls for comments and drink gallery images. The v1.7 operations slice shipped automatic backups (startup + hourly, 24-hour gate, 14-snapshot retention, integrity checks, `backup` lease), the offline `cmd/restore` command, `/admin/system` with an on-demand backup action, `/admin/badges`, `/admin/venues` merge, `/admin/digest` status, the shared admin nav, and `SEED_CATALOG=1` with 21 brands and 29 drinks.
 
 ## Next
 
 - Nearby feed: still deferred because location data stays venue-only and any geo feed needs a privacy review first.
-- Backup/restore job: the admin backup path does not use `VACUUM INTO` yet, so there is no consistent online snapshot.
-- Starter catalog seed: first-run usefulness still depends on the community or OFF lookups.
-- Admin badge management: badge definitions are seeded, not editable in the admin UI.
 - Public read-only API: deliberately deferred to keep `/api/v1` friend-scoped and non-enumerable.
 - PWA offline photos: the web offline queue covers check-in fields, not photo bytes.
-- Mobile parity gaps: video capture, AI drafting, push registration and list CRUD are still web-only.
+- Full mobile parity: video capture, AI drafting and list CRUD remain web-only.
+- Deeper mobile settings and push registration: the Android app still has narrower account controls and no push registration flow.
 
 
 ## Dependency graph
@@ -75,13 +74,13 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 ## P1 — Accounts, sessions, email verification (2 weeks)
 
 **Build**
-- `users`, `user_identities`, `sessions`, `api_tokens`, `email_verification_tokens`, `password_reset_tokens`, `email_outbox`, `user_settings`, `login_attempts`.
+- `users`, `user_identities`, `sessions`, `api_tokens`, `email_verification_tokens`, `password_reset_tokens`, `email_outboxes`, `user_settings`, `login_attempts`.
 - Signup with handle uniqueness and reserved list, bcrypt cost 12, restricted session until verified.
 - Verification token issuance, resend throttling, `/verify` handler, expiry and reuse errors.
 - Login (email or handle), session rotation, logout, logout-everywhere, session list + revoke.
 - Password reset with anti-enumeration and session invalidation.
 - SMTP sender with direct TLS / STARTTLS / plain, HTML+text templates, dev mail sink in `data/mail/`.
-- Email outbox worker with exponential backoff and `/admin/email` visibility.
+- Email outbox worker with exponential backoff and failure logging.
 - CSRF tokens per session and Origin checks; login/signup/reset rate limits.
 - First-class Authelia OIDC (`OIDC_ENABLED`, `.well-known/openid-configuration` discovery, PKCE S256, HMAC-signed state/nonce cookie, RS256 JWKS verification, `email_verified=true` gate, auto-link/provision by email, `admins` group → `admin` role sync, `ALLOWED_EMAILS`/`ALLOWED_DOMAINS`, `ALLOW_PASSWORD_FALLBACK`, `/api/v1/auth/oidc/status`, and `/api/v1/auth/mobile-token`).
 - Profile settings: display name, handle, bio, avatar upload stub, default visibility.
@@ -213,7 +212,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
   - `SetAIProviderHeaders`: honest `User-Agent: sodapop/<version>` and multi-turn `x-opencode-session` continuity (`16` random bytes hex generated on turn 1 and returned in responses).
   - AES-GCM encryption of `api_key` derived from `SESSION_SECRET` (`SHA-256("sodapop-ai-key:" + SESSION_SECRET)`), masked in all admin responses.
   - Explicit operation timeouts (`TestTimeout=30s`, `TextTimeout=60s`, `ImageTimeout=120s`, `DraftTimeout=180s`), token budget resolution (`endpoint.max_tokens` clamped `[256, 16384]`), and `finish_reason == "length"` / empty-content guard (`ai_output_truncated`).
-- Admin UI & API (`/admin/ai`, `/api/v1/admin/ai-endpoints`, `/api/v1/admin/ai-endpoints/{id}/test` returning upstream HTTP status + 200-char body preview).
+- Admin UI on `/admin` plus the endpoint API (`POST /admin/ai`, `POST /admin/ai/{id}/toggle`, `POST /admin/ai/{id}/test`, `/api/v1/admin/ai-endpoints`, `/api/v1/admin/ai-endpoints/{id}/test` returning upstream HTTP status + 200-char body preview).
 - Conversational & vision drink drafting (`/api/v1/ai/drafts`, `/api/v1/ai/drafts/{id}/messages`, `/api/v1/ai/drafts/{id}/commit`, `/api/v1/ai/drafts/revise`), tasting-note polish (`POST /api/v1/ai/tasting-note`), and Soda Sommelier recommendations (`POST /api/v1/ai/recommend`).
 
 **Exit criteria**

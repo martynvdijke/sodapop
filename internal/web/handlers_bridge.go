@@ -809,10 +809,10 @@ func (s *Server) adminDigest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.Integrations.WeeklyDigest(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Redirect(w, r, "/admin/digest?error=send", http.StatusFound)
 		return
 	}
-	http.Redirect(w, r, "/admin", http.StatusFound)
+	http.Redirect(w, r, "/admin/digest?sent=1", http.StatusFound)
 }
 
 func (s *Server) serviceWorker(w http.ResponseWriter, r *http.Request) {

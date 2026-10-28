@@ -46,6 +46,7 @@
             <a href="/mix">Mix Lab</a>
             <a href="/insights">Insights</a>
             <a href="/settings">Settings</a>
+            {{if eq .User.Role "admin"}}<a href="/admin">Admin</a>{{end}}
             <form method="post" action="/logout">
               <input type="hidden" name="csrf_token" value="{{.CSRF}}">
               <button class="link" type="submit">Sign out</button>

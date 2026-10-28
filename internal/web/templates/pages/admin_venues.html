@@ -1,0 +1,97 @@
+{{define "content"}}
+<div class="admin-head">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>Venues</h1>
+    <p class="lede">Find duplicate places and fold one into the other. Merging keeps the target venue and retires the source.</p>
+  </div>
+</div>
+{{template "adminnav" "venues"}}
+
+{{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+<form method="get" action="/admin/venues" class="searchbar" role="search" aria-label="Find venues to merge">
+  {{if .From}}<input type="hidden" name="from" value="{{.From.ID}}">{{end}}
+  <label class="sr-only" for="admin-venue-q">Search venues</label>
+  <input id="admin-venue-q" name="q" value="{{.Query}}" placeholder="Name, city or address">
+  <button class="btn btn-primary" type="submit">Search</button>
+</form>
+
+{{if .From}}
+<section class="card admin-source" aria-labelledby="venue-source-title">
+  <p class="eyebrow">Source · will be merged away</p>
+  <h2 id="venue-source-title">{{.From.Name}}</h2>
+  <p class="muted">#{{.From.ID}}{{if .From.City}} · {{.From.City}}{{end}}</p>
+
+  <h3>Aliases</h3>
+  {{if .From.Names}}
+  <ul class="chips admin-aliases">
+    {{range .From.Names}}<li class="pill">{{.}}</li>{{end}}
+  </ul>
+  {{else}}
+  <p class="muted">No aliases recorded.</p>
+  {{end}}
+
+  <p class="admin-source-clear"><a class="btn btn-small" href="/admin/venues{{if .Query}}?q={{.Query}}{{end}}">Clear source</a></p>
+</section>
+{{else}}
+<p class="admin-source-empty">Pick a source first: choose the duplicate you want to retire.</p>
+{{end}}
+
+<section class="admin-section" aria-labelledby="venue-results-title">
+  <h2 id="venue-results-title">Search results</h2>
+  {{if .Results}}
+  <p class="muted">{{len .Results}} match{{if ne (len .Results) 1}}es{{end}}. Choose one as the source, then point the merge at the venue you want to keep.</p>
+  <div class="admin-venue-results">
+    {{range .Results}}
+    <article class="card admin-venue-result">
+      <div class="admin-venue-copy">
+        <h3>{{.Name}} <span class="admin-venue-id">#{{.ID}}</span></h3>
+        <p class="muted">{{container .Kind}}{{if .City}} · {{.City}}{{end}}{{if .Address}} · {{.Address}}{{end}}</p>
+      </div>
+      <div class="actions admin-venue-actions">
+        <a class="btn btn-small" href="/admin/venues?from={{.ID}}{{if $.Query}}&q={{$.Query}}{{end}}">Use as source</a>
+        {{if $.From}}
+        <a class="btn btn-small" href="/admin/venues?from={{$.From.ID}}&into={{.ID}}{{if $.Query}}&q={{$.Query}}{{end}}#merge">Use as target</a>
+        {{else}}
+        <span class="hint">Choose a source first</span>
+        {{end}}
+      </div>
+    </article>
+    {{end}}
+  </div>
+  {{else if .Query}}
+  <div class="empty"><p>No venues match “{{.Query}}”. Try a shorter name, a city, or part of the address.</p></div>
+  {{else}}
+  <div class="empty"><p>Search by name or city to find the duplicate venues. Nothing is changed until you submit the merge form.</p></div>
+  {{end}}
+</section>
+
+<section class="card admin-panel admin-merge" id="merge" aria-labelledby="venue-merge-title">
+  <h2 id="venue-merge-title">Merge venues</h2>
+  <div class="admin-warning" role="note">
+    <strong>This cannot be undone.</strong>
+    <p>The source venue is folded into the target. Check-ins, saved rows, aliases and offers move to the target, and the source is retired. Confirm the IDs before submitting.</p>
+  </div>
+
+  <form method="post" action="/admin/venues/merge" class="admin-form" onsubmit="return confirm('Merge these venues? This cannot be undone.');">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <div class="field-grid">
+      <label for="venue-from-id">Source venue ID
+        <input id="venue-from-id" name="from_id" type="number" min="1" step="1" inputmode="numeric" required value="{{with .From}}{{.ID}}{{end}}">
+      </label>
+      <label for="venue-into-id">Target venue ID
+        <input id="venue-into-id" name="into_id" type="number" min="1" step="1" inputmode="numeric" required list="venue-target-options" value="{{with .Into}}{{.}}{{end}}">
+      </label>
+    </div>
+    <datalist id="venue-target-options">
+      {{range .Results}}<option value="{{.ID}}">{{.Name}}{{if .City}} · {{.City}}{{end}}</option>{{end}}
+    </datalist>
+    <p class="hint">IDs appear next to each search result. The source is the duplicate; the target is the venue you keep.</p>
+    <div class="form-actions">
+      <button class="btn btn-danger" type="submit">Merge venues</button>
+    </div>
+  </form>
+</section>
+{{end}}

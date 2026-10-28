@@ -15,6 +15,7 @@
   </a>
   {{end}}
 </div>
+{{if eq .Role "admin"}}{{template "adminnav" "overview"}}{{end}}
 {{if .Notice}}<p class="banner success">{{.Notice}}</p>{{end}}
 
 <section class="stat-grid">

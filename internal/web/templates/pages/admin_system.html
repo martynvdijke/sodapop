@@ -1,0 +1,171 @@
+{{define "content"}}
+<div class="admin-head">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>System</h1>
+    <p class="lede">Version, runtime and storage for this instance. Everything here is read-only except creating a backup.</p>
+  </div>
+</div>
+{{template "adminnav" "system"}}
+
+{{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+<section class="admin-section" aria-labelledby="system-overview-title">
+  <h2 id="system-overview-title">At a glance</h2>
+  <div class="stat-grid">
+    <div>
+      <strong>{{if .Version}}{{.Version}}{{else}}—{{end}}</strong>
+      <span class="stat-label">version</span>
+    </div>
+    <div>
+      <strong>{{if .Uptime}}{{.Uptime}}{{else}}—{{end}}</strong>
+      <span class="stat-label">uptime</span>
+    </div>
+    <div>
+      <strong>{{if .DBSize}}{{.DBSize}}{{else}}—{{end}}</strong>
+      <span class="stat-label">database size</span>
+      {{if .WALSize}}<span class="stat-sub">WAL {{.WALSize}}</span>{{end}}
+    </div>
+    <div>
+      <strong>{{if .MigrationVersion}}{{.MigrationVersion}}{{else}}—{{end}}</strong>
+      <span class="stat-label">migration</span>
+      {{if .MigrationName}}<span class="stat-sub">{{.MigrationName}}</span>{{end}}
+    </div>
+  </div>
+</section>
+
+<section class="card admin-panel" aria-labelledby="system-runtime-title">
+  <h2 id="system-runtime-title">Runtime</h2>
+  <p class="muted">Build, platform and on-disk locations for the running server.</p>
+  <dl class="settings-facts">
+    <div>
+      <dt>Go version</dt>
+      <dd>{{if .GoVersion}}{{.GoVersion}}{{else}}—{{end}}</dd>
+    </div>
+    <div>
+      <dt>Platform</dt>
+      <dd>{{if .GOOS}}{{.GOOS}}{{else}}—{{end}} / {{if .GOARCH}}{{.GOARCH}}{{else}}—{{end}}</dd>
+    </div>
+    <div>
+      <dt>Database path</dt>
+      <dd>{{if .DBPath}}<code class="admin-code">{{.DBPath}}</code>{{else}}—{{end}}</dd>
+    </div>
+    <div>
+      <dt>WAL size</dt>
+      <dd>{{if .WALSize}}{{.WALSize}}{{else}}—{{end}}</dd>
+    </div>
+    <div>
+      <dt>Migration</dt>
+      <dd>{{if .MigrationVersion}}{{.MigrationVersion}}{{else}}—{{end}}{{if .MigrationName}} · {{.MigrationName}}{{end}}</dd>
+    </div>
+    <div>
+      <dt>Backup directory</dt>
+      <dd>{{if .BackupDir}}<span class="admin-path">{{.BackupDir}}</span>{{else}}—{{end}}</dd>
+    </div>
+    <div>
+      <dt>Last backup</dt>
+      <dd>{{if .LastBackup}}{{.LastBackup}}{{else}}No backup yet{{end}}</dd>
+    </div>
+    <div>
+      <dt>Outbox depth</dt>
+      <dd>{{.OutboxDepth}}</dd>
+    </div>
+  </dl>
+</section>
+
+<section class="admin-section" aria-labelledby="system-counts-title">
+  <h2 id="system-counts-title">Counts</h2>
+  {{if .Counts}}
+  <div class="stat-grid">
+    {{range .Counts}}
+    <div>
+      <strong>{{.Value}}</strong>
+      <span class="stat-label">{{.Label}}</span>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="empty"><p>No record counts available.</p></div>
+  {{end}}
+</section>
+
+<section class="admin-section" aria-labelledby="system-schedulers-title">
+  <h2 id="system-schedulers-title">Schedulers</h2>
+  <p class="muted">Background jobs and the lock that keeps each one single-instance.</p>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <caption class="sr-only">Scheduled background jobs, their last run and current lock</caption>
+      <thead>
+        <tr>
+          <th scope="col">Job</th>
+          <th scope="col">Last run</th>
+          <th scope="col">Locked until</th>
+          <th scope="col">Lock owner</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Schedulers}}
+        <tr>
+          <th scope="row">{{.Name}}</th>
+          <td>{{if .LastRunAt}}{{.LastRunAt}}{{else}}Never{{end}}</td>
+          <td>{{if .LockedUntil}}<span class="pill pill-warn">{{.LockedUntil}}</span>{{else}}<span class="muted">Not locked</span>{{end}}</td>
+          <td>{{if .LockOwner}}<span class="admin-code">{{.LockOwner}}</span>{{else}}—{{end}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4" class="muted">No schedulers registered.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="admin-section" aria-labelledby="system-backups-title">
+  <div class="admin-section-head">
+    <div>
+      <h2 id="system-backups-title">Backups</h2>
+      <p class="muted">
+        {{if .BackupDir}}Stored in <span class="admin-path">{{.BackupDir}}</span>.{{else}}Backups are written by the server.{{end}}
+        {{if .BackupCount}}{{.BackupCount}} available.{{else}}None available yet.{{end}}
+      </p>
+    </div>
+    <form method="post" action="/admin/backup" class="inline">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <button class="btn btn-small btn-primary" type="submit">Create backup</button>
+    </form>
+  </div>
+
+  {{if .Backups}}
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <caption class="sr-only">Backup files available on disk</caption>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col" class="num">Size</th>
+          <th scope="col">Created</th>
+          <th scope="col">Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Backups}}
+        <tr>
+          <th scope="row"><span class="admin-code">{{.Name}}</span></th>
+          <td class="num">{{.Size}}</td>
+          <td>{{.CreatedAt}}</td>
+          <td><span class="admin-path">{{.Path}}</span></td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <div class="empty"><p>No backups found{{if .BackupDir}} in {{.BackupDir}}{{end}}. Create one above before making changes.</p></div>
+  {{end}}
+</section>
+
+<aside class="admin-note" aria-labelledby="system-restore-title">
+  <h3 id="system-restore-title">Restoring is an offline action</h3>
+  <p>Stop the server before swapping a database. From the project root, run <code class="admin-code">go run ./cmd/restore -from &lt;backup&gt; -db &lt;database&gt; -yes</code> against a file from the backup directory. There is no restore button here because replacing the SQLite file under a live server would corrupt open connections.</p>
+</aside>
+{{end}}

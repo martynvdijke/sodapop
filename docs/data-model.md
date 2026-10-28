@@ -26,8 +26,8 @@ Conventions in `ent/schema`:
 - Timestamps use `field.Time("created_at").Default(time.Now).Immutable()` and `field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now)` stored as RFC3339 UTC.
 - Edges define explicit foreign keys and `entsql.OnDelete(entsql.Cascade)` / `entsql.SetNull` / `entsql.Restrict` annotations.
 
-### 1.2 Versioned Migration Registry (`internal/db/migrations/`)
-Ent's `Client.Schema.Create(ctx)` handles additive schema creation/evolution from `ent/migrate/schema.go`, while `internal/db/migrations.go` applies ordered, transactional versioned migrations tracked in `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`.
+### 1.2 Versioned Migration Registry (`internal/db/migrations.go` + `internal/db/migrations/`)
+Ent's `Client.Schema.Create(ctx)` handles additive schema creation/evolution from `ent/migrate/schema.go`, while the registry in `internal/db/migrations.go` embeds and applies the ordered SQL files in `internal/db/migrations/` as transactional versioned migrations tracked in `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`.
 
 Boot sequence in `internal/db.Init(dbPath)`:
 1. Open `*sql.DB` (`modernc.org/sqlite`) with connection-level `_pragma` parameters (`busy_timeout(10000)`, `synchronous(NORMAL)`, `cache_size(-64000)`, `temp_store(MEMORY)`, `mmap_size`, `foreign_keys(ON)`) and DB-level `PRAGMA journal_mode=WAL`, `PRAGMA auto_vacuum=INCREMENTAL`.
@@ -48,7 +48,7 @@ Boot sequence in `internal/db.Init(dbPath)`:
 | `0008` | `0008_delivery_outbox.sql` | `delivery_outbox` due-lookup and per-user history indexes |
 | `0009` | `0009_audit_indexes.sql` | `catalog_revisions(entity, created_at)` and `admin_notes(entity, created_at)` audit indexes |
 
-There is no `0010` migration: the AI tables are Ent-managed, and no `0010_ai.sql` file exists.
+There is no `0010` migration: the AI tables are Ent-managed, and no `0010_ai.sql` file exists. The v1.7 operations slice (Phase 1) added no tables and no migrations; its backups are standalone `.db` files under `$DATA_DIR/backups`, outside SQLite. Migrations remain append-only, so any future schema change gets the next number.
 
 ### 1.3 Mechanical Schema Guard (`internal/db/schema_consistency_test.go`)
 Just like `dnd/db/schema_consistency_test.go`, `TestSchemaConsistency` initializes an in-memory database (`Init(":memory:")`) and asserts that every table in `sqlite_master` is either present in `ent/migrate.Tables` or listed in `rawOnlyTables` (`schema_migrations` and `drinks_fts*`). Any ad-hoc raw `CREATE TABLE` outside Ent + the migration registry fails CI immediately.
@@ -147,18 +147,18 @@ CREATE TABLE password_reset_tokens (
   used_at    TEXT
 );
 
-CREATE TABLE email_outbox (
+CREATE TABLE email_outboxes (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   to_email        TEXT NOT NULL,
   template        TEXT NOT NULL,
-  payload_json    TEXT NOT NULL,
+  payload_json    TEXT NOT NULL DEFAULT '{}',
   attempts        INTEGER NOT NULL DEFAULT 0,
   next_attempt_at TEXT NOT NULL,
   sent_at         TEXT,
   last_error      TEXT,
   created_at      TEXT NOT NULL
 );
-CREATE INDEX idx_outbox_due ON email_outbox(next_attempt_at) WHERE sent_at IS NULL;
+CREATE INDEX idx_outbox_due ON email_outboxes(next_attempt_at) WHERE sent_at IS NULL;
 
 CREATE TABLE user_settings (
   user_id           TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -361,7 +361,7 @@ CREATE TABLE venues (
   description TEXT NOT NULL DEFAULT '',
   address_line1 TEXT, address_line2 TEXT, city TEXT, region TEXT, postal_code TEXT,
   country     TEXT,
-  latitude    REAL, longitude REAL,
+  lat         REAL, lng REAL,
   website     TEXT,
   photo_media_id TEXT REFERENCES media(id) ON DELETE SET NULL,
   source      TEXT NOT NULL DEFAULT 'user' CHECK (source IN ('user','admin','osm')),
@@ -372,7 +372,7 @@ CREATE TABLE venues (
   updated_at  TEXT NOT NULL
 );
 CREATE INDEX idx_venues_kind_city ON venues(kind, city);
-CREATE INDEX idx_venues_geo ON venues(latitude, longitude);
+CREATE INDEX idx_venues_geo ON venues(lat, lng);
 CREATE INDEX idx_venues_merged ON venues(merged_into_id) WHERE merged_into_id IS NOT NULL;
 
 CREATE TABLE venue_drinks (
@@ -557,22 +557,19 @@ Feed read is `activities JOIN follows ON followee_id = activities.user_id WHERE 
 ```sql
 CREATE TABLE badges (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  code        TEXT NOT NULL UNIQUE,
+  slug        TEXT NOT NULL UNIQUE,
   name        TEXT NOT NULL,
-  description TEXT NOT NULL,
-  kind        TEXT NOT NULL CHECK (kind IN ('count','style','brand','country','venue','streak','social','special')),
-  threshold   INTEGER,
-  style_id    INTEGER REFERENCES styles(id) ON DELETE SET NULL,
-  country     TEXT,
-  active      INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1))
+  description TEXT NOT NULL DEFAULT '',
+  kind        TEXT NOT NULL DEFAULT 'core' CHECK (kind IN ('core','local','special')),
+  rule        TEXT NOT NULL DEFAULT '',   -- evaluator counter + threshold, e.g. 'checkins>=10'
+  created_at  TEXT NOT NULL
 );
 
 CREATE TABLE user_badges (
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   badge_id   INTEGER NOT NULL REFERENCES badges(id) ON DELETE CASCADE,
   level      INTEGER NOT NULL DEFAULT 1,
-  earned_at  TEXT NOT NULL,
-  checkin_id TEXT REFERENCES checkins(id) ON DELETE SET NULL,
+  awarded_at TEXT NOT NULL,
   PRIMARY KEY (user_id, badge_id)
 );
 

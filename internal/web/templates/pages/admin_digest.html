@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="admin-head">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>Weekly digest</h1>
+    <p class="lede">The opt-in summary of the week. Check the schedule, then send it by hand if a run was missed.</p>
+  </div>
+</div>
+{{template "adminnav" "digest"}}
+
+{{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+<section class="admin-section" aria-labelledby="digest-counts-title">
+  <h2 id="digest-counts-title">Audience</h2>
+  <div class="stat-grid">
+    <div>
+      <strong>{{.Recipients}}</strong>
+      <span class="stat-label">opted-in recipients</span>
+    </div>
+    <div>
+      <strong>{{.Pending}}</strong>
+      <span class="stat-label">pending sends</span>
+    </div>
+  </div>
+</section>
+
+<section class="card admin-panel admin-digest" aria-labelledby="digest-schedule-title">
+  <h2 id="digest-schedule-title">Schedule</h2>
+  <p class="muted">The scheduler runs weekly and skips a send that already went out for the period.</p>
+  <dl class="digest-summary">
+    <div>
+      <dt>Last run</dt>
+      <dd>{{if .LastRun}}{{.LastRun}}{{else}}Never{{end}}</dd>
+    </div>
+    <div>
+      <dt>Next run</dt>
+      <dd>{{if .NextRun}}{{.NextRun}}{{else}}Not scheduled{{end}}</dd>
+    </div>
+    <div>
+      <dt>Locked until</dt>
+      <dd>{{if .LockedUntil}}<span class="pill pill-warn">{{.LockedUntil}}</span>{{else}}Not locked{{end}}</dd>
+    </div>
+  </dl>
+
+  <h3>Send it now</h3>
+  <p class="muted">Use this after a missed schedule or when testing a mail change. It emails everyone currently opted in.</p>
+  <form method="post" action="/admin/digest" class="admin-form" onsubmit="return confirm('Send the weekly digest now? This emails every opted-in member and cannot be undone.');">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Send weekly digest now</button>
+    </div>
+  </form>
+  <p class="hint">Per-user opt-in lives in <a href="/settings">Settings</a>. Members who opt out are excluded from the next run.</p>
+</section>
+{{end}}

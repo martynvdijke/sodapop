@@ -1,0 +1,140 @@
+{{define "content"}}
+<div class="admin-head">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>Badges</h1>
+    <p class="lede">Define the rules that turn logged sodas into trophies. Award counts come from every member.</p>
+  </div>
+</div>
+{{template "adminnav" "badges"}}
+
+{{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+<section class="card admin-panel" aria-labelledby="badge-create-title">
+  <h2 id="badge-create-title">New badge</h2>
+  <p class="muted">Give it a stable slug, a short name, and the rule the server should check.</p>
+
+  <form method="post" action="/admin/badges" class="admin-form">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <div class="field-grid">
+      <label for="badge-create-name">Name
+        <input id="badge-create-name" name="name" required autocomplete="off">
+      </label>
+      <label for="badge-create-slug">Slug
+        <input id="badge-create-slug" name="slug" required autocomplete="off" autocapitalize="none" spellcheck="false">
+      </label>
+      <label for="badge-create-kind">Kind
+        <select id="badge-create-kind" name="kind" required>
+          {{range .Kinds}}<option value="{{.}}">{{container .}}</option>{{else}}<option value="">No kinds available</option>{{end}}
+        </select>
+      </label>
+      <label for="badge-create-rule">Rule
+        <select id="badge-create-rule" name="rule" required>
+          {{range .Rules}}<option value="{{.Key}}">{{.Label}}</option>{{else}}<option value="">No rules available</option>{{end}}
+        </select>
+      </label>
+      <label for="badge-create-need">Threshold
+        <input id="badge-create-need" name="need" type="number" min="1" max="100000" step="1" inputmode="numeric" value="1" required>
+        <span class="muted">How many times the rule must match.</span>
+      </label>
+    </div>
+    <label for="badge-create-description">Description
+      <textarea id="badge-create-description" name="description" rows="2" maxlength="240" placeholder="What earns this badge?"></textarea>
+    </label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Create badge</button>
+    </div>
+  </form>
+</section>
+
+<section class="admin-section" aria-labelledby="badge-list-title">
+  <div class="admin-section-head">
+    <div>
+      <h2 id="badge-list-title">All badges</h2>
+      <p class="muted">{{if .Badges}}{{len .Badges}} defined.{{else}}No badges yet.{{end}} Definitions are editable; only badges nobody has earned can be deleted.</p>
+    </div>
+  </div>
+
+  <div class="admin-table-wrap">
+    <table class="admin-table badge-table">
+      <caption class="sr-only">Badges, their rules, award counts and available actions</caption>
+      <thead>
+        <tr>
+          <th scope="col">Badge</th>
+          <th scope="col">Kind</th>
+          <th scope="col">Rule</th>
+          <th scope="col" class="num">Awarded</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Badges}}
+        {{$badge := .}}
+        <tr class="badge-summary-row">
+          <th scope="row">
+            <span class="badge-title">{{.Name}}</span>
+            <span class="badge-slug">{{.Slug}}</span>
+            {{if .Description}}<span class="badge-description">{{.Description}}</span>{{end}}
+          </th>
+          <td><span class="pill">{{container .Kind}}</span></td>
+          <td><span class="admin-code">{{.Rule}}</span></td>
+          <td class="num">{{.Awarded}}</td>
+          <td class="badge-row-actions">
+            {{if .CanDelete}}
+            <form method="post" action="/admin/badges/{{.ID}}/delete" onsubmit="return confirm('Delete this badge? This cannot be undone.');">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <button class="btn btn-small btn-danger" type="submit">Delete</button>
+            </form>
+            {{else}}
+            <button class="btn btn-small" type="button" disabled aria-describedby="badge-lock-{{.ID}}">Delete</button>
+            <span class="badge-lock" id="badge-lock-{{.ID}}">Awarded badges cannot be deleted.</span>
+            {{end}}
+          </td>
+        </tr>
+        <tr class="badge-edit-row">
+          <td colspan="5">
+            <details>
+              <summary>Edit badge details</summary>
+              <form method="post" action="/admin/badges/{{.ID}}/edit" class="badge-edit-form">
+                <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                <div class="field-grid">
+                  <label for="badge-edit-name-{{.ID}}">Name
+                    <input id="badge-edit-name-{{.ID}}" name="name" value="{{.Name}}" required autocomplete="off">
+                  </label>
+                  <label for="badge-edit-slug-{{.ID}}">Slug
+                    <input id="badge-edit-slug-{{.ID}}" name="slug" value="{{.Slug}}" required readonly autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="badge-slug-lock-{{.ID}}">
+                  </label>
+                  <label for="badge-edit-kind-{{.ID}}">Kind
+                    <select id="badge-edit-kind-{{.ID}}" name="kind" required>
+                      {{range $.Kinds}}<option value="{{.}}"{{if eq $badge.Kind .}} selected{{end}}>{{container .}}</option>{{end}}
+                    </select>
+                  </label>
+                  <label for="badge-edit-rule-{{.ID}}">Rule
+                    <select id="badge-edit-rule-{{.ID}}" name="rule" required>
+                      {{range $.Rules}}<option value="{{.Key}}"{{if eq $badge.RuleKey .Key}} selected{{end}}>{{.Label}}</option>{{end}}
+                    </select>
+                  </label>
+                  <label for="badge-edit-need-{{.ID}}">Threshold
+                    <input id="badge-edit-need-{{.ID}}" name="need" type="number" min="1" max="100000" step="1" inputmode="numeric" value="{{.Need}}" required>
+                  </label>
+                </div>
+                <label for="badge-edit-description-{{.ID}}">Description
+                  <textarea id="badge-edit-description-{{.ID}}" name="description" rows="2" maxlength="240">{{.Description}}</textarea>
+                <p class="muted" id="badge-slug-lock-{{.ID}}">The slug is permanent; it keeps existing links and awards stable.</p>
+                </label>
+                <div class="form-actions">
+                  <button class="btn btn-small btn-primary" type="submit">Save changes</button>
+                </div>
+              </form>
+            </details>
+          </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="5" class="muted">No badges yet. Create the first one above.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{end}}

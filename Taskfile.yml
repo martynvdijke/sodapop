@@ -36,9 +36,14 @@ tasks:
       - go run -ldflags "-X main.Version={{.VERSION}}" ./cmd/server
 
   seed:
-    desc: Seed styles, flavours, badges and demo drinks
+    desc: Seed styles and flavours (badges come from migrations; SEED_DEMO=1 adds demo drinks)
     cmds:
       - go run ./cmd/seed
+
+  seed:catalog:
+    desc: Seed the curated starter catalog (SEED_CATALOG=1)
+    cmds:
+      - SEED_CATALOG=1 go run ./cmd/seed
 
   test:
     desc: Run Go tests

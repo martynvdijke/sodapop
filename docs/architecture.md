@@ -28,7 +28,8 @@ Status: draft for review. Product scope: [product.md](product.md). Data model: [
 sodapop/
 ├── cmd/
 │   ├── server/            # main: config, wiring, graceful shutdown
-│   ├── seed/              # styles, sample drinks, demo users (via Ent client)
+│   ├── seed/              # styles, flavours, starter catalog, demo users (via Ent client)
+│   ├── restore/           # offline database restore (stop the server first)
 │   └── fakeoff/           # fake Open Food Facts server for dev/e2e
 ├── ent/                   # generated Ent ORM client, predicates, ent/migrate/schema.go
 │   └── schema/            # canonical Ent entity definitions (user.go, drink.go, aiendpoint.go, …)
@@ -37,6 +38,7 @@ sodapop/
 │   ├── db/                # sql.DB + ent.Client init, pragmas, TraceQueryEx, schema_consistency_test.go
 │   │   └── migrations/    # versioned SQL migrations (0001_auth_indexes … 0009_audit_indexes; registry in db/migrations.go)
 │   ├── auth/              # OIDC (PKCE/JWKS), local signup/login, sessions, CSRF, tokens, verification
+│   ├── backup/            # VACUUM INTO snapshots, integrity check, retention, scheduler lease
 │   ├── adminnotes/        # internal report-scoped admin notes
 │   ├── ai/                # OpenCode ("opencode2") client, endpoint crypto, URL normalization, drink drafting
 │   ├── badges/            # badge catalogue, evaluation, passport support
@@ -83,7 +85,7 @@ Adopted directly from `dnd` (`dnd/docs/adr-data-access.md`, `dnd/db/db.go`, `dnd
    - **Stage 2 — Versioned migration registry (`internal/db/migrations.go`):** runs ordered, transactional migrations recorded in `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)` for:
      - SQLite features Ent cannot express natively: standalone FTS5 virtual tables (`drinks_fts`), SQLite views (`drink_ratings`), and partial indexes (`WHERE is_primary = 1`, `WHERE off_id IS NOT NULL`, `WHERE deleted_at IS NULL`, `WHERE read_at IS NULL`);
      - Forward data migrations, backfills, and safe column/table transitions across releases.
-4. **Permitted raw SQL scope:** entity CRUD goes through `db.Client.<Entity>`. Raw parameterized SQL on `db.DB` is permitted only for FTS5 `MATCH ?` queries, read-heavy projections (`drink_ratings`, Bayesian top lists, keyset feed joins), and `VACUUM INTO` backups, always wrapped in `db.TraceQueryEx` and with prompt `defer rows.Close()`.
+4. **Permitted raw SQL scope:** entity CRUD goes through `db.Client.<Entity>`. Raw parameterized SQL on `db.DB` is permitted only for FTS5 `MATCH ?` queries, read-heavy projections (`drink_ratings`, Bayesian top lists, keyset feed joins), and `VACUUM INTO` snapshots, with request-path queries wrapped in `db.TraceQueryEx` and prompt `defer rows.Close()`.
 5. **Mechanical consistency guard (`internal/db/schema_consistency_test.go`):** CI runs `TestSchemaConsistency` against an initialized `:memory:` DB and fails if any live SQLite table is missing from both `ent/migrate.Tables` and the explicit `rawOnlyTables` allowlist (`drinks_fts*` + `schema_migrations`).
 
 ## 3. HTTP surface
@@ -148,10 +150,26 @@ GET/POST /setup                 first-run admin creation (404 while a live admin
 GET  /auth/oidc/login           start OIDC Authorization Code + PKCE S256
 GET  /auth/oidc/callback        verify state/nonce/PKCE + JWKS ID token
 POST /auth/oidc/logout          clear session + redirect to OIDC end-session
+GET  /admin                     moderation overview (admin or moderator)
 GET  /admin/settings            runtime settings panel (admin only)
-POST /admin/settings/{general,email,email/test,analytics,access,ai}
-GET  /admin/{drinks,venues,users,reports,email,ai}   # role-gated
+POST /admin/settings/{general,email,email/test,analytics,access,ai,observability}
+POST /admin/ai                  save an AI endpoint (admin or moderator)
+POST /admin/ai/{id}/toggle      enable or disable an AI endpoint (admin or moderator)
+POST /admin/ai/{id}/test        probe an AI endpoint (admin or moderator)
+POST /admin/reports/{id}/{resolve,dismiss,remove,notes}   report actions (admin or moderator)
+POST /admin/notes/{id}/delete   delete an internal note (admin or moderator)
 POST /admin/drinks/{id}/status  lifecycle change (active/limited/seasonal/discontinued)
+POST /admin/drinks/{id}/activate  return a drink to active
+GET  /admin/digest              weekly digest status (admin only)
+POST /admin/digest              queue the digest now (admin or moderator)
+GET  /admin/system              instance diagnostics and backup list (admin only)
+POST /admin/backup              create a snapshot now (admin only)
+GET  /admin/badges              badge definitions with award counts (admin only)
+POST /admin/badges              create a badge definition (admin only)
+POST /admin/badges/{id}/edit    edit name/description/kind/rule; slug is immutable (admin only)
+POST /admin/badges/{id}/delete  delete only when unawarded (admin only)
+GET  /admin/venues              venue merge tool (admin only)
+POST /admin/venues/merge        merge source venue into target (admin only)
 GET  /healthz /readyz /metrics
 GET  /api/openapi.json /api/docs
 GET  /api/v1/auth/oidc/status   public OIDC discovery for web + Flutter onboarding
@@ -198,6 +216,8 @@ POST /api/v1/ai/tasting-note    polish rough flavour impressions into tasting no
 POST /api/v1/ai/recommend       personalized soda sommelier recommendations
 /api/v1/...                     JSON mirror of the above + Flutter Android/CLI
 ```
+
+Admin HTML access is split by role. `/admin` accepts admins and moderators and renders the moderation queue; the existing report, note, drink-status and manual digest actions use that same role gate. The operational pages `/admin/settings`, `/admin/system`, `/admin/badges`, `/admin/venues` and `/admin/digest` are full-admin only, as is `POST /admin/backup`; moderators receive 403. The admin nav is rendered on all six admin pages for admins, while the More menu only shows the Admin link for `role=admin`.
 
 Public HTML surfaces are `/` and `/u/{handle}` when the owner opted into a public profile. Catalog browse (`/drinks`, `/brands`, `/styles`, `/drops` and the brand/style detail pages), search, drink pages, notifications, settings and insights all require a signed-in member. Every `/api/v1` route remains Bearer-authenticated and friend-scoped, so crawlable HTML never widens the API boundary.
 
@@ -252,7 +272,7 @@ The API is deliberately **not a public catalog dump**. There is no endpoint that
 
 Hand-rolled `net/smtp` sender (house style), supporting implicit TLS 465, STARTTLS, and plain, with `SMTP_HOST/PORT/USER/PASS`, `SMTP_FROM`, `SMTP_TLS`, 15s timeout. HTML + plain-text templates for: verify address, reset password, friend request (sent only when the recipient's `email_friend_req` setting is on), weekly digest (opt-in), venue/drink report outcome.
 
-Delivery is queued in `email_outbox(id, to, template, payload_json, attempts, next_attempt_at, sent_at, last_error)`. A worker ticks every 30s, exponential backoff 1m→1h, max 8 attempts, then marks failed and surfaces in `/admin/email`. This keeps signup fast and survives SMTP outages. Dev mode writes messages to `data/mail/` instead of sending.
+Delivery is queued in `email_outboxes(id, to_email, template, payload_json, attempts, next_attempt_at, sent_at, last_error)`. A worker ticks every 30s, with exponential backoff 1m→1h and max 8 attempts, then marks the row failed and records `last_error` for operators. This keeps signup fast and survives SMTP outages. Dev mode writes messages to `data/mail/` instead of sending.
 
 ## 6. Catalog and barcodes
 
@@ -393,8 +413,10 @@ Report-scoped internal notes use the same `admin_notes` table with `entity='syst
 - Multi-stage Dockerfile: `node:24-alpine` → `golang:1.27-alpine` (`CGO_ENABLED=0`, `-trimpath -ldflags="-s -w -X sodapop/internal/ai.Version=${VERSION}"`) → `alpine:3.24`, non-root user, `/data` volume, `HEALTHCHECK` on `/healthz`.
 - Compose: bind `127.0.0.1:6291`, `env_file: .env`, named volume, healthcheck, `stop_grace_period: 20s`, optional `observability` profile.
 - Graceful shutdown: signal context → HTTP shutdown 15s → stop workers → flush OTel providers 10s → close DB.
-- Backups: nightly `VACUUM INTO '/data/backups/sodapop-<ts>.db'`, retain 7 daily + 4 weekly; admin-triggered backup endpoint.
-- Jobs: session cleanup (6h), expired tokens (hourly), email outbox (30s), OFF retry queue, backup (nightly), soft-delete purge (daily), badge evaluation after check-ins.
+- Backups: `internal/backup` takes a consistent snapshot with `VACUUM INTO` into `$DATA_DIR/backups` (default `data/backups`), named `sodapop-YYYYMMDD-HHMMSS.db` with a numeric suffix if two land in the same second. Each snapshot is chmod `0600`, opened read-only and required to return `ok` from `PRAGMA integrity_check`, and the newest 14 are retained. The worker runs at startup and then hourly, with a 24-hour gate and a `backup` lease row in `scheduler_state` (10-minute lock TTL); a failed snapshot is logged and never stops the server. `POST /admin/backup` creates and prunes on demand.
+- Restore: intentionally offline. Stop the server, then run `go run ./cmd/restore -from <backup> -db <database> -yes`. The command verifies the snapshot's integrity and required tables, writes an atomic copy over the target, and removes stale `-wal`/`-shm` files. There is no HTTP restore route. Backups are standalone files outside SQLite.
+- Starter catalog: `SEED_CATALOG=1` (Taskfile `task seed:catalog`) idempotently upserts 21 brands and 29 drinks by slug, with no barcodes or images and uncertain nutrition left at schema defaults.
+- Jobs: session cleanup (6h), expired tokens (hourly), email outbox (30s), OFF retry queue, backup (startup + hourly, 24h gate), soft-delete purge (daily), badge evaluation after check-ins.
 - Health: `/healthz` liveness, `/readyz` DB ping + migrations applied + media dir writable.
 
 ## 15. Testing

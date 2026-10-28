@@ -11,6 +11,8 @@
     <p class="lede">These settings override environment defaults. Secrets are never shown again.</p>
   </header>
 
+  {{template "adminnav" "settings"}}
+
   {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
   {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
 

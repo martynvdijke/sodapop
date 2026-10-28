@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"sodapop/internal/ai"
 	"sodapop/internal/api"
 	"sodapop/internal/auth"
+	"sodapop/internal/backup"
 	"sodapop/internal/badges"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
@@ -68,6 +70,8 @@ func run() error {
 		return err
 	}
 	defer database.Close()
+
+	backupSvc := backup.New(database, filepath.Join(cfg.DataDir, "backups"), 14)
 
 	settingsSvc, err := settings.New(database.Client, cfg, string(cfg.SessionKey), log)
 	if err != nil {
@@ -151,6 +155,7 @@ func run() error {
 		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		DB: database, Media: mediaSvc, AI: aiSvc, Integrations: integrationSvc,
+		Backup:  backupSvc,
 		Limiter: limiter, Render: renderer, Setup: setupSvc, Settings: settingsSvc,
 	}
 	apiSrv := &api.Server{
@@ -187,6 +192,7 @@ func run() error {
 	go mailer.Run(ctx)
 	go integrationSvc.RunOutbox(ctx)
 	go integrationSvc.RunDigestScheduler(ctx)
+	go backupSvc.Run(ctx)
 	go func() {
 		t := time.NewTicker(10 * time.Minute)
 		defer t.Stop()

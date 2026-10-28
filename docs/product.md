@@ -33,6 +33,9 @@ Blocks and a blocked-accounts settings page · drink image galleries · persiste
 ### v1.6 (shipped)
 Private bookmarks on any check-in the viewer can see, with a `/saved` page and `GET /api/v1/me/saved` · `@handle` mentions in comments, with mention notifications and deep links to `/checkins/{id}#comments` · comment pagination at 50 per page by default and 100 maximum, using a keyset `before` cursor, so a long thread is never silently truncated at 200 rows · report controls on comments and drink gallery images · comment and mention notifications link straight to the comment thread.
 
+### v1.7 (shipped)
+Automatic SQLite backups with a 14-snapshot retention and an offline restore command · the `/admin/system` operational pane with an on-demand backup action · `/admin/badges` definition management · the `/admin/venues` merge tool · the read-only `/admin/digest` status page · a curated `SEED_CATALOG=1` starter catalog · a shared admin nav with admin-only operational pages.
+
 ### Explicit non-goals
 Native iOS app · real-time chat · ActivityPub federation · paid business accounts · advertising · a video platform, standalone video hosting or an algorithmic video feed (short MP4/WebM check-in clips are supported) · multi-tenant hosting · Postgres.
 
@@ -204,17 +207,25 @@ Personal stats: total check-ins, unique drinks, average rating, toasts received 
 
 ### 5.9 Admin
 
-Role-gated (`moderator`, `admin`):
+Access is role-gated: the moderation overview and report actions accept `moderator` or `admin`; the operational pages marked below require `admin`.
 - **Catalog**: search, edit, verify, merge duplicates (reassigns check-ins, lists, barcodes; keeps a redirect), delete (soft).
 - **Reports**: queue for duplicate/wrong data/spam/abuse, resolve with reason, notify reporter.
-- **Venues**: verify, edit, merge, close.
+- **Venues**: `/admin/venues` searches venues by name, city or known alias, shows the source venue's aliases, and merges a source into a target. Cycle, missing-venue and invalid-id attempts return a clear error instead of a partial merge.
+- **Badges**: `/admin/badges` lists every definition with its award count, creates definitions, edits name, description, kind and rule, and deletes only unawarded badges. The slug is immutable once created.
 - **Users**: search, suspend, unsuspend, grant roles, revoke sessions.
-- **Email**: outbox status, failed messages, retry.
+- **Email**: SMTP settings and a test send from `/admin/settings`; the settings page also covers site name, analytics, registration, password fallback, allowlists and AI enablement.
 - **AI ("opencode2")**: global `ai_enabled` toggle, OpenAI-compatible / OpenCode Zen (`https://opencode.ai/zen/go/v1`) endpoint CRUD (`text`, `vision`, `image`), AES-GCM encrypted API keys masked in UI, tag assignment (`draft`, `tasting_note`, `recommend`, `default`), `temperature`/`max_tokens`, and one-click **Test endpoint** probing upstream connectivity with actual status code and preview.
-- **System**: version, DB size, backup now, job status, OTel status (enabled/endpoint), Umami config check, and the `/admin/settings` runtime panel for site name, SMTP, analytics, registration, password fallback, allowlists and AI enablement.
+- **System**: `/admin/system` shows version, uptime, Go/OS/arch, database path/size/WAL, migration version and name, backup directory/count/last backup, outbox depth, table counts, scheduler leases and the backup list. `POST /admin/backup` creates a snapshot on demand.
+- **Digest**: `/admin/digest` shows the weekly digest's last run, next Monday 09:00 UTC run, lease lock, recipient count and pending email count, alongside the existing CSRF-protected manual trigger.
 - **Reports and notes**: the moderation queue resolves, dismisses or removes a report and can append an internal note. Report notes are admin-only; non-admins receive 404. Note author and timestamp are shown, and a note can be deleted by an admin.
 - **First-run setup**: a fresh instance prints a one-time `setup required:` token (or reads `SETUP_TOKEN`); `/setup` creates the first verified admin atomically and then closes. It reopens only when no live admin remains, which is also the recovery path after an OIDC group demotion.
 - Every mutation writes `catalog_revisions` or an admin audit entry. Runtime setting writes append an `admin_notes` row containing key names only, never secret values.
+
+#### v1.7 admin surfaces and backups
+
+The admin nav links Overview, Settings, Badges, Venues, Digest and System. Moderators keep the `/admin` moderation overview; the Settings, Badges, Venues, Digest and System pages require the `admin` role, and the More menu only shows Admin to admins.
+
+Backups are automatic and file-based: a consistent SQLite snapshot is written to `${DATA_DIR}/backups` (default `data/backups`) at startup and then hourly, with a 24-hour gate and a single-instance lease. Each snapshot is owner-only, integrity-checked read-only, and the newest 14 are retained. Operators can also create one immediately from `/admin/system`. Restoring is intentionally offline — stop the server, then run `go run ./cmd/restore -from <backup> -db <database> -yes`; there is no HTTP restore endpoint.
 
 ### 5.10 Settings
 
@@ -231,7 +242,7 @@ All account controls live on one page at `/settings`:
 ### 5.11 OpenCode ("opencode2") AI assistant
 
 Ported from `dnd` (`internal/ai`), completely optional and hidden whenever `ai_enabled=0` or no enabled endpoint exists:
-1. **Conversational & Vision Drink Drafting**: from the unknown-barcode create screen or `/admin/drinks`, users/moderators can open “Draft with AI”, paste rough tasting notes or label text (or attach a photo when a `vision` endpoint is enabled), and converse with the assistant to fill structured drink fields (`brand`, `name`, `style`, `flavours`, `sweetener`, `acid`, `carbonation`, nutrition per 100 ml, description). The conversation is stored in `ai_draft_sessions` and can be continued, revised or committed; each turn preserves the same `x-opencode-session` header and `User-Agent: sodapop/<version>`.
+1. **Conversational & Vision Drink Drafting**: from the unknown-barcode create screen, users/moderators can open “Draft with AI”, paste rough tasting notes or label text (or attach a photo when a `vision` endpoint is enabled), and converse with the assistant to fill structured drink fields (`brand`, `name`, `style`, `flavours`, `sweetener`, `acid`, `carbonation`, nutrition per 100 ml, description). The conversation is stored in `ai_draft_sessions` and can be continued, revised or committed; each turn preserves the same `x-opencode-session` header and `User-Agent: sodapop/<version>`.
 2. **Tasting Note Polish**: inside the check-in sheet, a “Polish note” chip turns rough bullet points + selected flavour chips into a 1–2 sentence note matching Sodapop's voice (crisp, unpretentious, no exclamation marks, no sugar shaming). The user reviews and edits before submitting.
 3. **Soda Sommelier (“What to try next”)**: on `/drinks` and the user profile, an optional card suggests 3 sodas from the catalog based on the user's top-rated styles, flavours, and sweetener preferences, with a one-sentence explanation for each.
 
@@ -378,10 +389,10 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 **Ops**
 - `/healthz` returns 200 with no collector configured; `OTEL_*` unset means no outbound telemetry.
 - `OTEL_EXPORTER_OTLP_ENDPOINT` points at the collector profile; traces, metrics, and logs arrive with `service.name=sodapop`.
-- Nightly backup produces a restorable file.
+- An automatic backup produces a file that passes a read-only integrity check, and the offline restore command replaces a stopped server's database from it.
 - Umami unset means no script tag and no CSP entry.
 
-## 12. Acceptance criteria (v1.2)
+## 12. Acceptance criteria (v1.2 and v1.7)
 
 - A comment on an invisible check-in returns 404, and a comment thread stops showing rows from a blocked author in either direction.
 - Blocking removes the friendship and both follow directions, hides the profile, feed, comments, toasts and notifications, and `/settings/blocked` can undo only the caller's block.
@@ -390,6 +401,11 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 - `/compare` rejects fewer than 2 or more than 6 drinks, duplicate slugs and unknown/merged drinks without a server error.
 - `GET /api/v1/checkins/{id}/comments`, the venue media list and the drink gallery never return a total or an unbounded collection.
 - The Android app posts a comment, follows/blocks a profile, opens a list/saved venue/insight/taste/passport/mix/venue screen, and replays an offline check-in with its idempotency key.
+- An automatic snapshot is written as an owner-only file, passes a read-only integrity check, and is retained only while it is among the newest 14.
+- `POST /admin/backup` creates a snapshot on demand; a non-admin receives 403, and a moderator can still open `/admin` but not `/admin/system`.
+- `/admin/badges` refuses to delete an awarded badge and preserves the slug when other fields are edited.
+- `/admin/venues` merges a source venue into a target, copies the source's aliases, and records a `venue` catalog revision.
+- `SEED_CATALOG=1` can run repeatedly without creating duplicate brands or drinks.
 
 ## 13. Risks and open questions
 
@@ -402,7 +418,7 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 | SQLite write contention from badge/stats writes | Single writer, WAL, short transactions; stats from views at read time |
 | Self-hosted SMTP deliverability | Clear setup docs, test-email button, outbox visibility, optional relay |
 
-Open: whether to seed a starter catalog (e.g. 500 common sodas) to make first-run useful; whether to default units by locale now that a metric/imperial toggle exists; whether to expose a public read-only API without weakening the friend-scoped `/api/v1` contract.
+Open: whether to default units by locale now that a metric/imperial toggle exists; whether to expose a public read-only API without weakening the friend-scoped `/api/v1` contract.
 
 ## 14. Success signals
 

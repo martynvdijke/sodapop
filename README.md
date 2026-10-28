@@ -19,6 +19,18 @@ Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product s
 - **First-run setup and runtime settings:** a fresh instance prints a one-time `setup required:` token, `/setup` creates the first verified admin, and `/admin/settings` overlays audited runtime values with `default|env|db` source badges.
 - **Expanded API and Android:** OpenAPI `1.2.0` added comments, media, lists, mixes, taste, badges/passport, saved venues, follows/blocks and admin notes. The Android app covers check-in detail and comments, other-user profiles with follow/block, notification actions, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes; video clips still open in the web app.
 
+## v1.7 highlights
+
+Shipped on top of v1.6. The OpenAPI surface is unchanged at `1.3.0`; this release is operational tooling and HTML admin pages, with no new `/api/v1` routes.
+
+- **Automatic backups and an offline restore:** `internal/backup` takes consistent snapshots with `VACUUM INTO`, writes `sodapop-YYYYMMDD-HHMMSS.db` into `${DATA_DIR}/backups` (default `data/backups`) with mode `0600`, verifies each with a read-only integrity check, and keeps the 14 newest. A snapshot runs at startup and then hourly behind a 24-hour gate and a `backup` lease in `scheduler_state`. Restore is deliberately offline: stop the server and run `go run ./cmd/restore -from <backup> -db <database> -yes`. There is no HTTP restore endpoint.
+- **System pane:** `/admin/system` shows version, uptime, Go/OS/arch, database path and size, WAL size, migration version and name, the backup directory, snapshot count and last backup, outbox depth, table counts, scheduler leases and the backup list. `POST /admin/backup` creates a snapshot on demand.
+- **Badge management:** `/admin/badges` lists every definition with its award count, creates badges, edits name/description/kind/rule (the slug is permanent) and deletes a definition only when nobody has earned it.
+- **Venue merge:** `/admin/venues` searches by venue name, city or known alias, shows the source venue's aliases, and merges a source into a target with cycle, missing and invalid-id errors. The merge records a `venue` catalog revision with `merged_from`/`merged_into`.
+- **Digest status:** `/admin/digest` is a read-only view of last run, the next Monday 09:00 UTC run, lease lock, recipient count and pending digest emails, alongside the existing CSRF-protected manual trigger.
+- **Starter catalog:** `SEED_CATALOG=1` (`task seed:catalog`) idempotently adds 21 brands and 29 drinks by slug without barcodes or images; uncertain nutrition stays unset, and plastic containers use `pet`.
+- **Admin navigation and access:** an admin nav now spans `/admin`, `/admin/settings`, `/admin/badges`, `/admin/venues`, `/admin/digest` and `/admin/system`, and the More menu exposes Admin only to `role=admin`. Moderators keep the `/admin` overview; the new pages are admin-only.
+
 ## v1.6 highlights
 
 Shipped on top of v1.5. The OpenAPI surface is now `1.3.0`.
@@ -34,7 +46,7 @@ Shipped on top of v1.5. The OpenAPI surface is now `1.3.0`.
 |---|---|
 | [docs/product.md](docs/product.md) | Positioning, soda taxonomy, user flows for scanning, check-ins, notifications, settings, profiles, insights and drops, barcode & PWA requirements, OIDC, OpenCode AI, integrations, Android app, acceptance criteria |
 | [docs/architecture.md](docs/architecture.md) | Go 1.27 + Ent ORM + SQLite migrations, HTTP surface, indexability rules, Home Assistant webhook auth, Authelia OIDC + local email verification, OFF v3.6, OpenCode ("opencode2") AI, OTel, Umami, Docker/CI |
-| [docs/data-model.md](docs/data-model.md) | Ent ORM schemas (`ent/schema/`), versioned migration registry (`internal/db/migrations`), `schema_consistency_test.go`, and full resulting SQLite DDL + FTS5 + views |
+| [docs/data-model.md](docs/data-model.md) | Ent ORM schemas (`ent/schema/`), versioned migration registry (`internal/db/migrations.go` plus `internal/db/migrations/*.sql`), `schema_consistency_test.go`, and full resulting SQLite DDL + FTS5 + views |
 | [docs/design-direction.md](docs/design-direction.md) | Fresh lime visual system (`#B4E32C` fill, `#16241A` forest ink, `#F2F4E6` cream / `#0C130E` dark), typography, components, scanner overlay, accessibility |
 | [docs/mobile.md](docs/mobile.md) | Flutter Android app (`mobile/`): zero-default server onboarding, Authelia OIDC WebView + `sd_` token exchange, `mobile_scanner` ML Kit, offline check-in outbox, APK CI/release |
 | [docs/roadmap.md](docs/roadmap.md) | Dependency graph and phases `P0`–`P11` with build lists, exit criteria, and definition of done |

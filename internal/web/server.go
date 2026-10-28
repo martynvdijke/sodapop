@@ -9,6 +9,7 @@ import (
 
 	"sodapop/internal/ai"
 	"sodapop/internal/auth"
+	"sodapop/internal/backup"
 	"sodapop/internal/badges"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
@@ -47,6 +48,7 @@ type Server struct {
 	AI           *ai.Service
 	Integrations *integrations.Service
 	DB           *db.DB
+	Backup       *backup.Service
 	Mailer       *email.Mailer
 	Log          *slog.Logger
 	Limiter      *ratelimit.Limiter
@@ -190,6 +192,15 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/notes/{id}/delete", s.requireAdmin(s.adminNoteDelete))
 	mux.HandleFunc("POST /admin/drinks/{id}/activate", s.requireAdmin(s.adminDrinkActivate))
 	mux.HandleFunc("POST /admin/digest", s.requireAdmin(s.adminDigest))
+	mux.HandleFunc("GET /admin/digest", s.requireAdminStrict(s.adminDigestPage))
+	mux.HandleFunc("GET /admin/system", s.requireAdminStrict(s.adminSystemPage))
+	mux.HandleFunc("POST /admin/backup", s.requireAdminStrict(s.adminBackupCreate))
+	mux.HandleFunc("GET /admin/badges", s.requireAdminStrict(s.adminBadgesPage))
+	mux.HandleFunc("POST /admin/badges", s.requireAdminStrict(s.adminBadgeCreate))
+	mux.HandleFunc("POST /admin/badges/{id}/edit", s.requireAdminStrict(s.adminBadgeUpdate))
+	mux.HandleFunc("POST /admin/badges/{id}/delete", s.requireAdminStrict(s.adminBadgeDelete))
+	mux.HandleFunc("GET /admin/venues", s.requireAdminStrict(s.adminVenuesPage))
+	mux.HandleFunc("POST /admin/venues/merge", s.requireAdminStrict(s.adminVenueMerge))
 }
 
 // Middleware attaches the session and applies security headers. It also wraps
