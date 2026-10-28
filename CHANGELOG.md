@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/martynvdijke/sodapop/compare/v1.6.0...v1.7.0) (2026-10-28)
+
+
+### Features
+
+* add backups, admin ops and starter catalog ([820c802](https://github.com/martynvdijke/sodapop/commit/820c802b6ad5198684152bcd0f22770a9b741804))
+
 # [1.6.0](https://github.com/martynvdijke/sodapop/compare/v1.5.2...v1.6.0) (2026-10-27)
 
 
