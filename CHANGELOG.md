@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/martynvdijke/sodapop/compare/v1.7.0...v1.8.0) (2026-10-28)
+
+
+### Features
+
+* complete mobile parity and post interactions ([3f485a2](https://github.com/martynvdijke/sodapop/commit/3f485a2b3833a88de594e3925bb0623aa85e131e))
+
 # [1.7.0](https://github.com/martynvdijke/sodapop/compare/v1.6.0...v1.7.0) (2026-10-28)
 
 
