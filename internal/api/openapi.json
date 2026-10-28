@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Sodapop API",
-    "version": "1.3.0",
-    "summary": "Authenticated, friend-scoped soda check-in API (v1.2 surface).",
+    "version": "1.6.1",
+    "summary": "Authenticated, friend-scoped soda check-in API (v1.6 surface).",
     "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. All data endpoints require a personal `sd_` bearer token; requests are rate limited per token.",
     "license": {
       "name": "MIT",
@@ -600,7 +600,7 @@
           },
           "saved": {
             "type": "boolean",
-            "description": "True in the personal saved list; absent or false elsewhere."
+            "description": "True when the authenticated viewer has bookmarked this check-in."
           }
         },
         "required": [
@@ -614,7 +614,8 @@
           "can_delete",
           "can_toast",
           "can_comment",
-          "created_at"
+          "created_at",
+          "saved"
         ]
       },
       "ProfileStats": {
@@ -1178,11 +1179,44 @@
             "items": {
               "$ref": "#/components/schemas/EarnedBadge"
             }
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PassportTotals"
+          },
+          "styles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PassportStyle"
+            }
+          },
+          "venue_kinds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PassportVenueKind"
+            }
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PassportCountry"
+            }
+          },
+          "recent": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/PassportRecent"
+            }
           }
         },
         "required": [
           "stats",
-          "badges"
+          "badges",
+          "totals",
+          "styles",
+          "venue_kinds",
+          "countries",
+          "recent"
         ]
       },
       "SearchItem": {
@@ -1242,6 +1276,359 @@
           "drinks",
           "brands",
           "styles"
+        ]
+      },
+      "ListCreateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ],
+            "default": "private"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ListUpdateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          }
+        }
+      },
+      "ListItemInput": {
+        "type": "object",
+        "properties": {
+          "drink_id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "description": "Supply either drink_id or slug. Re-adding a drink already in the list returns the existing item."
+      },
+      "PassportTotals": {
+        "type": "object",
+        "properties": {
+          "checkins": {
+            "type": "integer"
+          },
+          "styles": {
+            "type": "integer"
+          },
+          "venue_kinds": {
+            "type": "integer"
+          },
+          "countries": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "checkins",
+          "styles",
+          "venue_kinds",
+          "countries"
+        ]
+      },
+      "PassportStyle": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "last_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "count",
+          "last_at"
+        ]
+      },
+      "PassportVenueKind": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "count"
+        ]
+      },
+      "PassportCountry": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "country",
+          "count"
+        ]
+      },
+      "PassportRecent": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "style",
+          "created_at",
+          "rating"
+        ]
+      },
+      "SettingsProfile": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "moderator",
+              "admin"
+            ]
+          }
+        },
+        "required": [
+          "handle",
+          "display_name",
+          "bio",
+          "email",
+          "email_verified",
+          "role"
+        ]
+      },
+      "SettingsPrefs": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": [
+              "system",
+              "light",
+              "dark"
+            ]
+          },
+          "units": {
+            "type": "string",
+            "enum": [
+              "metric",
+              "imperial"
+            ]
+          },
+          "email_weekly": {
+            "type": "boolean"
+          },
+          "email_friend_req": {
+            "type": "boolean"
+          },
+          "push_enabled": {
+            "type": "boolean"
+          },
+          "public_profile": {
+            "type": "boolean"
+          },
+          "analytics_opt_out": {
+            "type": "boolean"
+          },
+          "caffeine_bedtime": {
+            "type": "string",
+            "description": "Empty or HH:MM in 24-hour time."
+          },
+          "default_visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          }
+        },
+        "required": [
+          "theme",
+          "units",
+          "email_weekly",
+          "email_friend_req",
+          "push_enabled",
+          "public_profile",
+          "analytics_opt_out",
+          "caffeine_bedtime",
+          "default_visibility"
+        ]
+      },
+      "SettingsSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "user_agent": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "Always false for bearer-token requests, which have no browser session cookie."
+          }
+        },
+        "required": [
+          "id",
+          "ip",
+          "user_agent",
+          "created_at",
+          "last_seen_at",
+          "current"
+        ]
+      },
+      "SettingsResponse": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/SettingsProfile"
+          },
+          "prefs": {
+            "$ref": "#/components/schemas/SettingsPrefs"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettingsSession"
+            }
+          },
+          "token_count": {
+            "type": "integer"
+          },
+          "blocked_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile",
+          "prefs",
+          "sessions",
+          "token_count",
+          "blocked_count"
+        ]
+      },
+      "BlockedUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "blocked_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "handle",
+          "display_name",
+          "blocked_at"
         ]
       }
     },
@@ -1485,6 +1872,390 @@
         }
       }
     },
+    "/api/v1/auth/config": {
+      "get": {
+        "summary": "Public authentication and registration capabilities",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "registration_open": {
+                          "type": "boolean"
+                        },
+                        "password_fallback": {
+                          "type": "boolean"
+                        },
+                        "oidc_enabled": {
+                          "type": "boolean"
+                        },
+                        "email_verification_required": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "registration_open",
+                        "password_fallback",
+                        "oidc_enabled",
+                        "email_verification_required"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Register a local account",
+        "description": "Creates an unverified local account and queues a verification email. The first account on a fresh instance is bootstrapped as a verified admin. Rate limited per IP.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "handle",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "handle": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]{3,24}$"
+                  },
+                  "display_name": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created or verification email queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "created",
+                            "verification_sent"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "description": "Password registration disabled, registration closed, or email not allowed"
+          },
+          "409": {
+            "description": "Handle or email already in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify": {
+      "post": {
+        "summary": "Confirm an email address",
+        "description": "Single-use, 24-hour verification token. Invalid, used and expired tokens share one generic error.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "verified": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "verified"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify/resend": {
+      "post": {
+        "summary": "Resend an email verification link",
+        "description": "Always returns 202 regardless of whether the address exists, is verified, or is OIDC-only.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "sent"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "summary": "Request a password reset",
+        "description": "Always returns 202 for unknown or passwordless accounts so the endpoint cannot enumerate users.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "sent"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password/reset/confirm": {
+      "post": {
+        "summary": "Complete a password reset",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "new_password"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "minLength": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed"
+          },
+          "400": {
+            "description": "Invalid or expired token, or weak password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "summary": "Current identity and token scopes",
@@ -1501,6 +2272,299 @@
                 }
               }
             }
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/settings": {
+      "get": {
+        "summary": "Read your profile, preferences, sessions and counts",
+        "responses": {
+          "200": {
+            "description": "Settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SettingsResponse"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "summary": "Update profile and preference fields",
+        "description": "Accepts any subset of the fields. Every supplied value is validated before anything is written. Requires the write scope and a verified email.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "display_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "bio": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "theme": {
+                    "type": "string",
+                    "enum": [
+                      "system",
+                      "light",
+                      "dark"
+                    ]
+                  },
+                  "units": {
+                    "type": "string",
+                    "enum": [
+                      "metric",
+                      "imperial"
+                    ]
+                  },
+                  "email_weekly": {
+                    "type": "boolean"
+                  },
+                  "email_friend_req": {
+                    "type": "boolean"
+                  },
+                  "push_enabled": {
+                    "type": "boolean"
+                  },
+                  "public_profile": {
+                    "type": "boolean"
+                  },
+                  "analytics_opt_out": {
+                    "type": "boolean"
+                  },
+                  "caffeine_bedtime": {
+                    "type": "string",
+                    "description": "Empty or HH:MM between 00:00 and 23:59."
+                  },
+                  "default_visibility": {
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "friends",
+                      "private"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SettingsResponse"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/sessions": {
+      "get": {
+        "summary": "List your browser sessions",
+        "responses": {
+          "200": {
+            "description": "Sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SettingsSession"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "summary": "Revoke every browser session",
+        "description": "Deletes all web sessions for the caller. API tokens are unaffected. Requires the write scope and a verified email.",
+        "responses": {
+          "204": {
+            "description": "Sessions revoked"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/sessions/{id}": {
+      "delete": {
+        "summary": "Revoke one browser session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session revoked"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "Session does not belong to the caller"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/password": {
+      "post": {
+        "summary": "Change your password",
+        "description": "Verifies the current password, stores the new one, and revokes every other browser session. Requires the write scope and a verified email.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "current_password",
+                  "new_password"
+                ],
+                "properties": {
+                  "current_password": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "minLength": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed"
+          },
+          "400": {
+            "description": "Invalid current password, weak new password, or passwordless account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/blocks": {
+      "get": {
+        "summary": "List accounts you blocked",
+        "description": "Unblock with DELETE /api/v1/users/{handle}/block.",
+        "responses": {
+          "200": {
+            "description": "Blocked accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BlockedUser"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         },
         "tags": [
@@ -4257,6 +5321,102 @@
         "tags": [
           "lists"
         ]
+      },
+      "patch": {
+        "summary": "Update a list",
+        "description": "Partial owner-only update. Requires the write scope and a verified email. Built-in lists cannot be renamed or edited (400); missing, invisible and foreign lists return 404.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ListSummary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "Missing, invisible or not owned"
+          }
+        },
+        "tags": [
+          "lists"
+        ]
+      },
+      "delete": {
+        "summary": "Delete a list",
+        "description": "Removes an owned, non-system list and its items in one transaction. Requires the write scope and a verified email. Built-in lists return 400; missing, invisible and foreign lists return 404.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "Missing, invisible or not owned"
+          }
+        },
+        "tags": [
+          "lists"
+        ]
       }
     },
     "/api/v1/mix": {
@@ -4679,6 +5839,248 @@
         },
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/api/v1/lists": {
+      "post": {
+        "summary": "Create a list",
+        "description": "Creates an owner-scoped list. Requires the write scope and a verified email. Missing, invisible and foreign lists are never distinguished from real ones.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ListSummary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        },
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/lists/{id}/items": {
+      "post": {
+        "summary": "Add a drink to a list",
+        "description": "Adds a drink by id or slug to an owned list, including the system wishlist. Re-adding an existing drink returns 200 with the original item; a new item returns 201. Requires the write scope and a verified email.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ListItem"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Item already present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ListItem"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "Missing, invisible or not owned"
+          }
+        },
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/lists/{id}/items/{drink_id}": {
+      "delete": {
+        "summary": "Remove a drink from a list",
+        "description": "Removes one drink from an owned list, including the system wishlist. Removing an absent item still returns 204. Requires the write scope and a verified email.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "drink_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed (or already absent)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "Missing, invisible or not owned"
+          }
+        },
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/compare": {
+      "get": {
+        "summary": "Compare drinks",
+        "description": "Loads 2-6 distinct drinks by slug in the requested order. Accepts `drinks=a,b` or repeated `drinks` parameters. This is not a catalog listing.",
+        "parameters": [
+          {
+            "name": "drinks",
+            "in": "query",
+            "required": true,
+            "description": "Two to six slugs, comma-separated or repeated.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 6
+            },
+            "style": "form",
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compared drinks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Drink"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        },
+        "tags": [
+          "catalog"
         ]
       }
     }

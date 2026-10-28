@@ -24,6 +24,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/saves"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
 	"sodapop/internal/venues"
@@ -63,6 +64,7 @@ func newHarness(t *testing.T) *harness {
 	catalogSvc := catalog.New(cfg, database)
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
+	savesSvc := saves.New(database, checkinSvc)
 	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)
 	mediaSvc := media.New(database, cfg)
@@ -73,7 +75,7 @@ func newHarness(t *testing.T) *harness {
 
 	srv := &Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
-		Comments: commentSvc, Social: socialSvc, Venues: venueSvc,
+		Saves: savesSvc, Comments: commentSvc, Social: socialSvc, Venues: venueSvc,
 		Limiter: limiter, DB: database, Media: mediaSvc,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),

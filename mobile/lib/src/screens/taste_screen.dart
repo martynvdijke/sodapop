@@ -7,6 +7,7 @@ import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
+import 'drink_detail_screen.dart';
 import 'user_profile_screen.dart';
 
 enum _TasteTab { twins, forYou }
@@ -238,32 +239,58 @@ class _TasteScreenState extends ConsumerState<TasteScreen> {
       recommendation.brand,
       recommendation.style,
     ].where((value) => value.isNotEmpty).join(' · ');
+    final canOpen = recommendation.slug.isNotEmpty;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              recommendation.name,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: canOpen
+            ? () => DrinkDetailScreen.open(
+                context,
+                recommendation.slug,
+                name: recommendation.name,
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      recommendation.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (canOpen) ...[
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ],
               ),
-            ),
-            if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              if (subtitle.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
+              ],
+              if (recommendation.reason.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(recommendation.reason, style: theme.textTheme.bodyMedium),
+              ],
             ],
-            if (recommendation.reason.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(recommendation.reason, style: theme.textTheme.bodyMedium),
-            ],
-          ],
+          ),
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -111,6 +112,73 @@ class ApiClient {
     );
   }
 
+  /// Public registration and sign-in capabilities.
+  Future<AuthConfig> authConfig() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/auth/config',
+      options: _options(auth: false),
+    );
+    return AuthConfig.fromJson((_data(response) as Map).cast<String, dynamic>());
+  }
+
+  /// Creates a local account. The server answers `created` or
+  /// `verification_sent` depending on its email policy.
+  Future<RegistrationResult> register({
+    required String email,
+    required String handle,
+    required String displayName,
+    required String password,
+  }) => _guard(() async {
+    final response = await _dio.post<dynamic>(
+      'api/v1/auth/register',
+      data: {
+        'email': email,
+        'handle': handle,
+        'display_name': displayName,
+        'password': password,
+      },
+      options: _options(auth: false),
+    );
+    return RegistrationResult.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<void> verifyEmail(String token) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/auth/verify',
+      data: {'token': token},
+      options: _options(auth: false),
+    );
+  });
+
+  /// Always answers 202, even for an unknown address.
+  Future<void> resendVerification(String email) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/auth/verify/resend',
+      data: {'email': email},
+      options: _options(auth: false),
+    );
+  });
+
+  /// Always answers 202, even for an unknown address.
+  Future<void> requestPasswordReset(String email) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/auth/password/reset',
+      data: {'email': email},
+      options: _options(auth: false),
+    );
+  });
+
+  Future<void> confirmPasswordReset(String token, String newPassword) =>
+      _guard(() async {
+        await _dio.post<dynamic>(
+          'api/v1/auth/password/reset/confirm',
+          data: {'token': token, 'new_password': newPassword},
+          options: _options(auth: false),
+        );
+      });
+
   Future<Me> me({String? tokenOverride}) async {
     final old = _token;
     if (tokenOverride != null) _token = tokenOverride;
@@ -159,7 +227,7 @@ class ApiClient {
     return '${data['token']}';
   }
 
-  Future<List<FeedItem>> feed({int limit = 30}) async {
+  Future<List<FeedItem>> feed({int limit = 30}) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/feed',
       queryParameters: {'limit': limit},
@@ -169,9 +237,9 @@ class ApiClient {
     return (rows as List)
         .map((e) => FeedItem.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
-  }
+  });
 
-  Future<List<Drink>> search(String query, {String? style}) async {
+  Future<List<Drink>> search(String query, {String? style}) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/search',
       queryParameters: {'q': query, 'style': ?style},
@@ -181,9 +249,9 @@ class ApiClient {
     return (rows as List)
         .map((e) => Drink.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
-  }
+  });
 
-  Future<BarcodeResult> barcode(String gtin) async {
+  Future<BarcodeResult> barcode(String gtin) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/barcodes/$gtin',
       options: _options(),
@@ -203,7 +271,173 @@ class ApiClient {
       drink: drink,
       suggestedName: suggestedName,
     );
-  }
+  });
+
+  /// One drink's full detail: nutrition, flavour notes, aliases and rating.
+  Future<Drink> drink(String slug) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/drinks/${Uri.encodeComponent(slug)}',
+      options: _options(),
+    );
+    return Drink.fromJson((_data(response) as Map).cast<String, dynamic>());
+  });
+
+  Future<List<DrinkImage>> drinkImages(String slug) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/drinks/${Uri.encodeComponent(slug)}/images',
+      options: _options(),
+    );
+    return _rows(_data(response))
+        .whereType<Map>()
+        .map((row) => DrinkImage.fromJson(row.cast<String, dynamic>()))
+        .toList();
+  });
+
+  /// Uploads one gallery image. The server caps the file at 25 MiB and accepts
+  /// JPEG, PNG, WebP or GIF bytes.
+  Future<DrinkImage> uploadDrinkImage(
+    String slug, {
+    required File file,
+    String attribution = '',
+  }) => _guard(() async {
+    final form = FormData();
+    final credit = attribution.trim();
+    if (credit.isNotEmpty) form.fields.add(MapEntry('attribution', credit));
+    form.files.add(
+      MapEntry('image', await MultipartFile.fromFile(file.path)),
+    );
+    final response = await _dio.post<dynamic>(
+      'api/v1/drinks/${Uri.encodeComponent(slug)}/images',
+      data: form,
+      options: _options(),
+    );
+    return DrinkImage.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<void> setDrinkImagePrimary(int id) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/drinks/images/$id/primary',
+      options: _options(),
+    );
+  });
+
+  Future<void> deleteDrinkImage(int id) => _guard(() async {
+    await _dio.delete<dynamic>(
+      'api/v1/drinks/images/$id',
+      options: _options(),
+    );
+  });
+
+  /// The signed-in user's own check-ins, newest first.
+  Future<List<CheckinSummary>> myCheckins({
+    int limit = 20,
+    String? before,
+  }) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/checkins',
+      queryParameters: _page(limit, before),
+      options: _options(),
+    );
+    return _checkinRows(response);
+  });
+
+  /// A friend's check-ins. Non-friends return 404 by design.
+  Future<List<CheckinSummary>> userCheckins(
+    String handle, {
+    int limit = 20,
+    String? before,
+  }) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/users/${Uri.encodeComponent(handle)}/checkins',
+      queryParameters: _page(limit, before),
+      options: _options(),
+    );
+    return _checkinRows(response);
+  });
+
+  List<CheckinSummary> _checkinRows(Response<dynamic> response) =>
+      _rows(_data(response))
+          .whereType<Map>()
+          .map((row) => CheckinSummary.fromJson(row.cast<String, dynamic>()))
+          .toList();
+
+  static Map<String, dynamic> _page(int limit, String? before) => {
+    'limit': limit,
+    if (_trimmed(before) != null) 'before': _trimmed(before),
+  };
+
+  Future<FriendsDirectory> friends() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/friends',
+      options: _options(),
+    );
+    return FriendsDirectory.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<void> sendFriendRequest(String handle) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/friends/requests',
+      data: {'handle': handle},
+      options: _options(),
+    );
+  });
+
+  Future<List<FeedItem>> savedCheckins({int limit = 20, String? before}) =>
+      _guard(() async {
+        final response = await _dio.get<dynamic>(
+          'api/v1/me/saved',
+          queryParameters: _page(limit, before),
+          options: _options(),
+        );
+        return _rows(_data(response))
+            .whereType<Map>()
+            .map((row) => FeedItem.fromJson(row.cast<String, dynamic>()))
+            .toList();
+      });
+
+  Future<void> saveCheckin(String id) => _guard(() async {
+    await _dio.post<dynamic>('api/v1/checkins/$id/save', options: _options());
+  });
+
+  Future<void> unsaveCheckin(String id) => _guard(() async {
+    await _dio.delete<dynamic>('api/v1/checkins/$id/save', options: _options());
+  });
+
+  /// Base-relative URL for a video's poster frame.
+  String posterUrl(String mediaId) => '${_server ?? ''}/media/$mediaId/poster';
+
+  /// Uploads a venue photo or menu. `kind` is `photo` or `menu`.
+  Future<VenueMedia> uploadVenueMedia(
+    int venueId, {
+    required File file,
+    String kind = 'photo',
+    String label = '',
+  }) => _guard(() async {
+    final form = FormData();
+    form.fields.add(MapEntry('kind', kind));
+    final caption = label.trim();
+    if (caption.isNotEmpty) form.fields.add(MapEntry('label', caption));
+    form.files.add(
+      MapEntry('image', await MultipartFile.fromFile(file.path)),
+    );
+    final response = await _dio.post<dynamic>(
+      'api/v1/venues/$venueId/media',
+      data: form,
+      options: _options(),
+    );
+    return VenueMedia.fromJson((_data(response) as Map).cast<String, dynamic>());
+  });
+
+  Future<void> deleteVenueMedia(String id) => _guard(() async {
+    await _dio.delete<dynamic>(
+      'api/v1/venues/media/${Uri.encodeComponent(id)}',
+      options: _options(),
+    );
+  });
 
   /// Creates a check-in. A [photo] switches the request to `multipart/form-data`
   /// with the bytes in the `image` field; without one the JSON body is unchanged.
@@ -218,7 +452,7 @@ class ApiClient {
     Uint8List? photo,
     String? photoFilename,
     String? photoMime,
-  }) async {
+  }) => _guard(() async {
     final key = idempotencyKey ?? newIdempotencyKey();
     final ratingValue = rating == null ? null : rating / 4;
     final noteText = note.trim();
@@ -271,7 +505,7 @@ class ApiClient {
       data: form,
       options: _options(idempotencyKey: key),
     );
-  }
+  });
 
   static String? _trimmed(String? value) {
     final text = value?.trim();
@@ -287,12 +521,12 @@ class ApiClient {
     return DioMediaType(text.substring(0, slash), text.substring(slash + 1));
   }
 
-  Future<void> toast(String checkinId) async {
+  Future<void> toast(String checkinId) => _guard(() async {
     await _dio.post<dynamic>(
       'api/v1/checkins/$checkinId/toast',
       options: _options(),
     );
-  }
+  });
 
   Future<void> untoast(String checkinId) => _guard(() async {
     await _dio.delete<dynamic>(
@@ -311,16 +545,31 @@ class ApiClient {
     );
   });
 
-  Future<List<Comment>> listComments(String checkinId) => _guard(() async {
+  /// One page of comments, oldest first. `meta.next_before` is the id of the
+  /// oldest comment on the page, so the caller can page backwards.
+  Future<CommentPage> commentPage(
+    String checkinId, {
+    String? before,
+    int limit = 50,
+  }) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/checkins/$checkinId/comments',
+      queryParameters: _page(limit, before),
       options: _options(),
     );
-    return _rows(_data(response))
-        .whereType<Map>()
-        .map((row) => Comment.fromJson(row.cast<String, dynamic>()))
-        .toList();
+    final body = response.data;
+    if (body is! Map) {
+      throw ApiException(
+        'Unexpected response from the server',
+        statusCode: response.statusCode,
+      );
+    }
+    return CommentPage.fromJson(body.cast<String, dynamic>());
   });
+
+  /// The newest page of comments, without paging metadata.
+  Future<List<Comment>> listComments(String checkinId) async =>
+      (await commentPage(checkinId, limit: 100)).items;
 
   Future<Comment> createComment(String checkinId, String body) => _guard(
     () async {
@@ -380,14 +629,113 @@ class ApiClient {
   });
 
   Future<void> blockUser(String handle) => _guard(() async {
-    await _dio.post<dynamic>('api/v1/users/$handle/block', options: _options());
+    await _dio.post<dynamic>(
+      'api/v1/users/${Uri.encodeComponent(handle)}/block',
+      options: _options(),
+    );
   });
 
   Future<void> unblockUser(String handle) => _guard(() async {
     await _dio.delete<dynamic>(
-      'api/v1/users/$handle/block',
+      'api/v1/users/${Uri.encodeComponent(handle)}/block',
       options: _options(),
     );
+  });
+
+  /// The full settings payload: private profile, preferences, sessions and
+  /// counters.
+  Future<AccountSettings> settings() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/settings',
+      options: _options(),
+    );
+    return AccountSettings.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  /// Partial update: only the keys that are non-null are sent.
+  Future<AccountSettings> updateSettings({
+    String? displayName,
+    String? bio,
+    String? theme,
+    String? units,
+    bool? emailWeekly,
+    bool? emailFriendReq,
+    bool? pushEnabled,
+    bool? publicProfile,
+    bool? analyticsOptOut,
+    String? caffeineBedtime,
+    String? defaultVisibility,
+  }) => _guard(() async {
+    final payload = <String, dynamic>{
+      'display_name': ?displayName,
+      'bio': ?bio,
+      'theme': ?theme,
+      'units': ?units,
+      'email_weekly': ?emailWeekly,
+      'email_friend_req': ?emailFriendReq,
+      'push_enabled': ?pushEnabled,
+      'public_profile': ?publicProfile,
+      'analytics_opt_out': ?analyticsOptOut,
+      'caffeine_bedtime': ?caffeineBedtime,
+      'default_visibility': ?defaultVisibility,
+    };
+    final response = await _dio.patch<dynamic>(
+      'api/v1/me/settings',
+      data: payload,
+      options: _options(),
+    );
+    return AccountSettings.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<List<SettingsSession>> listSessions() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/sessions',
+      options: _options(),
+    );
+    return _rows(_data(response))
+        .whereType<Map>()
+        .map((row) => SettingsSession.fromJson(row.cast<String, dynamic>()))
+        .toList();
+  });
+
+  Future<void> revokeSession(int id) => _guard(() async {
+    await _dio.delete<dynamic>(
+      'api/v1/me/sessions/$id',
+      options: _options(),
+    );
+  });
+
+  Future<void> revokeAllSessions() => _guard(() async {
+    await _dio.delete<dynamic>('api/v1/me/sessions', options: _options());
+  });
+
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/me/password',
+      data: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      },
+      options: _options(),
+    );
+  });
+
+  Future<List<BlockedUser>> blockedUsers() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/blocks',
+      options: _options(),
+    );
+    return _rows(_data(response))
+        .whereType<Map>()
+        .map((row) => BlockedUser.fromJson(row.cast<String, dynamic>()))
+        .toList();
   });
 
   Future<List<NotificationItem>> notifications({int limit = 30}) => _guard(
@@ -438,6 +786,101 @@ class ApiClient {
     return ListDetail.fromJson(
       (_data(response) as Map).cast<String, dynamic>(),
     );
+  });
+
+  Future<ListSummary> createList({
+    required String name,
+    String description = '',
+    String visibility = 'private',
+  }) => _guard(() async {
+    final response = await _dio.post<dynamic>(
+      'api/v1/lists',
+      data: {
+        'name': name,
+        'description': description,
+        'visibility': visibility,
+      },
+      options: _options(),
+    );
+    return ListSummary.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  /// Partial update: only the keys that are non-null are sent.
+  Future<ListSummary> updateList(
+    String id, {
+    String? name,
+    String? description,
+    String? visibility,
+  }) => _guard(() async {
+    final payload = <String, dynamic>{
+      'name': ?name,
+      'description': ?description,
+      'visibility': ?visibility,
+    };
+    final response = await _dio.patch<dynamic>(
+      'api/v1/lists/$id',
+      data: payload,
+      options: _options(),
+    );
+    return ListSummary.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<void> deleteList(String id) => _guard(() async {
+    await _dio.delete<dynamic>('api/v1/lists/$id', options: _options());
+  });
+
+  Future<ListItem> addListItem(
+    String listId, {
+    int drinkId = 0,
+    String slug = '',
+    String note = '',
+  }) => _guard(() async {
+    final noteText = note.trim();
+    final payload = <String, dynamic>{
+      if (drinkId > 0) 'drink_id': drinkId,
+      if (slug.trim().isNotEmpty) 'slug': slug.trim(),
+      if (noteText.isNotEmpty) 'note': noteText,
+    };
+    final response = await _dio.post<dynamic>(
+      'api/v1/lists/$listId/items',
+      data: payload,
+      options: _options(),
+    );
+    return ListItem.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<void> removeListItem(String listId, int drinkId) => _guard(() async {
+    await _dio.delete<dynamic>(
+      'api/v1/lists/$listId/items/$drinkId',
+      options: _options(),
+    );
+  });
+
+  /// Compares 2–6 drinks by slug; the backend accepts repeated `drinks` params.
+  Future<List<Drink>> compare(List<String> slugs) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/compare',
+      queryParameters: {'drinks': slugs},
+      options: _options(),
+    );
+    return _rows(_data(response))
+        .whereType<Map>()
+        .map((row) => Drink.fromJson(row.cast<String, dynamic>()))
+        .toList();
+  });
+
+  Future<MyStats> myStats() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/stats/me',
+      options: _options(),
+    );
+    return MyStats.fromJson((_data(response) as Map).cast<String, dynamic>());
   });
 
   Future<Insights> insights({int days = 30}) => _guard(() async {
@@ -559,7 +1002,7 @@ class ApiClient {
     await _dio.delete<dynamic>('api/v1/venues/$id/save', options: _options());
   });
 
-  Future<List<Venue>> venues(String query) async {
+  Future<List<Venue>> venues(String query) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/venues/search',
       queryParameters: {'q': query},
@@ -569,7 +1012,56 @@ class ApiClient {
     return (rows as List)
         .map((e) => Venue.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
-  }
+  });
+
+  /// Starts a conversational drink draft. The server needs notes, a barcode or
+  /// both, and answers 503 when AI drafting is not configured.
+  Future<AiDraftTurn> aiDraft({String notes = '', String barcode = ''}) =>
+      _guard(() async {
+        final code = _trimmed(barcode);
+        final response = await _dio.post<dynamic>(
+          'api/v1/ai/drafts',
+          data: {'notes': notes.trim(), 'barcode': ?code},
+          options: _options(),
+        );
+        return _turn(response);
+      });
+
+  /// Appends one user message and returns the assistant's next turn.
+  Future<AiDraftTurn> aiDraftMessage(String sessionId, String content) =>
+      _guard(() async {
+        final response = await _dio.post<dynamic>(
+          'api/v1/ai/drafts/${Uri.encodeComponent(sessionId)}/messages',
+          data: {'content': content.trim()},
+          options: _options(),
+        );
+        return _turn(response);
+      });
+
+  /// Asks the assistant to change the current draft fields.
+  Future<AiDraftTurn> aiDraftRevise(String sessionId, String instruction) =>
+      _guard(() async {
+        final response = await _dio.post<dynamic>(
+          'api/v1/ai/drafts/${Uri.encodeComponent(sessionId)}/revise',
+          data: {'instruction': instruction.trim()},
+          options: _options(),
+        );
+        return _turn(response);
+      });
+
+  /// Creates the provisional catalog drink. Idempotent for one session.
+  Future<AiCommit> aiDraftCommit(String sessionId) => _guard(() async {
+    final response = await _dio.post<dynamic>(
+      'api/v1/ai/drafts/${Uri.encodeComponent(sessionId)}/commit',
+      options: _options(),
+    );
+    return AiCommit.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  AiDraftTurn _turn(Response<dynamic> response) =>
+      AiDraftTurn.fromJson((_data(response) as Map).cast<String, dynamic>());
 
   static ApiException describe(Object error) {
     if (error is ApiException) return error;
@@ -593,4 +1085,13 @@ class ApiClient {
     }
     return ApiException('Something went wrong');
   }
+}
+
+/// Browser sessions for the settings screen.
+///
+/// This is an extension rather than an instance method because `ApiClient`
+/// subclasses in tests already declare a `sessions` field, which a method of
+/// the same name would conflict with. `listSessions` is the instance member.
+extension ApiClientSessions on ApiClient {
+  Future<List<SettingsSession>> sessions() => listSessions();
 }

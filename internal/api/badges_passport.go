@@ -52,6 +52,10 @@ func (s *Server) passport(w http.ResponseWriter, r *http.Request, tok *auth.APIT
 	if err != nil {
 		return err
 	}
+	stamps, err := s.Checkins.Passport(r.Context(), tok.User.ID)
+	if err != nil {
+		return err
+	}
 	earned := make([]map[string]any, 0, len(statuses))
 	for _, st := range statuses {
 		if !st.Earned {
@@ -63,8 +67,13 @@ func (s *Server) passport(w http.ResponseWriter, r *http.Request, tok *auth.APIT
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
-		"stats":  stats,
-		"badges": earned,
+		"stats":       stats,
+		"badges":      earned,
+		"totals":      stamps.Totals,
+		"styles":      stamps.Styles,
+		"venue_kinds": stamps.VenueKinds,
+		"countries":   stamps.Countries,
+		"recent":      stamps.Recent,
 	}})
 	return nil
 }

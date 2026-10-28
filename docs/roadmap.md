@@ -2,7 +2,7 @@
 
 Twelve phases, dependency-ordered. Estimates assume one experienced Go developer working alone, part-time at ~30 h/week. Each phase ends with a demoable slice, tests, and a green CI run — not a branch full of scaffolding.
 
-Status: P0–P11 shipped for v1.0. v1.1–v1.7 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work, the v1.5 Google Play release, the v1.6 post-interactions slice and the v1.7 operations slice. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
+Status: P0–P11 shipped for v1.0. v1.1–v1.8 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work, the v1.5 Google Play release, the v1.6 post-interactions slice, the v1.7 operations slice and the v1.8 mobile-parity slice. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
 
 | Shipped surface | Phase |
 |---|---|
@@ -22,10 +22,11 @@ Status: P0–P11 shipped for v1.0. v1.1–v1.7 have shipped on top of that basel
 | Flutter insights, taste, passport/badges, mixes and venue search/detail; photo upload and offline photo parity | v1.2 |
 | Post interactions: saved check-ins and `/saved`, `@mentions` with notifications, comment pagination, comment/gallery report controls | v1.6 |
 | Operations: automatic `VACUUM INTO` backups with retention and offline restore, `/admin/system`, badge management, venue merge, digest status, starter catalog seed | v1.7 |
+| Mobile parity: drink detail/gallery/video, compare, friends directory, rich check-ins, venue media, list CRUD, passport stamps, AI drafting, settings, registration/reset, app-wide theme, offline reads, saved posts and comment replies/pagination | v1.8 |
 
-## Shipped in v1.4–v1.7
+## Shipped in v1.4–v1.8
 
-Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`delivery_outbox` plus migration `0008_delivery_outbox.sql`), digest scheduler catch-up with a single-instance lease, the OTel follow-up metrics and DB spans, unified search that still caps at 10 results with no totals, and the `registration_open` admin toggle all landed. The v1.6 post-interactions slice shipped saved check-ins (`/saved`, `/api/v1/me/saved`), `@handle` mentions with mention notifications and deep links, keyset comment pagination (50 default, 100 maximum, no total), and report controls for comments and drink gallery images. The v1.7 operations slice shipped automatic backups (startup + hourly, 24-hour gate, 14-snapshot retention, integrity checks, `backup` lease), the offline `cmd/restore` command, `/admin/system` with an on-demand backup action, `/admin/badges`, `/admin/venues` merge, `/admin/digest` status, the shared admin nav, and `SEED_CATALOG=1` with 21 brands and 29 drinks.
+Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`delivery_outbox` plus migration `0008_delivery_outbox.sql`), digest scheduler catch-up with a single-instance lease, the OTel follow-up metrics and DB spans, unified search that still caps at 10 results with no totals, and the `registration_open` admin toggle all landed. The v1.6 post-interactions slice shipped saved check-ins (`/saved`, `/api/v1/me/saved`), `@handle` mentions with mention notifications and deep links, keyset comment pagination (50 default, 100 maximum, no total), and report controls for comments and drink gallery images. The v1.7 operations slice shipped automatic backups (startup + hourly, 24-hour gate, 14-snapshot retention, integrity checks, `backup` lease), the offline `cmd/restore` command, `/admin/system` with an on-demand backup action, `/admin/badges`, `/admin/venues` merge, `/admin/digest` status, the shared admin nav, and `SEED_CATALOG=1` with 21 brands and 29 drinks. The v1.8 mobile slice closed the Android member-parity gap: drink detail with galleries and native video, compare, friends directory and requests, rich check-ins, venue photo/menu upload, list CRUD, passport stamps, AI drafting, saved posts, comment replies/mentions/pagination, settings with app-wide theme, native registration/verification/password reset, offline feed and drink reads, and connectivity-triggered outbox flush. It added the APIs those screens needed (list writes, compare, passport stamps, account settings/sessions/password/blocks, public auth config/registration/verification/reset, viewer saved flag) and brought OpenAPI to `1.6.1`.
 
 ## Next
 

@@ -370,13 +370,13 @@ Ported directly from `dnd` (`dnd/ai/client.go`, `dnd/ent/schema/aiendpoint.go`, 
 
 Matches `board-games/mobile` and `dnd/mobile` (documented in [mobile.md](mobile.md)):
 
-- **Stack:** Flutter (Dart `^3.9.0`, Material 3), `flutter_riverpod`, `go_router`, `dio`, `flutter_secure_storage`, `shared_preferences`, `webview_flutter`, `mobile_scanner` (native Android CameraX + ML Kit barcode decoding with hardware torch/zoom), `image_picker`.
+- **Stack:** Flutter (Dart `^3.9.0`, Material 3), `flutter_riverpod`, `dio`, `flutter_secure_storage`, `shared_preferences`, `webview_flutter`, `mobile_scanner` (native Android CameraX + ML Kit barcode decoding with hardware torch/zoom), `image_picker`, `video_player`, `connectivity_plus`.
 - **Zero hardcoded server URL:** the onboarding screen starts with an empty server URL field, validates `http(s)` origin format, persists the normalized URL in `flutter_secure_storage`, and blocks API traffic until configured.
 - **Authentication:**
-  - Probes `GET /api/v1/auth/oidc/status` for the entered server URL.
+  - Probes `GET /api/v1/auth/config` and `GET /api/v1/auth/oidc/status` for the entered server URL.
   - When OIDC is enabled, displays **"Sign in with Authelia"** as the primary button, opens `/auth/oidc/login` in an in-app WebView after clearing stale cookies, captures the `sd_session` cookie via the native Android cookie channel (`xyz.vandijke.sodapop/cookies`), and exchanges it for a long-lived device `sd_` Bearer token (`POST /api/v1/auth/mobile-token`).
-  - Also supports pasting a personal API token (`sd_…`) or using email/password when `ALLOW_PASSWORD_FALLBACK=true`.
-- **Parity & offline:** native bottom nav (`Friends`, `Discover`, lifted lime `Scan` button, `You`), instant ML Kit GTIN-14 barcode scan → check-in sheet, AI tasting-note polish, one-photo check-in upload, and a `shared_preferences` check-in outbox with idempotency keys (photos up to 2 MiB, dropped with a message above that). The v1.2 screens cover check-in detail/comments, user profiles with follow/block, notifications, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes. The client exposes an authenticated media helper (`ApiClient.mediaUrl` → `/api/v1/media/{id}`); video clips link to the web app. Every API call carries a W3C `traceparent`.
+  - Also supports pasting a personal API token (`sd_…`), native registration with email verification and resend, native password-reset request, and email/password sign-in when `ALLOW_PASSWORD_FALLBACK=true`.
+- **Parity & offline:** native bottom nav (`Friends`, `Discover`, lifted lime `Scan` button, `You`), instant ML Kit GTIN-14 barcode scan → check-in sheet, AI tasting-note polish and AI draft sessions, photo or short-video check-in (video is online-only), and a `shared_preferences` check-in outbox with idempotency keys (photos up to 2 MiB, dropped with a message above that). Rich check-ins carry serving, venue, visibility and a 1,000-character note. The member surface includes drink detail with nutrition/gallery/native video, compare, friends and requests, comments with mentions and pagination, saved posts, lists with CRUD, passport stamps, badges, taste, insights, mixes, venues with photo/menu upload, account settings, app-wide theme, session revoke and blocked people. Offline reads cache the last feed and 30 drinks; the outbox flushes on reconnect or resume. Every API call carries a W3C `traceparent`.
 - **Branding:** vector adaptive launcher icon (`#B4E32C` lime fill + `#16241A` forest mark), Android 13+ monochrome themed icon, API 31+ splash screen.
 
 ## 13. Configuration
@@ -425,7 +425,7 @@ Report-scoped internal notes use the same `admin_notes` table with `entity='syst
 - AI & OIDC: unit + `httptest` suites verifying `NormalizeAIBaseURL`, `SetAIProviderHeaders` (`User-Agent: sodapop/<version>`, `x-opencode-session` continuity), AES-GCM key encryption, truncated response handling, and OIDC PKCE/JWKS callback verification.
 - Barcode: fixture GTINs (EAN-13, UPC-A, EAN-8), decoder output parsing, OFF payload fixtures, dedupe/merge cases.
 - Frontend: Vitest for scanning state machine and offline queue; Playwright (serial workers) for signup→verify→scan→check-in; axe pass on all top-level pages.
-- Mobile: `flutter analyze` and `flutter test` widget/unit suites covering URL validation, OIDC status probe, GTIN-14 check digit, check-in queue serialization, comments, profiles, notifications, lists, insights, taste, passport/badges, mixes and venues.
+- Mobile: `flutter analyze` and `flutter test` widget/unit suites covering URL validation, auth screens, OIDC status probe, GTIN-14 check digit, check-in queue serialization, read cache, theme preference, comments/mentions/pagination, profiles, friends, notifications, lists CRUD, compare, drink detail/galleries/video, insights, taste, passport stamps/badges, mixes, venues/media, settings and AI drafting.
 - v1.2 contract tests: `internal/api/contract_test.go` asserts every registered `/api/v1` route appears in `openapi.json` and no documented data route is unregistered; `e2e/api-parity.spec.ts` covers the friend-scoped/no-totals/404 rules.
 - Integration: `cmd/fakeoff` and a mail sink (files) so no network is required in CI.
 - Coverage floors: Go ≥45% overall, handlers/middleware ≥60%; TS ≥50%.

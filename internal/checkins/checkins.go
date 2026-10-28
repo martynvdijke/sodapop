@@ -163,6 +163,7 @@ type Item struct {
 	VenueName  string `json:"venue_name,omitempty"`
 	Visibility string `json:"visibility"`
 	CreatedAt  string `json:"created_at"`
+	PhotoID    string `json:"photo_id,omitempty"`
 	PhotoURL   string `json:"photo_url,omitempty"`
 }
 
@@ -178,7 +179,7 @@ func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, li
 	q := `
 		SELECT c.id, c.user_id, c.drink_id, d.name, d.slug, COALESCE(b.name,''),
 		       c.rating, c.serving, c.note, c.venue_id, COALESCE(v.name,''),
-		       c.visibility, c.created_at, COALESCE(m.path,'')
+		       c.visibility, c.created_at, COALESCE(m.id,''), COALESCE(m.mime,'')
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
 		LEFT JOIN brands b ON b.id = d.brand_id
@@ -204,10 +205,16 @@ func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, li
 	for rows.Next() {
 		var it Item
 		var rating, venueID sql.NullInt64
-		var note string
+		var note, photoMime string
 		if err := rows.Scan(&it.ID, &it.UserID, &it.DrinkID, &it.DrinkName, &it.DrinkSlug, &it.Brand,
-			&rating, &it.Serving, &note, &venueID, &it.VenueName, &it.Visibility, &it.CreatedAt, &it.PhotoURL); err != nil {
+			&rating, &it.Serving, &note, &venueID, &it.VenueName, &it.Visibility, &it.CreatedAt, &it.PhotoID, &photoMime); err != nil {
 			return nil, err
+		}
+		// The API media route is the only authenticated way to fetch a photo.
+		// Returning a relative path lets clients prepend their own base URL
+		// instead of leaking a server filesystem path.
+		if it.PhotoID != "" {
+			it.PhotoURL = "/api/v1/media/" + it.PhotoID + "/thumb"
 		}
 		if rating.Valid {
 			v := int(rating.Int64)

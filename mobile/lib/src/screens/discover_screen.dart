@@ -5,11 +5,19 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
+import 'ai_draft_screen.dart';
 import 'checkin_sheet.dart';
+import 'compare_screen.dart';
+import 'drink_detail_screen.dart';
 import 'venues_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
-  const DiscoverScreen({super.key});
+  const DiscoverScreen({super.key, this.compareOpener, this.draftOpener});
+
+  /// Optional test overrides for the two drafting entry points. Production
+  /// opens [CompareScreen] and [AiDraftScreen].
+  final VoidCallback? compareOpener;
+  final VoidCallback? draftOpener;
 
   @override
   ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
@@ -55,6 +63,98 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     }
   }
 
+  /// A quiet shortcut under the search field: drafting starts from notes, so
+  /// it never competes with the search action for attention.
+  Widget _draftEntry(ThemeData theme) {
+    final accent = theme.colorScheme.primary;
+    final radius = BorderRadius.circular(14);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: MergeSemantics(
+        child: Semantics(
+          button: true,
+          child: Material(
+            color: accent.withValues(alpha: 0.1),
+            borderRadius: radius,
+            child: InkWell(
+              key: const Key('discover-draft'),
+              borderRadius: radius,
+              onTap: _openDraft,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  border: Border.all(color: accent.withValues(alpha: 0.32)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 16,
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Draft a soda with AI',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Turn a few notes into a provisional soda.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openCompare() {
+    final opener = widget.compareOpener;
+    if (opener != null) {
+      opener();
+      return;
+    }
+    CompareScreen.open(context);
+  }
+
+  void _openDraft() {
+    final opener = widget.draftOpener;
+    if (opener != null) {
+      opener();
+      return;
+    }
+    AiDraftScreen.open(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -62,6 +162,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       appBar: AppBar(
         title: const Text('Discover'),
         actions: [
+          IconButton(
+            key: const Key('discover-compare'),
+            onPressed: _openCompare,
+            tooltip: 'Compare sodas',
+            icon: const Icon(Icons.compare_arrows_rounded),
+          ),
           IconButton(
             onPressed: () => VenuesScreen.open(context),
             tooltip: 'Venues',
@@ -93,6 +199,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               ],
             ),
           ),
+          _draftEntry(theme),
           if (_error != null)
             Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
           if (_searching) const LinearProgressIndicator(color: Soda.lime),
@@ -119,6 +226,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                             horizontal: 16,
                             vertical: 8,
                           ),
+                          onTap: drink.slug.isEmpty
+                              ? null
+                              : () => DrinkDetailScreen.open(
+                                  context,
+                                  drink.slug,
+                                  name: drink.name,
+                                ),
                           title: Text(
                             drink.name,
                             style: const TextStyle(fontWeight: FontWeight.w700),

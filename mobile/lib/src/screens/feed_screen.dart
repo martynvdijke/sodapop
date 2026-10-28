@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../offline/checkin_outbox.dart';
+import '../offline/read_cache.dart';
 import '../theme/soda_theme.dart';
 import '../utils/url.dart';
 import '../widgets/soda_ui.dart';
@@ -20,10 +22,17 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
+  /// Cache bucket for the friends feed. A following tab would use `following`.
+  static const _scope = 'friends';
+
   List<FeedItem> _items = const [];
   bool _loading = true;
+  bool _offline = false;
   String? _error;
   String? _notice;
+
+  /// Check-ins with a save request in flight, so one row cannot fire twice.
+  final Set<String> _saving = <String>{};
 
   @override
   void initState() {
@@ -42,10 +51,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       final sent = await CheckinOutbox().flush(ref.read(apiProvider));
       final items = await ref.read(apiProvider).feed();
       if (!mounted) return;
+      unawaited(ReadCache().saveFeed(_scope, items));
       setState(() {
         _items = items;
         _loading = false;
         _error = null;
+        _offline = false;
         if (sent > 0) {
           _notice = '$sent offline check-in${sent == 1 ? '' : 's'} uploaded';
         }
@@ -53,6 +64,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     } catch (error) {
       if (!mounted) return;
       final message = ApiClient.describe(error).message;
+      if (isOfflineError(error)) {
+        final cached = await ReadCache().loadFeed(_scope);
+        if (!mounted) return;
+        if (cached != null && cached.isNotEmpty) {
+          setState(() {
+            _items = cached;
+            _loading = false;
+            _error = null;
+            _offline = true;
+          });
+          return;
+        }
+      }
       if (quiet && _items.isNotEmpty) {
         ScaffoldMessenger.of(
           context,
@@ -86,18 +110,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         _items = _items
             .map(
               (row) => row.id == item.id
-                  ? FeedItem(
-                      id: row.id,
-                      handle: row.handle,
-                      displayName: row.displayName,
-                      drinkName: row.drinkName,
-                      drinkSlug: row.drinkSlug,
-                      rating: row.rating,
-                      note: row.note,
-                      venueName: row.venueName,
-                      toasts: row.toasts + 1,
-                      toasted: true,
-                    )
+                  ? row.copyWith(toasts: row.toasts + 1, toasted: true)
                   : row,
             )
             .toList();
@@ -108,6 +121,42 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         SnackBar(content: Text(ApiClient.describe(error).message)),
       );
     }
+  }
+
+  /// Flips the bookmark straight away, then reverts if the write fails.
+  Future<void> _toggleSave(FeedItem item) async {
+    if (_saving.contains(item.id)) return;
+    final next = !item.saved;
+    setState(() {
+      _saving.add(item.id);
+      _applySaved(item.id, next);
+    });
+    try {
+      final api = ref.read(apiProvider);
+      if (next) {
+        await api.saveCheckin(item.id);
+      } else {
+        await api.unsaveCheckin(item.id);
+      }
+      if (!mounted) return;
+      setState(() => _saving.remove(item.id));
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving.remove(item.id);
+        _applySaved(item.id, !next);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiClient.describe(error).message)),
+      );
+    }
+  }
+
+  /// Replaces one row in place so the list keeps its order.
+  void _applySaved(String id, bool saved) {
+    _items = _items
+        .map((row) => row.id == id ? row.copyWith(saved: saved) : row)
+        .toList();
   }
 
   @override
@@ -167,12 +216,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         ],
       );
     }
+    final notice = _notice;
+    final headers = (_offline ? 1 : 0) + (notice == null ? 0 : 1);
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: _items.length + (_notice == null ? 0 : 1),
+      itemCount: _items.length + headers,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (_notice != null && index == 0) {
+        var offset = index;
+        if (_offline && offset == 0) {
+          return const _OfflineBanner(
+            message:
+                'Showing saved feed. Pull to refresh when you are online.',
+          );
+        }
+        if (_offline) offset -= 1;
+        if (notice != null && offset == 0) {
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -181,12 +240,15 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               ).colorScheme.primary.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(_notice!),
+            child: Text(notice),
           );
         }
-        final item = _items[_notice == null ? index : index - 1];
+        if (notice != null) offset -= 1;
+        final item = _items[offset];
         return _FeedCard(
           item: item,
+          saving: _saving.contains(item.id),
+          onSave: () => _toggleSave(item),
           onToast: () => _toast(item),
           onOpen: () => _openDetail(item),
           onOpenAuthor: () => _openAuthor(item),
@@ -196,15 +258,56 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 }
 
+/// Shared look for the "showing saved data" banner.
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.cloud_off_rounded,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FeedCard extends StatelessWidget {
   const _FeedCard({
     required this.item,
+    required this.saving,
+    required this.onSave,
     required this.onToast,
     required this.onOpen,
     required this.onOpenAuthor,
   });
 
   final FeedItem item;
+  final bool saving;
+  final VoidCallback onSave;
   final VoidCallback onToast;
   final VoidCallback onOpen;
   final VoidCallback onOpenAuthor;
@@ -263,6 +366,22 @@ class _FeedCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  Semantics(
+                    container: true,
+                    toggled: item.saved,
+                    child: IconButton(
+                      onPressed: saving ? null : onSave,
+                      tooltip: item.saved ? 'Saved' : 'Save',
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(
+                        item.saved
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_border_rounded,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
                   Text(
                     ratingLabel((item.rating ?? 0).round()),
                     style: theme.textTheme.titleMedium?.copyWith(

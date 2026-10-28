@@ -36,6 +36,9 @@ Private bookmarks on any check-in the viewer can see, with a `/saved` page and `
 ### v1.7 (shipped)
 Automatic SQLite backups with a 14-snapshot retention and an offline restore command · the `/admin/system` operational pane with an on-demand backup action · `/admin/badges` definition management · the `/admin/venues` merge tool · the read-only `/admin/digest` status page · a curated `SEED_CATALOG=1` starter catalog · a shared admin nav with admin-only operational pages.
 
+### v1.8 (shipped)
+Flutter parity for the member surface: drink detail with galleries and native video, compare, friends directory and requests, rich check-ins (serving, venue, visibility, 1,000-character note, camera/gallery photo or short video), venue media upload, list CRUD, passport stamps, AI drafting, saved posts, comment replies/mentions/pagination, settings, native registration and password reset, app-wide saved theme, and offline feed/drink reads with connectivity-triggered outbox flush · API `1.6.1` adds list writes, compare, passport stamps, account settings/sessions/password/blocks, public auth config/registration/verification/reset, and a viewer-specific saved flag on check-in detail. Account export/closure, admin tools, Web Push registration and a public read-only API remain web-only or deferred.
+
 ### Explicit non-goals
 Native iOS app · real-time chat · ActivityPub federation · paid business accounts · advertising · a video platform, standalone video hosting or an algorithmic video feed (short MP4/WebM check-in clips are supported) · multi-tenant hosting · Postgres.
 
@@ -392,7 +395,7 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 - An automatic backup produces a file that passes a read-only integrity check, and the offline restore command replaces a stopped server's database from it.
 - Umami unset means no script tag and no CSP entry.
 
-## 12. Acceptance criteria (v1.2 and v1.7)
+## 12. Acceptance criteria (v1.2, v1.7 and v1.8)
 
 - A comment on an invisible check-in returns 404, and a comment thread stops showing rows from a blocked author in either direction.
 - Blocking removes the friendship and both follow directions, hides the profile, feed, comments, toasts and notifications, and `/settings/blocked` can undo only the caller's block.
@@ -406,6 +409,10 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 - `/admin/badges` refuses to delete an awarded badge and preserves the slug when other fields are edited.
 - `/admin/venues` merges a source venue into a target, copies the source's aliases, and records a `venue` catalog revision.
 - `SEED_CATALOG=1` can run repeatedly without creating duplicate brands or drinks.
+- The Android app renders drink detail with nutrition and gallery, plays a check-in video natively, compares two drinks, creates/edits/deletes a list and adds/removes a soda, uploads a venue photo, maps a registration + verification + sign-in flow, and applies a saved dark theme after sign-in.
+- A mobile check-in carries serving, venue, visibility and up to 1,000 characters into both the live request and the offline queue; a video check-in is never queued and says so.
+- Offline, the app shows the cached feed or a cached drink with a refresh banner; when connectivity returns it flushes the outbox exactly once per idempotency key.
+- A comment reply prefills `@handle `, a mention in a comment opens the profile, and a thread longer than 50 comments loads earlier pages without duplicates.
 
 ## 13. Risks and open questions
 

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_controller.dart';
 import '../auth/oidc_webview_screen.dart';
 import '../theme/soda_theme.dart';
+import 'password_reset_screen.dart';
+import 'register_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -50,10 +52,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref.read(authProvider.notifier).completeOidc(result['cookie']!, result['csrf']!);
   }
 
+  Future<void> _openRegister() async {
+    final created = await RegisterScreen.open(context);
+    if (!mounted || created != true) return;
+    setState(() => _showPassword = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Account created. Sign in with your email and password.'),
+      ),
+    );
+  }
+
+  Future<void> _openReset() => PasswordResetScreen.open(context);
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final theme = Theme.of(context);
+    final link = TextButton.styleFrom(
+      foregroundColor: theme.colorScheme.onSurface,
+      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+    );
     return Scaffold(
       body: SafeArea(
         child: ListView(
@@ -115,6 +136,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 OutlinedButton(
                   onPressed: () => setState(() => _showPassword = !_showPassword),
                   child: const Text('Use email and password'),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'New here?',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: auth.busy ? null : _openRegister,
+                      style: link,
+                      child: const Text('Create an account'),
+                    ),
+                    TextButton(
+                      onPressed: auth.busy ? null : _openReset,
+                      style: link,
+                      child: const Text('Forgot password?'),
+                    ),
+                  ],
                 ),
                 if (_showPassword) ...[
                   const SizedBox(height: 12),

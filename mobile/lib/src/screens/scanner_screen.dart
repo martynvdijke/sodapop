@@ -7,10 +7,15 @@ import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
 import '../utils/gtin.dart';
+import 'ai_draft_screen.dart';
 import 'checkin_sheet.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
-  const ScannerScreen({super.key});
+  const ScannerScreen({super.key, this.draftOpener});
+
+  /// Optional test override for the unknown-barcode draft action. Production
+  /// opens [AiDraftScreen] with the scanned code.
+  final ValueChanged<String>? draftOpener;
 
   @override
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
@@ -23,6 +28,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   );
   final _manual = TextEditingController();
   BarcodeResult? _result;
+  String? _gtin;
   String? _error;
   bool _looking = false;
 
@@ -50,6 +56,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       _looking = true;
       _error = null;
       _result = null;
+      _gtin = null;
     });
     await _controller.stop();
     try {
@@ -57,6 +64,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       if (!mounted) return;
       setState(() {
         _result = result;
+        _gtin = gtin;
         _looking = false;
       });
     } catch (error) {
@@ -71,9 +79,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   void _reset() {
     setState(() {
       _result = null;
+      _gtin = null;
       _error = null;
     });
     _controller.start();
+  }
+
+  void _draftFromBarcode(String gtin) {
+    final opener = widget.draftOpener;
+    if (opener != null) {
+      opener(gtin);
+      return;
+    }
+    AiDraftScreen.open(context, barcode: gtin);
   }
 
   @override
@@ -130,7 +148,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     child: TextButton(onPressed: _reset, child: const Text('Try again')),
                   ),
                 ],
-                if (_result != null) _ResultCard(result: _result!, onReset: _reset),
+                if (_result != null)
+                  _ResultCard(
+                    result: _result!,
+                    gtin: _gtin ?? '',
+                    onDraft: () => _draftFromBarcode(_gtin ?? ''),
+                    onReset: _reset,
+                  ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -169,9 +193,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 }
 
 class _ResultCard extends StatelessWidget {
-  const _ResultCard({required this.result, required this.onReset});
+  const _ResultCard({
+    required this.result,
+    required this.gtin,
+    required this.onDraft,
+    required this.onReset,
+  });
 
   final BarcodeResult result;
+
+  /// The normalized GTIN that was looked up, shown as context for the draft.
+  final String gtin;
+  final VoidCallback onDraft;
   final VoidCallback onReset;
 
   @override
@@ -208,6 +241,17 @@ class _ResultCard extends StatelessWidget {
         ),
       );
     }
+    final code = gtin.trim();
+    final suggested = result.suggestedName.trim();
+    final copy = suggested.isNotEmpty
+        ? 'Open Food Facts suggests “$suggested”. Draft it with AI to shape a '
+              'provisional soda, then check the details.'
+        : code.isNotEmpty
+        ? 'Barcode $code is not in the local catalog yet. Draft it with AI to '
+              'shape a provisional soda from the code.'
+        : 'This barcode is not in the local catalog yet. Draft it with AI to '
+              'shape a provisional soda from what you know.';
+
     return Card(
       color: Soda.nightRaised,
       child: Padding(
@@ -216,15 +260,30 @@ class _ResultCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('New to Sodapop', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text(
-              result.suggestedName.isNotEmpty
-                  ? 'Open Food Facts suggests “${result.suggestedName}”. Add it from the web catalog to keep quality high.'
-                  : 'This barcode is not in the local catalog yet. Add it from the web app to keep the catalog tidy.',
-              style: const TextStyle(color: Soda.nightMuted),
+            if (code.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                code,
+                style: const TextStyle(color: Soda.nightMuted, fontSize: 12, letterSpacing: 0.4),
+              ),
+            ],
+            const SizedBox(height: 6),
+            Text(copy, style: const TextStyle(color: Soda.nightMuted)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const Key('scanner-draft-ai'),
+                    onPressed: onDraft,
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                    label: const Text('Draft it with AI'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(onPressed: onReset, child: const Text('Scan again')),
+              ],
             ),
-            const SizedBox(height: 8),
-            TextButton(onPressed: onReset, child: const Text('Scan again')),
           ],
         ),
       ),

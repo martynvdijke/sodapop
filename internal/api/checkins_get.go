@@ -18,7 +18,13 @@ func (s *Server) getCheckin(w http.ResponseWriter, r *http.Request, tok *auth.AP
 		return err
 	}
 
+	saved, err := s.Saves.IsSaved(r.Context(), tok.User.ID, detail.ID)
+	if err != nil {
+		return err
+	}
+
 	data := checkinDTO(detail, tok)
+	data["saved"] = saved
 	writeJSON(w, http.StatusOK, map[string]any{"data": data})
 	return nil
 }

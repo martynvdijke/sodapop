@@ -1,18 +1,19 @@
 # Sodapop — Flutter Android App (`mobile/`)
 
-The `mobile/` directory contains the native Flutter Android companion app for Sodapop, modeled directly on `board-games/mobile` and `dnd/mobile`. It talks exclusively to a self-hosted Sodapop server over `/api/v1` and `/auth/oidc/*`.
+The `mobile/` directory contains the native Flutter Android companion app for Sodapop. It talks exclusively to a self-hosted Sodapop server over `/api/v1` and `/auth/oidc/*`, and covers the same member surface as the web app apart from admin tools and public marketing pages.
 
 ## 1. Architecture & Stack
 
 - **SDK:** Dart `^3.9.0`, Flutter Material 3
-- **State management:** `flutter_riverpod: ^3.4.3`
-- **Routing:** `go_router: ^18.1.0`
-- **HTTP:** `dio: ^5.11.1` with Bearer token, idempotency key header injection, and W3C `traceparent` propagation
-- **Storage:** `flutter_secure_storage: ^11.2.0` (server URL + `sd_` Bearer token) and `shared_preferences: ^2.5.4` (offline check-in queue)
-- **Photo picker:** `image_picker: ^1.2.4` for one check-in photo; no background media sync
-- **OIDC WebView:** `webview_flutter: ^4.14.1` + Kotlin `MethodChannel("xyz.vandijke.sodapop/cookies")` on `MainActivity` to read HttpOnly `sd_session` from Android `CookieManager`
-- **Barcode scanner:** `mobile_scanner: ^7.0.0` (Android CameraX + Google ML Kit barcode scanning with hardware torch and zoom controls)
-- **Typography & Theme:** Material 3 type scale with Sodapop's fresh lime palette (`#B4E32C` primary fill, `#16241A` forest ink, `#F2F4E6` light cream canvas, `#0C130E` dark canvas, `#E85D26` tangerine rating accent).
+- **State management:** `flutter_riverpod: ^3.4.3` for the API client, auth state, and theme mode; screens keep local state.
+- **Routing:** imperative `Navigator` pushes with a static `open(...)` helper per screen. `go_router` remains in `pubspec.yaml` but is not used.
+- **HTTP:** `dio: ^5.11.1` with Bearer token, idempotency key injection, and W3C `traceparent` propagation.
+- **Storage:** `flutter_secure_storage: ^11.2.0` (server URL + `sd_` Bearer token) and `shared_preferences: ^2.5.4` (offline check-in queue and offline read cache).
+- **Media:** `image_picker: ^1.2.4` for camera/gallery photos and short videos; `video_player: ^2.14.1` for native playback of check-in clips.
+- **Connectivity:** `connectivity_plus: ^7.3.2` triggers offline outbox flush and app-resume refresh.
+- **OIDC WebView:** `webview_flutter: ^4.14.1` + Kotlin `MethodChannel("xyz.vandijke.sodapop/cookies")` on `MainActivity` to read the HttpOnly `sd_session` from Android `CookieManager`.
+- **Barcode scanner:** `mobile_scanner: ^7.0.0` (Android CameraX + Google ML Kit with torch and zoom).
+- **Typography & Theme:** Material 3 type scale with Sodapop's fresh lime palette (`#B4E32C` primary fill, `#16241A` forest ink, `#F2F4E6` light cream canvas, `#0C130E` dark canvas, `#E85D26` tangerine rating accent). The saved theme preference (`system`, `light`, `dark`) is applied app-wide.
 
 ## 2. Directory Layout
 
@@ -24,80 +25,86 @@ mobile/
 │   └── app/src/main/
 │       ├── AndroidManifest.xml          # INTERNET, CAMERA permissions; label "Sodapop"
 │       ├── kotlin/.../MainActivity.kt   # CookieManager bridge for sd_session
-│       └── res/
-│           ├── drawable/                # ic_launcher_foreground.xml, ic_launcher_monochrome.xml, launch_background.xml
-│           ├── mipmap-anydpi-v26/       # ic_launcher.xml, ic_launcher_round.xml
-│           └── values/                  # colors.xml (#16241A/#B4E32C), styles.xml (API 31+ splash)
+│       └── res/                         # adaptive + monochrome launcher, splash
 ├── lib/
 │   ├── main.dart
 │   └── src/
 │       ├── api/
 │       │   ├── api_client.dart          # Dio client, base URL guard, Bearer + traceparent
-│       │   └── models.dart              # Drink, CheckinDetail, Comment, Venue, UserProfile, badges/lists
+│       │   └── models.dart              # drinks, check-ins, comments, lists, settings, passport
 │       ├── auth/
 │       │   ├── auth_controller.dart     # Riverpod state, OIDC status probe, logout
 │       │   └── oidc_webview_screen.dart # Authelia WebView + sd_session → sd_ token exchange
 │       ├── offline/
-│       │   └── checkin_outbox.dart      # shared_preferences queue with idempotency keys
+│       │   ├── checkin_outbox.dart      # shared_preferences queue with idempotency keys
+│       │   └── read_cache.dart          # last feed and last 30 viewed drinks
 │       ├── screens/
-│       │   ├── onboarding_screen.dart   # Empty server URL → OIDC / token / password sign-in
-│       │   ├── feed_screen.dart         # friends/follows feed, toast, offline flush
-│       │   ├── scanner_screen.dart      # mobile_scanner viewfinder + torch + manual GTIN entry
-│       │   ├── checkin_sheet.dart       # Quarter-star slider, note, AI note polish
-│       │   ├── checkin_detail_screen.dart # Check-in, toasts and flat comments
-│       │   ├── discover_screen.dart     # Capped catalog search → check-in sheet
-│       │   ├── user_profile_screen.dart # Other-user profile, follow and block
-│       │   ├── notifications_screen.dart # Friend actions + mark all read
+│       │   ├── onboarding_screen.dart   # server URL → OIDC / password / token, register, reset
+│       │   ├── register_screen.dart     # native registration + verification states
+│       │   ├── password_reset_screen.dart
+│       │   ├── feed_screen.dart         # friends feed, toast, save, comments link
+│       │   ├── scanner_screen.dart      # camera + manual GTIN, AI drafting for unknown codes
+│       │   ├── checkin_sheet.dart       # rating, serving, venue, visibility, note, photo/video
+│       │   ├── checkin_detail_screen.dart # photo/video, toast, save, paginated comments
+│       │   ├── drink_detail_screen.dart # facts, flavours, gallery, compare, log
+│       │   ├── compare_screen.dart      # 2–6 drinks side by side
+│       │   ├── discover_screen.dart     # capped search, compare, AI draft
+│       │   ├── ai_draft_screen.dart     # conversational/vision drink drafting
+│       │   ├── friends_screen.dart      # friends, requests, send request
+│       │   ├── user_profile_screen.dart # other-user profile, follow and block
+│       │   ├── profile_screen.dart      # own stats, recent pours, activity grid, settings
+│       │   ├── settings_screen.dart     # profile, appearance, notifications, privacy, security
+│       │   ├── saved_posts_screen.dart  # bookmarked check-ins
+│       │   ├── notifications_screen.dart
 │       │   ├── insights_screen.dart     # 7/30/90-day sugar and caffeine totals
-│       │   ├── taste_screen.dart        # Taste twins and recommendations
-│       │   ├── passport_screen.dart     # Lifetime styles, venues, countries
-│       │   ├── badges_screen.dart       # Full badge list with progress
-│       │   ├── lists_screen.dart        # Own lists + wishlist
-│       │   ├── list_detail_screen.dart  # One visible list
-│       │   ├── mix_screen.dart          # Own mix recipes
-│       │   ├── mix_create_screen.dart   # 2–6 drink mix builder
-│       │   ├── mix_detail_screen.dart   # One mix
-│       │   ├── venues_screen.dart       # Capped venue search
-│       │   ├── venue_detail_screen.dart # Venue, recent drinks, photos/menus
-│       │   ├── saved_venues_screen.dart # Bookmarked venues
-│       │   └── profile_screen.dart      # Account shell and activity grid
+│       │   ├── taste_screen.dart        # taste twins and recommendations
+│       │   ├── passport_screen.dart     # stamps: styles, venues, countries, recent pours
+│       │   ├── badges_screen.dart
+│       │   ├── lists_screen.dart        # list CRUD + wishlist
+│       │   ├── list_detail_screen.dart  # add/remove sodas
+│       │   ├── mix_screen.dart
+│       │   ├── mix_create_screen.dart
+│       │   ├── mix_detail_screen.dart
+│       │   ├── venues_screen.dart
+│       │   ├── venue_detail_screen.dart # venue, media upload, recent drinks
+│       │   └── saved_venues_screen.dart
 │       ├── theme/
-│       │   └── soda_theme.dart          # Light/dark ColorScheme and Material 3 type scale
+│       │   ├── soda_theme.dart          # light/dark ColorScheme and type scale
+│       │   └── theme_mode.dart          # saved theme preference provider
 │       ├── utils/                       # URL validation, GTIN normalization
-│       └── widgets/                     # List cards, formatting helpers, shared loading/error states
-└── test/
-    ├── api_client_test.dart
-    ├── api_models_test.dart
-    ├── checkin_outbox_test.dart
-    ├── gtin_test.dart
-    ├── member_screens_test.dart
-    └── url_test.dart
+│       └── widgets/                     # list cards, formatting, shared states
+└── test/                                # data-layer, screen, offline and cache tests
 ```
 
-## 3. Onboarding & Authentication Flow
+## 3. Onboarding & Authentication
 
-1. **Zero hardcoded server URL:** on fresh install, the server URL input is empty (placeholder hint `https://soda.example.com`). Submission validates a non-empty `http://` or `https://` origin, strips trailing slashes, and blocks any API call while unconfigured.
-2. **OIDC discovery (`GET /api/v1/auth/oidc/status`):**
-   - Once the server URL is validated, the app probes `/api/v1/auth/oidc/status`.
-   - When `enabled: true`, **"Sign in with Authelia"** is rendered as the primary lime CTA (`#B4E32C` fill, `#16241A` text).
-   - Tapping it clears WebView cookies, opens `{serverUrl}/auth/oidc/login` in `OidcWebViewScreen`, detects redirect back to `{serverUrl}`, reads `sd_session` via `MainActivity`'s native `CookieManager` channel, calls `POST /api/v1/auth/mobile-token` to mint a device-scoped `sd_` API token, and stores it in `flutter_secure_storage`.
-3. **Personal API token (`sd_…`) & Password fallback:**
-   - Users can always expand **"Use a personal API token"** and paste an `sd_…` token from `/settings/tokens` (verified against `GET /api/v1/me`).
-   - When `password_fallback: true`, the email/handle + password form is also available.
-4. **Sign out & server switch:** clearing credentials deletes the token from secure storage, clears WebView cookies, and pre-fills the previously saved server URL on the onboarding screen.
+1. **Zero hardcoded server URL:** on a fresh install the server URL input is empty (hint `https://soda.example.com`). Submission validates a non-empty `http://` or `https://` origin, strips trailing slashes, and blocks API calls while unconfigured.
+2. **OIDC discovery (`GET /api/v1/auth/oidc/status`):** once the origin is valid the app probes the endpoint. When enabled, **Sign in with Authelia** is the primary lime CTA. Tapping it clears WebView cookies, opens `{serverUrl}/auth/oidc/login`, detects the redirect back, reads `sd_session` through the native cookie channel, calls `POST /api/v1/auth/mobile-token`, and stores the device-scoped `sd_` token in secure storage.
+3. **Password and token fallback:** when `password_fallback` is true, email/handle + password is available. A personal `sd_…` token from `/settings/tokens` can always be pasted and is verified with `GET /api/v1/me`.
+4. **Registration and reset:** **New here? Create an account** opens the native registration screen (`POST /api/v1/auth/register`). It supports display name, handle, email, and a 10+ character password, then shows either an inbox/verification state with a 60-second resend cooldown or a created state. **Forgot password?** requests a reset link with an enumeration-safe confirmation. Verification and reset links land on the server's web pages.
+5. **Sign out and server switch:** clearing credentials deletes the token, clears WebView cookies, and prefills the saved server URL on onboarding.
 
-## 4. v1.2 screens and limits
+## 4. Member surface
 
-- **Check-in detail** shows the photo, rating, note, venue, toast state and a flat comment thread. Comments can be posted and the viewer's own comments deleted; server-side visibility inherits the parent check-in. Photos load through the Bearer `/api/v1/media/{id}` path when requested through `ApiClient.mediaUrl`; video clips show a "watch on the web app" notice.
-- **Other-user profiles** show stats, earned badges, top styles and visible lists, with follow/unfollow and block/unblock. Missing, private and blocked accounts render the same "Profile unavailable" state.
-- **Notifications** support friend-request accept/decline and mark-all-read alongside toast, comment, badge and system rows.
-- **Insights** shows sugar and caffeine totals for 7, 30 or 90 days. **Taste** shows accepted-friend twins and personal recommendations. **Passport** and **Badges** show lifetime styles/venues/countries and the full badge list with progress.
-- **Lists, mixes and venues** cover own lists including the wishlist, 2–6 drink mix creation, capped venue search, venue detail with community photos/menus, and saved venues.
-- **Offline queue:** check-ins that fail with a network error are stored in `shared_preferences` with an idempotency key and replayed on the next feed load. The queue supports drink, rating, note, venue, serving, visibility and a photo up to 2 MiB; the current sheet supplies drink, rating, note and one photo. Larger photos are dropped with a message and the check-in still queues.
+- **Feed and posts:** friends feed with toast/untoast, save/unsave, share, and comments. Check-in detail plays photos and MP4/WebM/QuickTime clips natively with authenticated headers, toggles toasts and saves, and shows a paginated flat comment thread with oldest-first pages, "Show earlier comments", `@mention` links, and a Reply action that prefills the composer. Own comments can be deleted.
+- **Check-ins:** quarter-star rating (0–20) with a Not rated option, serving (`can`, `bottle`, `glass`, `fountain`), optional venue search, visibility (`private`, `friends`, `public`, default private), a 1,000-character note, one photo from camera/gallery, or a short video from the camera. Video check-ins are online-only. Photos that fail on the network are queued offline with the same idempotency key.
+- **Drink detail and catalog:** per-100 ml nutrition, sweetener/carbonation/acid, flavour intensity chips, aliases, lifecycle status, rater count with the three-rater threshold, a community gallery with attribution and moderator controls, compare, and log.
+- **Compare:** pick 2–6 sodas from search and compare brand, style, container, volume, nutrition, descriptors, rating, and flavours side by side.
+- **Friends and profiles:** friends directory with incoming/outgoing requests, accept/decline/cancel, and handle-based requests using neutral anti-enumeration copy. Other-user profiles show stats, badges, styles, and visible lists with follow/block. The own profile shows stats, recent check-ins, and a ten-item activity grid including Settings and Saved posts.
+- **Lists, passport, badges, mixes:** create/edit/delete lists and add or remove sodas; the system Wishlist is read-only for its title. Passport shows style, venue-kind, and country stamps plus recent pours. Badges show earned and locked progress. Mix Lab creates 2–6 component recipes.
+- **Venues:** capped search, detail with saved state, recent drinks, and photo/menu upload with optional labels and delete for the uploader or a moderator.
+- **AI drafting:** start from notes or a scanned barcode, continue a multi-turn conversation, revise, and commit a provisional soda. A 503 renders a clear "not available on this server" state. Check-in notes can also be polished by AI.
+- **Notifications:** friend requests, accepts, toasts, comments, mentions, badges, and system messages, with accept/decline and mark-all-read.
+- **Insights and taste:** 7/30/90-day sugar and caffeine totals, caffeine clearance, taste twins, and recommendations.
+- **Settings:** profile and bio, theme (applied immediately and persisted), units, email and push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session list/revoke/sign out other sessions, blocked people with unblock, and account counts. Account export and closure remain on the web settings page.
 
-The Android app does not have a separate settings screen; server URL and token management live on the profile shell and onboarding.
+## 5. Offline behaviour
 
-## 5. CI & Release Pipeline
+- **Check-in outbox:** network failures store the check-in in `shared_preferences` with an idempotency key. The queue supports drink, rating, note, venue, serving, visibility, and a photo up to 2 MiB. Replay happens on feed load, when connectivity returns, and when the app resumes. A photo over the limit is dropped with a message while the check-in still queues.
+- **Read cache:** the last successful friends feed (40 rows) and the last 30 viewed drinks with galleries are stored locally. When a request fails with a likely network error, the screen shows the cached copy with a "Showing saved… Pull to refresh when you are online" banner. Logging, uploads, and moderation require a connection.
+- **Video:** check-in clips are not queued; the sheet keeps the user informed and asks them to retry online.
 
-- `.github/workflows/flutter-android.yaml` runs `flutter analyze`, `flutter test`, and `flutter build apk --release` in `mobile/` with SHA-pinned actions and `continue-on-error: true`.
-- `.releaserc.yaml` + `.github/workflows/release.yaml` bump `mobile/pubspec.yaml` to `${nextRelease.version}+${runNumber}`, sign the release APK when `ANDROID_KEYSTORE_BASE64` is configured (falling back to debug-signed APK), and attach `sodapop-<version>-android.apk` to the GitHub Release.
+## 6. CI & Release Pipeline
+
+- `.github/workflows/flutter-android.yaml` runs `flutter analyze`, `flutter test`, and `flutter build apk --release` in `mobile/` with SHA-pinned actions.
+- `.releaserc.yaml` + `.github/workflows/release.yaml` bump `mobile/pubspec.yaml` to `${nextRelease.version}+${runNumber}`, sign the release APK when `ANDROID_KEYSTORE_BASE64` is configured (falling back to a debug-signed APK), and attach `sodapop-<version>-android.apk` to the GitHub Release.

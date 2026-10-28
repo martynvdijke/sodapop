@@ -34,17 +34,20 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool showSpinner = true}) async {
+    if (showSpinner) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final lists = await ref.read(apiProvider).myLists();
       if (!mounted) return;
       setState(() {
         _lists = lists;
         _loading = false;
+        _error = null;
       });
     } catch (error) {
       if (!mounted) return;
@@ -55,11 +58,76 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     }
   }
 
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _createList() async {
+    final created = await showListEditorSheet(context);
+    if (!mounted || created == null) return;
+    _showSnack('List created.');
+    await _load(showSpinner: false);
+  }
+
+  Future<void> _editList(ListSummary list) async {
+    final updated = await showListEditorSheet(context, initial: list);
+    if (!mounted || updated == null) return;
+    _showSnack('List updated.');
+    await _load(showSpinner: false);
+  }
+
+  Future<void> _deleteList(ListSummary list) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete list?'),
+        content: Text(
+          'Delete "${list.name}"? The sodas stay in the catalog, but the list and its notes are gone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(apiProvider).deleteList(list.id);
+      if (!mounted) return;
+      _showSnack('List deleted.');
+      await _load(showSpinner: false);
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack(ApiClient.describe(error).message);
+    }
+  }
+
+  Future<void> _openList(ListSummary list) async {
+    await ListDetailScreen.open(context, list.id, name: list.name);
+    if (mounted) await _load(showSpinner: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Lists')),
       body: _body(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _createList,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New list'),
+      ),
     );
   }
 
@@ -78,14 +146,14 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       return const SodaStatusView(
         icon: Icons.queue_music_rounded,
         title: 'No lists yet',
-        message: 'Create a list on the web app and it shows up here.',
+        message: 'Start a list for the bottles you keep coming back to.',
       );
     }
     return RefreshIndicator(
       color: Soda.lime,
-      onRefresh: _load,
+      onRefresh: () => _load(showSpinner: false),
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 104),
         itemCount: _lists.length + 1,
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
@@ -103,8 +171,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
           final list = _lists[index - 1];
           return ListSummaryCard(
             summary: list,
-            onTap: () =>
-                ListDetailScreen.open(context, list.id, name: list.name),
+            onTap: () => _openList(list),
+            onEdit: list.isSystem ? null : () => _editList(list),
+            onDelete: list.isSystem ? null : () => _deleteList(list),
           );
         },
       ),

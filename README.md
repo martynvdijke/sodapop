@@ -19,6 +19,16 @@ Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product s
 - **First-run setup and runtime settings:** a fresh instance prints a one-time `setup required:` token, `/setup` creates the first verified admin, and `/admin/settings` overlays audited runtime values with `default|env|db` source badges.
 - **Expanded API and Android:** OpenAPI `1.2.0` added comments, media, lists, mixes, taste, badges/passport, saved venues, follows/blocks and admin notes. The Android app covers check-in detail and comments, other-user profiles with follow/block, notification actions, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes; video clips still open in the web app.
 
+## v1.8 highlights
+
+Shipped on top of v1.7. The OpenAPI surface is `1.6.1`; most of this release closes the Android parity gap and adds the APIs that made it possible.
+
+- **Native Android parity:** drink detail with per-100 ml facts, flavour intensity and a community gallery; native video playback for check-in clips; compare 2–6 sodas; a friends directory with requests; rich check-ins with serving, venue, visibility, a 1,000-character note and camera/gallery photo or short video; venue photo/menu upload; full list CRUD; passport stamps; AI drink drafting from notes or a barcode; saved posts; comment replies, mention links and pagination.
+- **Mobile account controls:** a Settings screen for profile, theme, units, email/push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session revoke, blocked people and account counts. Theme changes apply app-wide. Native registration, email-verification status/resend, and password-reset request complete the onboarding flow.
+- **Offline reads:** the last friends feed and the last 30 viewed drinks with galleries are cached. When the network fails the app shows the cached copy with a refresh banner, and queued check-ins flush when connectivity returns or the app resumes.
+- **API additions:** list create/update/delete and item add/remove, `GET /api/v1/compare`, passport stamps (`totals`, `styles`, `venue_kinds`, `countries`, `recent`), `GET/PATCH /api/v1/me/settings`, session list/revoke, password change, blocked people, public `auth/config`, registration, email verification and resend, password-reset request/confirm, and a viewer-specific `saved` flag on check-in detail.
+- **Still web-only:** admin tools, account export/closure, Web Push registration, and the public read-only API. Nearby remains deferred pending privacy review.
+
 ## v1.7 highlights
 
 Shipped on top of v1.6. The OpenAPI surface is unchanged at `1.3.0`; this release is operational tooling and HTML admin pages, with no new `/api/v1` routes.
@@ -48,7 +58,7 @@ Shipped on top of v1.5. The OpenAPI surface is now `1.3.0`.
 | [docs/architecture.md](docs/architecture.md) | Go 1.27 + Ent ORM + SQLite migrations, HTTP surface, indexability rules, Home Assistant webhook auth, Authelia OIDC + local email verification, OFF v3.6, OpenCode ("opencode2") AI, OTel, Umami, Docker/CI |
 | [docs/data-model.md](docs/data-model.md) | Ent ORM schemas (`ent/schema/`), versioned migration registry (`internal/db/migrations.go` plus `internal/db/migrations/*.sql`), `schema_consistency_test.go`, and full resulting SQLite DDL + FTS5 + views |
 | [docs/design-direction.md](docs/design-direction.md) | Fresh lime visual system (`#B4E32C` fill, `#16241A` forest ink, `#F2F4E6` cream / `#0C130E` dark), typography, components, scanner overlay, accessibility |
-| [docs/mobile.md](docs/mobile.md) | Flutter Android app (`mobile/`): zero-default server onboarding, Authelia OIDC WebView + `sd_` token exchange, `mobile_scanner` ML Kit, offline check-in outbox, APK CI/release |
+| [docs/mobile.md](docs/mobile.md) | Flutter Android app (`mobile/`): zero-default server onboarding, OIDC WebView + `sd_` token exchange, native registration and reset, `mobile_scanner` ML Kit, full member parity, offline check-in outbox and read cache, APK CI/release |
 | [docs/roadmap.md](docs/roadmap.md) | Dependency graph and phases `P0`–`P11` with build lists, exit criteria, and definition of done |
 
 ## Highlights

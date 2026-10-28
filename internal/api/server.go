@@ -86,10 +86,23 @@ func (s *Server) Register(mux *http.ServeMux) {
 	})
 
 	s.route(mux, "GET /api/v1/auth/oidc/status", s.oidcStatus)
+	s.route(mux, "GET /api/v1/auth/config", s.authConfig)
+	s.route(mux, "POST /api/v1/auth/register", s.authRegister)
+	s.route(mux, "POST /api/v1/auth/verify", s.authVerify)
+	s.route(mux, "POST /api/v1/auth/verify/resend", s.authVerifyResend)
+	s.route(mux, "POST /api/v1/auth/password/reset", s.authPasswordResetRequest)
+	s.route(mux, "POST /api/v1/auth/password/reset/confirm", s.authPasswordResetConfirm)
 	s.route(mux, "POST /api/v1/auth/token", s.passwordToken)
 	s.route(mux, "POST /api/v1/auth/mobile-token", s.mobileToken)
 
 	s.route(mux, "GET /api/v1/me", s.protect("read", false, s.me))
+	s.route(mux, "GET /api/v1/me/settings", s.protect("read", false, s.meSettingsGet))
+	s.route(mux, "PATCH /api/v1/me/settings", s.protect("write", true, s.meSettingsPatch))
+	s.route(mux, "GET /api/v1/me/sessions", s.protect("read", false, s.meSessionsGet))
+	s.route(mux, "DELETE /api/v1/me/sessions", s.protect("write", true, s.meSessionsRevokeAll))
+	s.route(mux, "DELETE /api/v1/me/sessions/{id}", s.protect("write", true, s.meSessionsRevoke))
+	s.route(mux, "POST /api/v1/me/password", s.protect("write", true, s.mePassword))
+	s.route(mux, "GET /api/v1/me/blocks", s.protect("read", false, s.meBlocks))
 	s.route(mux, "GET /api/v1/me/checkins", s.protect("read", false, s.myCheckins))
 	s.route(mux, "GET /api/v1/stats/me", s.protect("read", false, s.myStats))
 	s.route(mux, "GET /api/v1/notifications", s.protect("read", false, s.notifications))
@@ -126,6 +139,12 @@ func (s *Server) Register(mux *http.ServeMux) {
 
 	s.route(mux, "GET /api/v1/me/lists", s.protect("read", false, s.myLists))
 	s.route(mux, "GET /api/v1/lists/{id}", s.protect("read", false, s.getList))
+	s.route(mux, "POST /api/v1/lists", s.protect("write", true, s.createList))
+	s.route(mux, "PATCH /api/v1/lists/{id}", s.protect("write", true, s.updateList))
+	s.route(mux, "DELETE /api/v1/lists/{id}", s.protect("write", true, s.deleteList))
+	s.route(mux, "POST /api/v1/lists/{id}/items", s.protect("write", true, s.addListItem))
+	s.route(mux, "DELETE /api/v1/lists/{id}/items/{drink_id}", s.protect("write", true, s.removeListItem))
+	s.route(mux, "GET /api/v1/compare", s.protect("read", false, s.compare))
 	s.route(mux, "GET /api/v1/mix", s.protect("read", false, s.myMixes))
 	s.route(mux, "POST /api/v1/mix", s.protect("write", true, s.createMix))
 	s.route(mux, "GET /api/v1/mix/{id}", s.protect("read", false, s.getMix))
@@ -215,6 +234,14 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 		errors.Is(err, comments.ErrNotFound), errors.Is(err, social.ErrNotFound), errors.Is(err, mix.ErrNotFound),
 		errors.Is(err, saves.ErrNotFound):
 		writeError(w, http.StatusNotFound, "not_found", "not found")
+	case errors.Is(err, catalog.ErrCompareCount):
+		writeError(w, http.StatusBadRequest, "compare_count", err.Error())
+	case errors.Is(err, catalog.ErrCompareDuplicate):
+		writeError(w, http.StatusBadRequest, "compare_duplicate", err.Error())
+	case errors.Is(err, checkins.ErrListSystem):
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+	case errors.Is(err, checkins.ErrListInvalidInput):
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 	case errors.Is(err, catalog.ErrInvalidBarcode):
 		writeError(w, http.StatusBadRequest, "invalid_barcode", "barcode must be a valid GTIN-8/12/13/14")
 	case errors.Is(err, catalog.ErrBarcodeTaken):
