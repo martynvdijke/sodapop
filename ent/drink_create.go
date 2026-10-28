@@ -262,6 +262,20 @@ func (_c *DrinkCreate) SetNillableStatus(v *drink.Status) *DrinkCreate {
 	return _c
 }
 
+// SetPublished sets the "published" field.
+func (_c *DrinkCreate) SetPublished(v bool) *DrinkCreate {
+	_c.mutation.SetPublished(v)
+	return _c
+}
+
+// SetNillablePublished sets the "published" field if the given value is not nil.
+func (_c *DrinkCreate) SetNillablePublished(v *bool) *DrinkCreate {
+	if v != nil {
+		_c.SetPublished(*v)
+	}
+	return _c
+}
+
 // SetDiscontinuedAt sets the "discontinued_at" field.
 func (_c *DrinkCreate) SetDiscontinuedAt(v string) *DrinkCreate {
 	_c.mutation.SetDiscontinuedAt(v)
@@ -524,6 +538,10 @@ func (_c *DrinkCreate) defaults() {
 		v := drink.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Published(); !ok {
+		v := drink.DefaultPublished
+		_c.mutation.SetPublished(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := drink.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -626,6 +644,9 @@ func (_c *DrinkCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Drink.status": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.Published(); !ok {
+		return &ValidationError{Name: "published", err: errors.New(`ent: missing required field "Drink.published"`)}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Drink.created_at"`)}
 	}
@@ -727,6 +748,10 @@ func (_c *DrinkCreate) createSpec() (*Drink, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(drink.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.Published(); ok {
+		_spec.SetField(drink.FieldPublished, field.TypeBool, value)
+		_node.Published = value
 	}
 	if value, ok := _c.mutation.DiscontinuedAt(); ok {
 		_spec.SetField(drink.FieldDiscontinuedAt, field.TypeString, value)

@@ -318,6 +318,72 @@ func TestNotificationForOwnerOnly(t *testing.T) {
 	}
 }
 
+func TestCreateNotifiesThroughSocialExactlyOnce(t *testing.T) {
+	f := newFixture(t)
+	c := f.checkin(t, "public")
+
+	var calls int
+	var gotUserID, gotKind, gotActorID, gotSubjectID, gotText string
+	f.svc.Social.OnNotify = func(_ context.Context, userID, kind, actorID, subjectID, text string) {
+		calls++
+		gotUserID, gotKind, gotActorID, gotSubjectID, gotText = userID, kind, actorID, subjectID, text
+	}
+
+	if _, err := f.svc.Create(f.ctx, f.friend.ID, c.ID, "nice"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("OnNotify calls = %d, want 1", calls)
+	}
+	if gotKind != string(notification.KindComment) {
+		t.Fatalf("OnNotify kind = %q, want %q", gotKind, notification.KindComment)
+	}
+	if gotUserID != f.owner.ID {
+		t.Fatalf("OnNotify userID = %q, want check-in owner %q", gotUserID, f.owner.ID)
+	}
+	if gotActorID != f.friend.ID {
+		t.Fatalf("OnNotify actorID = %q, want commenter %q", gotActorID, f.friend.ID)
+	}
+	if gotSubjectID != c.ID {
+		t.Fatalf("OnNotify subjectID = %q, want check-in %q", gotSubjectID, c.ID)
+	}
+	if gotText != "commented on your check-in" {
+		t.Fatalf("OnNotify text = %q", gotText)
+	}
+
+	// Exactly one in-app row: the social path must not also insert directly.
+	rows, err := f.db.Client.Notification.Query().
+		Where(notification.KindEQ(notification.KindComment)).
+		All(f.ctx)
+	if err != nil {
+		t.Fatalf("notifications: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("comment notifications = %d, want 1", len(rows))
+	}
+	if rows[0].UserID != f.owner.ID || rows[0].ActorID == nil || *rows[0].ActorID != f.friend.ID {
+		t.Fatalf("notification = %+v, want owner/commenter", rows[0])
+	}
+
+	// A self-comment must not notify through either path.
+	calls = 0
+	if _, err := f.svc.Create(f.ctx, f.owner.ID, c.ID, "self"); err != nil {
+		t.Fatalf("self comment: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("OnNotify calls after self-comment = %d, want 0", calls)
+	}
+	count, err := f.db.Client.Notification.Query().
+		Where(notification.KindEQ(notification.KindComment)).
+		Count(f.ctx)
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("comment notifications after self-comment = %d, want 1", count)
+	}
+}
+
 func TestMentionNotifications(t *testing.T) {
 	f := newFixture(t)
 	c := f.checkin(t, "public")

@@ -1,6 +1,6 @@
 # Sodapop — Flutter Android App (`mobile/`)
 
-The `mobile/` directory contains the native Flutter Android companion app for Sodapop. It talks exclusively to a self-hosted Sodapop server over `/api/v1` and `/auth/oidc/*`, and covers the same member surface as the web app apart from admin tools and public marketing pages.
+The `mobile/` directory contains the native Flutter Android companion app for Sodapop. It talks exclusively to a self-hosted Sodapop server over `/api/v1` and `/auth/oidc/*`, and covers the same member surface as the web app apart from admin tools and public marketing pages. Native push and admin surfaces are not in the app.
 
 ## 1. Architecture & Stack
 
@@ -10,6 +10,7 @@ The `mobile/` directory contains the native Flutter Android companion app for So
 - **HTTP:** `dio: ^5.11.1` with Bearer token, idempotency key injection, and W3C `traceparent` propagation.
 - **Storage:** `flutter_secure_storage: ^11.2.0` (server URL + `sd_` Bearer token) and `shared_preferences: ^2.5.4` (offline check-in queue and offline read cache).
 - **Media:** `image_picker: ^1.2.4` for camera/gallery photos and short videos; `video_player: ^2.14.1` for native playback of check-in clips.
+- **Location:** `geolocator` for a one-shot Nearby query using coarse or fine permission only. There is no background location and no stored position.
 - **Connectivity:** `connectivity_plus: ^7.3.2` triggers offline outbox flush and app-resume refresh.
 - **OIDC WebView:** `webview_flutter: ^4.14.1` + Kotlin `MethodChannel("xyz.vandijke.sodapop/cookies")` on `MainActivity` to read the HttpOnly `sd_session` from Android `CookieManager`.
 - **Barcode scanner:** `mobile_scanner: ^7.0.0` (Android CameraX + Google ML Kit with torch and zoom).
@@ -48,12 +49,13 @@ mobile/
 │       │   ├── checkin_detail_screen.dart # photo/video, toast, save, paginated comments
 │       │   ├── drink_detail_screen.dart # facts, flavours, gallery, compare, log
 │       │   ├── compare_screen.dart      # 2–6 drinks side by side
-│       │   ├── discover_screen.dart     # capped search, compare, AI draft
+│       │   ├── discover_screen.dart     # capped search, compare, AI draft, Nearby entry
+│       │   ├── nearby_screen.dart       # one-shot location, radius chips, distance buckets
 │       │   ├── ai_draft_screen.dart     # conversational/vision drink drafting
 │       │   ├── friends_screen.dart      # friends, requests, send request
 │       │   ├── user_profile_screen.dart # other-user profile, follow and block
 │       │   ├── profile_screen.dart      # own stats, recent pours, activity grid, settings
-│       │   ├── settings_screen.dart     # profile, appearance, notifications, privacy, security
+│       │   ├── settings_screen.dart     # profile, appearance, notifications, privacy, security, data
 │       │   ├── saved_posts_screen.dart  # bookmarked check-ins
 │       │   ├── notifications_screen.dart
 │       │   ├── insights_screen.dart     # 7/30/90-day sugar and caffeine totals
@@ -89,14 +91,15 @@ mobile/
 - **Feed and posts:** friends feed with toast/untoast, save/unsave, share, and comments. Check-in detail plays photos and MP4/WebM/QuickTime clips natively with authenticated headers, toggles toasts and saves, and shows a paginated flat comment thread with oldest-first pages, "Show earlier comments", `@mention` links, and a Reply action that prefills the composer. Own comments can be deleted.
 - **Check-ins:** quarter-star rating (0–20) with a Not rated option, serving (`can`, `bottle`, `glass`, `fountain`), optional venue search, visibility (`private`, `friends`, `public`, default private), a 1,000-character note, one photo from camera/gallery, or a short video from the camera. Video check-ins are online-only. Photos that fail on the network are queued offline with the same idempotency key.
 - **Drink detail and catalog:** per-100 ml nutrition, sweetener/carbonation/acid, flavour intensity chips, aliases, lifecycle status, rater count with the three-rater threshold, a community gallery with attribution and moderator controls, compare, and log.
+- **Nearby:** opened from Discover. The screen requests a one-shot coarse or fine location from a tap, offers 0.5, 1, 2, 5, 10 and 25 km radius chips, and lists visible pours nearest first with bucketed distance labels and "More nearby pours" pagination. Copy explains that the location is used for the search only; there is no background tracking. Empty, permission-denied and services-off states offer the relevant next step.
 - **Compare:** pick 2–6 sodas from search and compare brand, style, container, volume, nutrition, descriptors, rating, and flavours side by side.
 - **Friends and profiles:** friends directory with incoming/outgoing requests, accept/decline/cancel, and handle-based requests using neutral anti-enumeration copy. Other-user profiles show stats, badges, styles, and visible lists with follow/block. The own profile shows stats, recent check-ins, and a ten-item activity grid including Settings and Saved posts.
 - **Lists, passport, badges, mixes:** create/edit/delete lists and add or remove sodas; the system Wishlist is read-only for its title. Passport shows style, venue-kind, and country stamps plus recent pours. Badges show earned and locked progress. Mix Lab creates 2–6 component recipes.
 - **Venues:** capped search, detail with saved state, recent drinks, and photo/menu upload with optional labels and delete for the uploader or a moderator.
 - **AI drafting:** start from notes or a scanned barcode, continue a multi-turn conversation, revise, and commit a provisional soda. A 503 renders a clear "not available on this server" state. Check-in notes can also be polished by AI.
-- **Notifications:** friend requests, accepts, toasts, comments, mentions, badges, and system messages, with accept/decline and mark-all-read.
+- **Notifications:** friend requests, accepts, toasts, comments, mentions, badges, and system messages, with accept/decline and mark-all-read. There is no native push registration, so the app shows notifications when it loads rather than waking the device.
 - **Insights and taste:** 7/30/90-day sugar and caffeine totals, caffeine clearance, taste twins, and recommendations.
-- **Settings:** profile and bio, theme (applied immediately and persisted), units, email and push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session list/revoke/sign out other sessions, blocked people with unblock, and account counts. Account export and closure remain on the web settings page.
+- **Settings:** profile and bio, theme (applied immediately and persisted), units, email and push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session list/revoke/sign out other sessions, blocked people with unblock, and account counts. The Data section exports the account as JSON and closes it after an exact-handle confirmation; the last-admin refusal is shown as a message. Notification preferences are editable, but native Android push is not registered in the app.
 
 ## 5. Offline behaviour
 

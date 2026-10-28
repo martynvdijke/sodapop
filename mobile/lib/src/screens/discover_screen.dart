@@ -9,6 +9,7 @@ import 'ai_draft_screen.dart';
 import 'checkin_sheet.dart';
 import 'compare_screen.dart';
 import 'drink_detail_screen.dart';
+import 'nearby_screen.dart';
 import 'venues_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
@@ -162,6 +163,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       appBar: AppBar(
         title: const Text('Discover'),
         actions: [
+          IconButton(
+            key: const Key('discover-nearby'),
+            onPressed: () => NearbyScreen.open(context),
+            tooltip: 'Nearby',
+            icon: const Icon(Icons.push_pin_outlined),
+          ),
           IconButton(
             key: const Key('discover-compare'),
             onPressed: _openCompare,

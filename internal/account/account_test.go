@@ -1,0 +1,261 @@
+package account_test
+
+import (
+	"context"
+	"errors"
+	"path/filepath"
+	"sync"
+	"testing"
+
+	"sodapop/ent"
+	"sodapop/ent/apitoken"
+	"sodapop/ent/inboundtoken"
+	"sodapop/ent/session"
+	"sodapop/ent/user"
+	"sodapop/internal/account"
+	"sodapop/internal/db"
+)
+
+func newTestService(t *testing.T) (*account.Service, *db.DB) {
+	t.Helper()
+	database, err := db.Init(filepath.Join(t.TempDir(), "account.db"))
+	if err != nil {
+		t.Fatalf("db: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	return account.New(database.Client, nil), database
+}
+
+func makeUser(t *testing.T, database *db.DB, handle string, role user.Role) *ent.User {
+	t.Helper()
+	u, err := database.Client.User.Create().
+		SetHandle(handle).
+		SetEmail(handle + "@example.com").
+		SetDisplayName(handle).
+		SetRole(role).
+		SetEmailVerifiedAt(db.Now()).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("create %s: %v", handle, err)
+	}
+	return u
+}
+
+func addCredentials(t *testing.T, database *db.DB, userID string) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := database.Client.Session.Create().
+		SetTokenHash("session-" + userID).
+		SetUserID(userID).
+		SetCsrfToken("csrf").
+		SetExpiresAt(db.Now()).
+		Save(ctx); err != nil {
+		t.Fatalf("session: %v", err)
+	}
+	if _, err := database.Client.APIToken.Create().
+		SetUserID(userID).
+		SetName("test").
+		SetTokenHash("api-" + userID).
+		SetScopes("read,write").
+		Save(ctx); err != nil {
+		t.Fatalf("api token: %v", err)
+	}
+	if _, err := database.Client.InboundToken.Create().
+		SetUserID(userID).
+		SetTokenHash("inbound-" + userID).
+		Save(ctx); err != nil {
+		t.Fatalf("inbound token: %v", err)
+	}
+}
+
+func TestDeleteClosesAccountAndRevokesCredentials(t *testing.T) {
+	svc, database := newTestService(t)
+	ctx := context.Background()
+	u := makeUser(t, database, "alice", user.RoleUser)
+	addCredentials(t, database, u.ID)
+
+	if err := svc.Delete(ctx, u.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	row, err := database.Client.User.Get(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if row.Status != user.StatusDeleted {
+		t.Errorf("status = %s, want deleted", row.Status)
+	}
+	if row.DeletedAt == nil {
+		t.Error("deleted_at was not set")
+	}
+
+	if n, err := database.Client.Session.Query().Where(session.UserID(u.ID)).Count(ctx); err != nil || n != 0 {
+		t.Errorf("sessions = %d (err %v), want 0", n, err)
+	}
+	apiToken, err := database.Client.APIToken.Query().Where(apitoken.UserID(u.ID)).Only(ctx)
+	if err != nil {
+		t.Fatalf("api token: %v", err)
+	}
+	if apiToken.RevokedAt == nil {
+		t.Error("API token was not revoked")
+	}
+	inbound, err := database.Client.InboundToken.Query().Where(inboundtoken.UserID(u.ID)).Only(ctx)
+	if err != nil {
+		t.Fatalf("inbound token: %v", err)
+	}
+	if inbound.RevokedAt == nil {
+		t.Error("inbound token was not revoked")
+	}
+}
+
+func TestDeleteRefusesLastLiveAdmin(t *testing.T) {
+	svc, database := newTestService(t)
+	ctx := context.Background()
+	admin := makeUser(t, database, "admin", user.RoleAdmin)
+	addCredentials(t, database, admin.ID)
+
+	if err := svc.Delete(ctx, admin.ID); !errors.Is(err, account.ErrLastAdmin) {
+		t.Fatalf("Delete err = %v, want ErrLastAdmin", err)
+	}
+
+	row, err := database.Client.User.Get(ctx, admin.ID)
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if row.Status != user.StatusActive || row.DeletedAt != nil {
+		t.Error("last live admin was modified")
+	}
+	if n, err := database.Client.Session.Query().Where(session.UserID(admin.ID)).Count(ctx); err != nil || n != 1 {
+		t.Errorf("sessions = %d (err %v), want 1", n, err)
+	}
+	apiToken, err := database.Client.APIToken.Query().Where(apitoken.UserID(admin.ID)).Only(ctx)
+	if err != nil {
+		t.Fatalf("api token: %v", err)
+	}
+	if apiToken.RevokedAt != nil {
+		t.Error("API token was revoked despite the refusal")
+	}
+}
+
+func TestDeleteUnknownUser(t *testing.T) {
+	svc, _ := newTestService(t)
+	if err := svc.Delete(context.Background(), "missing"); !errors.Is(err, account.ErrNotFound) {
+		t.Fatalf("Delete err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeleteAllowsAdminWhenAnotherExists(t *testing.T) {
+	svc, database := newTestService(t)
+	ctx := context.Background()
+	first := makeUser(t, database, "first-admin", user.RoleAdmin)
+	makeUser(t, database, "second-admin", user.RoleAdmin)
+	addCredentials(t, database, first.ID)
+
+	if err := svc.Delete(ctx, first.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	row, err := database.Client.User.Get(ctx, first.ID)
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if row.Status != user.StatusDeleted {
+		t.Errorf("status = %s, want deleted", row.Status)
+	}
+	if n, err := database.Client.Session.Query().Where(session.UserID(first.ID)).Count(ctx); err != nil || n != 0 {
+		t.Errorf("sessions = %d (err %v), want 0", n, err)
+	}
+	apiToken, err := database.Client.APIToken.Query().Where(apitoken.UserID(first.ID)).Only(ctx)
+	if err != nil {
+		t.Fatalf("api token: %v", err)
+	}
+	if apiToken.RevokedAt == nil {
+		t.Error("API token was not revoked for a deletable admin")
+	}
+	inbound, err := database.Client.InboundToken.Query().Where(inboundtoken.UserID(first.ID)).Only(ctx)
+	if err != nil {
+		t.Fatalf("inbound token: %v", err)
+	}
+	if inbound.RevokedAt == nil {
+		t.Error("inbound token was not revoked for a deletable admin")
+	}
+}
+
+func TestDeleteAlreadyDeletedUser(t *testing.T) {
+	svc, database := newTestService(t)
+	ctx := context.Background()
+	u := makeUser(t, database, "gone", user.RoleUser)
+	addCredentials(t, database, u.ID)
+	if _, err := database.Client.User.UpdateOneID(u.ID).
+		SetStatus(user.StatusDeleted).
+		SetDeletedAt(db.Now()).
+		SetUpdatedAt(db.Now()).
+		Save(ctx); err != nil {
+		t.Fatalf("pre-delete user: %v", err)
+	}
+
+	if err := svc.Delete(ctx, u.ID); !errors.Is(err, account.ErrNotFound) {
+		t.Fatalf("Delete err = %v, want ErrNotFound", err)
+	}
+	// The refusal must not touch the credentials still on the row.
+	if n, err := database.Client.Session.Query().Where(session.UserID(u.ID)).Count(ctx); err != nil || n != 1 {
+		t.Errorf("sessions = %d (err %v), want 1", n, err)
+	}
+	apiToken, err := database.Client.APIToken.Query().Where(apitoken.UserID(u.ID)).Only(ctx)
+	if err != nil {
+		t.Fatalf("api token: %v", err)
+	}
+	if apiToken.RevokedAt != nil {
+		t.Error("API token was revoked for an already-deleted account")
+	}
+}
+
+// TestDeleteAdminRaceLeavesOneLiveAdmin runs two admin deletions concurrently.
+// The conditional UPDATE makes the guard atomic: whichever transaction writes
+// second observes the first deletion and refuses.
+func TestDeleteAdminRaceLeavesOneLiveAdmin(t *testing.T) {
+	svc, database := newTestService(t)
+	ctx := context.Background()
+	first := makeUser(t, database, "race-one", user.RoleAdmin)
+	second := makeUser(t, database, "race-two", user.RoleAdmin)
+
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, id := range []string{first.ID, second.ID} {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			errs <- svc.Delete(ctx, id)
+		}(id)
+	}
+	wg.Wait()
+	close(errs)
+
+	var deleted, refused int
+	for err := range errs {
+		switch {
+		case err == nil:
+			deleted++
+		case errors.Is(err, account.ErrLastAdmin):
+			refused++
+		default:
+			t.Fatalf("unexpected race error: %v", err)
+		}
+	}
+	if deleted != 1 || refused != 1 {
+		t.Fatalf("deleted=%d refused=%d, want exactly one of each", deleted, refused)
+	}
+
+	n, err := database.Client.User.Query().
+		Where(
+			user.RoleEQ(user.RoleAdmin),
+			user.StatusEQ(user.StatusActive),
+			user.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		t.Fatalf("count live admins: %v", err)
+	}
+	if n < 1 {
+		t.Errorf("live admins after race = %d, want at least 1", n)
+	}
+}

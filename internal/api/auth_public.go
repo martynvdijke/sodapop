@@ -29,7 +29,7 @@ func (s *Server) authRateLimited(w http.ResponseWriter, r *http.Request, bucket 
 	if s.Limiter == nil {
 		return false
 	}
-	if s.Limiter.Allow(bucket+":"+clientIP(r), publicAuthRateLimit, publicAuthRateWindow) {
+	if s.Limiter.Allow(bucket+":"+s.clientIP(r), publicAuthRateLimit, publicAuthRateWindow) {
 		return false
 	}
 	w.Header().Set("Retry-After", "900")

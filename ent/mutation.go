@@ -10372,6 +10372,7 @@ type DrinkMutation struct {
 	recipe_json                *string
 	source                     *drink.Source
 	status                     *drink.Status
+	published                  *bool
 	discontinued_at            *string
 	limited_until              *string
 	created_by                 *string
@@ -11275,6 +11276,42 @@ func (m *DrinkMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetPublished sets the "published" field.
+func (m *DrinkMutation) SetPublished(b bool) {
+	m.published = &b
+}
+
+// Published returns the value of the "published" field in the mutation.
+func (m *DrinkMutation) Published() (r bool, exists bool) {
+	v := m.published
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublished returns the old "published" field's value of the Drink entity.
+// If the Drink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DrinkMutation) OldPublished(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublished is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublished requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublished: %w", err)
+	}
+	return oldValue.Published, nil
+}
+
+// ResetPublished resets all changes to the "published" field.
+func (m *DrinkMutation) ResetPublished() {
+	m.published = nil
+}
+
 // SetDiscontinuedAt sets the "discontinued_at" field.
 func (m *DrinkMutation) SetDiscontinuedAt(s string) {
 	m.discontinued_at = &s
@@ -11922,7 +11959,7 @@ func (m *DrinkMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DrinkMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 25)
 	if m.brand != nil {
 		fields = append(fields, drink.FieldBrandID)
 	}
@@ -11976,6 +12013,9 @@ func (m *DrinkMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, drink.FieldStatus)
+	}
+	if m.published != nil {
+		fields = append(fields, drink.FieldPublished)
 	}
 	if m.discontinued_at != nil {
 		fields = append(fields, drink.FieldDiscontinuedAt)
@@ -12039,6 +12079,8 @@ func (m *DrinkMutation) Field(name string) (ent.Value, bool) {
 		return m.Source()
 	case drink.FieldStatus:
 		return m.Status()
+	case drink.FieldPublished:
+		return m.Published()
 	case drink.FieldDiscontinuedAt:
 		return m.DiscontinuedAt()
 	case drink.FieldLimitedUntil:
@@ -12096,6 +12138,8 @@ func (m *DrinkMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSource(ctx)
 	case drink.FieldStatus:
 		return m.OldStatus(ctx)
+	case drink.FieldPublished:
+		return m.OldPublished(ctx)
 	case drink.FieldDiscontinuedAt:
 		return m.OldDiscontinuedAt(ctx)
 	case drink.FieldLimitedUntil:
@@ -12242,6 +12286,13 @@ func (m *DrinkMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case drink.FieldPublished:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublished(v)
 		return nil
 	case drink.FieldDiscontinuedAt:
 		v, ok := value.(string)
@@ -12495,6 +12546,9 @@ func (m *DrinkMutation) ResetField(name string) error {
 		return nil
 	case drink.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case drink.FieldPublished:
+		m.ResetPublished()
 		return nil
 	case drink.FieldDiscontinuedAt:
 		m.ResetDiscontinuedAt()

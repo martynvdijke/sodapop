@@ -2,7 +2,7 @@
 
 Twelve phases, dependency-ordered. Estimates assume one experienced Go developer working alone, part-time at ~30 h/week. Each phase ends with a demoable slice, tests, and a green CI run — not a branch full of scaffolding.
 
-Status: P0–P11 shipped for v1.0. v1.1–v1.8 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work, the v1.5 Google Play release, the v1.6 post-interactions slice, the v1.7 operations slice and the v1.8 mobile-parity slice. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
+Status: P0–P11 shipped for v1.0. v1.1–v1.9 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work, the v1.5 Google Play release, the v1.6 post-interactions slice, the v1.7 operations slice, the v1.8 mobile-parity slice and the v1.9 account/nearby/public-read slice. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
 
 | Shipped surface | Phase |
 |---|---|
@@ -23,18 +23,21 @@ Status: P0–P11 shipped for v1.0. v1.1–v1.8 have shipped on top of that basel
 | Post interactions: saved check-ins and `/saved`, `@mentions` with notifications, comment pagination, comment/gallery report controls | v1.6 |
 | Operations: automatic `VACUUM INTO` backups with retention and offline restore, `/admin/system`, badge management, venue merge, digest status, starter catalog seed | v1.7 |
 | Mobile parity: drink detail/gallery/video, compare, friends directory, rich check-ins, venue media, list CRUD, passport stamps, AI drafting, settings, registration/reset, app-wide theme, offline reads, saved posts and comment replies/pagination | v1.8 |
+| Account lifecycle: shared `internal/account`, `GET /api/v1/me/export`, `DELETE /api/v1/me`, last-admin guard, Android export/closure | v1.9 |
+| Nearby feed: `social.Nearby` with snapped ephemeral coordinates, `/nearby`, `GET /api/v1/feed/nearby`, migration `0010` index, Android Nearby screen | v1.9 |
+| Public read-only drink API: `drinks.published`, `GET /api/v1/public/drinks/{slug}`, admin publish action, OpenAPI `1.9.0` | v1.9 |
+| Push coverage: subscribe sets `push_enabled`, social `OnNotify` dispatch for friend request/accept, toast, comment and mention | v1.9 |
 
-## Shipped in v1.4–v1.8
+## Shipped in v1.4–v1.9
 
-Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`delivery_outbox` plus migration `0008_delivery_outbox.sql`), digest scheduler catch-up with a single-instance lease, the OTel follow-up metrics and DB spans, unified search that still caps at 10 results with no totals, and the `registration_open` admin toggle all landed. The v1.6 post-interactions slice shipped saved check-ins (`/saved`, `/api/v1/me/saved`), `@handle` mentions with mention notifications and deep links, keyset comment pagination (50 default, 100 maximum, no total), and report controls for comments and drink gallery images. The v1.7 operations slice shipped automatic backups (startup + hourly, 24-hour gate, 14-snapshot retention, integrity checks, `backup` lease), the offline `cmd/restore` command, `/admin/system` with an on-demand backup action, `/admin/badges`, `/admin/venues` merge, `/admin/digest` status, the shared admin nav, and `SEED_CATALOG=1` with 21 brands and 29 drinks. The v1.8 mobile slice closed the Android member-parity gap: drink detail with galleries and native video, compare, friends directory and requests, rich check-ins, venue photo/menu upload, list CRUD, passport stamps, AI drafting, saved posts, comment replies/mentions/pagination, settings with app-wide theme, native registration/verification/password reset, offline feed and drink reads, and connectivity-triggered outbox flush. It added the APIs those screens needed (list writes, compare, passport stamps, account settings/sessions/password/blocks, public auth config/registration/verification/reset, viewer saved flag) and brought OpenAPI to `1.6.1`.
+Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`delivery_outbox` plus migration `0008_delivery_outbox.sql`), digest scheduler catch-up with a single-instance lease, the OTel follow-up metrics and DB spans, unified search that still caps at 10 results with no totals, and the `registration_open` admin toggle all landed. The v1.6 post-interactions slice shipped saved check-ins (`/saved`, `/api/v1/me/saved`), `@handle` mentions with mention notifications and deep links, keyset comment pagination (50 default, 100 maximum, no total), and report controls for comments and drink gallery images. The v1.7 operations slice shipped automatic backups (startup + hourly, 24-hour gate, 14-snapshot retention, integrity checks, `backup` lease), the offline `cmd/restore` command, `/admin/system` with an on-demand backup action, `/admin/badges`, `/admin/venues` merge, `/admin/digest` status, the shared admin nav, and `SEED_CATALOG=1` with 21 brands and 29 drinks. The v1.8 mobile slice closed the Android member-parity gap: drink detail with galleries and native video, compare, friends directory and requests, rich check-ins, venue photo/menu upload, list CRUD, passport stamps, AI drafting, saved posts, comment replies/mentions/pagination, settings with app-wide theme, native registration/verification/password reset, offline feed and drink reads, and connectivity-triggered outbox flush. It added the APIs those screens needed (list writes, compare, passport stamps, account settings/sessions/password/blocks, public auth config/registration/verification/reset, viewer saved flag) and brought OpenAPI to `1.6.1`. The v1.9 slice added the shared account lifecycle service and API (`GET /api/v1/me/export`, `DELETE /api/v1/me`), the privacy-reviewed Nearby feed (`social.Nearby`, `/nearby`, `GET /api/v1/feed/nearby`, migration `0010_checkins_venue_index.sql` and the Android Nearby screen), the opt-in public drink fact sheet (`drinks.published`, `GET /api/v1/public/drinks/{slug}`, admin publish action), and Web Push dispatch for friend request/accept, toast, comment and mention notifications. OpenAPI is `1.9.0`.
 
 ## Next
 
-- Nearby feed: still deferred because location data stays venue-only and any geo feed needs a privacy review first.
-- Public read-only API: deliberately deferred to keep `/api/v1` friend-scoped and non-enumerable.
+- Native Android push: still deferred until FCM or UnifiedPush credentials and delivery policy are decided. Web Push now covers the browser surface.
+- Mobile admin surfaces: administration stays web-only.
+- Real-time delivery: notifications refresh on navigation and app resume; there is no socket or live stream.
 - PWA offline photos: the web offline queue covers check-in fields, not photo bytes.
-- Full mobile parity: video capture, AI drafting and list CRUD remain web-only.
-- Deeper mobile settings and push registration: the Android app still has narrower account controls and no push registration flow.
 
 
 ## Dependency graph
@@ -156,7 +159,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 **Build**
 - `follows`, `friendships`, `blocks`, `activities`, `notifications`, `checkin_likes`.
 - Friend request/accept/decline/cancel, follow/unfollow, block/unblock with cascade rules.
-- Feed: own + friends + follows, visibility + block filtering, keyset pagination, tabs (Friends / Following; Nearby deferred from v1.2).
+- Feed: own + friends + follows, visibility + block filtering, keyset pagination, tabs (Friends / Following; Nearby shipped in v1.9).
 - Toast with optimistic UI, idempotent like, 5 s undo (deferred delete), notification batching.
 - Notification centre and unread badge; mark read.
 - User search and profile pages with privacy filtering.
@@ -194,7 +197,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 - `badges`, `user_badges` with the badge catalogue in seed data; idempotent evaluation in the check-in transaction; backfill command.
 - Badge grid with earned/locked states and progress per design doc §5.7.
 - Profile page: header, stats, favourite style, recent check-ins, badges, lists, friends.
-- Data export (JSON) and account deletion (soft delete + 30-day purge job).
+- Data export (JSON) and account deletion (soft delete, sessions removed and API/inbound tokens revoked; no purge job and handles stay reserved).
 - Empty states across feed, search, badges, venues.
 
 **Exit criteria**
@@ -202,7 +205,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 - Deleting a check-in does not revoke a badge already earned.
 - Backfill on a seeded user reproduces the same badge set as live evaluation.
 - Export contains the user's check-ins, lists, badges, and settings, and no other user's data.
-- Deleted account's handle is freed after purge and check-ins display "deleted user".
+- Deleted account's handle stays reserved and check-ins display "deleted user"; no purge job exists.
 
 ## P8 — OpenCode ("opencode2") AI Subsystem (1.5 weeks)
 

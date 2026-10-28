@@ -159,7 +159,7 @@ func TestDispatchPushHonoursSetting(t *testing.T) {
 
 	if _, err := database.Client.PushSubscription.Create().
 		SetUserID(u.ID).
-		SetEndpoint("https://push.example/1").
+		SetEndpoint("https://fcm.googleapis.com/test/1").
 		SetP256dh("p256dh").
 		SetAuth("auth").
 		Save(ctx); err != nil {

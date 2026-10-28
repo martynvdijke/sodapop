@@ -358,6 +358,7 @@ var (
 		{Name: "recipe_json", Type: field.TypeString, Default: "{}"},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"local", "off", "user"}, Default: "local"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"provisional", "active", "merged", "limited", "seasonal", "discontinued"}, Default: "active"},
+		{Name: "published", Type: field.TypeBool, Default: false},
 		{Name: "discontinued_at", Type: field.TypeString, Nullable: true},
 		{Name: "limited_until", Type: field.TypeString, Nullable: true},
 		{Name: "created_by", Type: field.TypeString, Nullable: true},
@@ -375,13 +376,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "drinks_brands_drinks",
-				Columns:    []*schema.Column{DrinksColumns[23]},
+				Columns:    []*schema.Column{DrinksColumns[24]},
 				RefColumns: []*schema.Column{BrandsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "drinks_styles_drinks",
-				Columns:    []*schema.Column{DrinksColumns[24]},
+				Columns:    []*schema.Column{DrinksColumns[25]},
 				RefColumns: []*schema.Column{StylesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -395,12 +396,12 @@ var (
 			{
 				Name:    "drink_brand_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[23]},
+				Columns: []*schema.Column{DrinksColumns[24]},
 			},
 			{
 				Name:    "drink_style_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[24]},
+				Columns: []*schema.Column{DrinksColumns[25]},
 			},
 		},
 	}

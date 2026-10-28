@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -58,11 +59,15 @@ class ApiClient {
 
   void setToken(String? token) => _token = token;
 
-  Options _options({bool auth = true, String? idempotencyKey}) {
+  Options _options({
+    bool auth = true,
+    String? idempotencyKey,
+    ResponseType? responseType,
+  }) {
     final headers = <String, String>{'traceparent': _traceparent()};
     if (auth && _token != null) headers['Authorization'] = 'Bearer $_token';
     if (idempotencyKey != null) headers['Idempotency-Key'] = idempotencyKey;
-    return Options(headers: headers);
+    return Options(headers: headers, responseType: responseType);
   }
 
   String _traceparent() {
@@ -237,6 +242,37 @@ class ApiClient {
     return (rows as List)
         .map((e) => FeedItem.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
+  });
+
+  /// One page of pours around a point. The coordinates are used for this
+  /// request only; the server neither stores nor echoes them. `radius` is in
+  /// kilometres (0.1–25) and `limit` is capped at 50 by the server.
+  Future<NearbyPage> nearby({
+    required double lat,
+    required double lng,
+    double radiusKm = 2,
+    int limit = 20,
+    String? before,
+  }) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/feed/nearby',
+      queryParameters: {
+        'lat': lat,
+        'lng': lng,
+        'radius': radiusKm,
+        'limit': limit,
+        if (_trimmed(before) != null) 'before': _trimmed(before),
+      },
+      options: _options(),
+    );
+    final body = response.data;
+    if (body is! Map) {
+      throw ApiException(
+        'Unexpected response from the server',
+        statusCode: response.statusCode,
+      );
+    }
+    return NearbyPage.fromJson(body.cast<String, dynamic>());
   });
 
   Future<List<Drink>> search(String query, {String? style}) => _guard(() async {
@@ -713,19 +749,43 @@ class ApiClient {
     await _dio.delete<dynamic>('api/v1/me/sessions', options: _options());
   });
 
-  Future<void> changePassword(
-    String currentPassword,
-    String newPassword,
-  ) => _guard(() async {
-    await _dio.post<dynamic>(
-      'api/v1/me/password',
-      data: {
-        'current_password': currentPassword,
-        'new_password': newPassword,
-      },
+  /// The raw account export document. The endpoint answers an unwrapped JSON
+  /// body (no `data` envelope), so it is read as plain text and returned as-is.
+  Future<String> exportAccount() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/export',
+      options: _options(responseType: ResponseType.plain),
+    );
+    final body = response.data;
+    if (body is String) return body;
+    if (body is Map || body is List) return jsonEncode(body);
+    throw ApiException(
+      'Unexpected response from the server',
+      statusCode: response.statusCode,
+    );
+  });
+
+  /// Closes the signed-in account. [confirm] must be the account handle; the
+  /// server answers 409 `last_admin` when it is the only live admin.
+  Future<void> deleteAccount(String confirm) => _guard(() async {
+    await _dio.delete<dynamic>(
+      'api/v1/me',
+      data: {'confirm': confirm},
       options: _options(),
     );
   });
+
+  Future<void> changePassword(String currentPassword, String newPassword) =>
+      _guard(() async {
+        await _dio.post<dynamic>(
+          'api/v1/me/password',
+          data: {
+            'current_password': currentPassword,
+            'new_password': newPassword,
+          },
+          options: _options(),
+        );
+      });
 
   Future<List<BlockedUser>> blockedUsers() => _guard(() async {
     final response = await _dio.get<dynamic>(

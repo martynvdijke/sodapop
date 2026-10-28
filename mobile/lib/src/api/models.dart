@@ -264,6 +264,7 @@ class FeedItem {
     this.photoId = '',
     this.createdAt = '',
     this.toasts = 0,
+    this.comments = 0,
     this.toasted = false,
     this.saved = false,
   });
@@ -280,6 +281,10 @@ class FeedItem {
   final String photoId;
   final String createdAt;
   final int toasts;
+
+  /// How many comments the check-in carries. The feed DTO names this
+  /// `comments`; the check-in detail projection names it `comments_count`.
+  final int comments;
   final bool toasted;
   final bool saved;
 
@@ -317,27 +322,92 @@ class FeedItem {
       photoId: _firstString([photo['id'], json['photo_id']]),
       createdAt: _firstString([json['created_at'], json['createdAt']]),
       toasts: _int(_firstValue([json['toasts'], json['toast_count']])) ?? 0,
+      comments:
+          _int(
+            _firstValue([
+              json['comments'],
+              json['comments_count'],
+              json['comment_count'],
+            ]),
+          ) ??
+          0,
       toasted: _bool(json['toasted']),
       saved: _bool(json['saved']),
     );
   }
 
-  FeedItem copyWith({int? toasts, bool? toasted, bool? saved}) => FeedItem(
-    id: id,
-    handle: handle,
-    displayName: displayName,
-    drinkName: drinkName,
-    drinkSlug: drinkSlug,
-    brand: brand,
-    rating: rating,
-    note: note,
-    venueName: venueName,
-    photoId: photoId,
-    createdAt: createdAt,
-    toasts: toasts ?? this.toasts,
-    toasted: toasted ?? this.toasted,
-    saved: saved ?? this.saved,
-  );
+  FeedItem copyWith({int? toasts, int? comments, bool? toasted, bool? saved}) =>
+      FeedItem(
+        id: id,
+        handle: handle,
+        displayName: displayName,
+        drinkName: drinkName,
+        drinkSlug: drinkSlug,
+        brand: brand,
+        rating: rating,
+        note: note,
+        venueName: venueName,
+        photoId: photoId,
+        createdAt: createdAt,
+        toasts: toasts ?? this.toasts,
+        comments: comments ?? this.comments,
+        toasted: toasted ?? this.toasted,
+        saved: saved ?? this.saved,
+      );
+}
+
+/// One pour in the Nearby feed: a feed row plus the server's rounded distance.
+/// The coordinates that produced it are never echoed back or kept here.
+class NearbyItem {
+  const NearbyItem({required this.checkin, this.distanceM = 0});
+
+  final FeedItem checkin;
+  final int distanceM;
+
+  /// Accepts both the flat feed row (`FeedItem` fields + `distance_m`) and a
+  /// nested `checkin` object, so a future shape change stays readable.
+  factory NearbyItem.fromJson(Map<String, dynamic> json) {
+    final nested = _map(json['checkin']);
+    final source = nested.isEmpty ? json : nested;
+    return NearbyItem(
+      checkin: FeedItem.fromJson(source),
+      distanceM:
+          _int(_firstValue([json['distance_m'], source['distance_m']])) ?? 0,
+    );
+  }
+}
+
+/// One page of the Nearby feed. [nextBefore] is the cursor for older pours.
+class NearbyPage {
+  const NearbyPage({
+    this.items = const [],
+    this.count = 0,
+    this.hasMore = false,
+    this.nextBefore = '',
+  });
+
+  final List<NearbyItem> items;
+
+  /// How many pours this page carries, not the size of the whole radius.
+  final int count;
+  final bool hasMore;
+
+  /// Cursor for the next page, empty when [hasMore] is false.
+  final String nextBefore;
+
+  factory NearbyPage.fromJson(Map<String, dynamic> json) {
+    final items = _list(json['data'])
+        .whereType<Map>()
+        .map((row) => NearbyItem.fromJson(row.cast<String, dynamic>()))
+        .toList();
+    final meta = _map(json['meta']);
+    return NearbyPage(
+      items: items,
+      count: _int(meta['count']) ?? items.length,
+      hasMore: _bool(meta['has_more']),
+      nextBefore: _string(meta['next_before']),
+    );
+  }
 }
 
 class BarcodeResult {

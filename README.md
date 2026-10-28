@@ -19,6 +19,16 @@ Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product s
 - **First-run setup and runtime settings:** a fresh instance prints a one-time `setup required:` token, `/setup` creates the first verified admin, and `/admin/settings` overlays audited runtime values with `default|env|db` source badges.
 - **Expanded API and Android:** OpenAPI `1.2.0` added comments, media, lists, mixes, taste, badges/passport, saved venues, follows/blocks and admin notes. The Android app covers check-in detail and comments, other-user profiles with follow/block, notification actions, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes; video clips still open in the web app.
 
+## v1.9 highlights
+
+Shipped on top of v1.8. The OpenAPI surface is `1.9.0`. This release adds account lifecycle endpoints, a privacy-reviewed nearby feed across web, API and Android, an opt-in public drink fact sheet, and social push coverage.
+
+- **Account lifecycle API:** `GET /api/v1/me/export` returns the same JSON export as `/export.json` as a raw attachment, and `DELETE /api/v1/me` closes the account after echoing the handle in `{"confirm":"<handle>"}`. Deletion soft-deletes the account, removes sessions and revokes API and inbound tokens. The last live admin cannot be deleted (`409 last_admin`), and there is no purge job or handle release.
+- **Nearby feed:** signed-in members can search for visible pours around a one-shot location on `/nearby`, or call `GET /api/v1/feed/nearby` with latitude, longitude and a 0.1–25 km radius. Coordinates are used only for the request, snapped before querying, never stored or echoed, and distances are returned in 100 m buckets. The feed respects friendship, follow, visibility and block rules; there is no global or anonymous nearby feed.
+- **Public read-only drink API:** an admin can publish a drink, after which `GET /api/v1/public/drinks/{slug}` serves a minimal catalog fact sheet without authentication. Unpublished, provisional, merged, discontinued and unknown slugs all return the same `404`, there is no collection or search route, and ratings appear only once three people have rated the drink.
+- **Push coverage:** browser push subscription now enables `push_enabled`, so delivery is not silently blocked. Friend requests, accepts, toasts, comments and mentions dispatch through the same integration/Web Push path; badges and system notices stay in-app. Native Android push remains deferred.
+- **Android Nearby and account controls:** the app adds a Nearby screen from Discover, with coarse or fine one-shot location, radius chips and distance buckets, plus account export and closure in Settings. Admin surfaces and native push are still not in the app.
+
 ## v1.8 highlights
 
 Shipped on top of v1.7. The OpenAPI surface is `1.6.1`; most of this release closes the Android parity gap and adds the APIs that made it possible.
@@ -54,12 +64,12 @@ Shipped on top of v1.5. The OpenAPI surface is now `1.3.0`.
 
 | Document | Covers |
 |---|---|
-| [docs/product.md](docs/product.md) | Positioning, soda taxonomy, user flows for scanning, check-ins, notifications, settings, profiles, insights and drops, barcode & PWA requirements, OIDC, OpenCode AI, integrations, Android app, acceptance criteria |
-| [docs/architecture.md](docs/architecture.md) | Go 1.27 + Ent ORM + SQLite migrations, HTTP surface, indexability rules, Home Assistant webhook auth, Authelia OIDC + local email verification, OFF v3.6, OpenCode ("opencode2") AI, OTel, Umami, Docker/CI |
-| [docs/data-model.md](docs/data-model.md) | Ent ORM schemas (`ent/schema/`), versioned migration registry (`internal/db/migrations.go` plus `internal/db/migrations/*.sql`), `schema_consistency_test.go`, and full resulting SQLite DDL + FTS5 + views |
+| [docs/product.md](docs/product.md) | Positioning, soda taxonomy, user flows for scanning, check-ins, nearby pours, notifications, settings, account lifecycle, profiles, insights and drops, public drink facts, barcode & PWA requirements, OIDC, OpenCode AI, integrations, Android app, acceptance criteria |
+| [docs/architecture.md](docs/architecture.md) | Go 1.27 + Ent ORM + SQLite migrations, HTTP surface including nearby, account lifecycle and the public drink route, indexability rules, Home Assistant webhook auth, Authelia OIDC + local email verification, OFF v3.6, OpenCode ("opencode2") AI, OTel, Umami, Docker/CI |
+| [docs/data-model.md](docs/data-model.md) | Ent ORM schemas (`ent/schema/`), versioned migration registry (`internal/db/migrations.go` plus `internal/db/migrations/*.sql`, through `0010`), `schema_consistency_test.go`, and full resulting SQLite DDL + FTS5 + views |
 | [docs/design-direction.md](docs/design-direction.md) | Fresh lime visual system (`#B4E32C` fill, `#16241A` forest ink, `#F2F4E6` cream / `#0C130E` dark), typography, components, scanner overlay, accessibility |
-| [docs/mobile.md](docs/mobile.md) | Flutter Android app (`mobile/`): zero-default server onboarding, OIDC WebView + `sd_` token exchange, native registration and reset, `mobile_scanner` ML Kit, full member parity, offline check-in outbox and read cache, APK CI/release |
-| [docs/roadmap.md](docs/roadmap.md) | Dependency graph and phases `P0`–`P11` with build lists, exit criteria, and definition of done |
+| [docs/mobile.md](docs/mobile.md) | Flutter Android app (`mobile/`): zero-default server onboarding, OIDC WebView + `sd_` token exchange, native registration and reset, `mobile_scanner` ML Kit, Nearby with one-shot location, account export/closure, full member parity, offline check-in outbox and read cache, APK CI/release |
+| [docs/roadmap.md](docs/roadmap.md) | Dependency graph and phases `P0`–`P11` with build lists, exit criteria, shipped v1.1–v1.9 status, and definition of done |
 
 ## Highlights
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _savingPrivacy = false;
   bool _savingBedtime = false;
   bool _signingOutAll = false;
+  bool _exporting = false;
   int? _busySession;
   String? _unblockingHandle;
   String? _bedtimeError;
@@ -381,6 +384,85 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } finally {
       if (mounted) setState(() => _unblockingHandle = null);
     }
+  }
+
+  Future<void> _exportAccount() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final document = await ref.read(apiProvider).exportAccount();
+      if (!mounted) return;
+      setState(() => _exporting = false);
+      await _showExport(document);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _exporting = false);
+      await _showExportError(ApiClient.describe(error).message);
+    }
+  }
+
+  Future<void> _showExport(String document) async {
+    final theme = Theme.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: theme.colorScheme.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _ExportSheet(
+        document: document,
+        size: _formatBytes(utf8.encode(document).length),
+      ),
+    );
+  }
+
+  Future<void> _showExportError(String message) async {
+    final retry = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Download failed'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            key: const Key('export-error-close'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            key: const Key('export-error-retry'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Try again'),
+          ),
+        ],
+      ),
+    );
+    if (retry == true && mounted) await _exportAccount();
+  }
+
+  Future<void> _closeAccount() async {
+    final profile = _settings?.profile;
+    if (profile == null || profile.handle.isEmpty) return;
+    final closed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _CloseAccountDialog(
+        api: ref.read(apiProvider),
+        handle: profile.handle,
+      ),
+    );
+    if (closed != true || !mounted) return;
+    await ref.read(authProvider.notifier).signOut();
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(kb >= 100 ? 0 : 1)} KB';
+    return '${(kb / 1024).toStringAsFixed(1)} MB';
   }
 
   @override
@@ -1083,9 +1165,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _accountSection(ThemeData theme, AccountSettings settings) {
-    final hint = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
     final count = theme.textTheme.titleMedium?.copyWith(
       fontWeight: FontWeight.w800,
       fontFeatures: const [FontFeature.tabularFigures()],
@@ -1112,25 +1191,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: Text('${_blocked.length}', style: count),
               ),
               const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Data export and account closure are on the web settings page of your Sodapop server. Open the site in a browser to use them; there is no shortcut in the app.',
-                        style: hint,
-                      ),
-                    ),
-                  ],
+              ListTile(
+                key: const Key('settings-export'),
+                contentPadding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+                leading: Icon(
+                  Icons.download_outlined,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
+                title: const Text('Download my data'),
+                subtitle: const Text(
+                  'A JSON copy of your profile, check-ins, lists and settings.',
+                ),
+                trailing: _exporting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Soda.lime,
+                        ),
+                      )
+                    : const Icon(Icons.chevron_right_rounded),
+                onTap: _exporting ? null : _exportAccount,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                key: const Key('settings-close-account'),
+                contentPadding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+                leading: Icon(
+                  Icons.person_off_outlined,
+                  color: theme.colorScheme.error,
+                ),
+                title: Text(
+                  'Close account',
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Hide your check-ins and end every session.',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: _closeAccount,
               ),
             ],
           ),
@@ -1393,4 +1496,288 @@ String _passwordMessage(Object error) {
     return 'This account signs in with a provider, not a password.';
   }
   return message;
+}
+
+/// The export confirmation sheet. Copying keeps the sheet open and swaps the
+/// button label, so the member sees the copy landed before closing.
+class _ExportSheet extends StatefulWidget {
+  const _ExportSheet({required this.document, required this.size});
+
+  final String document;
+  final String size;
+
+  @override
+  State<_ExportSheet> createState() => _ExportSheetState();
+}
+
+class _ExportSheetState extends State<_ExportSheet> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.document));
+    if (!mounted) return;
+    setState(() => _copied = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: scheme.onSurface.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.32),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.download_done_rounded, color: scheme.onSurface),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Your data export',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'A JSON document with your profile, check-ins, lists and settings. Copy it and keep it somewhere safe.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: scheme.onSurface.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.description_outlined,
+                  size: 18,
+                  color: scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'sodapop-export.json',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  widget.size,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            key: const Key('export-copy'),
+            onPressed: _copy,
+            icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded),
+            label: Text(_copied ? 'Copied' : 'Copy JSON'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            key: const Key('export-close'),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two-step account closure: an explanation list and an exact-handle check
+/// before the destructive call. The dialog stays open after a failure and
+/// keeps whatever the member typed.
+class _CloseAccountDialog extends StatefulWidget {
+  const _CloseAccountDialog({required this.api, required this.handle});
+
+  final ApiClient api;
+  final String handle;
+
+  @override
+  State<_CloseAccountDialog> createState() => _CloseAccountDialogState();
+}
+
+class _CloseAccountDialogState extends State<_CloseAccountDialog> {
+  static const _effects = [
+    'Your profile is soft-deleted on the server.',
+    'Your check-ins are hidden from friends and discovery.',
+    'Every session and API token is revoked, including this phone.',
+    'Your handle stays reserved and cannot be reused.',
+    'This cannot be undone in the app.',
+  ];
+
+  final _confirm = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  bool get _matches {
+    final text = _confirm.text.trim();
+    return text == widget.handle || text == '@${widget.handle}';
+  }
+
+  Future<void> _submit() async {
+    if (_busy || !_matches) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.api.deleteAccount(widget.handle);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = _closeMessage(error);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final hint = theme.textTheme.bodySmall?.copyWith(
+      color: scheme.onSurfaceVariant,
+    );
+    return AlertDialog(
+      title: const Text('Close your account?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Closing the account changes these things:', style: hint),
+            const SizedBox(height: 12),
+            for (final effect in _effects)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 7),
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: scheme.error.withValues(alpha: 0.7),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        effect,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 10),
+            Text(
+              'Type @${widget.handle} to confirm.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const Key('close-account-confirm'),
+              controller: _confirm,
+              enabled: !_busy,
+              autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.none,
+              textInputAction: TextInputAction.done,
+              onChanged: (_) => setState(() => _error = null),
+              onSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                labelText: 'Handle',
+                hintText: widget.handle,
+                errorText: _error,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('close-account-cancel'),
+          onPressed: _busy ? null : () => Navigator.pop(context, false),
+          child: const Text('Keep account'),
+        ),
+        FilledButton(
+          key: const Key('close-account-submit'),
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+          ),
+          onPressed: _matches && !_busy ? _submit : null,
+          child: Text(_busy ? 'Closing…' : 'Close account'),
+        ),
+      ],
+    );
+  }
+}
+
+String _closeMessage(Object error) {
+  final described = ApiClient.describe(error);
+  final text = described.message.toLowerCase();
+  if (described.statusCode == 409 ||
+      text.contains('last_admin') ||
+      text.contains('only admin')) {
+    return 'This is the only admin account. Promote another admin before closing it.';
+  }
+  return described.message;
 }

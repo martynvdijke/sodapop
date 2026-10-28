@@ -333,3 +333,45 @@ func (s *Service) SetDrinkStatus(ctx context.Context, userID *string, drinkID in
 	}
 	return tx.Commit()
 }
+
+// SetDrinkPublished toggles a drink's public API visibility and records the
+// change in the same transaction. Leaving the flag unchanged writes neither the
+// row nor a revision.
+func (s *Service) SetDrinkPublished(ctx context.Context, userID *string, drinkID int, published bool) error {
+	if drinkID <= 0 {
+		return ErrNotFound
+	}
+	tx, err := s.Client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	d, err := tx.Drink.Get(ctx, drinkID)
+	if err != nil {
+		_ = tx.Rollback()
+		if ent.IsNotFound(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if d.Published == published {
+		_ = tx.Rollback()
+		return nil
+	}
+	before := map[string]any{"published": d.Published}
+	if _, err := tx.Drink.UpdateOneID(drinkID).
+		SetPublished(published).
+		SetUpdatedAt(db.Now()).
+		Save(ctx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	action := "unpublish"
+	if published {
+		action = "publish"
+	}
+	if err := recordRevisionTx(ctx, tx, "drink", drinkID, userID, action, before, map[string]any{"published": published}); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}

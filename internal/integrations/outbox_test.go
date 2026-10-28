@@ -38,7 +38,7 @@ func TestDispatchEnqueuesOneRowPerTarget(t *testing.T) {
 		t.Fatalf("create settings: %v", err)
 	}
 	subscriptions := []*ent.PushSubscription{}
-	for _, endpoint := range []string{"https://push.example/a", "https://push.example/b"} {
+	for _, endpoint := range []string{"https://fcm.googleapis.com/test/a", "https://fcm.googleapis.com/test/b"} {
 		sub, err := database.Client.PushSubscription.Create().
 			SetUserID(u.ID).
 			SetEndpoint(endpoint).
@@ -162,7 +162,7 @@ func TestPushRequiresEnabledPreference(t *testing.T) {
 	}
 	if _, err := database.Client.PushSubscription.Create().
 		SetUserID(u.ID).
-		SetEndpoint("https://push.example/a").
+		SetEndpoint("https://fcm.googleapis.com/test/a").
 		SetP256dh("p256dh").
 		SetAuth("auth").
 		Save(ctx); err != nil {
@@ -234,7 +234,7 @@ func TestOutboxWorkerDeliversPush(t *testing.T) {
 	}
 	sub, err := database.Client.PushSubscription.Create().
 		SetUserID(u.ID).
-		SetEndpoint("https://push.example/a").
+		SetEndpoint("https://fcm.googleapis.com/test/a").
 		SetP256dh("p256dh").
 		SetAuth("auth").
 		Save(ctx)

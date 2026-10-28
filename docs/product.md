@@ -39,6 +39,9 @@ Automatic SQLite backups with a 14-snapshot retention and an offline restore com
 ### v1.8 (shipped)
 Flutter parity for the member surface: drink detail with galleries and native video, compare, friends directory and requests, rich check-ins (serving, venue, visibility, 1,000-character note, camera/gallery photo or short video), venue media upload, list CRUD, passport stamps, AI drafting, saved posts, comment replies/mentions/pagination, settings, native registration and password reset, app-wide saved theme, and offline feed/drink reads with connectivity-triggered outbox flush · API `1.6.1` adds list writes, compare, passport stamps, account settings/sessions/password/blocks, public auth config/registration/verification/reset, and a viewer-specific saved flag on check-in detail. Account export/closure, admin tools, Web Push registration and a public read-only API remain web-only or deferred.
 
+### v1.9 (shipped)
+Account lifecycle through a shared service and API: `GET /api/v1/me/export` returns the same JSON export as the web route as an attachment, and `DELETE /api/v1/me` closes the account after an exact handle confirmation, soft-deleting the row, removing sessions and revoking API and inbound tokens while refusing the last live admin · a friend-scoped Nearby feed on `/nearby`, `GET /api/v1/feed/nearby` and the Android app, using one-shot coordinates, 0.1–25 km radii, 100 m distance buckets and an opaque cursor · an opt-in public drink fact sheet at `GET /api/v1/public/drinks/{slug}`, enabled per drink by an admin, with no collection or search route · Web Push coverage for friend requests, accepts, toasts, comments and mentions, with subscribe enabling `push_enabled` · Android Nearby and account export/closure. Native Android push and admin surfaces remain out of scope.
+
 ### Explicit non-goals
 Native iOS app · real-time chat · ActivityPub federation · paid business accounts · advertising · a video platform, standalone video hosting or an algorithmic video feed (short MP4/WebM check-in clips are supported) · multi-tenant hosting · Postgres.
 
@@ -154,6 +157,7 @@ Rules:
 - **Drink page**: image gallery, brand, style chips, flavour chips, nutrition facts, average rating with count (hidden below 3 ratings, “Not enough ratings yet”), your history, friend ratings, “Found at” venue list, similar drinks by style, actions “Check in”, “Add to list” and “Compare”.
 - **Brand page**: drinks grid, country, description, top-rated.
 - **Style page**: description, top drinks, your count, badge progress.
+- **Public drink fact sheet** (`GET /api/v1/public/drinks/{slug}`): an unauthenticated, IP-limited read of one drink after an admin publishes it. The payload is a minimal catalog fact sheet with brand and style names, container, volume, nutrition, descriptors, flavours, status, image URL and a rating only at three or more raters. It never includes the internal id, source, creator, barcodes, aliases or media ids. Unpublished, provisional, merged, discontinued, malformed and unknown slugs all return the same `404`. There is deliberately no collection, search or list route.
 
 Average rating: plain mean across distinct users (each user's checks averaged to one value). Display only at ≥3 distinct raters (`MIN_RATERS_FOR_AVG`). Top-rated lists use a Bayesian score with prior mean 3.5 and weight 5, and require ≥3 raters.
 
@@ -162,6 +166,7 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 - **Friend request** from a profile or search row. Pending → accepted. Blocking removes friendship and follows in both directions and hides content both ways.
 - **Follow** is one-way and separate: following someone adds their public check-ins to the feed without a request.
 - **Feed** (`/`): own activity plus accepted friends plus followed users, newest first, keyset paginated 20 at a time, `visibility` respected. Tabs: Friends / Following.
+- **Nearby** (`/nearby`): a signed-in, opt-in search for visible pours around a one-shot location. The browser asks for coordinates only from a click and sends them in the POST body for that request only; the API equivalent sends `lat`/`lng` in the query string for that request only. The point is never stored, logged by the app, put in analytics, or echoed back, though an operator's reverse-proxy access log may record the request URL. Mitigate that with `TRUSTED_PROXIES` and short access-log retention. The web route is capped at 30 searches per minute per user. Results are nearest first in 100 m distance buckets, paginated with an opaque cursor, and filtered by the same friend, follow, visibility and block rules as the feed. There is no global nearby feed and no location history; the API equivalent is `GET /api/v1/feed/nearby` (feed scope, 30 requests per minute per user).
 - **Toast**: one tap on the check-in icon; optimistic UI; undo while the page is open; the author gets a notification (in-app, and push when enabled).
 - **Blocks**: block or unblock from a profile, and manage the list at `/settings/blocked`. Blocking ends an accepted or pending friendship and every follow in either direction in one transaction, then hides both accounts from each other's feed, profiles, comments, toasts and notifications. The API returns 404 for a blocked list; profiles return 404 rather than confirming an account, and a blocked follow or friend request is a silent no-op. Unblocking removes only the caller's block; it does not restore the old friendship or follows.
 - **Notifications**: kinds are friend request, friend accepted, toast on your check-in, comment on your check-in, mention in a comment, badge earned, and system (a wishlist drop, for example). Comment and mention rows link to `/checkins/{id}#comments`. The nav shows an unread count. `/notifications` lists the newest 50 with an actor, text, time and link; each row can be marked read, and “Mark all read” clears the rest. The same personal list is available at `GET /api/v1/notifications`, with `POST /api/v1/notifications/read` accepting an `id` or marking everything.
@@ -176,7 +181,7 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 - **Venue photos and menus**: verified members can add an image as a `photo` or `menu` with an optional 80-character label. Each uploader can keep 6 active rows at one venue and the venue can hold 20 in total. The uploader, a moderator or an admin can remove a row; removal is a soft delete of the attachment, and the file is kept. Images follow the same 12 MiB image pipeline as check-in photos (JPEG/PNG/WebP/GIF, EXIF stripped, resized). Menus are images, not documents.
 - **Venue check-in**: a check-in with `venue_id`. Untappd's “purchase location” distinction is simplified: one venue field, plus the venue kind tells you whether it was consumed or bought.
 - **Verification**: admins can verify venues; verified venues show a subtle badge and can have a curated menu. No paid business tier.
-- **Location data**: never store continuous location. Coordinates are stored only on venues, plus an optional one-shot “near me” query. No background geolocation.
+- **Location data**: never store continuous location. Coordinates are stored only on venues, plus a one-shot Nearby query whose point is included in the request body or query string for that request and discarded. It is never stored or app-logged, though an operator's reverse-proxy access log may record the request URL; use `TRUSTED_PROXIES` and short log retention to limit that exposure. No background geolocation, no user location columns and no stored distance buckets beyond the response.
 
 ### 5.7 Lists, wishlist, badges
 
@@ -211,7 +216,7 @@ Personal stats: total check-ins, unique drinks, average rating, toasts received 
 ### 5.9 Admin
 
 Access is role-gated: the moderation overview and report actions accept `moderator` or `admin`; the operational pages marked below require `admin`.
-- **Catalog**: search, edit, verify, merge duplicates (reassigns check-ins, lists, barcodes; keeps a redirect), delete (soft).
+- **Catalog**: search, edit, verify, merge duplicates (reassigns check-ins, lists, barcodes; keeps a redirect), delete (soft), and publish or unpublish a drink for the public fact sheet at `POST /admin/drinks/{id}/publish` (CSRF-protected, admin role). The drink page explains that published catalog facts are public while user data is not.
 - **Reports**: queue for duplicate/wrong data/spam/abuse, resolve with reason, notify reporter.
 - **Venues**: `/admin/venues` searches venues by name, city or known alias, shows the source venue's aliases, and merges a source into a target. Cycle, missing-venue and invalid-id attempts return a clear error instead of a partial merge.
 - **Badges**: `/admin/badges` lists every definition with its award count, creates definitions, edits name, description, kind and rule, and deletes only unawarded badges. The slug is immutable once created.
@@ -239,7 +244,7 @@ All account controls live on one page at `/settings`:
 - **Notifications**: weekly email digest, friend-request email, and push (HTTPS and a supporting browser required).
 - **Privacy**: default visibility for new check-ins, opt-in public profile, and an analytics opt-out that removes the Umami script entirely.
 - **Security**: change password (current password required; the form asks for at least 10 characters and other sessions are revoked), API token management at `/settings/tokens`, active session list with per-session revoke, “Sign out everywhere”, and blocked accounts at `/settings/blocked` with unblock.
-- **Data**: JSON export of the account's data and soft-delete account closure (type the handle to confirm). Deletion marks the row deleted, removes sessions and revokes tokens.
+- **Data**: JSON export of the account's data and soft-delete account closure (type the handle to confirm). The same operations are available at `GET /api/v1/me/export` and `DELETE /api/v1/me`. Deletion marks the row deleted, removes sessions, revokes API and inbound tokens, and refuses the last live admin with `409 last_admin`. There is no purge job; the handle stays reserved and no content is hard-deleted. The export is a raw JSON attachment without a `data` wrapper.
 - **Password reset**: `/forgot` always shows the same anti-enumerated response, and `/reset/{token}` accepts a 1-hour, single-use link that revokes every session on success.
 
 ### 5.11 OpenCode ("opencode2") AI assistant
@@ -254,11 +259,11 @@ Ported from `dnd` (`internal/ai`), completely optional and hidden whenever `ai_e
 Companion Android client modeled on `board-games/mobile` and `dnd/mobile` (full spec in [mobile.md](mobile.md)):
 - **Onboarding**: starts with an empty server URL field (zero hardcoded default URL), validates and normalizes `http(s)` URLs, probes `GET /api/v1/auth/oidc/status`, and offers **“Sign in with Authelia”** (in-app WebView + native cookie capture + `sd_` device token exchange) alongside personal API token (`sd_…`) and optional password fallback.
 - **Native barcode scanner**: uses `mobile_scanner` (CameraX + ML Kit) with hardware torch and pinch-to-zoom, normalizing scans to GTIN-14 and resolving against the same local cache → `/api/v1/barcodes/{gtin}` ladder.
-- **Feature parity**: 4-slot bottom navigation (`Friends`, lifted lime `Scan`, `Discover`, `You`), quarter-star check-in sheet with photo attachment, AI tasting-note polish and an offline check-in queue with idempotency keys (photos up to 2 MiB included), and lime/forest Material 3 theme (`#B4E32C` / `#16241A` / `#F2F4E6` / `#0C130E`). The v1.2 app adds check-in detail with comments, other-user profiles with follow and block, notification actions, lists, saved venues, venue search/detail, insights, taste twins, passport/badges and mixes. It has an authenticated media path (`ApiClient.mediaUrl` → `/api/v1/media/{id}`); short video clips are shown as a "watch on web" notice.
+- **Feature parity**: 4-slot bottom navigation (`Friends`, lifted lime `Scan`, `Discover`, `You`), quarter-star check-in sheet with photo attachment, AI tasting-note polish and an offline check-in queue with idempotency keys (photos up to 2 MiB included), and lime/forest Material 3 theme (`#B4E32C` / `#16241A` / `#F2F4E6` / `#0C130E`). The v1.2 app adds check-in detail with comments, other-user profiles with follow and block, notification actions, lists, saved venues, venue search/detail, insights, taste twins, passport/badges and mixes. It has an authenticated media path (`ApiClient.mediaUrl` → `/api/v1/media/{id}`); short video clips are shown as a "watch on web" notice. The v1.9 app adds Nearby from Discover, using a one-shot coarse or fine location with 0.5–25 km radius chips, distance buckets and pagination, plus account export and closure in Settings. Admin tools and native push are not in the app.
 
 ### 5.13 Integrations
 
-Outbound integrations are configured per user at `/integrations`: Home Assistant webhook, Matrix room (`homeserver|room_id` plus a token) and TRMNL. A test button sends a sample event. TRMNL receives `merge_variables` JSON from the latest public or friends-visible check-in, and push delivery only happens when `push_enabled` is on.
+Outbound integrations are configured per user at `/integrations`: Home Assistant webhook, Matrix room (`homeserver|room_id` plus a token) and TRMNL. A test button sends a sample event. TRMNL receives `merge_variables` JSON from the latest public or friends-visible check-in, and push delivery only happens when `push_enabled` is on. Subscribing a browser to push sets `push_enabled=true` and creates the preference row if it is missing, so a browser subscription is not silently ignored; unsubscribing removes only that device and leaves the preference unchanged. Friend requests, accepts, toasts, comments and mentions fan out to integrations and Web Push; badge and system notifications stay in-app only. Friend links go to `/friends`, toasts to `/checkins/{id}`, and comments or mentions to `/checkins/{id}#comments`. There is still no native Android push registration.
 
 **Home Assistant inbound** lets a motion sensor or NFC tag log a soda:
 - Create a token at `/integrations` (one active token per user; creating a new one revokes the previous). Only metadata is listed afterwards; the token is stored as a SHA-256 hash.
@@ -271,7 +276,7 @@ Outbound integrations are configured per user at `/integrations`: Home Assistant
 Platform reality that shapes the design:
 
 - `BarcodeDetector` is available on Chrome/Edge (Android, ChromeOS, macOS) but **not on iOS Safari in production** and not on Firefox. iOS is the primary mobile browser share for this audience, so the WebAssembly fallback is mandatory, not optional.
-- Requires a secure context (HTTPS or localhost) and a `Permissions-Policy: camera=(self)` header.
+- Requires a secure context (HTTPS or localhost) and a `Permissions-Policy: camera=(self), geolocation=(self)` header.
 - Torch/flash and zoom are unavailable on iOS Safari; the UI must not depend on them. Feature-detect `getCapabilities().torch`.
 - Any scan result is untrusted input: validate length and GS1 check digit before hitting the API.
 
@@ -414,7 +419,19 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 - Offline, the app shows the cached feed or a cached drink with a refresh banner; when connectivity returns it flushes the outbox exactly once per idempotency key.
 - A comment reply prefills `@handle `, a mention in a comment opens the profile, and a thread longer than 50 comments loads earlier pages without duplicates.
 
-## 13. Risks and open questions
+## 13. Acceptance criteria (v1.9)
+
+- `GET /api/v1/me/export` requires read scope and returns the same JSON document as `/export.json` with `Content-Disposition: attachment` and no `data` wrapper.
+- `DELETE /api/v1/me` requires write scope and a verified email, rejects a missing or wrong `confirm` with `400 invalid_request`, refuses the last live admin with `409 last_admin`, and otherwise returns `204` after removing sessions and revoking API and inbound tokens.
+- `GET /api/v1/feed/nearby` requires feed scope, rejects a radius outside 0.1–25 km, returns `400` for invalid coordinates or cursor, returns `429` with `Retry-After` above 30 requests per minute per user, and marks responses `Cache-Control: private, no-store`.
+- Nearby responses never echo the request coordinates, return `distance_m` in 100 m buckets, and exclude deleted, suspended or blocked authors and merged or unlocated venues.
+- `/nearby` requires sign-in, rejects a missing location or a radius outside the allowed range with an inline message, is capped at 30 searches per minute per user, and has no global or anonymous feed. Its point travels in the POST body for that request only and is never stored; an operator's reverse-proxy access log may still record the URL, so configure `TRUSTED_PROXIES` and keep access-log retention short.
+- `GET /api/v1/public/drinks/{slug}` returns `404` for unknown, unpublished, provisional, merged, discontinued and malformed slugs; a published active, limited or seasonal drink returns only the fact-sheet fields, and a rating appears only at three raters.
+- A browser push subscription sets `push_enabled=true` and creates the preference row when missing; unsubscribing removes the device but does not change the preference.
+- Friend request, accept, toast, comment and mention notifications dispatch through `social.Service.OnNotify`; badge and system notifications do not. A comment push fires once.
+- The Android app opens Nearby from Discover, requests only a one-shot coarse or fine location, paginates in distance order, and exposes account export and closure in Settings.
+
+## 14. Risks and open questions
 
 | Risk | Mitigation |
 |---|---|
@@ -425,9 +442,9 @@ Rules: `UMAMI_URL`/`UMAMI_WEBSITE_ID` unset disables injection entirely; `analyt
 | SQLite write contention from badge/stats writes | Single writer, WAL, short transactions; stats from views at read time |
 | Self-hosted SMTP deliverability | Clear setup docs, test-email button, outbox visibility, optional relay |
 
-Open: whether to default units by locale now that a metric/imperial toggle exists; whether to expose a public read-only API without weakening the friend-scoped `/api/v1` contract.
+Open: whether to default units by locale now that a metric/imperial toggle exists; whether to expand the opt-in public drink surface beyond one fact sheet without weakening the friend-scoped `/api/v1` contract.
 
-## 14. Success signals
+## 15. Success signals
 
 - First-run: signup → verified → first check-in completes in under 3 minutes.
 - ≥ 60% of check-ins start from a scan.

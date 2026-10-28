@@ -109,6 +109,11 @@ func RecipeJSON(v string) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldRecipeJSON, v))
 }
 
+// Published applies equality check predicate on the "published" field. It's identical to PublishedEQ.
+func Published(v bool) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldPublished, v))
+}
+
 // DiscontinuedAt applies equality check predicate on the "discontinued_at" field. It's identical to DiscontinuedAtEQ.
 func DiscontinuedAt(v string) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldDiscontinuedAt, v))
@@ -832,6 +837,16 @@ func StatusIn(vs ...Status) predicate.Drink {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.Drink {
 	return predicate.Drink(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// PublishedEQ applies the EQ predicate on the "published" field.
+func PublishedEQ(v bool) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldPublished, v))
+}
+
+// PublishedNEQ applies the NEQ predicate on the "published" field.
+func PublishedNEQ(v bool) predicate.Drink {
+	return predicate.Drink(sql.FieldNEQ(FieldPublished, v))
 }
 
 // DiscontinuedAtEQ applies the EQ predicate on the "discontinued_at" field.

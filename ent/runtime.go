@@ -433,12 +433,16 @@ func init() {
 	drinkDescRecipeJSON := drinkFields[16].Descriptor()
 	// drink.DefaultRecipeJSON holds the default value on creation for the recipe_json field.
 	drink.DefaultRecipeJSON = drinkDescRecipeJSON.Default.(string)
+	// drinkDescPublished is the schema descriptor for published field.
+	drinkDescPublished := drinkFields[19].Descriptor()
+	// drink.DefaultPublished holds the default value on creation for the published field.
+	drink.DefaultPublished = drinkDescPublished.Default.(bool)
 	// drinkDescCreatedAt is the schema descriptor for created_at field.
-	drinkDescCreatedAt := drinkFields[23].Descriptor()
+	drinkDescCreatedAt := drinkFields[24].Descriptor()
 	// drink.DefaultCreatedAt holds the default value on creation for the created_at field.
 	drink.DefaultCreatedAt = drinkDescCreatedAt.Default.(func() string)
 	// drinkDescUpdatedAt is the schema descriptor for updated_at field.
-	drinkDescUpdatedAt := drinkFields[24].Descriptor()
+	drinkDescUpdatedAt := drinkFields[25].Descriptor()
 	// drink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	drink.DefaultUpdatedAt = drinkDescUpdatedAt.Default.(func() string)
 	drinkaliasFields := schema.DrinkAlias{}.Fields()

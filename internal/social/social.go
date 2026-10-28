@@ -28,6 +28,31 @@ var (
 type Service struct {
 	Client *ent.Client
 	SQL    *sql.DB
+
+	// OnNotify, when set, is called synchronously after an in-app notification
+	// row is successfully saved for a push-worthy kind (friend requests and
+	// accepts, toasts, comments and mentions). It is nil-safe. The callback owns
+	// logging; this package never inspects or reports its failures.
+	OnNotify func(ctx context.Context, userID, kind, actorID, subjectID, text string)
+}
+
+// pushKinds are the notification kinds that should also fan out to Web Push.
+// Badge and system notifications stay in-app only.
+var pushKinds = map[string]bool{
+	"friend_request": true,
+	"friend_accept":  true,
+	"toast":          true,
+	"comment":        true,
+	"mention":        true,
+}
+
+// afterNotify invokes OnNotify for push-worthy kinds. Callers invoke it only
+// after the notification row has been saved successfully.
+func (s *Service) afterNotify(ctx context.Context, userID, kind, actorID, subjectID, text string) {
+	if s.OnNotify == nil || !pushKinds[kind] {
+		return
+	}
+	s.OnNotify(ctx, userID, kind, actorID, subjectID, text)
 }
 
 func New(database *db.DB) *Service {
@@ -593,13 +618,15 @@ func (s *Service) Toast(ctx context.Context, userID, checkinID string) error {
 		return err
 	}
 	if ownerID != userID {
-		_, _ = s.Client.Notification.Create().
+		if _, err := s.Client.Notification.Create().
 			SetUserID(ownerID).
 			SetKind(notification.KindToast).
 			SetActorID(userID).
 			SetSubjectID(checkinID).
 			SetText("toasted your check-in").
-			Save(ctx)
+			Save(ctx); err == nil {
+			s.afterNotify(ctx, ownerID, string(notification.KindToast), userID, checkinID, "toasted your check-in")
+		}
 	}
 	return nil
 }
@@ -707,8 +734,11 @@ func (s *Service) Notify(ctx context.Context, userID, kind, actorID, subjectID, 
 	if actorID != "" {
 		b = b.SetActorID(actorID)
 	}
-	_, err := b.Save(ctx)
-	return err
+	if _, err := b.Save(ctx); err != nil {
+		return err
+	}
+	s.afterNotify(ctx, userID, string(k), actorID, subjectID, text)
+	return nil
 }
 
 // UnreadCount returns the number of unread notifications for userID that the

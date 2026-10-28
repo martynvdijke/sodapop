@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"sodapop/internal/account"
 	"sodapop/internal/ai"
 	"sodapop/internal/auth"
 	"sodapop/internal/backup"
@@ -47,6 +48,7 @@ type Server struct {
 	Media        *media.Service
 	AI           *ai.Service
 	Integrations *integrations.Service
+	Account      *account.Service
 	DB           *db.DB
 	Backup       *backup.Service
 	Mailer       *email.Mailer
@@ -86,6 +88,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /checkins/{id}/save", s.requireVerified(s.saveCheckin))
 	mux.HandleFunc("POST /checkins/{id}/unsave", s.requireVerified(s.unsaveCheckin))
 	mux.HandleFunc("GET /saved", s.requireUser(s.savedPage))
+	mux.HandleFunc("GET /nearby", s.requireUser(s.nearbyPage))
+	mux.HandleFunc("POST /nearby", s.requireUser(s.nearbyPage))
 	mux.HandleFunc("POST /checkins/{id}/comments", s.requireVerified(s.commentCreate))
 	mux.HandleFunc("POST /comments/{id}/delete", s.requireUser(s.commentDelete))
 	mux.HandleFunc("GET /compare", s.requireUser(s.comparePage))
@@ -169,6 +173,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /u/{handle}/unblock", s.requireUser(s.unblockUser))
 	mux.HandleFunc("GET /insights", s.requireUser(s.insightsPage))
 	mux.HandleFunc("POST /admin/drinks/{id}/status", s.requireAdmin(s.adminDrinkStatus))
+	mux.HandleFunc("POST /admin/drinks/{id}/publish", s.requireAdmin(s.adminDrinkPublish))
 	mux.HandleFunc("POST /integrations/ha-token", s.requireUser(s.haTokenCreate))
 	mux.HandleFunc("POST /integrations/ha-token/{id}/revoke", s.requireUser(s.haTokenRevoke))
 	mux.HandleFunc("POST /hooks/ha/{token}", s.haInbound)
@@ -215,7 +220,7 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
+		w.Header().Set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(self)")
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")
 		} else {

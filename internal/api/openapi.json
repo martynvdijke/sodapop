@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Sodapop API",
-    "version": "1.6.1",
-    "summary": "Authenticated, friend-scoped soda check-in API (v1.6 surface).",
+    "version": "1.9.0",
+    "summary": "Authenticated, friend-scoped soda check-in API (v1.9 surface).",
     "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. All data endpoints require a personal `sd_` bearer token; requests are rate limited per token.",
     "license": {
       "name": "MIT",
@@ -40,6 +40,138 @@
       }
     },
     "schemas": {
+      "FeedItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "drink_id": {
+            "type": "integer"
+          },
+          "drink_name": {
+            "type": "string"
+          },
+          "drink_slug": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "container": {
+            "type": "string"
+          },
+          "volume_ml": {
+            "type": "integer"
+          },
+          "venue_name": {
+            "type": "string"
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 20,
+            "description": "Quarter-star rating, 0..20."
+          },
+          "note": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "photo_id": {
+            "type": "string"
+          },
+          "photo_mime": {
+            "type": "string"
+          },
+          "photo_kind": {
+            "type": "string"
+          },
+          "poster_path": {
+            "type": "string"
+          },
+          "duration_seconds": {
+            "type": "integer"
+          },
+          "toasts": {
+            "type": "integer"
+          },
+          "toasted": {
+            "type": "boolean"
+          },
+          "comments": {
+            "type": "integer"
+          },
+          "saved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "handle",
+          "display_name",
+          "drink_id",
+          "drink_name",
+          "drink_slug",
+          "container",
+          "volume_ml",
+          "visibility",
+          "created_at",
+          "toasts",
+          "toasted",
+          "comments",
+          "saved"
+        ]
+      },
+      "NearbyFeedItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FeedItem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "venue_id": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Venue the check-in was logged at."
+              },
+              "distance_m": {
+                "type": "integer",
+                "multipleOf": 100,
+                "minimum": 0,
+                "description": "Distance to the venue, bucketed down to 100 m so responses cannot be used for metre-level triangulation."
+              }
+            },
+            "required": [
+              "distance_m"
+            ]
+          }
+        ]
+      },
       "Error": {
         "type": "object",
         "properties": {
@@ -1671,6 +1803,10 @@
       "description": "Interactive documentation and service metadata."
     },
     {
+      "name": "public",
+      "description": "The single published, unauthenticated catalog fact sheet. There is no public collection route."
+    },
+    {
       "name": "auth",
       "description": "Token exchange for the web and Android clients."
     },
@@ -2256,6 +2392,200 @@
         ]
       }
     },
+    "/api/v1/public/drinks/{slug}": {
+      "get": {
+        "summary": "Read one published drink",
+        "description": "Unauthenticated catalog fact sheet for one published, non-merged drink. Unpublished, provisional, merged, discontinued and unknown slugs all return the same 404. There is no collection or list route.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published drink",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=300",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "brand": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "slug": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "style": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "slug": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "container": {
+                          "type": "string"
+                        },
+                        "volume_ml": {
+                          "type": "integer"
+                        },
+                        "caffeine_mg_per_100ml": {
+                          "type": "integer"
+                        },
+                        "sugar_g_per_100ml": {
+                          "type": "number"
+                        },
+                        "calories_kcal_per_100ml": {
+                          "type": "integer"
+                        },
+                        "sweetener": {
+                          "type": "string"
+                        },
+                        "carbonation": {
+                          "type": "string"
+                        },
+                        "acid": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "active",
+                            "limited",
+                            "seasonal"
+                          ]
+                        },
+                        "image_url": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "flavours": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "intensity": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 5
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "intensity"
+                            ]
+                          }
+                        },
+                        "rating": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "description": "Null until at least 3 people have rated the drink.",
+                          "properties": {
+                            "average": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 5
+                            },
+                            "rater_count": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name",
+                        "description",
+                        "brand",
+                        "style",
+                        "container",
+                        "volume_ml",
+                        "caffeine_mg_per_100ml",
+                        "sugar_g_per_100ml",
+                        "calories_kcal_per_100ml",
+                        "sweetener",
+                        "carbonation",
+                        "acid",
+                        "status",
+                        "image_url",
+                        "flavours",
+                        "rating"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, unpublished or otherwise non-public slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "summary": "Current identity and token scopes",
@@ -2272,6 +2602,93 @@
                 }
               }
             }
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "summary": "Close your account",
+        "description": "Soft-deletes the account and revokes every browser session, personal API token and inbound webhook token. The body must echo your exact handle. Requires the write scope and a verified email. The last active admin cannot be closed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "string",
+                    "description": "Your exact handle."
+                  }
+                },
+                "required": [
+                  "confirm"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Account closed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "description": "The sole active admin cannot be deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/export": {
+      "get": {
+        "summary": "Download your account data",
+        "description": "Returns the same JSON document as `GET /export.json`: your profile, check-ins, lists, badges and settings. The response is the raw document, not wrapped in a `data` envelope. Requires the read scope; email verification is not required.",
+        "responses": {
+          "200": {
+            "description": "Account export as a downloadable JSON file",
+            "headers": {
+              "Content-Disposition": {
+                "description": "attachment; filename=\"sodapop-export.json\"",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary",
+                  "description": "The user's own data as a JSON document."
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "tags": [
@@ -2757,6 +3174,123 @@
         "responses": {
           "200": {
             "description": "Feed"
+          }
+        },
+        "tags": [
+          "feed"
+        ]
+      }
+    },
+    "/api/v1/feed/nearby": {
+      "get": {
+        "summary": "Friend-scoped nearby feed",
+        "description": "Returns visible check-ins at venues within the requested radius of a caller-supplied point. Only your own, accepted friends' and followed users' visible check-ins are eligible; strangers' private check-ins are never returned. The point is not stored or echoed. Distances are bucketed down to 100 m and pagination uses an opaque cursor.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "description": "Search radius in kilometres.",
+            "schema": {
+              "type": "number",
+              "default": 2,
+              "minimum": 0.1,
+              "maximum": 25
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Opaque cursor from meta.next_before.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Nearby check-ins, nearest first. meta.has_more reports more rows among the fetched candidates; meta.next_before is only set when has_more is true.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/NearbyFeedItem"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        },
+                        "next_before": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "has_more",
+                        "next_before"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "tags": [

@@ -512,6 +512,125 @@ void main() {
     });
   });
 
+  group('nearby feed', () {
+    test('sends coordinates, radius and cursor and parses distance', () async {
+      final h = _Harness(
+        body: jsonEncode({
+          'data': [
+            {
+              'id': 'c1',
+              'handle': 'ada',
+              'display_name': 'Ada',
+              'drink_name': 'Cola',
+              'drink_slug': 'cola',
+              'venue_name': 'Corner Shop',
+              'rating': 16,
+              'toasts': 2,
+              'comments': 1,
+              'distance_m': 240,
+            },
+          ],
+          'meta': {'count': 1, 'has_more': true, 'next_before': 'c1'},
+        }),
+        status: 200,
+      );
+
+      final page = await h.api.nearby(
+        lat: 51.5,
+        lng: -0.127,
+        radiusKm: 5,
+        limit: 10,
+        before: 'c9',
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'GET');
+      expect(request.path, 'api/v1/feed/nearby');
+      expect(request.queryParameters, {
+        'lat': 51.5,
+        'lng': -0.127,
+        'radius': 5.0,
+        'limit': 10,
+        'before': 'c9',
+      });
+      expect(page.items.single.checkin.drinkName, 'Cola');
+      expect(page.items.single.checkin.comments, 1);
+      expect(page.items.single.distanceM, 240);
+      expect(page.hasMore, isTrue);
+      expect(page.nextBefore, 'c1');
+    });
+
+    test('defaults to a 2 km radius, 20 rows and no cursor', () async {
+      final h = _Harness(
+        body: '{"data":[],"meta":{"count":0,"has_more":false}}',
+        status: 200,
+      );
+
+      final page = await h.api.nearby(lat: 40.7, lng: -74.0);
+
+      final request = h.adapter.requests.single;
+      expect(request.queryParameters, {
+        'lat': 40.7,
+        'lng': -74.0,
+        'radius': 2.0,
+        'limit': 20,
+      });
+      expect(page.items, isEmpty);
+      expect(page.hasMore, isFalse);
+    });
+
+    test('tolerates a page without meta', () async {
+      final h = _Harness(
+        body: jsonEncode({
+          'data': [
+            {'id': 'c1', 'drink_name': 'Cola', 'distance_m': '80'},
+          ],
+        }),
+        status: 200,
+      );
+
+      final page = await h.api.nearby(lat: 1, lng: 2);
+
+      expect(page.items.single.distanceM, 80);
+      expect(page.count, 1);
+      expect(page.hasMore, isFalse);
+      expect(page.nextBefore, '');
+    });
+
+    test('maps invalid_location to ApiException', () async {
+      final h = _Harness(
+        body:
+            '{"error":{"code":"invalid_location","message":"invalid coordinates"}}',
+        status: 400,
+      );
+
+      await expectLater(
+        h.api.nearby(lat: 999, lng: 0),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.message, 'message', 'invalid coordinates')
+              .having((e) => e.statusCode, 'statusCode', 400),
+        ),
+      );
+    });
+
+    test('maps rate_limited to ApiException', () async {
+      final h = _Harness(
+        body: '{"error":{"code":"rate_limited","message":"too many requests"}}',
+        status: 429,
+      );
+
+      await expectLater(
+        h.api.nearby(lat: 40, lng: -73),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.message, 'message', 'too many requests')
+              .having((e) => e.statusCode, 'statusCode', 429),
+        ),
+      );
+    });
+  });
+
   group('venue media', () {
     test('uploads with kind and label fields', () async {
       final h = _Harness(

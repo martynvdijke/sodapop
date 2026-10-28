@@ -1,0 +1,128 @@
+{{define "content"}}
+<section class="nearby-page narrow" data-nearby-page>
+  <header class="nearby-head">
+    <p class="eyebrow">Around you</p>
+    <h1>Nearby</h1>
+    <p class="nearby-privacy">
+      <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M10 17s5-4.4 5-8a5 5 0 0 0-10 0c0 3.6 5 8 5 8Z"/>
+        <circle cx="10" cy="9" r="1.7"/>
+      </svg>
+      <span>Your coordinates are sent to this server for this request only. They are never stored or shown. Results stay within what you can already see: your pours, friends' visible pours, and public pours from people you follow. There is no global feed.</span>
+    </p>
+  </header>
+
+  <form class="nearby-form" id="nearby-form" method="post" action="/nearby" autocomplete="off" aria-label="Nearby search" data-nearby-form>
+    <div class="nearby-controls">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="lat" value="">
+      <input type="hidden" name="lng" value="">
+      <input type="hidden" name="cursor" value="{{.Cursor}}">
+
+      <p class="banner error nearby-error" data-nearby-error role="alert"{{if not .Error}} hidden{{end}}>{{.Error}}</p>
+
+      <div class="nearby-locate-row">
+        <button class="btn nearby-locate-btn" type="button" data-nearby-locate>
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M10 17s5-4.4 5-8a5 5 0 0 0-10 0c0 3.6 5 8 5 8Z"/>
+            <circle cx="10" cy="9" r="1.7"/>
+          </svg>
+          <span data-nearby-locate-label>{{if .LocationSet}}Update location{{else}}Use my location{{end}}</span>
+        </button>
+        <p class="nearby-status{{if .LocationSet}} is-ready{{end}}" data-nearby-status>
+          <span class="nearby-status-dot" aria-hidden="true"></span>
+          <span data-nearby-status-text>{{if .LocationSet}}Location ready{{else}}Location not set{{end}}</span>
+        </p>
+      </div>
+
+      <div class="nearby-actions">
+        <label class="nearby-radius" for="nearby-radius">Radius
+          <select id="nearby-radius" name="radius">
+            {{$radius := printf "%v" .Radius}}{{if eq $radius "0"}}{{$radius = "2"}}{{end}}
+            <option value="0.5"{{if eq $radius "0.5"}} selected{{end}}>0.5 km</option>
+            <option value="1"{{if eq $radius "1"}} selected{{end}}>1 km</option>
+            <option value="2"{{if eq $radius "2"}} selected{{end}}>2 km</option>
+            <option value="5"{{if eq $radius "5"}} selected{{end}}>5 km</option>
+            <option value="10"{{if eq $radius "10"}} selected{{end}}>10 km</option>
+            <option value="25"{{if eq $radius "25"}} selected{{end}}>25 km</option>
+          </select>
+        </label>
+        <button class="btn btn-primary nearby-submit" type="submit" data-nearby-submit>Show nearby pours</button>
+      </div>
+
+      <p class="hint nearby-hint">Distances are rounded to the nearest 100 m. Nothing about this search is saved.</p>
+      <noscript><p class="hint nearby-hint">Finding your location needs JavaScript. You can still choose a radius, but this page cannot ask for your position without it.</p></noscript>
+    </div>
+
+    <h2 class="nearby-results-heading" id="nearby-results-heading" tabindex="-1" data-nearby-results-heading>Nearby pours</h2>
+    <p class="sr-only" data-nearby-result-status role="status" aria-live="polite"></p>
+
+    <div class="nearby-results" data-nearby-results>
+      {{if and .Empty (not .Error)}}
+        <div class="empty nearby-empty">
+          <p class="empty-title">No visible pours nearby</p>
+          <p>Try a wider radius. You only see your own pours, friends' visible pours, and public pours from people you follow.</p>
+        </div>
+      {{else if .Items}}
+        {{range .Items}}{{template "nearby_card" .}}{{end}}
+      {{else if not .Error}}
+        <div class="nearby-awaiting">
+          <p><strong>Set your location to begin.</strong></p>
+          <p>Pick a radius, then use the location button. Results appear here.</p>
+        </div>
+      {{end}}
+    </div>
+
+    <div class="nearby-more-wrap">
+      <button class="btn nearby-more" type="submit" data-nearby-more{{if not .HasMore}} hidden{{end}}>More nearby pours</button>
+    </div>
+  </form>
+</section>
+{{end}}
+
+{{define "nearby_card"}}
+<article class="card nearby-card">
+  {{if .PhotoID}}
+    {{if hasPrefix .PhotoMime "video/"}}
+    <div class="nearby-thumb nearby-thumb-play" aria-hidden="true">
+      <svg viewBox="0 0 20 20" width="20" height="20" focusable="false">
+        <path d="M7.5 5.5v9l7-4.5z" fill="currentColor"/>
+      </svg>
+    </div>
+    {{else}}
+    <div class="nearby-thumb">
+      <img src="/media/{{.PhotoID}}/thumb" alt="Photo of {{.DrinkName}}" width="200" height="200" loading="lazy" decoding="async">
+    </div>
+    {{end}}
+  {{end}}
+  <div class="nearby-body">
+    <div class="nearby-card-head">
+      <div class="nearby-byline">
+        <span class="avatar nearby-avatar" aria-hidden="true">{{initial .Handle}}</span>
+        <div class="nearby-names">
+          <span class="nearby-author">{{.DisplayName}}</span>
+          <a class="nearby-handle" href="/u/{{.Handle}}">@{{.Handle}}</a>
+        </div>
+      </div>
+      <span class="nearby-distance">{{template "nearby_distance" .DistanceM}}</span>
+    </div>
+    <h3><a href="/drinks/{{.DrinkSlug}}">{{.DrinkName}}</a></h3>
+    {{if or .Brand .VenueName}}
+    <p class="nearby-meta">{{.Brand}}{{if .VenueName}}{{if .Brand}} · {{end}}at <a href="/venues/{{.VenueID}}">{{.VenueName}}</a>{{end}}</p>
+    {{end}}
+    {{if .Note}}<p class="nearby-note">{{.Note}}</p>{{end}}
+    <div class="nearby-foot">
+      <span class="rating-pill">{{if .Rating}}{{stars .Rating}}{{else}}Not rated{{end}}</span>
+      <time class="nearby-time" datetime="{{.CreatedAt}}" data-nearby-time>{{if ge (len .CreatedAt) 10}}{{slice .CreatedAt 0 10}}{{else}}{{.CreatedAt}}{{end}}</time>
+      <span class="nearby-counts">
+        <a href="/checkins/{{.ID}}#comments">{{.Toasts}} toast{{if ne .Toasts 1}}s{{end}}</a>
+        <a href="/checkins/{{.ID}}#comments">{{.Comments}} comment{{if ne .Comments 1}}s{{end}}</a>
+      </span>
+    </div>
+  </div>
+</article>
+{{end}}
+
+{{/* DistanceM is bucketed to 100 m by the service. Show metres under a
+     kilometre and one decimal above it, without implying metre precision. */}}
+{{define "nearby_distance"}}{{- if le . 100 -}}Within 100 m{{- else if lt . 1000 -}}Within {{.}} m{{- else -}}{{$s := printf "%d" .}}{{- if eq (len $s) 4 -}}{{$whole := slice $s 0 1}}{{$tenths := slice $s 1 2}}{{- if eq $tenths "0" -}}Within {{$whole}} km{{- else -}}Within {{$whole}}.{{$tenths}} km{{- end -}}{{- else -}}{{$whole := slice $s 0 2}}{{$tenths := slice $s 2 3}}{{- if eq $tenths "0" -}}Within {{$whole}} km{{- else -}}Within {{$whole}}.{{$tenths}} km{{- end -}}{{- end -}}{{- end -}}{{end}}

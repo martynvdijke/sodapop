@@ -131,7 +131,7 @@ func TestAPIRefusesAnonymous(t *testing.T) {
 // requirement: no collection endpoints exist and search is hard-capped.
 func TestAPICannotEnumerateCatalog(t *testing.T) {
 	h := newHarness(t)
-	for _, path := range []string{"/api/v1/drinks", "/api/v1/users", "/api/v1/venues", "/api/v1/checkins"} {
+	for _, path := range []string{"/api/v1/drinks", "/api/v1/users", "/api/v1/venues", "/api/v1/checkins", "/api/v1/public/drinks"} {
 		rec := h.do(t, http.MethodGet, path, "", true)
 		if rec.Code != http.StatusNotFound && rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("%s: got %d, want 404/405 (collection listing must not exist)", path, rec.Code)

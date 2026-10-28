@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"sodapop/ent/migrate"
@@ -62,5 +64,55 @@ func TestSchemaConsistency(t *testing.T) {
 	}
 	if fts != 1 {
 		t.Fatal("drinks_fts is missing")
+	}
+}
+
+// TestNoUserLocationColumns is the guard for the product promise that user
+// locations are never stored. Nearby is computed from the request coordinates
+// and venues, not from a persisted profile.
+func TestNoUserLocationColumns(t *testing.T) {
+	database, err := Init(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	defer database.Close()
+
+	rows, err := database.SQL.QueryContext(context.Background(), `PRAGMA table_info(users)`)
+	if err != nil {
+		t.Fatalf("table_info users: %v", err)
+	}
+	defer rows.Close()
+
+	banned := map[string]bool{
+		"lat":       true,
+		"lng":       true,
+		"latitude":  true,
+		"longitude": true,
+		"location":  true,
+		"geohash":   true,
+	}
+	found := 0
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			typ       string
+			notNull   int
+			dfltValue sql.NullString
+			pk        int
+		)
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dfltValue, &pk); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if banned[strings.ToLower(name)] {
+			t.Errorf("users table has location column %q; user locations must not be stored", name)
+		}
+		found++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+	if found == 0 {
+		t.Fatal("users table has no columns; schema did not initialise")
 	}
 }

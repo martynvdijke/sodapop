@@ -12,6 +12,7 @@ import (
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
 	"sodapop/ent/notification"
+	"sodapop/internal/catalog"
 )
 
 var (
@@ -101,6 +102,60 @@ func (s *Server) adminDrinkStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/drinks/"+row.Slug, http.StatusFound)
+}
+
+// adminDrinkPublish toggles whether a drink is served by the public catalog
+// API. It records the change through the catalog service and returns the admin
+// to the drink page they came from.
+func (s *Server) adminDrinkPublish(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		http.NotFound(w, r)
+		return
+	}
+	var published bool
+	switch strings.TrimSpace(r.FormValue("published")) {
+	case "1":
+		published = true
+	case "0":
+		published = false
+	default:
+		http.Error(w, "invalid published value", http.StatusBadRequest)
+		return
+	}
+
+	row, err := s.Auth.Client.Drink.Get(r.Context(), id)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			http.NotFound(w, r)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+
+	actor := UserFromContext(r)
+	var actorID *string
+	if actor != nil {
+		actorID = &actor.ID
+	}
+	if err := s.Catalog.SetDrinkPublished(r.Context(), actorID, id, published); err != nil {
+		if errors.Is(err, catalog.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+
+	flag := "0"
+	if published {
+		flag = "1"
+	}
+	http.Redirect(w, r, "/drinks/"+row.Slug+"?published="+flag, http.StatusFound)
 }
 
 // notifyWishlistDiscontinued tells each distinct owner of a system list that

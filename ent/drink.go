@@ -54,6 +54,8 @@ type Drink struct {
 	Source drink.Source `json:"source,omitempty"`
 	// Status holds the value of the "status" field.
 	Status drink.Status `json:"status,omitempty"`
+	// Published holds the value of the "published" field.
+	Published bool `json:"published,omitempty"`
 	// DiscontinuedAt holds the value of the "discontinued_at" field.
 	DiscontinuedAt *string `json:"discontinued_at,omitempty"`
 	// LimitedUntil holds the value of the "limited_until" field.
@@ -165,6 +167,8 @@ func (*Drink) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case drink.FieldPublished:
+			values[i] = new(sql.NullBool)
 		case drink.FieldSugarGPer100ml:
 			values[i] = new(sql.NullFloat64)
 		case drink.FieldID, drink.FieldBrandID, drink.FieldStyleID, drink.FieldVolumeMl, drink.FieldCaffeineMgPer100ml, drink.FieldCaloriesKcalPer100ml, drink.FieldMergedIntoID:
@@ -302,6 +306,12 @@ func (_m *Drink) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = drink.Status(value.String)
+			}
+		case drink.FieldPublished:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field published", values[i])
+			} else if value.Valid {
+				_m.Published = value.Bool
 			}
 		case drink.FieldDiscontinuedAt:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -473,6 +483,9 @@ func (_m *Drink) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("published=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Published))
 	builder.WriteString(", ")
 	if v := _m.DiscontinuedAt; v != nil {
 		builder.WriteString("discontinued_at=")

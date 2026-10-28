@@ -831,6 +831,77 @@ void main() {
     });
   });
 
+  group('Nearby feed', () {
+    test('parses the flat feed row plus distance_m', () {
+      final item = NearbyItem.fromJson({
+        'id': 'c1',
+        'handle': 'ada',
+        'display_name': 'Ada Lovelace',
+        'drink_name': 'Cherry Cola',
+        'drink_slug': 'cherry-cola',
+        'venue_name': 'Corner Shop',
+        'rating': 17,
+        'note': 'Sharp',
+        'toasts': 3,
+        'comments': 2,
+        'distance_m': 240,
+        'created_at': '2026-10-26T10:00:00Z',
+      });
+
+      expect(item.checkin.handle, 'ada');
+      expect(item.checkin.drinkName, 'Cherry Cola');
+      expect(item.checkin.comments, 2);
+      expect(item.distanceM, 240);
+    });
+
+    test('accepts a nested checkin object and a string distance', () {
+      final item = NearbyItem.fromJson({
+        'distance_m': '1150',
+        'checkin': {
+          'id': 'c2',
+          'user': {'handle': 'grace'},
+          'drink': {'name': 'Lime Soda', 'slug': 'lime-soda'},
+          'rating': 12,
+        },
+      });
+
+      expect(item.checkin.drinkName, 'Lime Soda');
+      expect(item.checkin.handle, 'grace');
+      expect(item.distanceM, 1150);
+    });
+
+    test('reads page metadata and falls back without it', () {
+      final page = NearbyPage.fromJson({
+        'data': [
+          {'id': 'c1', 'drink_name': 'Cola', 'distance_m': 80},
+          {'id': 'c2', 'drink_name': 'Lime', 'distance_m': 1200},
+        ],
+        'meta': {'count': 2, 'has_more': true, 'next_before': 'c2'},
+      });
+
+      expect(page.items.map((item) => item.checkin.id), ['c1', 'c2']);
+      expect(page.count, 2);
+      expect(page.hasMore, isTrue);
+      expect(page.nextBefore, 'c2');
+
+      final bare = NearbyPage.fromJson({
+        'data': [
+          {'id': 'c3', 'drink_name': 'Ginger', 'distance_m': 10},
+        ],
+      });
+
+      expect(bare.count, 1);
+      expect(bare.hasMore, isFalse);
+      expect(bare.nextBefore, '');
+    });
+
+    test('parses comments from either feed or detail naming', () {
+      expect(FeedItem.fromJson({'id': 'c1', 'comments': 4}).comments, 4);
+      expect(FeedItem.fromJson({'id': 'c1', 'comments_count': 2}).comments, 2);
+      expect(FeedItem.fromJson({'id': 'c1'}).comments, 0);
+    });
+  });
+
   group('AccountSettings', () {
     test('reads the full settings payload', () {
       final settings = AccountSettings.fromJson({

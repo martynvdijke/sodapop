@@ -11,6 +11,7 @@ import (
 
 	"sodapop/ent"
 	"sodapop/ent/checkin"
+	"sodapop/ent/usersetting"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/settings"
@@ -278,10 +279,10 @@ func TestSaveGetListAndPushSubscription(t *testing.T) {
 		t.Fatal("expected an error for an unknown kind")
 	}
 
-	if err := svc.SubscribePush(ctx, u.ID, "https://push.example/1", "p256dh", "auth"); err != nil {
+	if err := svc.SubscribePush(ctx, u.ID, "https://fcm.googleapis.com/test/1", "p256dh", "auth"); err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
-	if err := svc.SubscribePush(ctx, u.ID, "https://push.example/1", "p256dh2", "auth2"); err != nil {
+	if err := svc.SubscribePush(ctx, u.ID, "https://fcm.googleapis.com/test/1", "p256dh2", "auth2"); err != nil {
 		t.Fatalf("refresh subscription: %v", err)
 	}
 	subs, err := database.Client.PushSubscription.Query().All(ctx)
@@ -291,7 +292,7 @@ func TestSaveGetListAndPushSubscription(t *testing.T) {
 	if len(subs) != 1 || subs[0].P256dh != "p256dh2" {
 		t.Fatalf("unexpected subscriptions: %+v", subs)
 	}
-	if err := svc.UnsubscribePush(ctx, u.ID, "https://push.example/1"); err != nil {
+	if err := svc.UnsubscribePush(ctx, u.ID, "https://fcm.googleapis.com/test/1"); err != nil {
 		t.Fatalf("unsubscribe: %v", err)
 	}
 	n, err := database.Client.PushSubscription.Query().Count(ctx)
@@ -300,6 +301,69 @@ func TestSaveGetListAndPushSubscription(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatalf("subscriptions after delete = %d", n)
+	}
+}
+
+func TestSubscribePushEnablesPreference(t *testing.T) {
+	svc, database, ctx := newTestService(t)
+	u := createUser(t, database, "ada")
+	if _, err := database.Client.UserSetting.Create().
+		SetUserID(u.ID).
+		SetPushEnabled(false).
+		Save(ctx); err != nil {
+		t.Fatalf("create settings: %v", err)
+	}
+
+	if err := svc.SubscribePush(ctx, u.ID, "https://fcm.googleapis.com/test/1", "p256dh", "auth"); err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	settings, err := database.Client.UserSetting.Query().
+		Where(usersetting.UserID(u.ID)).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("load settings: %v", err)
+	}
+	if !settings.PushEnabled {
+		t.Fatal("subscribe left push_enabled false")
+	}
+
+	// Idempotent repeat with identical keys still succeeds and keeps one row.
+	if err := svc.SubscribePush(ctx, u.ID, "https://fcm.googleapis.com/test/1", "p256dh", "auth"); err != nil {
+		t.Fatalf("repeat subscribe: %v", err)
+	}
+	if n, err := database.Client.PushSubscription.Query().Count(ctx); err != nil || n != 1 {
+		t.Fatalf("subscriptions = %d, err = %v, want 1", n, err)
+	}
+
+	if err := svc.UnsubscribePush(ctx, u.ID, "https://fcm.googleapis.com/test/1"); err != nil {
+		t.Fatalf("unsubscribe: %v", err)
+	}
+	settings, err = database.Client.UserSetting.Query().
+		Where(usersetting.UserID(u.ID)).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("reload settings: %v", err)
+	}
+	if !settings.PushEnabled {
+		t.Fatal("unsubscribe flipped push_enabled off")
+	}
+}
+
+func TestSubscribePushCreatesMissingPreference(t *testing.T) {
+	svc, database, ctx := newTestService(t)
+	u := createUser(t, database, "ada")
+
+	if err := svc.SubscribePush(ctx, u.ID, "https://fcm.googleapis.com/test/1", "p256dh", "auth"); err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	settings, err := database.Client.UserSetting.Query().
+		Where(usersetting.UserID(u.ID)).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("load settings: %v", err)
+	}
+	if !settings.PushEnabled {
+		t.Fatal("subscribe did not create an enabled preference")
 	}
 }
 

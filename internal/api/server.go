@@ -13,6 +13,7 @@ import (
 	"github.com/swaggest/swgui/v5emb"
 
 	"sodapop/ent"
+	"sodapop/internal/account"
 	"sodapop/internal/ai"
 	"sodapop/internal/auth"
 	"sodapop/internal/badges"
@@ -52,6 +53,7 @@ type Server struct {
 	Badges       *badges.Service
 	Taste        *taste.Service
 	Mix          *mix.Service
+	Account      *account.Service
 
 	routes []string
 }
@@ -85,6 +87,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 		http.Redirect(w, r, "/api/docs/", http.StatusMovedPermanently)
 	})
 
+	s.route(mux, "GET /api/v1/public/drinks/{slug}", s.publicDrink)
+
 	s.route(mux, "GET /api/v1/auth/oidc/status", s.oidcStatus)
 	s.route(mux, "GET /api/v1/auth/config", s.authConfig)
 	s.route(mux, "POST /api/v1/auth/register", s.authRegister)
@@ -96,6 +100,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "POST /api/v1/auth/mobile-token", s.mobileToken)
 
 	s.route(mux, "GET /api/v1/me", s.protect("read", false, s.me))
+	s.route(mux, "GET /api/v1/me/export", s.protect("read", false, s.meExport))
+	s.route(mux, "DELETE /api/v1/me", s.protect("write", true, s.meDelete))
 	s.route(mux, "GET /api/v1/me/settings", s.protect("read", false, s.meSettingsGet))
 	s.route(mux, "PATCH /api/v1/me/settings", s.protect("write", true, s.meSettingsPatch))
 	s.route(mux, "GET /api/v1/me/sessions", s.protect("read", false, s.meSessionsGet))
@@ -114,6 +120,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "GET /api/v1/integrations/home-assistant", s.protect("read", false, s.integrationHAStatus))
 
 	s.route(mux, "GET /api/v1/feed", s.protect("feed", false, s.feed))
+	s.route(mux, "GET /api/v1/feed/nearby", s.protect("feed", false, s.nearbyFeed))
 	s.route(mux, "GET /api/v1/friends", s.protect("feed", false, s.friends))
 	s.route(mux, "POST /api/v1/friends/requests", s.protect("write", true, s.requestFriend))
 	s.route(mux, "POST /api/v1/friends/requests/{id}/accept", s.protect("write", true, s.acceptFriend))
@@ -268,6 +275,10 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 	case errors.Is(err, checkins.ErrIdempotencyUse):
 		writeError(w, http.StatusConflict, "idempotency_conflict", "idempotency key already used")
 	default:
+		if status, code, message, ok := mapAccountError(err); ok {
+			writeError(w, status, code, message)
+			return
+		}
 		s.internal(w, err)
 	}
 }

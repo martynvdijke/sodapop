@@ -158,6 +158,20 @@
   </details>
   {{end}}
 
+  {{if and .User (eq .User.Role "admin")}}
+  <details class="card manage-card">
+    <summary class="manage-summary">Public API</summary>
+    <form method="post" action="/admin/drinks/{{$d.Drink.ID}}/publish" class="stack">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="published" value="{{if $d.Drink.Published}}0{{else}}1{{end}}">
+      <p class="hint">Public API rows expose only catalog facts (name, brand, style, nutrition, flavours and rating), never user data.</p>
+      <div class="form-actions">
+        <button class="btn btn-small" type="submit">{{if $d.Drink.Published}}Unpublish from public API{{else}}Publish to public API{{end}}</button>
+      </div>
+    </form>
+  </details>
+  {{end}}
+
   {{if $d.Flavours}}
   <h2>Flavours</h2>
   <ul class="chips">

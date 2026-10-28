@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -14,9 +16,74 @@ import (
 
 	"sodapop/ent"
 	"sodapop/ent/pushsubscription"
+	"sodapop/ent/usersetting"
+	"sodapop/internal/db"
 )
 
 const defaultVAPIDSubject = "mailto:admin@sodapop.local"
+
+// maxPushEndpointLen caps the stored endpoint. Browser endpoints are far
+// shorter; the limit exists to bound storage and request work.
+const maxPushEndpointLen = 2048
+
+// pushServiceHosts are the only hostnames a push endpoint may use. Entries are
+// base domains: the host must equal the base or be a subdomain of it. Apple
+// uses web.push.apple.com and Mozilla uses
+// updates.push.services.mozilla.com, which both match as subdomains.
+var pushServiceHosts = []string{
+	"fcm.googleapis.com",
+	"push.apple.com",
+	"mozilla.com",
+	"notify.windows.com",
+}
+
+// validatePushEndpoint rejects endpoints that the server would later POST to
+// but that are not operated by a known push service. This prevents a member
+// from registering an internal or cloud-metadata URL and turning a
+// notification into a server-side request (SSRF). Errors deliberately omit the
+// endpoint so it never reaches the logs.
+func validatePushEndpoint(endpoint string) error {
+	if endpoint == "" {
+		return fmt.Errorf("push endpoint is required")
+	}
+	if len(endpoint) > maxPushEndpointLen {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	if !strings.EqualFold(u.Scheme, "https") {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	if u.Host == "" || u.Opaque != "" {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	if u.User != nil {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	if u.Fragment != "" || u.RawFragment != "" {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if host == "" {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	// IP literals are never push services; reject them before host matching so
+	// loopback, link-local, private and unique-local addresses cannot slip in.
+	if net.ParseIP(host) != nil {
+		return fmt.Errorf("push endpoint is invalid")
+	}
+	for _, allowed := range pushServiceHosts {
+		if host == allowed || strings.HasSuffix(host, "."+allowed) {
+			return nil
+		}
+	}
+	return fmt.Errorf("push endpoint is invalid")
+}
 
 // pushDeliveryHook lets tests observe push delivery without VAPID keys. It is
 // nil in production.
@@ -29,13 +96,27 @@ type pushPayload struct {
 }
 
 // SubscribePush registers or refreshes a browser push subscription. An
-// endpoint belongs to exactly one user.
+// endpoint belongs to exactly one user. A successful subscribe also enables
+// the user's push preference: subscribing is an explicit opt-in, and delivery
+// is otherwise skipped while push_enabled is false.
 func (s *Service) SubscribePush(ctx context.Context, userID, endpoint, p256dh, auth string) error {
 	endpoint = strings.TrimSpace(endpoint)
 	p256dh = strings.TrimSpace(p256dh)
 	auth = strings.TrimSpace(auth)
 	if endpoint == "" || p256dh == "" || auth == "" {
 		return fmt.Errorf("endpoint, p256dh and auth are required")
+	}
+	if err := s.upsertPushSubscription(ctx, userID, endpoint, p256dh, auth); err != nil {
+		return err
+	}
+	return s.enablePush(ctx, userID)
+}
+
+// upsertPushSubscription stores a registration idempotently. Refreshing an
+// existing endpoint keeps one row; the preference is updated by the caller.
+func (s *Service) upsertPushSubscription(ctx context.Context, userID, endpoint, p256dh, auth string) error {
+	if err := validatePushEndpoint(endpoint); err != nil {
+		return err
 	}
 	existing, err := s.Client.PushSubscription.Query().
 		Where(pushsubscription.Endpoint(endpoint)).
@@ -62,6 +143,36 @@ func (s *Service) SubscribePush(ctx context.Context, userID, endpoint, p256dh, a
 	default:
 		return err
 	}
+}
+
+// enablePush flips push_enabled on for a user in the same request as the
+// subscribe. A preference row may not exist yet, so create it when absent.
+func (s *Service) enablePush(ctx context.Context, userID string) error {
+	n, err := s.Client.UserSetting.Update().
+		Where(usersetting.UserID(userID)).
+		SetPushEnabled(true).
+		SetUpdatedAt(db.Now()).
+		Save(ctx)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	_, err = s.Client.UserSetting.Create().
+		SetUserID(userID).
+		SetPushEnabled(true).
+		SetUpdatedAt(db.Now()).
+		Save(ctx)
+	if ent.IsConstraintError(err) {
+		// Another request created the row between our update and create.
+		_, err = s.Client.UserSetting.Update().
+			Where(usersetting.UserID(userID)).
+			SetPushEnabled(true).
+			SetUpdatedAt(db.Now()).
+			Save(ctx)
+	}
+	return err
 }
 
 // UnsubscribePush removes one browser push registration.

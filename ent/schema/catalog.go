@@ -102,6 +102,7 @@ func (Drink) Fields() []ent.Field {
 		field.String("recipe_json").Default("{}"),
 		field.Enum("source").Values("local", "off", "user").Default("local"),
 		field.Enum("status").Values("provisional", "active", "merged", "limited", "seasonal", "discontinued").Default("active"),
+		field.Bool("published").Default(false),
 		field.String("discontinued_at").Optional().Nillable(),
 		field.String("limited_until").Optional().Nillable(),
 		field.String("created_by").Optional().Nillable(),

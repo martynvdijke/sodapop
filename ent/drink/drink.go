@@ -50,6 +50,8 @@ const (
 	FieldSource = "source"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldPublished holds the string denoting the published field in the database.
+	FieldPublished = "published"
 	// FieldDiscontinuedAt holds the string denoting the discontinued_at field in the database.
 	FieldDiscontinuedAt = "discontinued_at"
 	// FieldLimitedUntil holds the string denoting the limited_until field in the database.
@@ -150,6 +152,7 @@ var Columns = []string{
 	FieldRecipeJSON,
 	FieldSource,
 	FieldStatus,
+	FieldPublished,
 	FieldDiscontinuedAt,
 	FieldLimitedUntil,
 	FieldCreatedBy,
@@ -185,6 +188,8 @@ var (
 	DefaultCaloriesKcalPer100ml int
 	// DefaultRecipeJSON holds the default value on creation for the "recipe_json" field.
 	DefaultRecipeJSON string
+	// DefaultPublished holds the default value on creation for the "published" field.
+	DefaultPublished bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() string
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -496,6 +501,11 @@ func BySource(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByPublished orders the results by the published field.
+func ByPublished(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublished, opts...).ToFunc()
 }
 
 // ByDiscontinuedAt orders the results by the discontinued_at field.

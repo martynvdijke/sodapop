@@ -332,6 +332,20 @@ func (_u *DrinkUpdate) SetNillableStatus(v *drink.Status) *DrinkUpdate {
 	return _u
 }
 
+// SetPublished sets the "published" field.
+func (_u *DrinkUpdate) SetPublished(v bool) *DrinkUpdate {
+	_u.mutation.SetPublished(v)
+	return _u
+}
+
+// SetNillablePublished sets the "published" field if the given value is not nil.
+func (_u *DrinkUpdate) SetNillablePublished(v *bool) *DrinkUpdate {
+	if v != nil {
+		_u.SetPublished(*v)
+	}
+	return _u
+}
+
 // SetDiscontinuedAt sets the "discontinued_at" field.
 func (_u *DrinkUpdate) SetDiscontinuedAt(v string) *DrinkUpdate {
 	_u.mutation.SetDiscontinuedAt(v)
@@ -805,6 +819,9 @@ func (_u *DrinkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(drink.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Published(); ok {
+		_spec.SetField(drink.FieldPublished, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DiscontinuedAt(); ok {
 		_spec.SetField(drink.FieldDiscontinuedAt, field.TypeString, value)
@@ -1440,6 +1457,20 @@ func (_u *DrinkUpdateOne) SetNillableStatus(v *drink.Status) *DrinkUpdateOne {
 	return _u
 }
 
+// SetPublished sets the "published" field.
+func (_u *DrinkUpdateOne) SetPublished(v bool) *DrinkUpdateOne {
+	_u.mutation.SetPublished(v)
+	return _u
+}
+
+// SetNillablePublished sets the "published" field if the given value is not nil.
+func (_u *DrinkUpdateOne) SetNillablePublished(v *bool) *DrinkUpdateOne {
+	if v != nil {
+		_u.SetPublished(*v)
+	}
+	return _u
+}
+
 // SetDiscontinuedAt sets the "discontinued_at" field.
 func (_u *DrinkUpdateOne) SetDiscontinuedAt(v string) *DrinkUpdateOne {
 	_u.mutation.SetDiscontinuedAt(v)
@@ -1943,6 +1974,9 @@ func (_u *DrinkUpdateOne) sqlSave(ctx context.Context) (_node *Drink, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(drink.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Published(); ok {
+		_spec.SetField(drink.FieldPublished, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DiscontinuedAt(); ok {
 		_spec.SetField(drink.FieldDiscontinuedAt, field.TypeString, value)

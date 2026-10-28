@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"sodapop/internal/account"
 	"sodapop/internal/ai"
 	"sodapop/internal/api"
 	"sodapop/internal/auth"
@@ -134,6 +135,37 @@ func run() error {
 	mediaSvc := media.New(database, cfg)
 	aiSvc := ai.New(database, cfg, cfg.Version, log, settingsSvc)
 	integrationSvc := integrations.New(database, cfg, log, settingsSvc)
+	// Mirror push-worthy in-app notifications to Web Push/outbound integrations.
+	// Badge and system notifications stay in-app only (badge push is dispatched
+	// elsewhere).
+	socialSvc.OnNotify = func(ctx context.Context, userID, kind, actorID, subjectID, text string) {
+		var eventKind, target string
+		switch kind {
+		case "friend_request", "friend_accept":
+			eventKind, target = integrations.EventFriend, "/friends"
+		case "toast":
+			eventKind, target = integrations.EventToast, "/"
+			if subjectID != "" {
+				target = "/checkins/" + subjectID
+			}
+		case "comment", "mention":
+			eventKind, target = integrations.EventCheckin, "/"
+			if subjectID != "" {
+				target = "/checkins/" + subjectID + "#comments"
+			}
+		default:
+			return
+		}
+		if err := integrationSvc.Dispatch(ctx, integrations.Event{
+			UserID: userID,
+			Kind:   eventKind,
+			Text:   text,
+			URL:    target,
+		}); err != nil {
+			log.WarnContext(ctx, "notification push dispatch failed", "kind", kind, "err", err)
+		}
+	}
+	accountSvc := account.New(database.Client, integrationSvc)
 	telemetry.SetOutboxDepthFunc(func(ctx context.Context) (int64, error) {
 		n, err := integrationSvc.OutboxDepth(ctx)
 		return int64(n), err
@@ -155,6 +187,7 @@ func run() error {
 		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		DB: database, Media: mediaSvc, AI: aiSvc, Integrations: integrationSvc,
+		Account: accountSvc,
 		Backup:  backupSvc,
 		Limiter: limiter, Render: renderer, Setup: setupSvc, Settings: settingsSvc,
 	}
@@ -165,7 +198,7 @@ func run() error {
 		Social:   socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
 		Limiter: limiter, DB: database, Media: mediaSvc, AI: aiSvc,
 		Integrations: integrationSvc, Badges: badgeSvc,
-		Taste: tasteSvc, Mix: mixSvc,
+		Taste: tasteSvc, Mix: mixSvc, Account: accountSvc,
 	}
 
 	mux := http.NewServeMux()

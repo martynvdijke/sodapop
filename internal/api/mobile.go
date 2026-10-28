@@ -7,6 +7,7 @@ import (
 
 	"sodapop/ent/user"
 	"sodapop/internal/auth"
+	"sodapop/internal/clientip"
 )
 
 // passwordToken is the break-glass mobile sign-in. It accepts an email address
@@ -17,7 +18,7 @@ func (s *Server) passwordToken(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "password_login_disabled", "password sign-in is disabled")
 		return
 	}
-	if !s.Limiter.Allow("mobile-login:"+clientIP(r), 5, 15*time.Minute) {
+	if !s.Limiter.Allow("mobile-login:"+s.clientIP(r), 5, 15*time.Minute) {
 		w.Header().Set("Retry-After", "900")
 		writeError(w, http.StatusTooManyRequests, "rate_limited", "too many sign-in attempts; try again later")
 		return
@@ -71,10 +72,12 @@ func (s *Server) passwordToken(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
-func clientIP(r *http.Request) string {
-	host := r.RemoteAddr
-	if i := strings.LastIndexByte(host, ':'); i > 0 {
-		host = host[:i]
+// clientIP derives the rate-limit key, trusting X-Forwarded-For only from a
+// configured proxy. It must not be used to derive identity.
+func (s *Server) clientIP(r *http.Request) string {
+	var trusted []string
+	if s != nil && s.Cfg != nil {
+		trusted = s.Cfg.TrustedProxies
 	}
-	return host
+	return clientip.FromRequest(r, trusted)
 }

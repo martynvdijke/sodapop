@@ -230,13 +230,20 @@ func (s *Service) Create(ctx context.Context, userID, checkinID, body string) (*
 	}
 
 	if parent.UserID != userID {
-		_, _ = s.Client.Notification.Create().
-			SetUserID(parent.UserID).
-			SetKind(notification.KindComment).
-			SetActorID(userID).
-			SetSubjectID(parent.ID).
-			SetText("commented on your check-in").
-			Save(ctx)
+		// Prefer the social service so OnNotify/push fans out exactly once. Fall
+		// back to a direct insert only when no social service is wired in, which
+		// keeps bare test or constructor setups working.
+		if soc := s.socialService(); soc != nil {
+			_ = soc.Notify(ctx, parent.UserID, string(notification.KindComment), userID, parent.ID, "commented on your check-in")
+		} else {
+			_, _ = s.Client.Notification.Create().
+				SetUserID(parent.UserID).
+				SetKind(notification.KindComment).
+				SetActorID(userID).
+				SetSubjectID(parent.ID).
+				SetText("commented on your check-in").
+				Save(ctx)
+		}
 	}
 
 	// Mention notifications are best effort: a failure here must never undo or

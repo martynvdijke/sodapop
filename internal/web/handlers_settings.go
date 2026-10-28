@@ -11,13 +11,11 @@ import (
 	"time"
 
 	"sodapop/ent/apitoken"
-	"sodapop/ent/inboundtoken"
-	"sodapop/ent/session"
 	"sodapop/ent/user"
 	"sodapop/ent/usersetting"
+	"sodapop/internal/account"
 	"sodapop/internal/auth"
 	"sodapop/internal/db"
-	"sodapop/internal/setup"
 )
 
 const maxAvatarBytes = 5 << 20
@@ -338,54 +336,18 @@ func (s *Server) settingsDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// deleteAccount soft-deletes a user and revokes every credential that could
-// still act as them: browser sessions, API tokens, and inbound webhook tokens.
+// deleteAccount closes an account through the shared account service and maps
+// its sentinel to the web layer's existing last-admin error.
 func (s *Server) deleteAccount(ctx context.Context, userID string) error {
-	target, err := s.Auth.Client.User.Get(ctx, userID)
-	if err != nil {
-		return err
+	svc := s.Account
+	if svc == nil {
+		svc = account.New(s.Auth.Client, s.Integrations)
 	}
-	if target.Role == user.RoleAdmin {
-		n, err := setup.CountLiveAdmins(ctx, s.Auth.Client)
-		if err != nil {
-			return err
-		}
-		if n <= 1 {
-			return errLastLiveAdmin
-		}
+	err := svc.Delete(ctx, userID)
+	if errors.Is(err, account.ErrLastAdmin) {
+		return errLastLiveAdmin
 	}
-	now := db.Now()
-	tx, err := s.Auth.Client.Tx(ctx)
-	if err != nil {
-		return err
-	}
-	if err := tx.User.UpdateOneID(userID).
-		SetStatus(user.StatusDeleted).
-		SetDeletedAt(now).
-		SetUpdatedAt(now).
-		Exec(ctx); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	if _, err := tx.Session.Delete().Where(session.UserID(userID)).Exec(ctx); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	if _, err := tx.APIToken.Update().
-		Where(apitoken.UserID(userID), apitoken.RevokedAtIsNil()).
-		SetRevokedAt(now).
-		Save(ctx); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	if _, err := tx.InboundToken.Update().
-		Where(inboundtoken.UserID(userID), inboundtoken.RevokedAtIsNil()).
-		SetRevokedAt(now).
-		Save(ctx); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	return tx.Commit()
+	return err
 }
 
 func (s *Server) forgotPage(w http.ResponseWriter, r *http.Request) {
