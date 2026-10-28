@@ -11,6 +11,58 @@
 {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
 {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
 
+{{if .Detail}}
+<section class="card admin-panel" aria-labelledby="venue-offers-title">
+  <p class="eyebrow">Venue · #{{.Detail.ID}}</p>
+  <h2 id="venue-offers-title">{{.Detail.Name}}</h2>
+  <p class="muted">{{container .Detail.Kind}}{{if .Detail.City}} · {{.Detail.City}}{{end}}{{if .Detail.Address}} · {{.Detail.Address}}{{end}}</p>
+  <p><a class="btn btn-small" href="/admin/venues">Back to venue search</a></p>
+
+  {{if .Detail.Drinks}}
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <caption class="sr-only">Drinks seen at this venue and their offer state</caption>
+      <thead>
+        <tr>
+          <th scope="col">Drink</th>
+          <th scope="col">Brand</th>
+          <th scope="col">Last seen</th>
+          <th scope="col">Offers</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Detail.Drinks}}
+        <tr>
+          <th scope="row">{{.DrinkName}}</th>
+          <td>{{if .Brand}}{{.Brand}}{{else}}<span class="muted">—</span>{{end}}</td>
+          <td>{{.LastSeenAt}}</td>
+          <td>{{if .OnOffer}}<span class="pill">On offer</span>{{else}}<span class="muted">Not on offer</span>{{end}}</td>
+          <td>
+            <form method="post" action="/admin/venues/{{$.Detail.ID}}/offer" class="offer-form">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <input type="hidden" name="drink_slug" value="{{.DrinkSlug}}">
+              {{if .OnOffer}}
+              <input type="hidden" name="on" value="0">
+              <button class="btn btn-small" type="submit" aria-label="Remove {{.DrinkName}} from offers">Remove offer</button>
+              {{else}}
+              <input type="hidden" name="on" value="1">
+              <button class="btn btn-primary btn-small" type="submit" aria-label="Mark {{.DrinkName}} as on offer">Mark on offer</button>
+              {{end}}
+            </form>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <div class="empty"><p>No drinks have been seen at this venue yet.</p></div>
+  {{end}}
+</section>
+{{end}}
+
+{{if not .Detail}}
 <form method="get" action="/admin/venues" class="searchbar" role="search" aria-label="Find venues to merge">
   {{if .From}}<input type="hidden" name="from" value="{{.From.ID}}">{{end}}
   <label class="sr-only" for="admin-venue-q">Search venues</label>
@@ -52,6 +104,7 @@
       </div>
       <div class="actions admin-venue-actions">
         <a class="btn btn-small" href="/admin/venues?from={{.ID}}{{if $.Query}}&q={{$.Query}}{{end}}">Use as source</a>
+        <a class="btn btn-small" href="/admin/venues/{{.ID}}">Manage offers</a>
         {{if $.From}}
         <a class="btn btn-small" href="/admin/venues?from={{$.From.ID}}&into={{.ID}}{{if $.Query}}&q={{$.Query}}{{end}}#merge">Use as target</a>
         {{else}}
@@ -94,4 +147,5 @@
     </div>
   </form>
 </section>
+{{end}}
 {{end}}

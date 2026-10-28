@@ -21,6 +21,11 @@ var adminBadgeKinds = []string{"core", "local", "special"}
 var adminBadgeRules = []adminBadgeRule{
 	{Key: "checkins", Label: "Check-ins"},
 	{Key: "distinct_styles", Label: "Distinct styles"},
+	{Key: "distinct_brands", Label: "Distinct brands"},
+	{Key: "distinct_countries", Label: "Distinct countries"},
+	{Key: "distinct_venue_kinds", Label: "Distinct venue kinds"},
+	{Key: "friends", Label: "Friends"},
+	{Key: "streak_current", Label: "Current streak (days)"},
 	{Key: "cans", Label: "Cans"},
 	{Key: "glass", Label: "Glasses"},
 	{Key: "bottle", Label: "Bottles"},

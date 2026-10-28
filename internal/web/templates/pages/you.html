@@ -8,6 +8,8 @@
   <div><strong>{{.Stats.UniqueDrinks}}</strong><span>unique</span></div>
   <div><strong>{{if .Stats.AvgRating}}{{printf "%.2f" (deref .Stats.AvgRating)}}{{else}}—{{end}}</strong><span>average</span></div>
   <div><strong>{{.Stats.Toasts}}</strong><span>toasts</span></div>
+  <div><strong>{{.Stats.CurrentStreak}} days</strong><span>current streak</span></div>
+  <div><strong>{{.Stats.LongestStreak}} days</strong><span>longest</span></div>
 </section>
 
 <div class="pill-row" style="margin:1rem 0">
@@ -25,7 +27,8 @@
   <div class="badge-tile{{if .Earned}} earned{{end}}">
     <strong>{{.Name}}</strong>
     <div class="muted">{{.Description}}</div>
-    {{if .Earned}}<div class="pill" style="margin-top:.5rem">Earned {{.AwardedAt}}</div>
+    {{if .Earned}}{{if gt .Level 1}}<div class="pill" style="margin-top:.5rem">Level {{.Level}}</div>{{end}}
+      <div class="pill" style="margin-top:.5rem">Earned {{.AwardedAt}}</div>
     {{else}}
       <div class="muted" style="margin-top:.5rem">{{.Progress}} / {{.Target}}</div>
       <div class="progress"><span style="width:{{.Percent}}%"></span></div>
@@ -41,6 +44,13 @@
     <span class="rating-pill">{{if .Rating}}{{stars .Rating}}{{else}}Not rated{{end}}</span>
   </div>
 {{else}}<div class="empty"><p>No check-ins yet.</p></div>{{end}}
+
+<h2>Activity</h2>
+{{range .Activity}}
+  <div class="card list-row">
+    <div>{{if .URL}}<strong><a href="{{.URL}}">{{.Label}}</a></strong>{{else}}<strong>{{.Label}}</strong>{{end}}<div class="muted">{{.CreatedAt}} · {{.Kind}}</div></div>
+  </div>
+{{else}}<div class="empty"><p>No activity yet.</p></div>{{end}}
 
 <h2>Account</h2>
 <p class="muted">Email: {{.User.Email}}{{if .User.EmailVerifiedAt}} ✓ verified{{else}} · unverified{{end}}</p>

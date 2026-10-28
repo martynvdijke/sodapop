@@ -29,14 +29,17 @@
           {{range .Kinds}}<option value="{{.}}">{{container .}}</option>{{else}}<option value="">No kinds available</option>{{end}}
         </select>
       </label>
-      <label for="badge-create-rule">Rule
-        <select id="badge-create-rule" name="rule" required>
-          {{range .Rules}}<option value="{{.Key}}">{{.Label}}</option>{{else}}<option value="">No rules available</option>{{end}}
-        </select>
-      </label>
-      <label for="badge-create-need">Threshold
-        <input id="badge-create-need" name="need" type="number" min="1" max="100000" step="1" inputmode="numeric" value="1" required>
-        <span class="muted">How many times the rule must match.</span>
+      <div>
+        <label for="badge-create-rule">Rule
+          <select id="badge-create-rule" name="rule" required aria-describedby="badge-create-rule-hint">
+            {{range .Rules}}<option value="{{.Key}}">{{.Label}}</option>{{else}}<option value="">No rules available</option>{{end}}
+          </select>
+        </label>
+        <span class="muted" id="badge-create-rule-hint">Accepted counters: {{range $i, $rule := .Rules}}{{if $i}}, {{end}}{{$rule.Key}}{{end}}.</span>
+      </div>
+      <label for="badge-create-need">Thresholds
+        <input id="badge-create-need" name="need" type="text" inputmode="numeric" pattern="[0-9]+(,[0-9]+){0,2}" value="1" required>
+        <span class="muted">One to three ascending numbers, comma-separated (e.g. 5,15,30). Each one adds a level.</span>
       </label>
     </div>
     <label for="badge-create-description">Description
@@ -115,8 +118,9 @@
                       {{range $.Rules}}<option value="{{.Key}}"{{if eq $badge.RuleKey .Key}} selected{{end}}>{{.Label}}</option>{{end}}
                     </select>
                   </label>
-                  <label for="badge-edit-need-{{.ID}}">Threshold
-                    <input id="badge-edit-need-{{.ID}}" name="need" type="number" min="1" max="100000" step="1" inputmode="numeric" value="{{.Need}}" required>
+                  <label for="badge-edit-need-{{.ID}}">Thresholds
+                    <input id="badge-edit-need-{{.ID}}" name="need" type="text" inputmode="numeric" pattern="[0-9]+(,[0-9]+){0,2}" value="{{.NeedText}}" required>
+                    <span class="muted">One to three ascending numbers, comma-separated (e.g. 5,15,30).</span>
                   </label>
                 </div>
                 <label for="badge-edit-description-{{.ID}}">Description

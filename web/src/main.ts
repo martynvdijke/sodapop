@@ -2,6 +2,7 @@
    optional AI polishing and Web Push. Core pages work without this file. */
 
 import { initInstall } from './install'
+import './analytics'
 import './nearby'
 import { announce, isAnnouncing } from './notice'
 import { loadPhoto, prunePhotos, removePhoto, savePhoto } from './photo-queue'

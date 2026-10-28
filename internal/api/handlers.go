@@ -66,6 +66,17 @@ func (s *Server) myStats(w http.ResponseWriter, r *http.Request, tok *auth.APITo
 	return nil
 }
 
+// myActivity returns the caller's own activity timeline. It is self-only by
+// construction and has no cross-user or global variant.
+func (s *Server) myActivity(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
+	items, err := s.Social.ActivityForUser(r.Context(), tok.User.ID, queryInt(r, "limit", 20, 50))
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": items, "meta": map[string]any{"count": len(items)}})
+	return nil
+}
+
 func (s *Server) feed(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
 	items, err := s.Social.Feed(r.Context(), tok.User.ID, queryInt(r, "limit", 20, 50), r.URL.Query().Get("before"))
 	if err != nil {

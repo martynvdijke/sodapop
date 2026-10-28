@@ -1,9 +1,10 @@
 // Package badges evaluates and lists achievement badges for a user.
 //
 // Badge definitions live in the badges table. A rule is a small, declarative
-// string such as "checkins>=10" or "sparkling_water>=1". Evaluation is
-// idempotent: awards are inserted with INSERT OR IGNORE against the unique
-// user_id + badge_id index, so concurrent evaluations cannot double-award.
+// string such as "checkins>=10" or a multi-level "distinct_styles>=5,15,30".
+// Evaluation is idempotent: awards are upserted against the unique
+// user_id + badge_id index, so concurrent evaluations cannot double-award or
+// downgrade a level.
 package badges
 
 import (
@@ -18,6 +19,7 @@ import (
 	"sodapop/ent/badge"
 	"sodapop/ent/notification"
 	"sodapop/internal/db"
+	"sodapop/internal/streak"
 )
 
 // Service evaluates badge rules and reports earned state.
@@ -82,7 +84,8 @@ func (s *Service) ListForUser(ctx context.Context, userID string) ([]Status, err
 }
 
 // Evaluate checks every seeded badge rule and returns the slugs that were
-// newly awarded by this call. Unknown or malformed rules are ignored.
+// newly awarded or upgraded by this call. Unknown or malformed rules are
+// ignored.
 func (s *Service) Evaluate(ctx context.Context, userID string) ([]string, error) {
 	if userID == "" {
 		return nil, nil
@@ -98,36 +101,49 @@ func (s *Service) Evaluate(ctx context.Context, userID string) ([]string, error)
 
 	var awarded []string
 	for _, def := range defs {
-		key, need, ok := parseRule(def.Rule)
+		key, thresholds, ok := parseThresholds(def.Rule)
 		if !ok {
 			continue
 		}
 		have, known := progress[key]
-		if !known || have < need {
+		if !known {
+			continue
+		}
+
+		level := levelFor(have, thresholds)
+		if level == 0 {
 			continue
 		}
 
 		res, err := s.SQL.ExecContext(ctx, `
-			INSERT OR IGNORE INTO user_badges (user_id, badge_id, level, awarded_at)
-			VALUES (?, ?, 1, ?)`, userID, def.ID, db.Now())
+			INSERT INTO user_badges (user_id, badge_id, level, awarded_at)
+			VALUES (?, ?, ?, ?)
+			ON CONFLICT(user_id, badge_id) DO UPDATE SET
+				level = excluded.level,
+				awarded_at = excluded.awarded_at
+			WHERE excluded.level > user_badges.level`, userID, def.ID, level, db.Now())
 		if err != nil {
 			return awarded, err
 		}
-		inserted, err := res.RowsAffected()
+		changed, err := res.RowsAffected()
 		if err != nil {
 			return awarded, err
 		}
-		if inserted == 0 {
-			continue // already awarded, possibly by a concurrent evaluation
+		if changed == 0 {
+			continue // already at this level, possibly by a concurrent evaluation
 		}
 
 		awarded = append(awarded, def.Slug)
+		text := "Badge unlocked: " + def.Name
+		if len(thresholds) > 1 {
+			text += " · Level " + strconv.Itoa(level)
+		}
 		// Secondary rows are best-effort: the award itself is authoritative.
 		_, _ = s.Client.Notification.Create().
 			SetUserID(userID).
 			SetKind(notification.KindBadge).
 			SetSubjectID(def.Slug).
-			SetText("Badge unlocked: " + def.Name).
+			SetText(text).
 			Save(ctx)
 		// Activity is feed fan-out; ignore failures if the schema differs.
 		_, _ = s.Client.Activity.Create().
@@ -140,18 +156,36 @@ func (s *Service) Evaluate(ctx context.Context, userID string) ([]string, error)
 	return awarded, nil
 }
 
+// levelFor counts how many of the ascending thresholds the counter has reached.
+func levelFor(have int, thresholds []int) int {
+	level := 0
+	for _, need := range thresholds {
+		if have >= need {
+			level++
+			continue
+		}
+		break
+	}
+	return level
+}
+
 // Progress reports the current counter for every rule key the evaluator
 // understands, so the UI can show "8 / 10" style progress.
 func (s *Service) Progress(ctx context.Context, userID string) (map[string]int, error) {
 	progress := map[string]int{
-		"checkins":        0,
-		"distinct_styles": 0,
-		"cans":            0,
-		"glass":           0,
-		"bottle":          0,
-		"fountain":        0,
-		"sparkling_water": 0,
-		"late_night":      0,
+		"checkins":             0,
+		"distinct_styles":      0,
+		"distinct_brands":      0,
+		"distinct_countries":   0,
+		"distinct_venue_kinds": 0,
+		"friends":              0,
+		"streak_current":       0,
+		"cans":                 0,
+		"glass":                0,
+		"bottle":               0,
+		"fountain":             0,
+		"sparkling_water":      0,
+		"late_night":           0,
 	}
 
 	var checkins int
@@ -172,6 +206,54 @@ func (s *Service) Progress(ctx context.Context, userID string) (map[string]int, 
 		return nil, err
 	}
 	progress["distinct_styles"] = distinctStyles
+
+	var distinctBrands int
+	if err := s.SQL.QueryRowContext(ctx, `
+		SELECT count(DISTINCT d.brand_id)
+		FROM checkins c
+		JOIN drinks d ON d.id = c.drink_id
+		WHERE c.user_id = ? AND c.deleted_at IS NULL AND d.brand_id IS NOT NULL`, userID).
+		Scan(&distinctBrands); err != nil {
+		return nil, err
+	}
+	progress["distinct_brands"] = distinctBrands
+
+	var distinctCountries int
+	if err := s.SQL.QueryRowContext(ctx, `
+		SELECT count(DISTINCT v.country)
+		FROM checkins c
+		JOIN venues v ON v.id = c.venue_id
+		WHERE c.user_id = ? AND c.deleted_at IS NULL AND v.country <> ''`, userID).
+		Scan(&distinctCountries); err != nil {
+		return nil, err
+	}
+	progress["distinct_countries"] = distinctCountries
+
+	var distinctVenueKinds int
+	if err := s.SQL.QueryRowContext(ctx, `
+		SELECT count(DISTINCT v.kind)
+		FROM checkins c
+		JOIN venues v ON v.id = c.venue_id
+		WHERE c.user_id = ? AND c.deleted_at IS NULL`, userID).
+		Scan(&distinctVenueKinds); err != nil {
+		return nil, err
+	}
+	progress["distinct_venue_kinds"] = distinctVenueKinds
+
+	var friends int
+	if err := s.SQL.QueryRowContext(ctx, `
+		SELECT count(*) FROM friendships
+		WHERE status = 'accepted' AND (user_a = ? OR user_b = ?)`, userID, userID).
+		Scan(&friends); err != nil {
+		return nil, err
+	}
+	progress["friends"] = friends
+
+	currentStreak, err := streak.Current(ctx, s.SQL, userID, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	progress["streak_current"] = currentStreak
 
 	servingKeys := map[string]string{
 		"can":      "cans",
@@ -252,19 +334,46 @@ func isLateNight(created string) bool {
 	return t.UTC().Hour() < 4
 }
 
-// parseRule splits "key>=N" into its counter key and threshold.
-func parseRule(rule string) (string, int, bool) {
+// parseThresholds splits "key>=N" or "key>=N1,N2,N3" into the counter key and
+// ascending level thresholds. Malformed, negative, empty, or unsorted input is
+// rejected so the evaluator ignores the badge instead of panicking.
+func parseThresholds(rule string) (string, []int, bool) {
 	key, value, ok := strings.Cut(strings.TrimSpace(rule), ">=")
 	if !ok {
-		return "", 0, false
+		return "", nil, false
 	}
 	key = strings.TrimSpace(key)
-	if key == "" {
+	value = strings.TrimSpace(value)
+	if key == "" || value == "" {
+		return "", nil, false
+	}
+
+	parts := strings.Split(value, ",")
+	thresholds := make([]int, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return "", nil, false
+		}
+		n, err := strconv.Atoi(part)
+		if err != nil || n < 0 {
+			return "", nil, false
+		}
+		if len(thresholds) > 0 && n <= thresholds[len(thresholds)-1] {
+			return "", nil, false
+		}
+		thresholds = append(thresholds, n)
+	}
+	return key, thresholds, true
+}
+
+// parseRule splits "key>=N" into its counter key and first threshold. It is the
+// single-level view used by admin validation; the evaluator uses
+// parseThresholds so multi-level rules keep every level.
+func parseRule(rule string) (string, int, bool) {
+	key, thresholds, ok := parseThresholds(rule)
+	if !ok || len(thresholds) == 0 {
 		return "", 0, false
 	}
-	n, err := strconv.Atoi(strings.TrimSpace(value))
-	if err != nil || n < 0 {
-		return "", 0, false
-	}
-	return key, n, true
+	return key, thresholds[0], true
 }

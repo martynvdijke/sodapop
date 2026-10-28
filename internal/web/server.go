@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"encoding/json"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -9,6 +11,7 @@ import (
 
 	"sodapop/internal/account"
 	"sodapop/internal/ai"
+	"sodapop/internal/analytics"
 	"sodapop/internal/auth"
 	"sodapop/internal/backup"
 	"sodapop/internal/badges"
@@ -32,6 +35,17 @@ import (
 
 type userKey struct{}
 type sessionKey struct{}
+
+// analyticsEventsJSON is the allowlisted analytics event names as a JSON array
+// for the browser helper. It is marshalled once: the list is static, and a
+// render must never fail because of analytics.
+var analyticsEventsJSON = func() template.JS {
+	b, err := json.Marshal(analytics.Names())
+	if err != nil {
+		return template.JS("[]")
+	}
+	return template.JS(b)
+}()
 
 // Server renders the server-side HTML application.
 type Server struct {
@@ -205,6 +219,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/badges/{id}/edit", s.requireAdminStrict(s.adminBadgeUpdate))
 	mux.HandleFunc("POST /admin/badges/{id}/delete", s.requireAdminStrict(s.adminBadgeDelete))
 	mux.HandleFunc("GET /admin/venues", s.requireAdminStrict(s.adminVenuesPage))
+	mux.HandleFunc("GET /admin/venues/{id}", s.requireAdminStrict(s.adminVenueOffers))
+	mux.HandleFunc("POST /admin/venues/{id}/offer", s.requireAdminStrict(s.adminVenueOfferSet))
 	mux.HandleFunc("POST /admin/venues/merge", s.requireAdminStrict(s.adminVenueMerge))
 }
 
@@ -252,6 +268,7 @@ func (s *Server) base(r *http.Request) map[string]any {
 		"Version":          s.Cfg.Version,
 		"UmamiURL":         umami.URL,
 		"UmamiID":          umami.WebsiteID,
+		"AnalyticsEvents":  analyticsEventsJSON,
 		"OIDC":             s.Auth.OIDCStatus(),
 		"AssetScript":      uiAssets.Script,
 		"Year":             time.Now().Year(),

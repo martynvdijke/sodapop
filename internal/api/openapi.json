@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Sodapop API",
-    "version": "1.9.0",
-    "summary": "Authenticated, friend-scoped soda check-in API (v1.9 surface).",
+    "version": "1.10.0",
+    "summary": "Authenticated, friend-scoped soda check-in API (v1.10 surface).",
     "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. All data endpoints require a personal `sd_` bearer token; requests are rate limited per token.",
     "license": {
       "name": "MIT",
@@ -750,6 +750,78 @@
           "saved"
         ]
       },
+      "Stats": {
+        "type": "object",
+        "properties": {
+          "checkins": {
+            "type": "integer"
+          },
+          "unique_drinks": {
+            "type": "integer"
+          },
+          "avg_rating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "toasts_received": {
+            "type": "integer"
+          },
+          "badges": {
+            "type": "integer"
+          },
+          "current_streak": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "longest_streak": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "checkins",
+          "unique_drinks",
+          "toasts_received",
+          "badges",
+          "current_streak",
+          "longest_streak"
+        ]
+      },
+      "Activity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "subject_id": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "subject_id",
+          "visibility",
+          "created_at"
+        ]
+      },
       "ProfileStats": {
         "type": "object",
         "properties": {
@@ -1248,6 +1320,12 @@
           "level": {
             "type": "integer"
           },
+          "thresholds": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
           "awarded_at": {
             "type": "string"
           },
@@ -1278,33 +1356,7 @@
         "type": "object",
         "properties": {
           "stats": {
-            "type": "object",
-            "properties": {
-              "checkins": {
-                "type": "integer"
-              },
-              "unique_drinks": {
-                "type": "integer"
-              },
-              "avg_rating": {
-                "type": [
-                  "number",
-                  "null"
-                ]
-              },
-              "toasts_received": {
-                "type": "integer"
-              },
-              "badges": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "checkins",
-              "unique_drinks",
-              "toasts_received",
-              "badges"
-            ]
+            "$ref": "#/components/schemas/Stats"
           },
           "badges": {
             "type": "array",
@@ -3021,12 +3073,88 @@
         ]
       }
     },
+    "/api/v1/me/activity": {
+      "get": {
+        "summary": "Your own activity timeline",
+        "description": "Self-only timeline of the token owner's activity rows, newest first. There is no global or cross-user variant.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity rows plus count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Activity"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/stats/me": {
       "get": {
         "summary": "Your check-in statistics",
+        "description": "Lifetime counters plus the current and longest check-in day streaks. Self only.",
         "responses": {
           "200": {
-            "description": "Totals"
+            "description": "Totals and streaks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Stats"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [

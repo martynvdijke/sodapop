@@ -110,6 +110,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "POST /api/v1/me/password", s.protect("write", true, s.mePassword))
 	s.route(mux, "GET /api/v1/me/blocks", s.protect("read", false, s.meBlocks))
 	s.route(mux, "GET /api/v1/me/checkins", s.protect("read", false, s.myCheckins))
+	s.route(mux, "GET /api/v1/me/activity", s.protect("read", false, s.myActivity))
 	s.route(mux, "GET /api/v1/stats/me", s.protect("read", false, s.myStats))
 	s.route(mux, "GET /api/v1/notifications", s.protect("read", false, s.notifications))
 	s.route(mux, "POST /api/v1/notifications/read", s.protect("write", false, s.notificationsRead))

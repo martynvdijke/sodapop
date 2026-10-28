@@ -124,6 +124,54 @@ type VenueDrink struct {
 	OnOffer    bool   `json:"on_offer"`
 }
 
+// DrinksForAdmin lists every drink seen at a venue for the admin offer tools.
+// Get caps its list at the recent 20, which is not enough to manage offers on
+// a busy venue.
+func (s *Service) DrinksForAdmin(ctx context.Context, venueID int, limit int) ([]VenueDrink, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT d.slug, d.name, COALESCE(b.name,''), vd.last_seen_at, vd.on_offer
+		FROM venue_drinks vd
+		JOIN drinks d ON d.id = vd.drink_id
+		LEFT JOIN brands b ON b.id = d.brand_id
+		WHERE vd.venue_id = ? AND d.status != 'merged'
+		ORDER BY vd.on_offer DESC, vd.last_seen_at DESC, lower(d.name)
+		LIMIT ?`, venueID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	drinks := []VenueDrink{}
+	for rows.Next() {
+		var vd VenueDrink
+		if err := rows.Scan(&vd.DrinkSlug, &vd.DrinkName, &vd.Brand, &vd.LastSeenAt, &vd.OnOffer); err != nil {
+			return nil, err
+		}
+		drinks = append(drinks, vd)
+	}
+	return drinks, rows.Err()
+}
+
+// SetOnOffer marks a drink as on offer (or clears it) at a venue. It reports
+// whether a matching venue_drinks row existed.
+func (s *Service) SetOnOffer(ctx context.Context, venueID int, drinkSlug string, onOffer bool) (bool, error) {
+	res, err := s.SQL.ExecContext(ctx, `
+		UPDATE venue_drinks SET on_offer = ?
+		WHERE venue_id = ?
+		  AND drink_id = (SELECT id FROM drinks WHERE slug = ? AND status != 'merged')`,
+		onOffer, venueID, drinkSlug)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // CreateInput is a community venue submission.
 type CreateInput struct {
 	Name    string

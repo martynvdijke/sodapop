@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 
 	"sodapop/ent"
 	"sodapop/ent/checkin"
@@ -14,6 +15,7 @@ import (
 	"sodapop/ent/venuedrink"
 	"sodapop/internal/db"
 	"sodapop/internal/social"
+	"sodapop/internal/streak"
 )
 
 var (
@@ -245,11 +247,13 @@ func (s *Service) Delete(ctx context.Context, userID, id string) error {
 
 // Stats summarises a user's own drinking history.
 type Stats struct {
-	Checkins     int      `json:"checkins"`
-	UniqueDrinks int      `json:"unique_drinks"`
-	AvgRating    *float64 `json:"avg_rating,omitempty"`
-	Toasts       int      `json:"toasts_received"`
-	Badges       int      `json:"badges"`
+	Checkins      int      `json:"checkins"`
+	UniqueDrinks  int      `json:"unique_drinks"`
+	AvgRating     *float64 `json:"avg_rating,omitempty"`
+	Toasts        int      `json:"toasts_received"`
+	Badges        int      `json:"badges"`
+	CurrentStreak int      `json:"current_streak"`
+	LongestStreak int      `json:"longest_streak"`
 }
 
 func (s *Service) Stats(ctx context.Context, userID string) (*Stats, error) {
@@ -262,6 +266,8 @@ func (s *Service) Stats(ctx context.Context, userID string) (*Stats, error) {
 		SELECT COUNT(*) FROM checkin_likes l JOIN checkins c ON c.id = l.checkin_id
 		WHERE c.user_id = ? AND c.deleted_at IS NULL`, userID).Scan(&out.Toasts)
 	out.Badges, _ = s.Client.UserBadge.Query().Where(userbadge.UserID(userID)).Count(ctx)
+	out.CurrentStreak, _ = streak.Current(ctx, s.SQL, userID, time.Now().UTC())
+	out.LongestStreak, _ = streak.Longest(ctx, s.SQL, userID)
 	return out, nil
 }
 

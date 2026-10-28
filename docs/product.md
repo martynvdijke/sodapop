@@ -188,6 +188,7 @@ Average rating: plain mean across distinct users (each user's checks averaged to
 - **Wishlist** is a system list per user, auto-created, cannot be deleted.
 - Custom lists: title, description, visibility, ordered items (drinks), optional note per item.
 - **Badges**: count milestones (first check-in, 10, 50, 100, 250, 500), style explorer (5/15/30 distinct styles), brand explorer (10/25/50 brands), country explorer (3/10/25 countries), venue kinds (hotel, vending, festival), streak (7/30/90 days), social (first friend, 10 friends), special (first soda added to catalog). Three levels per badge where it makes sense. Earned badges appear in the profile grid; locked ones show progress.
+- **Badge levels**: a rule accepts one to three ascending thresholds (`distinct_styles>=5,15,30`). The user's level is the number of thresholds reached, so evaluation upgrades an existing award in place and notifies only on a new level. Admin-authored rules keep all thresholds.
 - Badge evaluation is idempotent and retroactive-safe: a backfill command can re-evaluate a user or all users.
 
 ### 5.8 Profile, stats and insights
@@ -203,7 +204,7 @@ Access rules:
 
 Only an opted-in public profile is indexable (`index,follow` with canonical and Open Graph metadata); everything else is `noindex,nofollow`. The API stays friend-scoped regardless: `GET /api/v1/users/{handle}` does not become a public profile endpoint.
 
-Personal stats: total check-ins, unique drinks, average rating, toasts received and badges. The profile summary shows pours, styles, venues and badges; `/you` shows totals, badge progress and recent pours.
+Personal stats: total check-ins, unique drinks, average rating, toasts received, badges, and the current and longest consecutive-day streak. The profile summary shows pours, styles, venues and badges; `/you` shows totals, badge progress, streaks, a self-only activity timeline and recent pours. The activity timeline reads only the viewer's own rows (`GET /api/v1/me/activity`); it is not a global or cross-user feed.
 
 **Insights** (`/insights`) is self-only and reads the last 7, 30 or 90 calendar days:
 - Sugar, caffeine and calories come from the drink's per-100 ml facts multiplied by the logged volume. Logged check-ins without nutrition facts contribute zero.

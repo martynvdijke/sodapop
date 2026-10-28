@@ -793,6 +793,46 @@ func LogActivity(ctx context.Context, tx *ent.Tx, userID, kind, subjectID, visib
 	return err
 }
 
+// ActivityItem is one self-only timeline row. It never carries another user's
+// data: ActivityForUser always scopes by the owner.
+type ActivityItem struct {
+	ID         string `json:"id"`
+	Kind       string `json:"kind"`
+	SubjectID  string `json:"subject_id"`
+	Visibility string `json:"visibility"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// ActivityForUser returns the owner's own activity rows, newest first. There is
+// deliberately no cross-user or global variant.
+func (s *Service) ActivityForUser(ctx context.Context, userID string, limit int) ([]ActivityItem, error) {
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT id, kind, subject_id, visibility, created_at
+		FROM activities
+		WHERE user_id = ?
+		ORDER BY created_at DESC, id DESC
+		LIMIT ?`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ActivityItem{}
+	for rows.Next() {
+		var it ActivityItem
+		if err := rows.Scan(&it.ID, &it.Kind, &it.SubjectID, &it.Visibility, &it.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
 func order(a, b string) (string, string) {
 	if a < b {
 		return a, b

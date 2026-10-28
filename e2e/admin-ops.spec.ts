@@ -82,7 +82,7 @@ test.describe('admin operations', () => {
     const createForm = page.locator('form[action="/admin/badges"]');
     await createForm.getByLabel('Name', { exact: true }).fill(name);
     await createForm.getByLabel('Slug', { exact: true }).fill(slug);
-    await createForm.getByLabel('Kind').selectOption('local');
+    await createForm.locator('#badge-create-kind').selectOption('local');
     await createForm.locator('#badge-create-rule').selectOption('checkins');
     await createForm.getByLabel('Description').fill('Temporary badge created by the admin operations e2e test.');
     await createForm.locator('#badge-create-need').fill('10');

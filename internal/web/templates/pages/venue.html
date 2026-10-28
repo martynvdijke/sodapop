@@ -1,6 +1,6 @@
 {{define "content"}}
 {{$v := .Venue}}
-<article class="narrow">
+<article class="narrow" data-venue-id="{{$v.ID}}">
   <p class="eyebrow">{{container $v.Kind}}{{if $v.City}} · {{$v.City}}{{end}}</p>
   <h1>{{$v.Name}}</h1>
   {{if $v.Address}}<p class="muted">{{$v.Address}}{{if $v.Country}} · {{$v.Country}}{{end}}</p>{{end}}

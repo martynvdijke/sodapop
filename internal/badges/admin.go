@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"sodapop/ent"
@@ -27,6 +28,11 @@ var badgeSlugPattern = regexp.MustCompile(`^[a-z0-9-]{3,48}$`)
 var progressRuleKeys = []string{
 	"checkins",
 	"distinct_styles",
+	"distinct_brands",
+	"distinct_countries",
+	"distinct_venue_kinds",
+	"friends",
+	"streak_current",
 	"cans",
 	"glass",
 	"bottle",
@@ -53,6 +59,7 @@ type AdminBadge struct {
 	Rule        string
 	RuleKey     string
 	Need        int
+	NeedText    string
 	Awarded     int
 	CanDelete   bool
 }
@@ -92,9 +99,10 @@ func (s *Service) AdminList(ctx context.Context) ([]AdminBadge, error) {
 		}
 		b.Kind = kind
 		b.Rule = rule
-		if key, need, ok := parseRule(rule); ok {
+		if key, thresholds, ok := parseThresholds(rule); ok {
 			b.RuleKey = key
-			b.Need = need
+			b.Need = thresholds[0]
+			b.NeedText = joinThresholds(thresholds)
 		}
 		b.Awarded = award
 		b.CanDelete = award == 0
@@ -219,13 +227,28 @@ func normalizeBadgeInput(in BadgeInput) (BadgeInput, error) {
 	default:
 		return BadgeInput{}, fmt.Errorf("%w: kind must be core, local or special", ErrBadgeInvalid)
 	}
-	key, need, ok := parseRule(in.Rule)
+	key, thresholds, ok := parseThresholds(in.Rule)
 	if !ok || !progressRuleKeySet[key] {
-		return BadgeInput{}, fmt.Errorf("%w: rule must look like key>=N using a known counter", ErrBadgeInvalid)
+		return BadgeInput{}, fmt.Errorf("%w: rule must look like key>=N or key>=N1,N2,N3 using a known counter", ErrBadgeInvalid)
 	}
-	if need < 1 || need > 100000 {
-		return BadgeInput{}, fmt.Errorf("%w: threshold must be between 1 and 100000", ErrBadgeInvalid)
+	if len(thresholds) > 3 {
+		return BadgeInput{}, fmt.Errorf("%w: rule supports one to three thresholds", ErrBadgeInvalid)
 	}
-	in.Rule = key + ">=" + fmt.Sprintf("%d", need)
+	for _, need := range thresholds {
+		if need < 1 || need > 100000 {
+			return BadgeInput{}, fmt.Errorf("%w: thresholds must be between 1 and 100000", ErrBadgeInvalid)
+		}
+	}
+	in.Rule = key + ">=" + joinThresholds(thresholds)
 	return in, nil
+}
+
+// joinThresholds renders ascending thresholds back into the canonical
+// comma-separated rule form, e.g. "5,15,30".
+func joinThresholds(thresholds []int) string {
+	parts := make([]string, 0, len(thresholds))
+	for _, n := range thresholds {
+		parts = append(parts, strconv.Itoa(n))
+	}
+	return strings.Join(parts, ",")
 }
