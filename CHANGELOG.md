@@ -1,3 +1,15 @@
+# [1.9.0](https://github.com/martynvdijke/sodapop/compare/v1.8.0...v1.9.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ci:** use the repository Flutter version in Play Store builds ([0abbb7f](https://github.com/martynvdijke/sodapop/commit/0abbb7f24842f6b3361f16468718a08df1302532))
+
+
+### Features
+
+* add account lifecycle, nearby feed and public drink API ([3f679dc](https://github.com/martynvdijke/sodapop/commit/3f679dcc9282c939f5332e47755d19acf14bb233))
+
 # [1.8.0](https://github.com/martynvdijke/sodapop/compare/v1.7.0...v1.8.0) (2026-10-28)
 
 
