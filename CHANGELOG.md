@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/martynvdijke/sodapop/compare/v1.9.0...v1.9.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ci:** skip Play Store publishing without credentials ([3d31dcb](https://github.com/martynvdijke/sodapop/commit/3d31dcbdc37cfdb960853724a037b58bbe0ea931))
+
 # [1.9.0](https://github.com/martynvdijke/sodapop/compare/v1.8.0...v1.9.0) (2026-10-28)
 
 
