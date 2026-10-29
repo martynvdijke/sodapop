@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/martynvdijke/sodapop/compare/v1.11.0...v1.12.0) (2026-10-29)
+
+
+### Features
+
+* honor LOG_LEVEL and surface push credentials in admin settings ([2d8936d](https://github.com/martynvdijke/sodapop/commit/2d8936dec4ff2c5e2ce762243720bfc218275924))
+
 # [1.11.0](https://github.com/martynvdijke/sodapop/compare/v1.10.0...v1.11.0) (2026-10-29)
 
 
