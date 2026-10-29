@@ -7,7 +7,11 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Releases must not be cancelled mid-flight: a cancelled run can publish a
+  # release before the APK job finishes, leaving the release without an
+  # Android asset. Queue instead, and let semantic-release decide if the
+  # queued run has anything to publish.
+  cancel-in-progress: false
 
 jobs:
   ci:
@@ -193,7 +197,7 @@ jobs:
           notification_message: 'Workflow passed but no new release was published.'
 
       - name: Failure Notification
-        if: env.GOTIFY_APP_TOKEN != '' && (needs.ci.result != 'success' || needs.release.result != 'success' || (needs.android.result != 'success' && needs.android.result != 'skipped'))
+        if: env.GOTIFY_APP_TOKEN != '' && (needs.ci.result == 'failure' || needs.release.result == 'failure' || needs.android.result == 'failure')
         uses: eikendev/gotify-action@cb63800546f25c393ab96f09d12a094138c514f4 # master
         with:
           gotify_api_base: ${{ secrets.GOTIFY_API_BASE }}
