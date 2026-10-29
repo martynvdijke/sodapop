@@ -1,7 +1,9 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -490,9 +492,13 @@ func TestAdminSettingsTemplateCoversOperationalSections(t *testing.T) {
 		`action="/admin/settings/general"`,
 		`action="/admin/settings/email"`,
 		`action="/admin/settings/analytics"`,
+		`action="/admin/settings/push"`,
 		`action="/admin/settings/access"`,
 		`action="/admin/settings/ai"`,
 		`action="/admin/settings/observability"`,
+		`name="vapid_public_key"`,
+		`name="vapid_private_key"`,
+		`name="vapid_subject"`,
 		`name="smtp_host"`,
 		`name="smtp_port"`,
 		`name="smtp_username"`,
@@ -514,13 +520,108 @@ func TestAdminSettingsTemplateCoversOperationalSections(t *testing.T) {
 			t.Fatalf("settings template missing %q", want)
 		}
 	}
-	for _, section := range []string{"General", "Email", "Analytics", "Access", "AI", "Observability"} {
+	for _, section := range []string{"General", "Email", "Analytics", "Push", "Access", "AI", "Observability"} {
 		if !strings.Contains(body, section) {
 			t.Fatalf("settings template missing section %q", section)
 		}
 	}
 	if strings.Count(body, "settings-badge-source") < 6 {
 		t.Fatalf("expected a source badge in every section, found %d", strings.Count(body, "settings-badge-source"))
+	}
+}
+
+func TestAdminSettingsPushSaveMaskAndStatus(t *testing.T) {
+	h := newSettingsHarness(t)
+	admin := h.verifiedUser(t, "push-admin", user.RoleAdmin)
+	pub := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 65))
+	priv := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x02}, 32))
+
+	// With no keys the page reports Disabled and never shows a stored key.
+	body := h.getSettings(t, admin).Body.String()
+	if !strings.Contains(body, "Web Push: Disabled") || !strings.Contains(body, "No private key saved.") {
+		t.Fatalf("initial push status missing: %s", body)
+	}
+	if !strings.Contains(body, `action="/admin/settings/push"`) {
+		t.Fatal("push section missing from the settings page")
+	}
+
+	rec := h.post(t, admin, h.srv.adminSettingsPush, "/admin/settings/push", url.Values{
+		"vapid_public_key":  {pub},
+		"vapid_private_key": {priv},
+		"vapid_subject":     {"mailto:push@example.test"},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("push save status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	if loc := rec.Header().Get("Location"); loc != "/admin/settings?notice=push_saved" {
+		t.Fatalf("redirect = %q", loc)
+	}
+	snap := h.settings.Snapshot()
+	vapid := snap.VAPID()
+	if !vapid.Enabled() || vapid.PublicKey != pub || vapid.PrivateKey != priv || vapid.Subject != "mailto:push@example.test" {
+		t.Fatalf("saved VAPID = %+v", vapid)
+	}
+	if got := snap.Source(settings.KeyVAPIDPublicKey); got != "db" {
+		t.Fatalf("public key source = %q, want db", got)
+	}
+
+	body = h.getSettings(t, admin).Body.String()
+	if !strings.Contains(body, "Web Push: Enabled") {
+		t.Fatalf("enabled status missing: %s", body)
+	}
+	if strings.Contains(body, priv) {
+		t.Fatal("settings page leaked the VAPID private key")
+	}
+	if !strings.Contains(body, priv[len(priv)-4:]) {
+		t.Fatal("settings page does not show the private key suffix")
+	}
+
+	// Leaving the private key blank keeps the stored value.
+	rec = h.post(t, admin, h.srv.adminSettingsPush, "/admin/settings/push", url.Values{
+		"vapid_public_key": {pub},
+		"vapid_subject":    {"mailto:push@example.test"},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("blank private key status = %d, want 303", rec.Code)
+	}
+	if got := h.settings.Snapshot().VAPID().PrivateKey; got != priv {
+		t.Fatalf("blank private key changed the secret to %q", got)
+	}
+
+	// Clearing the private key disables push.
+	rec = h.post(t, admin, h.srv.adminSettingsPush, "/admin/settings/push", url.Values{
+		"vapid_public_key":        {pub},
+		"vapid_subject":           {"mailto:push@example.test"},
+		"clear_vapid_private_key": {"1"},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("clear status = %d, want 303", rec.Code)
+	}
+	if set, _ := h.settings.Snapshot().SecretState(settings.KeyVAPIDPrivateKey); set {
+		t.Fatal("cleared VAPID private key still reports as set")
+	}
+	if h.settings.Snapshot().VAPID().Enabled() {
+		t.Fatal("push should be disabled after clearing the private key")
+	}
+
+	// Invalid public key is rejected without changing saved values.
+	before := h.settings.Snapshot().VAPID()
+	rec = h.post(t, admin, h.srv.adminSettingsPush, "/admin/settings/push", url.Values{
+		"vapid_public_key": {"not a key"},
+	})
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), settings.KeyVAPIDPublicKey) {
+		t.Fatalf("invalid public key = %d: %s", rec.Code, rec.Body.String())
+	}
+	if after := h.settings.Snapshot().VAPID(); after != before {
+		t.Fatalf("invalid form changed VAPID from %+v to %+v", before, after)
+	}
+
+	// CSRF is required.
+	req := h.request(http.MethodPost, "/admin/settings/push", admin, url.Values{"vapid_public_key": {pub}})
+	rec = httptest.NewRecorder()
+	h.srv.adminSettingsPush(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF status = %d, want 403", rec.Code)
 	}
 }
 

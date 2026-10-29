@@ -1,8 +1,14 @@
 package integrations
 
 import (
+	"bytes"
+	"encoding/base64"
+	"io"
+	"log/slog"
 	"strings"
 	"testing"
+
+	"sodapop/internal/settings"
 )
 
 func TestValidatePushEndpointAllowsKnownPushServices(t *testing.T) {
@@ -101,6 +107,77 @@ func TestSubscribePushRejectsUnsafeEndpointWithoutStoring(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatalf("subscriptions after rejected endpoints = %d, want 0", n)
+	}
+}
+
+func TestVAPIDResolutionOrderAndDisabledState(t *testing.T) {
+	pubEnv := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 65))
+	privEnv := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x02}, 32))
+	t.Setenv("VAPID_PUBLIC_KEY", pubEnv)
+	t.Setenv("VAPID_PRIVATE_KEY", privEnv)
+	t.Setenv("VAPID_SUBJECT", "mailto:env@example.test")
+
+	svc, database, ctx := newTestService(t)
+	if got := svc.VAPIDPublicKey(); got != pubEnv {
+		t.Fatalf("environment public key = %q", got)
+	}
+	if !svc.PushEnabled() {
+		t.Fatal("push should be enabled with both environment keys")
+	}
+	pub, priv, subject, enabled, err := svc.vapidConfig()
+	if err != nil || !enabled || pub != pubEnv || priv != privEnv || subject != "mailto:env@example.test" {
+		t.Fatalf("vapidConfig = %q/%q/%q/%v/%v", pub, priv, subject, enabled, err)
+	}
+
+	// Runtime settings override the environment.
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	settingsSvc, err := settings.New(database.Client, svc.Cfg, "0123456789abcdef0123456789abcdef", log)
+	if err != nil {
+		t.Fatalf("settings.New: %v", err)
+	}
+	if err := settingsSvc.Load(ctx); err != nil {
+		t.Fatalf("settings.Load: %v", err)
+	}
+	pubDB := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x03}, 65))
+	privDB := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x04}, 32))
+	if err := settingsSvc.Set(ctx, settings.KeyVAPIDPublicKey, pubDB, false, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if err := settingsSvc.Set(ctx, settings.KeyVAPIDPrivateKey, privDB, true, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if err := settingsSvc.Set(ctx, settings.KeyVAPIDSubject, "https://db.example.test/push", false, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	svc.Settings = settingsSvc
+	if got := svc.VAPIDPublicKey(); got != pubDB {
+		t.Fatalf("runtime public key = %q", got)
+	}
+	pub, priv, subject, enabled, err = svc.vapidConfig()
+	if err != nil || !enabled || pub != pubDB || priv != privDB || subject != "https://db.example.test/push" {
+		t.Fatalf("runtime vapidConfig = %q/%q/%q/%v/%v", pub, priv, subject, enabled, err)
+	}
+
+	// Deleting the runtime overrides falls back to the environment again.
+	if err := settingsSvc.Delete(ctx, settings.KeyVAPIDPublicKey, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if err := settingsSvc.Delete(ctx, settings.KeyVAPIDPrivateKey, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.VAPIDPublicKey(); got != pubEnv {
+		t.Fatalf("public key after delete = %q, want env", got)
+	}
+
+	// A single missing key disables push while still exposing the public key.
+	if err := settingsSvc.Set(ctx, settings.KeyVAPIDPublicKey, "", false, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if svc.PushEnabled() {
+		t.Fatal("push should be disabled when the public key is empty")
+	}
+	if got := svc.VAPIDPublicKey(); got != "" {
+		t.Fatalf("cleared public key = %q, want empty", got)
 	}
 }
 

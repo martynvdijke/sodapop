@@ -23,6 +23,7 @@
         <li><a href="#general">General</a></li>
         <li><a href="#email">Email</a></li>
         <li><a href="#analytics">Analytics</a></li>
+        <li><a href="#push">Push</a></li>
         <li><a href="#access">Access</a></li>
         <li><a href="#ai">AI</a></li>
         <li><a href="#observability">Observability</a></li>
@@ -161,6 +162,62 @@
 
           <div class="form-actions">
             <button class="btn btn-save" type="submit">Save analytics</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="settings-card" id="push" aria-labelledby="settings-push-title">
+        <div class="settings-card-head">
+          <h2 id="settings-push-title">Push</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .VAPIDSource}}{{.VAPIDSource}}{{else}}default{{end}}">Source: {{if .VAPIDSource}}{{.VAPIDSource}}{{else}}default{{end}}</span>
+          <span class="settings-badge settings-badge-status" data-enabled="{{if .VAPIDEnabled}}true{{else}}false{{end}}">Web Push: {{if .VAPIDEnabled}}Enabled{{else}}Disabled{{end}}</span>
+        </div>
+        <p class="settings-intro">Browser push notifications use a VAPID key pair. Both keys are required; when either one is unset, Web Push is a no-op and notifications stay in-app only.</p>
+
+        <form method="post" action="/admin/settings/push" class="settings-form" aria-labelledby="settings-push-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <label for="settings-vapid-public">Public key
+            <input id="settings-vapid-public" name="vapid_public_key" value="{{with .VAPIDPublicKey}}{{.}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-vapid-public-hint">
+            <span class="hint" id="settings-vapid-public-hint">Unpadded base64url public key sent to the browser.</span>
+          </label>
+
+          <label for="settings-vapid-subject">Subject
+            <input id="settings-vapid-subject" name="vapid_subject" value="{{with .VAPIDSubject}}{{.}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-vapid-subject-hint">
+            <span class="hint" id="settings-vapid-subject-hint">Contact for push services: a mailto: address or an https:// URL. Blank uses the built-in default.</span>
+          </label>
+
+          <div class="secret-block">
+            <div class="secret-current">
+              <span class="static-label">Saved private key</span>
+              {{if .VAPIDPrivateSet}}
+                <p class="secret-readout">
+                  <span class="secret-mask" aria-hidden="true">••••••</span>{{if .VAPIDPrivateLast4}}<span class="secret-last4" aria-hidden="true">{{.VAPIDPrivateLast4}}</span>{{end}}
+                  <span class="sr-only">{{if .VAPIDPrivateLast4}}Ending in {{.VAPIDPrivateLast4}}.{{else}}Set.{{end}}</span>
+                </p>
+              {{else}}
+                <p class="secret-readout muted">No private key saved.</p>
+              {{end}}
+            </div>
+
+            <label for="settings-vapid-private">New private key
+              <input id="settings-vapid-private" name="vapid_private_key" type="password" autocomplete="off" aria-describedby="settings-vapid-private-hint">
+              <span class="hint" id="settings-vapid-private-hint">Stored encrypted. Leave blank to keep the saved key.</span>
+            </label>
+          </div>
+
+          {{if .VAPIDPrivateSet}}
+          <label class="check-row">
+            <input type="checkbox" name="clear_vapid_private_key" value="1">
+            <span class="check-copy">
+              <strong>Clear saved private key</strong>
+              <span class="hint">Removes the stored VAPID private key and disables Web Push until a new one is saved.</span>
+            </span>
+          </label>
+          {{end}}
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save push</button>
           </div>
         </form>
       </section>

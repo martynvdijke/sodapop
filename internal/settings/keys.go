@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -9,6 +10,10 @@ import (
 	"strings"
 	"unicode"
 )
+
+// DefaultVAPIDSubject is used when no subject is configured at runtime or in
+// the environment. It only has to be a contact the push service can reach.
+const DefaultVAPIDSubject = "mailto:admin@sodapop.local"
 
 // Runtime-safe setting keys. env-only configuration is intentionally not in
 // this list and can never be stored in runtime_settings.
@@ -23,6 +28,9 @@ const (
 	KeySMTPTLS               = "smtp_tls"
 	KeyUmamiURL              = "umami_url"
 	KeyUmamiWebsiteID        = "umami_website_id"
+	KeyVAPIDPublicKey        = "vapid_public_key"
+	KeyVAPIDPrivateKey       = "vapid_private_key"
+	KeyVAPIDSubject          = "vapid_subject"
 	KeyRegistrationOpen      = "registration_open"
 	KeyAIEnabled             = "ai_enabled"
 	KeyAllowPasswordFallback = "allow_password_fallback"
@@ -71,7 +79,11 @@ func Validate(key, value string) error {
 		return fmt.Errorf("%w: %s", ErrUnknownKey, key)
 	}
 	if spec.secret {
-		return nil
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
+		_, err := normalizeValue(key, value)
+		return err
 	}
 	_, err := normalizeValue(key, value)
 	return err
@@ -92,6 +104,9 @@ var specs = map[string]keySpec{
 	KeySMTPTLS:               {},
 	KeyUmamiURL:              {},
 	KeyUmamiWebsiteID:        {},
+	KeyVAPIDPublicKey:        {},
+	KeyVAPIDPrivateKey:       {secret: true},
+	KeyVAPIDSubject:          {},
 	KeyRegistrationOpen:      {},
 	KeyAIEnabled:             {},
 	KeyAllowPasswordFallback: {},
@@ -127,6 +142,9 @@ func builtinDefaults() map[string]string {
 		KeySMTPTLS:               defaultSMTPTLS,
 		KeyUmamiURL:              "",
 		KeyUmamiWebsiteID:        "",
+		KeyVAPIDPublicKey:        "",
+		KeyVAPIDPrivateKey:       "",
+		KeyVAPIDSubject:          "",
 		KeyRegistrationOpen:      boolString(defaultRegistrationOpen),
 		KeyAIEnabled:             boolString(defaultAIEnabled),
 		KeyAllowPasswordFallback: boolString(defaultAllowPasswordFallback),
@@ -215,6 +233,12 @@ func normalizeValue(key, raw string) (string, error) {
 			return "", invalid("%s is invalid", key)
 		}
 		return v, nil
+
+	case KeyVAPIDPublicKey, KeyVAPIDPrivateKey:
+		return normalizeVAPIDKey(key, raw)
+
+	case KeyVAPIDSubject:
+		return normalizeVAPIDSubject(raw)
 
 	case KeyRegistrationOpen, KeyAIEnabled, KeyAllowPasswordFallback:
 		v, err := parseBool(raw)
@@ -329,6 +353,55 @@ func normalizeOrigin(raw string) (string, error) {
 		return "", invalid("%s must use a valid host", KeyUmamiURL)
 	}
 	return scheme + "://" + strings.ToLower(u.Host), nil
+}
+
+// normalizeVAPIDKey accepts an empty value (unset) or an unpadded URL-safe
+// base64 value that decodes to a P-256 key. A public key is 65 bytes and a
+// private key is a 32-byte scalar; both lengths are accepted in either field
+// because the generated key pair is pasted as a pair.
+func normalizeVAPIDKey(key, raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", nil
+	}
+	if hasControl(v) || strings.ContainsAny(v, " \t=+/") {
+		return "", invalid("%s must be unpadded base64url", key)
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(v)
+	if err != nil {
+		return "", invalid("%s must be unpadded base64url", key)
+	}
+	if len(decoded) != 32 && len(decoded) != 65 {
+		return "", invalid("%s is not a P-256 key", key)
+	}
+	return v, nil
+}
+
+// normalizeVAPIDSubject accepts an empty value (use the default) or a mailto:
+// address / absolute https URL that a push service can use as a contact.
+func normalizeVAPIDSubject(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", nil
+	}
+	if hasControl(v) || strings.ContainsAny(v, " \t\r\n") {
+		return "", invalid("%s is invalid", KeyVAPIDSubject)
+	}
+	lower := strings.ToLower(v)
+	if strings.HasPrefix(lower, "mailto:") {
+		if strings.TrimSpace(v[len("mailto:"):]) == "" {
+			return "", invalid("%s must include a mailto address", KeyVAPIDSubject)
+		}
+		return v, nil
+	}
+	u, err := url.Parse(v)
+	if err != nil || u.Host == "" || u.User != nil {
+		return "", invalid("%s must start with mailto: or https://", KeyVAPIDSubject)
+	}
+	if !strings.EqualFold(u.Scheme, "https") {
+		return "", invalid("%s must start with mailto: or https://", KeyVAPIDSubject)
+	}
+	return u.String(), nil
 }
 
 // validHost restricts hostnames to characters safe to interpolate into CSP

@@ -102,6 +102,19 @@ var settingsNotices = map[string]string{
 	"access_saved":    "Access settings saved.",
 	"ai_saved":        "AI settings saved.",
 	"otel_saved":      "Observability settings saved. Restart the server to apply them.",
+	"push_saved":      "Push settings saved.",
+}
+
+// vapidPublicKey returns the effective public key so the integrations page and
+// push subscribe response use the same value the server signs with.
+func (s *Server) vapidPublicKey() string {
+	if snap := s.settingsSnapshot(); snap != nil {
+		return snap.VAPID().PublicKey
+	}
+	if s.Integrations != nil {
+		return s.Integrations.VAPIDPublicKey()
+	}
+	return settings.VAPIDFromEnvironment().PublicKey
 }
 
 // adminSettingsPage renders the admin settings panel from the current runtime
@@ -130,7 +143,9 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 	}
 	smtp := snap.SMTP()
 	umami := snap.Umami()
+	vapid := snap.VAPID()
 	passwordSet, passwordLast4 := snap.SecretState(settings.KeySMTPPassword)
+	vapidPrivateSet, vapidPrivateLast4 := snap.SecretState(settings.KeyVAPIDPrivateKey)
 	s.render(w, r, status, "admin_settings", map[string]any{
 		"Title":             "Settings",
 		"SiteName":          snap.SiteName(),
@@ -147,6 +162,12 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 		"UmamiURL":          umami.URL,
 		"UmamiWebsiteID":    umami.WebsiteID,
 		"UmamiSource":       snap.Source(settings.KeyUmamiURL),
+		"VAPIDPublicKey":    vapid.PublicKey,
+		"VAPIDSubject":      vapid.Subject,
+		"VAPIDSource":       snap.Source(settings.KeyVAPIDPublicKey),
+		"VAPIDEnabled":      vapid.Enabled(),
+		"VAPIDPrivateSet":   vapidPrivateSet,
+		"VAPIDPrivateLast4": vapidPrivateLast4,
 		"RegistrationOpen":  snap.RegistrationOpen(),
 		"PasswordFallback":  snap.AllowPasswordFallback(),
 		"AllowedEmails":     strings.Join(snap.AllowedEmails(), ", "),
@@ -313,6 +334,51 @@ func (s *Server) adminSettingsAnalytics(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 	http.Redirect(w, r, "/admin/settings?notice=analytics_saved", http.StatusSeeOther)
+}
+
+func (s *Server) adminSettingsPush(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	if s.Settings == nil {
+		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	fields := map[string]string{
+		settings.KeyVAPIDPublicKey: strings.TrimSpace(r.FormValue("vapid_public_key")),
+		settings.KeyVAPIDSubject:   strings.TrimSpace(r.FormValue("vapid_subject")),
+	}
+	if err := validateSettings(fields); err != nil {
+		s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+		return
+	}
+	privateKey := r.FormValue("vapid_private_key")
+	if strings.TrimSpace(privateKey) != "" {
+		if err := validateSettings(map[string]string{settings.KeyVAPIDPrivateKey: privateKey}); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+			return
+		}
+	}
+	actor := s.settingsUpdatedBy(r)
+	for _, key := range []string{settings.KeyVAPIDPublicKey, settings.KeyVAPIDSubject} {
+		if err := s.Settings.Set(r.Context(), key, fields[key], false, actor); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+			return
+		}
+	}
+	if r.FormValue("clear_vapid_private_key") == "1" {
+		if err := s.Settings.Delete(r.Context(), settings.KeyVAPIDPrivateKey, actor); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, "The VAPID private key could not be cleared.", "")
+			return
+		}
+	}
+	if strings.TrimSpace(privateKey) != "" {
+		if err := s.Settings.Set(r.Context(), settings.KeyVAPIDPrivateKey, privateKey, true, actor); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, "The VAPID private key could not be saved.", "")
+			return
+		}
+	}
+	http.Redirect(w, r, "/admin/settings?notice=push_saved", http.StatusSeeOther)
 }
 
 func (s *Server) adminSettingsAccess(w http.ResponseWriter, r *http.Request) {

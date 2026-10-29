@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -222,7 +221,7 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
 		"FeedURL":         feedURL,
 		"FeedToken":       strings.TrimPrefix(feedURL, s.baseURL()+"/feeds/"),
 		"BaseURL":         s.baseURL(),
-		"VAPIDPublicKey":  os.Getenv("VAPID_PUBLIC_KEY"),
+		"VAPIDPublicKey":  s.vapidPublicKey(),
 		"InboundTokens":   inboundTokens,
 		"NewInboundToken": newToken,
 	})
@@ -337,7 +336,7 @@ func (s *Server) importCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	s.render(w, r, http.StatusOK, "integrations", map[string]any{
 		"Title": "Integrations", "Notice": strconv.Itoa(n) + " check-ins imported.",
-		"BaseURL": s.baseURL(), "VAPIDPublicKey": os.Getenv("VAPID_PUBLIC_KEY"),
+		"BaseURL": s.baseURL(), "VAPIDPublicKey": s.vapidPublicKey(),
 	})
 }
 

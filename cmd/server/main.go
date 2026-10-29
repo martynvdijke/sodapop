@@ -57,8 +57,9 @@ func run() error {
 	if Version != "0.0.0-dev" {
 		cfg.Version = Version
 	}
+	level, levelErr := config.ParseLogLevel(cfg.LogLevel)
 	var handler slog.Handler
-	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	opts := &slog.HandlerOptions{Level: level}
 	if cfg.Env == "development" {
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	} else {
@@ -66,6 +67,9 @@ func run() error {
 	}
 	log := slog.New(handler)
 	slog.SetDefault(log)
+	if levelErr != nil {
+		log.Warn("unrecognised LOG_LEVEL; using info", "value", cfg.LogLevel)
+	}
 
 	database, err := db.Init(cfg.DBPath)
 	if err != nil {

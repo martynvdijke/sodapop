@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
@@ -18,9 +17,10 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/usersetting"
 	"sodapop/internal/db"
+	"sodapop/internal/settings"
 )
 
-const defaultVAPIDSubject = "mailto:admin@sodapop.local"
+const defaultVAPIDSubject = settings.DefaultVAPIDSubject
 
 // maxPushEndpointLen caps the stored endpoint. Browser endpoints are far
 // shorter; the limit exists to bound storage and request work.
@@ -202,7 +202,7 @@ func (s *Service) sendPushToSubscriptions(ctx context.Context, subs []*ent.PushS
 	if len(subs) == 0 {
 		return nil
 	}
-	pub, priv, subject, enabled, err := vapidConfig()
+	pub, priv, subject, enabled, err := s.vapidConfig()
 	if err != nil {
 		return err
 	}
@@ -251,23 +251,44 @@ func (s *Service) sendPushToSubscriptions(ctx context.Context, subs []*ent.PushS
 	return firstErr
 }
 
-// vapidConfig reads VAPID credentials from the environment. Keys are
-// validated as base64url; when either key is absent push is disabled.
-func vapidConfig() (pub, priv, subject string, enabled bool, err error) {
-	pub = strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY"))
-	priv = strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY"))
-	if pub == "" || priv == "" {
-		return "", "", "", false, nil
+// vapidSettings resolves VAPID credentials through runtime settings, falling
+// back to the environment when no settings service is wired.
+func (s *Service) vapidSettings() settings.VAPIDSettings {
+	if s != nil && s.Settings != nil {
+		if snap := s.Settings.Snapshot(); snap != nil {
+			return snap.VAPID()
+		}
 	}
-	if _, err := decodeBase64URL(pub); err != nil {
-		return "", "", "", false, fmt.Errorf("VAPID_PUBLIC_KEY: %w", err)
-	}
-	if _, err := decodeBase64URL(priv); err != nil {
-		return "", "", "", false, fmt.Errorf("VAPID_PRIVATE_KEY: %w", err)
-	}
-	subject = strings.TrimSpace(os.Getenv("VAPID_SUBJECT"))
+	return settings.VAPIDFromEnvironment()
+}
+
+// VAPIDPublicKey returns the effective public key so the browser can subscribe
+// with the same value the server will sign with.
+func (s *Service) VAPIDPublicKey() string {
+	return s.vapidSettings().PublicKey
+}
+
+// PushEnabled reports whether both VAPID keys resolve.
+func (s *Service) PushEnabled() bool {
+	return s.vapidSettings().Enabled()
+}
+
+// vapidConfig resolves VAPID credentials through runtime settings and validates
+// them as base64url. When either key is absent push is disabled.
+func (s *Service) vapidConfig() (pub, priv, subject string, enabled bool, err error) {
+	v := s.vapidSettings()
+	pub, priv, subject = strings.TrimSpace(v.PublicKey), strings.TrimSpace(v.PrivateKey), strings.TrimSpace(v.Subject)
 	if subject == "" {
 		subject = defaultVAPIDSubject
+	}
+	if pub == "" || priv == "" {
+		return pub, priv, subject, false, nil
+	}
+	if _, err := decodeBase64URL(pub); err != nil {
+		return "", "", "", false, fmt.Errorf("VAPID public key: %w", err)
+	}
+	if _, err := decodeBase64URL(priv); err != nil {
+		return "", "", "", false, fmt.Errorf("VAPID private key: %w", err)
 	}
 	return pub, priv, subject, true, nil
 }

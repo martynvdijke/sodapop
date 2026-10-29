@@ -27,6 +27,19 @@ type UmamiSettings struct {
 	WebsiteID string
 }
 
+// VAPIDSettings is the effective Web Push credential set. Subject always holds
+// a usable contact (the built-in default when unset).
+type VAPIDSettings struct {
+	PublicKey  string
+	PrivateKey string
+	Subject    string
+}
+
+// Enabled reports whether both VAPID keys resolve. Push is a no-op otherwise.
+func (v VAPIDSettings) Enabled() bool {
+	return v.PublicKey != "" && v.PrivateKey != ""
+}
+
 // Snapshot is an immutable view of every runtime setting. Consumers hold the
 // pointer returned by Service.Snapshot; it is never mutated after publication.
 type Snapshot struct {
@@ -34,6 +47,7 @@ type Snapshot struct {
 	baseURL               string
 	smtp                  SMTPSettings
 	umami                 UmamiSettings
+	vapid                 VAPIDSettings
 	registrationOpen      bool
 	aiEnabled             bool
 	allowPasswordFallback bool
@@ -58,6 +72,19 @@ func (s *Snapshot) SMTP() SMTPSettings { return s.smtp }
 
 // Umami returns the effective analytics settings.
 func (s *Snapshot) Umami() UmamiSettings { return s.umami }
+
+// VAPID returns the effective Web Push credentials. An unset subject falls
+// back to DefaultVAPIDSubject; an unset key pair means push is disabled.
+func (s *Snapshot) VAPID() VAPIDSettings {
+	if s == nil {
+		return VAPIDFromEnvironment()
+	}
+	v := s.vapid
+	if v.Subject == "" {
+		v.Subject = DefaultVAPIDSubject
+	}
+	return v
+}
 
 // RegistrationOpen reports whether local registration is enabled.
 func (s *Snapshot) RegistrationOpen() bool { return s.registrationOpen }
@@ -122,6 +149,7 @@ func buildSnapshot(cfg *config.Config, rows []*ent.RuntimeSetting, box *secretbo
 
 	applyEnv(cfg, values, sources)
 	applyOTELEnv(values, sources)
+	applyVAPIDEnv(values, sources)
 
 	for _, row := range rows {
 		if row == nil {
@@ -187,6 +215,11 @@ func buildSnapshot(cfg *config.Config, rows []*ent.RuntimeSetting, box *secretbo
 		umami: UmamiSettings{
 			URL:       values[KeyUmamiURL],
 			WebsiteID: values[KeyUmamiWebsiteID],
+		},
+		vapid: VAPIDSettings{
+			PublicKey:  values[KeyVAPIDPublicKey],
+			PrivateKey: values[KeyVAPIDPrivateKey],
+			Subject:    values[KeyVAPIDSubject],
 		},
 		registrationOpen:      values[KeyRegistrationOpen] == "1",
 		aiEnabled:             values[KeyAIEnabled] == "1",
@@ -284,6 +317,36 @@ func applyOTELEnv(values, sources map[string]string) {
 	set(KeyOTELServiceName, strings.TrimSpace(os.Getenv("OTEL_SERVICE_NAME")))
 	set(KeyOTELSampler, strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER")))
 	set(KeyOTELDisabled, strings.TrimSpace(os.Getenv("OTEL_SDK_DISABLED")))
+}
+
+// applyVAPIDEnv treats VAPID_* variables as the environment layer. They remain
+// overridable from runtime settings, and an unset variable leaves the built-in
+// default (empty keys, default subject) in place.
+func applyVAPIDEnv(values, sources map[string]string) {
+	set := func(key, value string) {
+		if value == "" {
+			return
+		}
+		values[key] = value
+		sources[key] = "env"
+	}
+	set(KeyVAPIDPublicKey, strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY")))
+	set(KeyVAPIDPrivateKey, strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY")))
+	set(KeyVAPIDSubject, strings.TrimSpace(os.Getenv("VAPID_SUBJECT")))
+}
+
+// VAPIDFromEnvironment resolves VAPID credentials from the environment for
+// callers that have no settings snapshot (tests and legacy construction).
+func VAPIDFromEnvironment() VAPIDSettings {
+	v := VAPIDSettings{
+		PublicKey:  strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY")),
+		PrivateKey: strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY")),
+		Subject:    strings.TrimSpace(os.Getenv("VAPID_SUBJECT")),
+	}
+	if v.Subject == "" {
+		v.Subject = DefaultVAPIDSubject
+	}
+	return v
 }
 
 func splitList(v string) []string {

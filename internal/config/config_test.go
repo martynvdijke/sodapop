@@ -1,10 +1,47 @@
 package config
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestParseLogLevel(t *testing.T) {
+	cases := []struct {
+		input string
+		want  slog.Level
+	}{
+		{"debug", slog.LevelDebug},
+		{"info", slog.LevelInfo},
+		{"warn", slog.LevelWarn},
+		{"error", slog.LevelError},
+		{"DEBUG", slog.LevelDebug},
+		{"  Info  ", slog.LevelInfo},
+		{"", slog.LevelInfo},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			got, err := ParseLogLevel(tc.input)
+			if err != nil {
+				t.Fatalf("ParseLogLevel(%q): %v", tc.input, err)
+			}
+			if got != tc.want {
+				t.Fatalf("ParseLogLevel(%q) = %v, want %v", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseLogLevelRejectsUnknown(t *testing.T) {
+	got, err := ParseLogLevel("verbose")
+	if err == nil {
+		t.Fatal("ParseLogLevel accepted an unknown level")
+	}
+	if got != slog.LevelInfo {
+		t.Fatalf("fallback level = %v, want info", got)
+	}
+}
 
 func TestLoadFCMUnsetStaysDisabled(t *testing.T) {
 	t.Setenv("FCM_SERVICE_ACCOUNT_JSON", "")

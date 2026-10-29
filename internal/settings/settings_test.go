@@ -3,6 +3,7 @@ package settings
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -725,6 +726,155 @@ func TestConcurrentLoadCannotPublishStaleSnapshot(t *testing.T) {
 	}
 	if got := s.Snapshot().SiteName(); got != row.Value {
 		t.Fatalf("snapshot site name = %q, committed row = %q", got, row.Value)
+	}
+}
+
+func testVAPIDKeys() (pub, priv string) {
+	pub = base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 65))
+	priv = base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x02}, 32))
+	return pub, priv
+}
+
+func TestVAPIDSettingsValidation(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestService(t, testConfig(), "", nil)
+	pub, priv := testVAPIDKeys()
+
+	if err := s.Set(ctx, KeyVAPIDPublicKey, pub, false, "admin-1"); err != nil {
+		t.Fatalf("public key: %v", err)
+	}
+	if err := s.Set(ctx, KeyVAPIDPrivateKey, priv, true, "admin-1"); err != nil {
+		t.Fatalf("private key: %v", err)
+	}
+	if err := s.Set(ctx, KeyVAPIDSubject, "mailto:push@example.test", false, "admin-1"); err != nil {
+		t.Fatalf("mailto subject: %v", err)
+	}
+	if err := s.Set(ctx, KeyVAPIDSubject, "https://example.test/push", false, "admin-1"); err != nil {
+		t.Fatalf("https subject: %v", err)
+	}
+	if err := s.Set(ctx, KeyVAPIDSubject, "", false, "admin-1"); err != nil {
+		t.Fatalf("empty subject: %v", err)
+	}
+
+	bad := []struct {
+		key    string
+		value  string
+		secret bool
+	}{
+		{KeyVAPIDPublicKey, "not base64!", false},
+		{KeyVAPIDPublicKey, pub + "==", false},
+		{KeyVAPIDPrivateKey, base64.RawURLEncoding.EncodeToString([]byte("short")), true},
+		{KeyVAPIDSubject, "ftp://example.test", false},
+		{KeyVAPIDSubject, "mailto:", false},
+		{KeyVAPIDSubject, "example.test", false},
+	}
+	for _, tc := range bad {
+		if err := s.Set(ctx, tc.key, tc.value, tc.secret, "admin-1"); !errors.Is(err, ErrInvalidValue) {
+			t.Fatalf("Set(%s, %q) err = %v, want ErrInvalidValue", tc.key, tc.value, err)
+		}
+	}
+
+	if err := Validate(KeyVAPIDPrivateKey, priv); err != nil {
+		t.Fatalf("Validate private key: %v", err)
+	}
+	if err := Validate(KeyVAPIDPrivateKey, "bad key"); !errors.Is(err, ErrInvalidValue) {
+		t.Fatalf("Validate bad private key = %v, want ErrInvalidValue", err)
+	}
+}
+
+func TestVAPIDPrivateKeyEncryptedAndMasked(t *testing.T) {
+	ctx := context.Background()
+	s, database := newTestService(t, testConfig(), "", nil)
+	_, priv := testVAPIDKeys()
+	pub, _ := testVAPIDKeys()
+	if err := s.Set(ctx, KeyVAPIDPublicKey, pub, false, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(ctx, KeyVAPIDPrivateKey, priv, true, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+
+	row, err := database.Client.RuntimeSetting.Query().
+		Where(runtimesetting.KeyEQ(KeyVAPIDPrivateKey)).
+		Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.Value != "" || !row.IsSecret || !strings.HasPrefix(row.EncryptedValue, secretbox.Prefix) {
+		t.Fatalf("stored VAPID private key row = value %q, secret %v, ciphertext %q", row.Value, row.IsSecret, row.EncryptedValue)
+	}
+	if strings.Contains(row.EncryptedValue, priv) {
+		t.Fatal("ciphertext contains the private key")
+	}
+
+	snap := s.Snapshot()
+	vapid := snap.VAPID()
+	if !vapid.Enabled() || vapid.PrivateKey != priv || vapid.PublicKey != pub {
+		t.Fatalf("resolved VAPID = %+v", vapid)
+	}
+	if set, last4 := snap.SecretState(KeyVAPIDPrivateKey); !set || last4 != priv[len(priv)-4:] {
+		t.Fatalf("secret state = %v/%q", set, last4)
+	}
+}
+
+func TestVAPIDResolutionOrderAndDefaultSubject(t *testing.T) {
+	pubEnv, privEnv := testVAPIDKeys()
+	pubDB, privDB := testVAPIDKeys()
+	pubDB = base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x03}, 65))
+	privDB = base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x04}, 32))
+
+	t.Setenv("VAPID_PUBLIC_KEY", pubEnv)
+	t.Setenv("VAPID_PRIVATE_KEY", privEnv)
+	t.Setenv("VAPID_SUBJECT", "mailto:env@example.test")
+
+	ctx := context.Background()
+	s, _ := newTestService(t, testConfig(), "", nil)
+	snap := s.Snapshot()
+	if got := snap.VAPID(); got.PublicKey != pubEnv || got.PrivateKey != privEnv || got.Subject != "mailto:env@example.test" {
+		t.Fatalf("env VAPID = %+v", got)
+	}
+	for _, key := range []string{KeyVAPIDPublicKey, KeyVAPIDPrivateKey, KeyVAPIDSubject} {
+		if got := snap.Source(key); got != "env" {
+			t.Fatalf("%s source = %q, want env", key, got)
+		}
+	}
+
+	if err := s.Set(ctx, KeyVAPIDPublicKey, pubDB, false, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(ctx, KeyVAPIDPrivateKey, privDB, true, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(ctx, KeyVAPIDSubject, "https://db.example.test/push", false, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+	vapid := s.Snapshot().VAPID()
+	if vapid.PublicKey != pubDB || vapid.PrivateKey != privDB || vapid.Subject != "https://db.example.test/push" {
+		t.Fatalf("db should win over env: %+v", vapid)
+	}
+
+	if err := s.Delete(ctx, KeyVAPIDSubject, "admin-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Snapshot().VAPID().Subject; got != "mailto:env@example.test" {
+		t.Fatalf("subject after delete = %q, want env", got)
+	}
+}
+
+func TestVAPIDDefaultSubjectWhenUnset(t *testing.T) {
+	t.Setenv("VAPID_PUBLIC_KEY", "")
+	t.Setenv("VAPID_PRIVATE_KEY", "")
+	t.Setenv("VAPID_SUBJECT", "")
+	s, _ := newTestService(t, testConfig(), "", nil)
+	vapid := s.Snapshot().VAPID()
+	if vapid.Subject != DefaultVAPIDSubject {
+		t.Fatalf("default subject = %q, want %q", vapid.Subject, DefaultVAPIDSubject)
+	}
+	if vapid.Enabled() {
+		t.Fatal("VAPID should be disabled without keys")
+	}
+	if got := VAPIDFromEnvironment().Subject; got != DefaultVAPIDSubject {
+		t.Fatalf("environment default subject = %q", got)
 	}
 }
 

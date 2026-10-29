@@ -117,8 +117,11 @@ func (s *Service) Set(ctx context.Context, key, value string, secret bool, updat
 			// Blank secret input preserves the existing secret.
 			return nil
 		}
-		var err error
-		encrypted, err = s.box.Encrypt(value)
+		normalized, err := normalizeValue(key, value)
+		if err != nil {
+			return err
+		}
+		encrypted, err = s.box.Encrypt(normalized)
 		if err != nil {
 			return fmt.Errorf("settings: encrypt %s: %w", key, err)
 		}
