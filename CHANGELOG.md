@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/martynvdijke/sodapop/compare/v1.10.0...v1.11.0) (2026-10-29)
+
+
+### Features
+
+* add share cards, taste queue, live notifications, delivery history and FCM push ([3ba3f09](https://github.com/martynvdijke/sodapop/commit/3ba3f09afe8d739b1595ef7466cd57fc567a4cec))
+
 # [1.10.0](https://github.com/martynvdijke/sodapop/compare/v1.9.2...v1.10.0) (2026-10-28)
 
 
