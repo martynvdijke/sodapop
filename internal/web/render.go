@@ -32,7 +32,7 @@ func NewRenderer() (*Renderer, error) {
 		"you", "lists", "list", "passport", "taste", "mix", "mix_detail", "integrations", "admin", "venues", "venue",
 		"notifications", "checkin_detail", "settings", "forgot", "reset",
 		"browse", "brand", "style", "profile", "insights", "drops", "venues_saved", "saved", "nearby", "compare", "settings_blocked", "setup", "admin_settings",
-		"admin_system", "admin_badges", "admin_venues", "admin_digest"}
+		"admin_system", "admin_badges", "admin_venues", "admin_digest", "share", "admin_deliveries"}
 	r := &Renderer{
 		pages:         map[string]*template.Template{},
 		imperialPages: map[string]*template.Template{},
@@ -63,6 +63,7 @@ func metricFuncs() template.FuncMap {
 		"hasPrefix": strings.HasPrefix,
 		"volume":    templateVolume,
 		"per100":    templatePer100,
+		"truncate":  truncateText,
 	}
 }
 
@@ -188,6 +189,19 @@ func initial(s string) string {
 
 func percent(v float64) string {
 	return fmt.Sprintf("%.0f%%", v*100)
+}
+
+// truncateText shortens s to at most n runes and appends an ellipsis. It is
+// used for previews; callers keep the full value in a title attribute.
+func truncateText(s string, n int) string {
+	if n < 0 {
+		n = 0
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n]) + "…"
 }
 
 func titleCase(s string) string {

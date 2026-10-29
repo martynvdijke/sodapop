@@ -31,6 +31,7 @@ import (
 	"sodapop/internal/saves"
 	"sodapop/internal/settings"
 	"sodapop/internal/setup"
+	"sodapop/internal/sharelinks"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
 	"sodapop/internal/telemetry"
@@ -190,6 +191,7 @@ func run() error {
 		Account: accountSvc,
 		Backup:  backupSvc,
 		Limiter: limiter, Render: renderer, Setup: setupSvc, Settings: settingsSvc,
+		ShareLinks: sharelinks.New(database.SQL),
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,

@@ -416,6 +416,18 @@ func (f PasswordResetTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PasswordResetTokenMutation", m)
 }
 
+// The PushDeviceFunc type is an adapter to allow the use of ordinary
+// function as PushDevice mutator.
+type PushDeviceFunc func(context.Context, *ent.PushDeviceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PushDeviceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PushDeviceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PushDeviceMutation", m)
+}
+
 // The PushSubscriptionFunc type is an adapter to allow the use of ordinary
 // function as PushSubscription mutator.
 type PushSubscriptionFunc func(context.Context, *ent.PushSubscriptionMutation) (ent.Value, error)

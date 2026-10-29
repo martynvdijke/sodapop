@@ -27,6 +27,7 @@ import (
 	"sodapop/internal/saves"
 	"sodapop/internal/settings"
 	"sodapop/internal/setup"
+	"sodapop/internal/sharelinks"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
 	"sodapop/internal/telemetry"
@@ -71,6 +72,7 @@ type Server struct {
 	Render       *Renderer
 	Setup        *setup.Service
 	Settings     *settings.Service
+	ShareLinks   *sharelinks.Service
 }
 
 // Register wires HTML routes and the OIDC redirect endpoints.
@@ -136,6 +138,10 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /lists/{id}/add", s.requireUser(s.listAdd))
 	mux.HandleFunc("POST /lists/{id}/items/{drink}/remove", s.requireUser(s.listRemove))
 	mux.HandleFunc("GET /passport", s.requireUser(s.passportPage))
+	mux.HandleFunc("GET /share/{token}", s.sharePage)
+	mux.HandleFunc("GET /share/{token}/card.png", s.shareCard)
+	mux.HandleFunc("POST /share", s.requireVerified(s.shareCreate))
+	mux.HandleFunc("POST /share/{id}/revoke", s.requireVerified(s.shareRevoke))
 	mux.HandleFunc("GET /taste", s.requireUser(s.tastePage))
 	mux.HandleFunc("GET /mix", s.requireUser(s.mixPage))
 	mux.HandleFunc("POST /mix", s.requireVerified(s.mixCreate))
@@ -158,6 +164,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /feeds/{token}", s.rssFeed)
 
 	mux.HandleFunc("GET /notifications", s.requireUser(s.notificationsPage))
+	mux.HandleFunc("GET /notifications/stream", s.notificationsStream)
 	mux.HandleFunc("POST /notifications/read", s.requireUser(s.notificationsRead))
 	mux.HandleFunc("GET /checkins/{id}", s.checkinDetailPage)
 	mux.HandleFunc("POST /checkins/{id}/delete", s.requireVerified(s.checkinDelete))
@@ -214,6 +221,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/digest", s.requireAdminStrict(s.adminDigestPage))
 	mux.HandleFunc("GET /admin/system", s.requireAdminStrict(s.adminSystemPage))
 	mux.HandleFunc("POST /admin/backup", s.requireAdminStrict(s.adminBackupCreate))
+	mux.HandleFunc("GET /admin/deliveries", s.requireAdminStrict(s.deliveriesPage))
+	mux.HandleFunc("POST /admin/deliveries/{id}/retry", s.requireAdminStrict(s.deliveriesRetry))
 	mux.HandleFunc("GET /admin/badges", s.requireAdminStrict(s.adminBadgesPage))
 	mux.HandleFunc("POST /admin/badges", s.requireAdminStrict(s.adminBadgeCreate))
 	mux.HandleFunc("POST /admin/badges/{id}/edit", s.requireAdminStrict(s.adminBadgeUpdate))

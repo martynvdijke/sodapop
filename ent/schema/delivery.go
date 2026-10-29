@@ -17,7 +17,7 @@ func (DeliveryOutbox) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("id"),
 		field.String("user_id").Default(""),
-		field.Enum("kind").Values("webhook", "matrix", "trmnl", "push"),
+		field.Enum("kind").Values("webhook", "matrix", "trmnl", "push", "fcm"),
 		field.String("target").Default(""),
 		field.String("payload_json").Default(""),
 		field.Int("attempts").Default(0),

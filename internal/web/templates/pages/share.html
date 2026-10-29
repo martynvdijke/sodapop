@@ -1,0 +1,33 @@
+{{define "content"}}
+<section class="narrow share-page">
+  <p class="eyebrow">Shared {{.Share.KindDescriptor}}</p>
+  <header class="share-header">
+    <span class="profile-avatar" aria-hidden="true">{{.Share.Initial}}</span>
+    <div>
+      <h1 class="share-name">{{.Share.DisplayName}}</h1>
+      <p class="profile-handle"><span class="profile-handle-text">@{{.Share.Handle}}</span></p>
+    </div>
+  </header>
+
+  <div class="share-hero">
+    <p class="share-headline"><strong>{{.Share.HeadlineValue}}</strong> {{.Share.HeadlineLabel}}</p>
+    <p class="muted">A snapshot of {{.Share.KindDescriptor}} on Sodapop · {{.Share.GeneratedOn}}</p>
+  </div>
+
+  {{if .Share.Cells}}
+  <dl class="profile-stats share-stats" aria-label="Share card totals">
+    {{range .Share.Cells}}
+      <div class="profile-stat"><dt>{{.Label}}</dt><dd>{{.Value}}</dd></div>
+    {{end}}
+  </dl>
+  {{end}}
+
+  <img class="share-card-image" src="{{.Share.CardURL}}" width="1200" height="630" alt="{{.Share.ImageAlt}}">
+
+  <p class="actions">
+    <button class="btn btn-primary" type="button" data-share data-share-url="{{.Share.URL}}" data-share-title="{{.Share.DisplayName}} · {{.Share.KindLabel}}" data-share-text="@{{.Share.Handle}} on Sodapop">Share this card</button>
+    <a class="btn" href="/">About Sodapop</a>
+  </p>
+  <p class="muted">This page is reachable through a private link. The owner can revoke it at any time.</p>
+</section>
+{{end}}

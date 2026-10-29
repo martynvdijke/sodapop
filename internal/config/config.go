@@ -1,7 +1,9 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -47,6 +49,9 @@ type Config struct {
 	UmamiURL       string
 	UmamiWebsiteID string
 
+	FCMServiceAccountJSON string
+	FCMProjectID          string
+
 	RateLimitPerMin int
 	TrustedProxies  []string
 }
@@ -79,10 +84,15 @@ func Load() (*Config, error) {
 		OFFEnabled:       envBool("OPENFOODFACTS_ENABLED", true),
 		UmamiURL:         strings.TrimRight(env("UMAMI_URL", ""), "/"),
 		UmamiWebsiteID:   env("UMAMI_WEBSITE_ID", ""),
+		FCMProjectID:     strings.TrimSpace(env("FCM_PROJECT_ID", "")),
 		RateLimitPerMin:  envInt("API_RATE_LIMIT_PER_MIN", 120),
 		TrustedProxies:   splitCSV(env("TRUSTED_PROXIES", "")),
 	}
 	c.SessionTTL = envDuration("SESSION_TTL", 720*time.Hour)
+
+	if err := c.loadFCM(); err != nil {
+		return nil, err
+	}
 
 	secret := env("SESSION_SECRET", "")
 	if secret == "" {
@@ -173,6 +183,39 @@ func splitCSV(v string) []string {
 		}
 	}
 	return out
+}
+
+// loadFCM resolves FCM_SERVICE_ACCOUNT_JSON, which may contain raw JSON or a
+// path to a service-account file, and derives the project id when it is not
+// set explicitly. A missing, unreadable or malformed service account leaves FCM
+// disabled without failing startup; a configured-but-invalid value is reported
+// by SendFCM at delivery time.
+func (c *Config) loadFCM() error {
+	raw := strings.TrimSpace(env("FCM_SERVICE_ACCOUNT_JSON", ""))
+	if raw == "" {
+		return nil
+	}
+	c.FCMServiceAccountJSON = raw
+	if !strings.HasPrefix(raw, "{") {
+		b, err := os.ReadFile(raw)
+		if err != nil {
+			slog.Default().Warn("fcm service account could not be read; FCM disabled", "err", err)
+			return nil
+		}
+		raw = strings.TrimSpace(string(b))
+		c.FCMServiceAccountJSON = raw
+	}
+	var meta struct {
+		ProjectID string `json:"project_id"`
+	}
+	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
+		slog.Default().Warn("fcm service account is not valid JSON; FCM disabled", "err", err)
+		return nil
+	}
+	if c.FCMProjectID == "" {
+		c.FCMProjectID = strings.TrimSpace(meta.ProjectID)
+	}
+	return nil
 }
 
 // EmailAllowed applies ALLOWED_EMAILS / ALLOWED_DOMAINS restrictions.

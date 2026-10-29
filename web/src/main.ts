@@ -4,6 +4,7 @@
 import { initInstall } from './install'
 import './analytics'
 import './nearby'
+import './notifications'
 import { announce, isAnnouncing } from './notice'
 import { loadPhoto, prunePhotos, removePhoto, savePhoto } from './photo-queue'
 import { initReply } from './reply'

@@ -104,6 +104,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "DELETE /api/v1/me", s.protect("write", true, s.meDelete))
 	s.route(mux, "GET /api/v1/me/settings", s.protect("read", false, s.meSettingsGet))
 	s.route(mux, "PATCH /api/v1/me/settings", s.protect("write", true, s.meSettingsPatch))
+	s.route(mux, "POST /api/v1/me/push/devices", s.protectStrict("write", true, s.pushDeviceRegister))
+	s.route(mux, "DELETE /api/v1/me/push/devices", s.protectStrict("write", true, s.pushDeviceUnregister))
 	s.route(mux, "GET /api/v1/me/sessions", s.protect("read", false, s.meSessionsGet))
 	s.route(mux, "DELETE /api/v1/me/sessions", s.protect("write", true, s.meSessionsRevokeAll))
 	s.route(mux, "DELETE /api/v1/me/sessions/{id}", s.protect("write", true, s.meSessionsRevoke))

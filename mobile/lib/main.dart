@@ -2,5 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app.dart';
+import 'src/push/firebase_push.dart';
 
-void main() => runApp(const ProviderScope(child: SodapopApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initialisePush();
+  runApp(const ProviderScope(child: SodapopApp()));
+}

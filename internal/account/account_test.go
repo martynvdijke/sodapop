@@ -2,6 +2,7 @@ package account_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"sodapop/ent"
 	"sodapop/ent/apitoken"
 	"sodapop/ent/inboundtoken"
+	"sodapop/ent/pushdevice"
 	"sodapop/ent/session"
 	"sodapop/ent/user"
 	"sodapop/internal/account"
@@ -23,7 +25,7 @@ func newTestService(t *testing.T) (*account.Service, *db.DB) {
 		t.Fatalf("db: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
-	return account.New(database.Client, nil), database
+	return account.New(database.Client, nil, database.SQL), database
 }
 
 func makeUser(t *testing.T, database *db.DB, handle string, role user.Role) *ent.User {
@@ -66,6 +68,18 @@ func addCredentials(t *testing.T, database *db.DB, userID string) {
 		Save(ctx); err != nil {
 		t.Fatalf("inbound token: %v", err)
 	}
+	if _, err := database.Client.PushDevice.Create().
+		SetUserID(userID).
+		SetToken("device-" + userID).
+		SetPlatform(pushdevice.PlatformAndroid).
+		Save(ctx); err != nil {
+		t.Fatalf("push device: %v", err)
+	}
+	if _, err := database.SQL.ExecContext(ctx,
+		`INSERT INTO share_links (id, user_id, kind, token, created_at) VALUES (?, ?, ?, ?, ?)`,
+		"share-"+userID, userID, "passport", "token-"+userID, db.Now()); err != nil {
+		t.Fatalf("share link: %v", err)
+	}
 }
 
 func TestDeleteClosesAccountAndRevokesCredentials(t *testing.T) {
@@ -105,6 +119,17 @@ func TestDeleteClosesAccountAndRevokesCredentials(t *testing.T) {
 	}
 	if inbound.RevokedAt == nil {
 		t.Error("inbound token was not revoked")
+	}
+	if n, err := database.Client.PushDevice.Query().Where(pushdevice.UserID(u.ID)).Count(ctx); err != nil || n != 0 {
+		t.Errorf("push devices = %d (err %v), want 0", n, err)
+	}
+	var revoked sql.NullString
+	if err := database.SQL.QueryRowContext(ctx,
+		`SELECT revoked_at FROM share_links WHERE user_id = ?`, u.ID).Scan(&revoked); err != nil {
+		t.Fatalf("share link: %v", err)
+	}
+	if !revoked.Valid {
+		t.Error("share link was not revoked")
 	}
 }
 

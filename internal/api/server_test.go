@@ -21,6 +21,7 @@ import (
 	"sodapop/internal/comments"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
@@ -78,7 +79,8 @@ func newHarness(t *testing.T) *harness {
 		Saves: savesSvc, Comments: commentSvc, Social: socialSvc, Venues: venueSvc,
 		Limiter: limiter, DB: database, Media: mediaSvc,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
-		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Integrations: integrations.New(database, cfg, slog.New(slog.NewTextHandler(io.Discard, nil))),
+		Log:          slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	mux := http.NewServeMux()
 	srv.Register(mux)

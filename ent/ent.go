@@ -41,6 +41,7 @@ import (
 	"sodapop/ent/notification"
 	"sodapop/ent/offproduct"
 	"sodapop/ent/passwordresettoken"
+	"sodapop/ent/pushdevice"
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
@@ -155,6 +156,7 @@ func checkColumn(t, c string) error {
 			notification.Table:           notification.ValidColumn,
 			offproduct.Table:             offproduct.ValidColumn,
 			passwordresettoken.Table:     passwordresettoken.ValidColumn,
+			pushdevice.Table:             pushdevice.ValidColumn,
 			pushsubscription.Table:       pushsubscription.ValidColumn,
 			report.Table:                 report.ValidColumn,
 			runtimesetting.Table:         runtimesetting.ValidColumn,

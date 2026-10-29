@@ -37,6 +37,7 @@ import (
 	"sodapop/ent/notification"
 	"sodapop/ent/offproduct"
 	"sodapop/ent/passwordresettoken"
+	"sodapop/ent/pushdevice"
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
@@ -815,6 +816,28 @@ func init() {
 	passwordresettokenDescExpiresAt := passwordresettokenFields[3].Descriptor()
 	// passwordresettoken.ExpiresAtValidator is a validator for the "expires_at" field. It is called by the builders before save.
 	passwordresettoken.ExpiresAtValidator = passwordresettokenDescExpiresAt.Validators[0].(func(string) error)
+	pushdeviceFields := schema.PushDevice{}.Fields()
+	_ = pushdeviceFields
+	// pushdeviceDescUserID is the schema descriptor for user_id field.
+	pushdeviceDescUserID := pushdeviceFields[1].Descriptor()
+	// pushdevice.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	pushdevice.UserIDValidator = pushdeviceDescUserID.Validators[0].(func(string) error)
+	// pushdeviceDescToken is the schema descriptor for token field.
+	pushdeviceDescToken := pushdeviceFields[2].Descriptor()
+	// pushdevice.TokenValidator is a validator for the "token" field. It is called by the builders before save.
+	pushdevice.TokenValidator = pushdeviceDescToken.Validators[0].(func(string) error)
+	// pushdeviceDescCreatedAt is the schema descriptor for created_at field.
+	pushdeviceDescCreatedAt := pushdeviceFields[4].Descriptor()
+	// pushdevice.DefaultCreatedAt holds the default value on creation for the created_at field.
+	pushdevice.DefaultCreatedAt = pushdeviceDescCreatedAt.Default.(func() string)
+	// pushdeviceDescLastSeenAt is the schema descriptor for last_seen_at field.
+	pushdeviceDescLastSeenAt := pushdeviceFields[5].Descriptor()
+	// pushdevice.DefaultLastSeenAt holds the default value on creation for the last_seen_at field.
+	pushdevice.DefaultLastSeenAt = pushdeviceDescLastSeenAt.Default.(func() string)
+	// pushdeviceDescID is the schema descriptor for id field.
+	pushdeviceDescID := pushdeviceFields[0].Descriptor()
+	// pushdevice.DefaultID holds the default value on creation for the id field.
+	pushdevice.DefaultID = pushdeviceDescID.Default.(func() string)
 	pushsubscriptionFields := schema.PushSubscription{}.Fields()
 	_ = pushsubscriptionFields
 	// pushsubscriptionDescUserID is the schema descriptor for user_id field.

@@ -80,6 +80,8 @@ type Tx struct {
 	OffProduct *OffProductClient
 	// PasswordResetToken is the client for interacting with the PasswordResetToken builders.
 	PasswordResetToken *PasswordResetTokenClient
+	// PushDevice is the client for interacting with the PushDevice builders.
+	PushDevice *PushDeviceClient
 	// PushSubscription is the client for interacting with the PushSubscription builders.
 	PushSubscription *PushSubscriptionClient
 	// Report is the client for interacting with the Report builders.
@@ -275,6 +277,7 @@ func (tx *Tx) init() {
 	tx.Notification = NewNotificationClient(tx.config)
 	tx.OffProduct = NewOffProductClient(tx.config)
 	tx.PasswordResetToken = NewPasswordResetTokenClient(tx.config)
+	tx.PushDevice = NewPushDeviceClient(tx.config)
 	tx.PushSubscription = NewPushSubscriptionClient(tx.config)
 	tx.Report = NewReportClient(tx.config)
 	tx.RuntimeSetting = NewRuntimeSettingClient(tx.config)

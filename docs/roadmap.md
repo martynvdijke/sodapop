@@ -41,12 +41,18 @@ Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`d
 - **Analytics allowlist**: `internal/analytics` is the single allowlist and sanitizer; `web/src/analytics.ts` is the only browser path to Umami and the server injects the list only when Umami is configured.
 - OpenAPI is `1.10.0`.
 
+## Shipped in v1.11
+
+- **Guided taste queue**: `/taste` adds "Drink this next" — up to five friend-derived drinks with concrete reasons (twin rating, new style, new brand, above your average). `internal/taste.Queue` is derived on request; every cross-user check-in read now filters `visibility IN ('public','friends')`, closing a privacy gap in twins and recommendations.
+- **Live notification badge**: `GET /notifications/stream` streams the unread count over Server-Sent Events. The handler returns 401 for anonymous requests, clears the 60-second write deadline, heartbeats while idle, and closes after 30 minutes; `web/src/notifications.ts` reconnects with backoff and pauses while the tab is hidden. Web-only: the app still refreshes on demand.
+- **Delivery history**: `/admin/deliveries` lists `delivery_outbox` rows with status filters, pagination, attempts, last error and a CSRF-protected retry for abandoned rows. Migration `0013_delivery_history.sql` adds a `created_at` index.
+- **Share cards**: revocable passport and streak capability links rendered as a public `noindex` page plus a server-generated 1200×630 PNG (`internal/sharecard`, `internal/sharelinks`, migration `0012_share_links.sql`). Owner-only creation is capped at 20 per hour; revocation is owner-scoped. Web-only, so OpenAPI is unchanged.
+- **Native Android push (FCM)**: `push_devices` plus `POST`/`DELETE /api/v1/me/push/devices`; notification fan-out queues `fcm` deliveries, and the worker exchanges the service-account key for an OAuth2 token and calls FCM HTTP v1. No credentials means a silent no-op, and rejected tokens are pruned. OpenAPI is `1.11.0`.
+
 ## Next
 
-- Native Android push: still deferred until FCM or UnifiedPush credentials and delivery policy are decided. Web Push now covers the browser surface.
 - Mobile admin surfaces: administration stays web-only.
-- Real-time delivery: notifications refresh on navigation and app resume; there is no socket or live stream.
-- PWA offline photos: the web offline queue covers check-in fields, not photo bytes.
+- iOS app and push: Android FCM is shipped with optional credentials; iOS remains out of scope.
 
 
 ## Dependency graph

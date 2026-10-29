@@ -38,6 +38,7 @@ func TestSchemaConsistency(t *testing.T) {
 		"drinks_fts_content": true,
 		"drinks_fts_docsize": true,
 		"drinks_fts_config":  true,
+		"share_links":        true,
 	}
 	seen := 0
 	for rows.Next() {

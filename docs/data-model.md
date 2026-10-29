@@ -48,8 +48,11 @@ Boot sequence in `internal/db.Init(dbPath)`:
 | `0008` | `0008_delivery_outbox.sql` | `delivery_outbox` due-lookup and per-user history indexes |
 | `0009` | `0009_audit_indexes.sql` | `catalog_revisions(entity, created_at)` and `admin_notes(entity, created_at)` audit indexes |
 | `0010` | `0010_checkins_venue_index.sql` | `idx_checkins_venue_created` on `checkins(venue_id, created_at) WHERE deleted_at IS NULL` for the Nearby prefilter |
+| `0011` | `0011_badge_expansion.sql` | Seeds brand, country, venue-kind, friend and streak badges; upgrades the style badge to three thresholds |
+| `0012` | `0012_share_links.sql` | `share_links` capability tokens for passport and streak cards, plus `idx_share_links_user` |
+| `0013` | `0013_delivery_history.sql` | `idx_delivery_outbox_created` on `delivery_outbox(created_at)` for the admin delivery history page |
 
-Migration `0010` is the next append-only step after the audit indexes. The AI tables remain Ent-managed and have no SQL migration; the v1.7 operations slice added no tables and no migrations, because its backups are standalone `.db` files under `$DATA_DIR/backups` outside SQLite. Migrations remain append-only, so any future schema change gets the next number.
+Migration `0014` is the next append-only step after the badge, share-link and delivery-history indexes. The AI tables remain Ent-managed and have no SQL migration; the v1.7 operations slice added no tables and no migrations, because its backups are standalone `.db` files under `$DATA_DIR/backups` outside SQLite. Migrations remain append-only, so any future schema change gets the next number.
 
 ### 1.3 Mechanical Schema Guard (`internal/db/db_test.go`)
 Just like `dnd/db/schema_consistency_test.go`, `TestSchemaConsistency` initializes an in-memory database (`Init(":memory:")`) and asserts that every table in `sqlite_master` is either present in `ent/migrate.Tables` or listed in the raw-only allowlist (`schema_migrations` and `drinks_fts*`). Any ad-hoc raw `CREATE TABLE` outside Ent + the migration registry fails CI immediately.

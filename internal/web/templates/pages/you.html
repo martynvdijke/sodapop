@@ -21,6 +21,53 @@
   <a class="pill" href="/export.json">Export JSON</a>
 </div>
 
+<section class="share-panel" aria-labelledby="share-you">
+  <h2 id="share-you">Share your cards</h2>
+  <p class="muted">A share link opens a private page and a 1200×630 card for social previews. Revoke it whenever you like.</p>
+  {{if .ShareError}}<p class="banner warn" role="status">{{.ShareError}}</p>{{end}}
+  {{if .CreatedShareURL}}
+    <div class="card share-created">
+      <p><strong>Your link is ready.</strong></p>
+      <p class="share-url"><a href="{{.CreatedShareURL}}">{{.CreatedShareURL}}</a></p>
+      <button class="btn btn-small" type="button" data-share data-share-url="{{.CreatedShareURL}}" data-share-title="My Sodapop card">Copy link</button>
+    </div>
+  {{end}}
+  <div class="actions">
+    <form method="post" action="/share">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="kind" value="passport">
+      <button class="btn btn-primary" type="submit">Create passport link</button>
+    </form>
+    <form method="post" action="/share">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="kind" value="streak">
+      <button class="btn" type="submit">Create streak link</button>
+    </form>
+  </div>
+  {{if .ShareLinks}}
+    <ul class="share-manage-list" aria-label="Active share links">
+      {{range .ShareLinks}}
+        <li class="card share-manage-row">
+          <div class="share-manage-body">
+            <strong>{{.KindLabel}}</strong>
+            <span class="muted">Created {{.CreatedOn}}</span>
+            <span class="share-manage-url"><a href="{{.URL}}">{{.URL}}</a></span>
+          </div>
+          <div class="share-manage-actions">
+            <button class="btn btn-small" type="button" data-share data-share-url="{{.URL}}" data-share-title="{{.KindLabel}} on Sodapop" aria-label="Copy link ({{.KindLabel}})">Copy link</button>
+            <form method="post" action="/share/{{.ID}}/revoke">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <button class="btn btn-small btn-danger" type="submit" aria-label="Revoke {{.KindLabel}} link">Revoke</button>
+            </form>
+          </div>
+        </li>
+      {{end}}
+    </ul>
+  {{else}}
+    <p class="muted">No active share links yet.</p>
+  {{end}}
+</section>
+
 <h2>Badges</h2>
 <div class="badge-grid">
 {{range .Badges}}

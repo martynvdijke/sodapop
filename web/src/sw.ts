@@ -96,6 +96,9 @@ worker.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
   if (url.origin !== worker.location.origin) return
 
+  // The notification badge uses EventSource: never intercept or cache it.
+  if (url.pathname === '/notifications/stream') return
+
   if (request.method !== 'GET') {
     if (request.method === 'POST' && url.pathname === '/logout') {
       event.respondWith(handleLogout(request))

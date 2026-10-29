@@ -344,7 +344,14 @@ func (s *Server) passportPage(w http.ResponseWriter, r *http.Request) {
 		}
 		rows.Close()
 	}
-	s.render(w, r, http.StatusOK, "passport", map[string]any{"Title": "Soda passport", "Passport": p})
+	shareURL, shareError := s.shareNotice(r, u.ID)
+	s.render(w, r, http.StatusOK, "passport", map[string]any{
+		"Title":           "Soda passport",
+		"Passport":        p,
+		"ShareLinks":      s.shareLinkViews(r, u.ID),
+		"CreatedShareURL": shareURL,
+		"ShareError":      shareError,
+	})
 }
 
 func (s *Server) reportSubmit(w http.ResponseWriter, r *http.Request) {
@@ -557,10 +564,14 @@ func (s *Server) youPage(w http.ResponseWriter, r *http.Request) {
 		}
 		activityViews = append(activityViews, v)
 	}
+	shareURL, shareError := s.shareNotice(r, u.ID)
 	s.render(w, r, http.StatusOK, "you", map[string]any{
 		"Title": "You", "Stats": stats, "Badges": badgeViews, "Recent": recent,
-		"Activity": activityViews,
-		"IsAdmin":  u.Role == "admin" || u.Role == "moderator",
+		"Activity":        activityViews,
+		"IsAdmin":         u.Role == "admin" || u.Role == "moderator",
+		"ShareLinks":      s.shareLinkViews(r, u.ID),
+		"CreatedShareURL": shareURL,
+		"ShareError":      shareError,
 	})
 }
 
@@ -614,9 +625,14 @@ func (s *Server) tastePage(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	queue, err := s.Taste.Queue(r.Context(), u.ID, 5)
+	if err != nil {
+		s.Log.Warn("taste queue unavailable", "err", err)
+		queue = nil
+	}
 	aiEnabled, aiRecs := s.aiRecommendations(r.Context(), u.ID)
 	s.render(w, r, http.StatusOK, "taste", map[string]any{
-		"Title": "Taste twin", "Twins": twins, "Recommendations": recs,
+		"Title": "Taste twin", "Twins": twins, "Recommendations": recs, "Queue": queue,
 		"AIEnabled": aiEnabled, "AIRecommendations": aiRecs,
 	})
 }

@@ -85,17 +85,22 @@ func Setup(ctx context.Context, cfg Config) (func(context.Context) error, error)
 	return provider.Shutdown, nil
 }
 
-// Handler traces requests except liveness and scrape endpoints.
+// Handler traces requests except liveness, scrape, and capability-link paths.
 func Handler(next http.Handler) http.Handler {
 	return otelhttp.NewHandler(next, "http.server",
-		otelhttp.WithFilter(func(r *http.Request) bool {
-			switch r.URL.Path {
-			case "/healthz", "/readyz", "/metrics":
-				return false
-			}
-			return true
-		}),
+		otelhttp.WithFilter(traceable),
 	)
+}
+
+// traceable reports whether a request may be exported as a span. Share URLs
+// carry a bearer capability token in the path, so they are never traced:
+// otherwise every preview fetch would copy the secret into OTel attributes.
+func traceable(r *http.Request) bool {
+	switch r.URL.Path {
+	case "/healthz", "/readyz", "/metrics":
+		return false
+	}
+	return !strings.HasPrefix(r.URL.Path, "/share/")
 }
 
 func resourceFor(cfg Config) (*resource.Resource, error) {

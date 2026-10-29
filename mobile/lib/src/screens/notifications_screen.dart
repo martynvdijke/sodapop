@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
+import '../push/push_service.dart';
 import '../theme/soda_theme.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
@@ -34,11 +37,22 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   bool _markingAll = false;
   String? _busyId;
   String? _error;
+  StreamSubscription<void>? _pushSub;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // A foreground push means there is at least one new row; reload quietly.
+    _pushSub = PushService.instance.onMessage.listen((_) {
+      if (mounted) _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pushSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

@@ -816,6 +816,28 @@ class ApiClient {
     await _dio.post<dynamic>('api/v1/notifications/read', options: _options());
   });
 
+  /// Registers this device's FCM token so the server can wake it with push.
+  Future<void> registerPushDevice(
+    String token, {
+    String platform = 'android',
+  }) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/me/push/devices',
+      data: {'token': token, 'platform': platform},
+      options: _options(),
+    );
+  });
+
+  /// Forgets a token on sign-out. Unknown tokens answer 404 and are ignored by
+  /// the caller.
+  Future<void> unregisterPushDevice(String token) => _guard(() async {
+    await _dio.delete<dynamic>(
+      'api/v1/me/push/devices',
+      data: {'token': token},
+      options: _options(),
+    );
+  });
+
   Future<List<SavedVenue>> savedVenues() => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/venues/saved',

@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"sodapop/ent"
@@ -46,6 +47,10 @@ type Service struct {
 	HTTP     *http.Client
 	Log      *slog.Logger
 	Settings *settings.Service
+
+	fcmMu       sync.Mutex
+	fcmToken    string
+	fcmTokenExp time.Time
 }
 
 // New wires the service to the shared database, configuration and logger.

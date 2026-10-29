@@ -84,6 +84,9 @@ Thumbs.db
 *.swo
 tmp/
 
+# Local build output from `task build`
+/server
+
 # Local OpenSpec working notes (not published)
 openspec/
 internal/web/static/sw.js

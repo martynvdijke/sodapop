@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Sodapop API",
-    "version": "1.10.0",
-    "summary": "Authenticated, friend-scoped soda check-in API (v1.10 surface).",
+    "version": "1.11.0",
+    "summary": "Authenticated, friend-scoped soda check-in API (v1.11 surface).",
     "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. All data endpoints require a personal `sd_` bearer token; requests are rate limited per token.",
     "license": {
       "name": "MIT",
@@ -1814,6 +1814,40 @@
           "display_name",
           "blocked_at"
         ]
+      },
+      "PushDeviceInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "description": "FCM registration token."
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "android"
+            ]
+          }
+        },
+        "required": [
+          "token",
+          "platform"
+        ]
+      },
+      "PushDeviceDeleteInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "token"
+        ]
       }
     },
     "responses": {
@@ -2871,6 +2905,76 @@
           },
           "403": {
             "description": "Missing write scope or unverified email"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/push/devices": {
+      "post": {
+        "summary": "Register an Android push device",
+        "description": "Stores or refreshes an FCM token for the caller. A token moved from another account is reassigned. Requires the write scope and a verified email.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushDeviceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Device registered"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "summary": "Unregister an Android push device",
+        "description": "Deletes one FCM token owned by the caller. Requires the write scope and a verified email.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushDeviceDeleteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Device removed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "The caller has no such device"
           }
         },
         "tags": [

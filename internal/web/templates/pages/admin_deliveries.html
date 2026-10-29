@@ -1,0 +1,114 @@
+{{define "content"}}
+<div class="admin-head">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>Deliveries</h1>
+    <p class="lede">Outbox history for integrations and push notifications. Abandoned deliveries can be retried here.</p>
+  </div>
+</div>
+{{template "adminnav" "deliveries"}}
+
+{{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+<section class="admin-section" aria-labelledby="delivery-filters-title">
+  <h2 id="delivery-filters-title">Status</h2>
+  <nav aria-label="Filter deliveries by status">
+    <ul class="pill-row">
+      {{range .Statuses}}
+      <li>
+        <a class="pill{{if .Active}} pill-current{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}} ({{.Count}})</a>
+      </li>
+      {{end}}
+    </ul>
+  </nav>
+  <form method="get" action="/admin/deliveries" class="inline-form">
+    <label for="delivery-status-filter">Status filter</label>
+    <select id="delivery-status-filter" name="status">
+      {{$status := .Status}}
+      {{range .Statuses}}
+      <option value="{{.Key}}"{{if eq .Key $status}} selected{{end}}>{{.Label}}</option>
+      {{end}}
+    </select>
+    <button class="btn btn-small" type="submit">Apply</button>
+  </form>
+</section>
+
+<section class="admin-section" aria-labelledby="delivery-table-title">
+  <div class="admin-section-head">
+    <div>
+      <h2 id="delivery-table-title">History</h2>
+      <p class="muted">{{.Total}} {{if eq .Total 1}}delivery{{else}}deliveries{{end}} · page {{.Page}} of {{.TotalPages}}</p>
+    </div>
+  </div>
+
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <caption class="sr-only">Delivery attempts, newest first, with status and retry actions</caption>
+      <thead>
+        <tr>
+          <th scope="col">Created</th>
+          <th scope="col">Kind</th>
+          <th scope="col">User</th>
+          <th scope="col">Target</th>
+          <th scope="col">Text</th>
+          <th scope="col" class="num">Attempts</th>
+          <th scope="col">Next attempt</th>
+          <th scope="col">Delivered</th>
+          <th scope="col">Status</th>
+          <th scope="col">Last error</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Deliveries}}
+        <tr>
+          <td>{{.CreatedAt}}</td>
+          <td><span class="pill">{{.Kind}}</span></td>
+          <td>{{if .UserHandle}}<a href="/u/{{.UserHandle}}">{{.UserHandle}}</a>{{else}}<span class="muted">unknown</span>{{end}}</td>
+          <td><span class="admin-code">{{.Target}}</span></td>
+          <td>
+            {{if .Text}}
+            <span title="{{.Text}}">{{truncate .Text 90}}</span>
+            {{else}}<span class="muted">—</span>{{end}}
+            {{if .URL}}<div class="muted"><span class="admin-code">{{.URL}}</span></div>{{end}}
+          </td>
+          <td class="num">{{.Attempts}}</td>
+          <td>{{if .NextAttemptAt}}{{.NextAttemptAt}}{{else}}—{{end}}</td>
+          <td>{{if .DeliveredAt}}{{deref .DeliveredAt}}{{else}}—{{end}}</td>
+          <td>
+            {{if eq .Status "delivered"}}<span class="pill">{{.Status}}</span>
+            {{else if eq .Status "abandoned"}}<span class="pill pill-warn">{{.Status}}</span>
+            {{else}}<span class="pill">{{.Status}}</span>{{end}}
+          </td>
+          <td>
+            {{if .LastError}}
+            <details>
+              <summary>Show error</summary>
+              <p class="admin-code">{{.LastError}}</p>
+            </details>
+            {{else}}<span class="muted">—</span>{{end}}
+          </td>
+          <td>
+            {{if eq .Status "abandoned"}}
+            <form method="post" action="/admin/deliveries/{{.ID}}/retry" class="inline">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <input type="hidden" name="status" value="{{$.Status}}">
+              <button class="btn btn-small btn-primary" type="submit">Retry</button>
+            </form>
+            {{else}}<span class="muted">—</span>{{end}}
+          </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="11" class="muted">No deliveries match this filter.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  <nav aria-label="Delivery history pages" class="inline-form">
+    {{if .HasPrev}}<a class="btn btn-small" href="{{.PrevHref}}" rel="prev">Previous</a>{{end}}
+    {{if .HasNext}}<a class="btn btn-small" href="{{.NextHref}}" rel="next">Next</a>{{end}}
+  </nav>
+</section>
+{{end}}

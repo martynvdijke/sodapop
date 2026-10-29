@@ -136,6 +136,7 @@ p { margin: .5rem 0; }
   border: 1px solid var(--border-strong); font-size: .72rem; font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
+.nav-badge[hidden] { display: none; }
 .nav-more { position: relative; }
 .nav-more > summary {
   display: inline-flex; align-items: center; gap: .35rem; min-height: 44px;
@@ -1358,6 +1359,12 @@ label { display: grid; gap: .3rem; font-weight: 600; }
   list-style: none;
 }
 .ai-next-card { margin: 0; }
+
+/* Guided queue keeps native ordinal markers so rank is not colour-only. */
+.queue-list { list-style: decimal; padding-left: 1.4rem; }
+.queue-list > li::marker { color: var(--text-muted); font-weight: 700; }
+.queue-list .drink-card { margin: 0; }
+.queue-reason { font-size: .85rem; }
 
 @media (prefers-reduced-motion: reduce) {
   .list-edit-summary::after,
@@ -3244,3 +3251,48 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
   .nearby-card { padding: .8rem; gap: .7rem; }
   .nearby-distance { font-size: .68rem; }
 }
+
+/* Share cards ------------------------------------------------------------ */
+.share-page { padding-top: .25rem; }
+.share-header { display: flex; align-items: center; gap: .9rem; margin: .5rem 0 1.25rem; }
+.share-name { margin: 0; font-size: clamp(1.8rem, 6vw, 2.6rem); }
+.share-hero {
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+}
+.share-headline { margin: 0; color: var(--text-muted); font-size: 1rem; }
+.share-headline strong {
+  display: block;
+  color: var(--text);
+  font-size: clamp(3rem, 14vw, 5.5rem);
+  line-height: .95;
+  letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+}
+.share-stats { margin: 1rem 0 1.25rem; }
+.share-card-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.share-panel {
+  margin: 1.75rem 0;
+  padding: 1rem 1.1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.share-panel h2 { margin-top: .15rem; }
+.share-created { margin: .75rem 0; border-color: var(--success); background: var(--success-tint); }
+.share-url { overflow-wrap: anywhere; font-size: .85rem; }
+.share-manage-list { display: grid; gap: .6rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.share-manage-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .75rem .9rem; }
+.share-manage-body { display: grid; gap: .1rem; min-width: 0; }
+.share-manage-body .share-url { font-size: .8rem; }
+.share-manage-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }

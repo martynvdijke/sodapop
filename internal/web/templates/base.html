@@ -12,9 +12,15 @@
   {{if .MetaDescription}}<meta property="og:description" content="{{.MetaDescription}}">{{end}}
   {{if .OGType}}<meta property="og:type" content="{{.OGType}}">{{else if .Profile}}<meta property="og:type" content="profile">{{end}}
   {{if .CanonicalURL}}<meta property="og:url" content="{{.CanonicalURL}}">{{end}}
+  {{if .OGImage}}<meta property="og:image" content="{{.OGImage}}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  {{if .OGImageAlt}}<meta property="og:image:alt" content="{{.OGImageAlt}}">{{end}}
+  <meta name="twitter:image" content="{{.OGImage}}">
+  {{if .OGImageAlt}}<meta name="twitter:image:alt" content="{{.OGImageAlt}}">{{end}}{{end}}
   {{if .MetaTitle}}<meta name="twitter:title" content="{{.MetaTitle}}">{{end}}
   {{if .MetaDescription}}<meta name="twitter:description" content="{{.MetaDescription}}">{{end}}
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="{{if .TwitterCard}}{{.TwitterCard}}{{else}}summary{{end}}">
   <meta name="theme-color" content="#F2F4E6" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0C130E" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="/static/manifest.webmanifest">
@@ -35,7 +41,7 @@
         <a class="nav-main" href="/drinks">Browse</a>
         <a class="nav-main" href="/search">Discover</a>
         <a class="nav-main" href="/friends">Friends</a>
-        <a class="nav-notif" href="/notifications">Notifications{{if .NavUnread}}<span class="nav-badge" aria-hidden="true">{{.NavUnread}}</span><span class="sr-only">, {{.NavUnread}} unread</span>{{end}}</a>
+        <a class="nav-notif" href="/notifications">Notifications<span class="nav-badge" data-unread-count aria-hidden="true"{{if not .NavUnread}} hidden{{end}}>{{if .NavUnread}}{{.NavUnread}}{{end}}</span>{{if .NavUnread}}<span class="sr-only" data-unread-label>, {{.NavUnread}} unread</span>{{end}}</a>
         <a class="nav-main" href="/you">You</a>
         <details class="nav-more">
           <summary>More</summary>

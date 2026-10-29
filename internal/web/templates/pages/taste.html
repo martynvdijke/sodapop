@@ -9,7 +9,7 @@
     <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
     <div style="flex:1">
       <strong>{{.DisplayName}}</strong>
-      <div class="muted">@{{.Handle}} · {{.Shared}} shared ratings</div>
+      <div class="muted">@{{.Handle}} · {{.Common}} shared ratings</div>
     </div>
     <span class="twin-meter">{{percent .Score}}</span>
   </div>
@@ -36,6 +36,30 @@
   </ul>
 </section>
 {{end}}{{end}}
+
+<section aria-labelledby="queue-title">
+  <h2 id="queue-title">Drink this next</h2>
+  <p class="ai-next-intro">Five drinks your taste twins rated highly, with the reasons why.</p>
+  {{if .Queue}}
+  <ol class="ai-next-list queue-list">
+    {{range .Queue}}
+    <li>
+      <a class="card drink-card ai-next-card" href="/drinks/{{.Slug}}">
+        <div class="bottle" aria-hidden="true">{{initial .Name}}</div>
+        <div>
+          <strong>{{.Name}}</strong>
+          <div class="muted">{{.Brand}} · {{.Style}}</div>
+          {{range .Reasons}}<div class="muted queue-reason">{{.}}</div>{{end}}
+        </div>
+        {{if .AvgRating}}<span class="rating-pill">{{.AvgRating}}</span>{{end}}
+      </a>
+    </li>
+    {{end}}
+  </ol>
+  {{else}}
+  <div class="empty"><p>No suggestions yet — rate a few drinks and add taste twins.</p></div>
+  {{end}}
+</section>
 
 <h2>Recommended next</h2>
 {{range .Recommendations}}

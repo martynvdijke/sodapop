@@ -4,6 +4,27 @@ Untappd, but for soda. Scan a can or bottle, log where you found it, rate it in 
 
 Self-hosted, single Go binary + SQLite (Ent ORM + versioned migrations), server-rendered HTML with a TypeScript PWA and a native Flutter Android companion app.
 
+## v1.11 highlights
+
+Shipped on top of v1.10. The OpenAPI surface is `1.11.0`.
+
+- **Share cards:** `/passport` and `/you` can mint a revocable capability link that renders a public page with Open Graph metadata and a generated 1200×630 PNG summary. Cards are server-rendered from the same passport and streak data, links never appear for anyone else, revocation is immediate for the HTML page, and the PNG is cached publicly for five minutes.
+- **Taste-twin guided queue:** `/taste` gains "Drink this next", up to five friend-derived pours with reasons such as "3 taste twins rated it 16+", "New style for you" or "Above your average rating". Candidates respect check-in visibility and friendship, and the queue is derived per request rather than stored.
+- **Live notification badge:** the signed-in web client keeps its unread count current through `GET /notifications/stream`, a Server-Sent Events stream that sends the current count immediately, re-checks every 15 seconds, and closes after 30 minutes so the browser reconnects. The Flutter client still refreshes on demand.
+- **Delivery history:** `/admin/deliveries` lists outbox rows with status filters, attempt counts, last error and timestamps, and lets an admin retry an abandoned delivery without resetting rows that are still in flight.
+- **Native Android push (FCM):** optional and configuration-driven. `POST`/`DELETE /api/v1/me/push/devices` register a device token; when `FCM_SERVICE_ACCOUNT_JSON` and a project id are set, notification fan-out queues one `fcm` delivery per device and the worker exchanges the service-account key for an OAuth2 token before calling FCM HTTP v1. With no credentials the path is a silent no-op, and tokens rejected as unregistered are pruned. The Android app registers when Firebase values are supplied at build time and skips Firebase entirely otherwise.
+- **Upgrade notes:** migrations `0012_share_links.sql` and `0013_delivery_history.sql` are additive; `push_devices` is Ent-managed. FCM credentials are optional and should be supplied through the environment or admin settings, never committed.
+
+## v1.10 highlights
+
+Shipped on top of v1.9. The OpenAPI surface is `1.10.0`.
+
+- **Badge levels and new families:** badge rules accept one to three ascending thresholds per counter, and awarding keeps the highest level. New seeded badges cover brands, countries, venue kinds, friends and streaks, and the admin editor round-trips multi-threshold rules.
+- **Streaks:** personal stats gain current and longest streak, counted from distinct UTC check-in days, and `GET /api/v1/stats/me` exposes both.
+- **Venue offers:** an admin can mark a drink as on offer at a venue from `/admin/venues/{id}`, and the venue page surfaces the flag.
+- **Personal activity timeline:** `/you` shows the viewer's own recent activity, backed by `GET /api/v1/me/activity`. There is still no global feed.
+- **Analytics allowlist:** browser events are restricted to a fixed, sanitized set of names and properties, and nothing fires when Umami is disabled.
+
 ## v1.2 highlights
 
 Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product surface and [docs/architecture.md](docs/architecture.md) for routes and access rules.

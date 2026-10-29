@@ -1364,6 +1364,32 @@ void main() {
     });
   });
 
+  group('push devices', () {
+    test('registers an FCM token for android', () async {
+      final h = _Harness(body: '', status: 204);
+
+      await h.api.registerPushDevice('fcm-token');
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, 'api/v1/me/push/devices');
+      expect(request.headers['Authorization'], 'Bearer sd_test');
+      expect(request.data, {'token': 'fcm-token', 'platform': 'android'});
+    });
+
+    test('deletes a token in the request body', () async {
+      final h = _Harness(body: '', status: 204);
+
+      await h.api.unregisterPushDevice('fcm-token');
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'DELETE');
+      expect(request.path, 'api/v1/me/push/devices');
+      expect(request.headers['Authorization'], 'Bearer sd_test');
+      expect(request.data, {'token': 'fcm-token'});
+    });
+  });
+
   group('error mapping', () {
     test('wraps existing endpoints in ApiException', () async {
       final h = _Harness(

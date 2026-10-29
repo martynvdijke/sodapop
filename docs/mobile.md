@@ -12,6 +12,7 @@ The `mobile/` directory contains the native Flutter Android companion app for So
 - **Media:** `image_picker: ^1.2.4` for camera/gallery photos and short videos; `video_player: ^2.14.1` for native playback of check-in clips.
 - **Location:** `geolocator` for a one-shot Nearby query using coarse or fine permission only. There is no background location and no stored position.
 - **Connectivity:** `connectivity_plus: ^7.3.2` triggers offline outbox flush and app-resume refresh.
+- **Push (optional):** `firebase_core` + `firebase_messaging`, initialised from `--dart-define` values with no `google-services.json`; omitted defines leave push disabled.
 - **OIDC WebView:** `webview_flutter: ^4.14.1` + Kotlin `MethodChannel("xyz.vandijke.sodapop/cookies")` on `MainActivity` to read the HttpOnly `sd_session` from Android `CookieManager`.
 - **Barcode scanner:** `mobile_scanner: ^7.0.0` (Android CameraX + Google ML Kit with torch and zoom).
 - **Typography & Theme:** Material 3 type scale with Sodapop's fresh lime palette (`#B4E32C` primary fill, `#16241A` forest ink, `#F2F4E6` light cream canvas, `#0C130E` dark canvas, `#E85D26` tangerine rating accent). The saved theme preference (`system`, `light`, `dark`) is applied app-wide.
@@ -24,7 +25,7 @@ mobile/
 ├── analysis_options.yaml
 ├── android/
 │   └── app/src/main/
-│       ├── AndroidManifest.xml          # INTERNET, CAMERA permissions; label "Sodapop"
+│       ├── AndroidManifest.xml          # INTERNET, CAMERA, POST_NOTIFICATIONS; label "Sodapop"
 │       ├── kotlin/.../MainActivity.kt   # CookieManager bridge for sd_session
 │       └── res/                         # adaptive + monochrome launcher, splash
 ├── lib/
@@ -39,6 +40,9 @@ mobile/
 │       ├── offline/
 │       │   ├── checkin_outbox.dart      # shared_preferences queue with idempotency keys
 │       │   └── read_cache.dart          # last feed and last 30 viewed drinks
+│       ├── push/
+│       │   ├── firebase_push.dart       # FirebaseOptions from dart-defines, background handler
+│       │   └── push_service.dart        # config check, token registration lifecycle
 │       ├── screens/
 │       │   ├── onboarding_screen.dart   # server URL → OIDC / password / token, register, reset
 │       │   ├── register_screen.dart     # native registration + verification states
@@ -97,9 +101,9 @@ mobile/
 - **Lists, passport, badges, mixes:** create/edit/delete lists and add or remove sodas; the system Wishlist is read-only for its title. Passport shows style, venue-kind, and country stamps plus recent pours. Badges show earned and locked progress. Mix Lab creates 2–6 component recipes.
 - **Venues:** capped search, detail with saved state, recent drinks, and photo/menu upload with optional labels and delete for the uploader or a moderator.
 - **AI drafting:** start from notes or a scanned barcode, continue a multi-turn conversation, revise, and commit a provisional soda. A 503 renders a clear "not available on this server" state. Check-in notes can also be polished by AI.
-- **Notifications:** friend requests, accepts, toasts, comments, mentions, badges, and system messages, with accept/decline and mark-all-read. There is no native push registration, so the app shows notifications when it loads rather than waking the device.
+- **Notifications:** friend requests, accepts, toasts, comments, mentions, badges, and system messages, with accept/decline and mark-all-read. When FCM defines are supplied, the device token is registered on sign-in and the list refreshes on foreground push; otherwise the app shows notifications when it loads rather than waking the device.
 - **Insights and taste:** 7/30/90-day sugar and caffeine totals, caffeine clearance, taste twins, and recommendations.
-- **Settings:** profile and bio, theme (applied immediately and persisted), units, email and push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session list/revoke/sign out other sessions, blocked people with unblock, and account counts. The Data section exports the account as JSON and closes it after an exact-handle confirmation; the last-admin refusal is shown as a message. Notification preferences are editable, but native Android push is not registered in the app.
+- **Settings:** profile and bio, theme (applied immediately and persisted), units, email and push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session list/revoke/sign out other sessions, blocked people with unblock, and account counts. The Data section exports the account as JSON and closes it after an exact-handle confirmation; the last-admin refusal is shown as a message. Notification preferences are editable, and native Android push registers automatically when the server build supplies FCM defines.
 
 ## 5. Offline behaviour
 
@@ -107,7 +111,25 @@ mobile/
 - **Read cache:** the last successful friends feed (40 rows) and the last 30 viewed drinks with galleries are stored locally. When a request fails with a likely network error, the screen shows the cached copy with a "Showing saved… Pull to refresh when you are online" banner. Logging, uploads, and moderation require a connection.
 - **Video:** check-in clips are not queued; the sheet keeps the user informed and asks them to retry online.
 
-## 6. CI & Release Pipeline
+## 7. Android push (optional)
+
+Push uses Firebase Cloud Messaging and is disabled unless every required value is supplied at build time. No `google-services.json` or Google Services Gradle plugin is used; `Firebase.initializeApp` receives explicit `FirebaseOptions`.
+
+```sh
+flutter build apk --release \
+  --dart-define=FCM_API_KEY=... \
+  --dart-define=FCM_APP_ID=... \
+  --dart-define=FCM_MESSAGING_SENDER_ID=... \
+  --dart-define=FCM_PROJECT_ID=... \
+  --dart-define=FCM_STORAGE_BUCKET=...   # optional
+```
+
+- Omitting any of `FCM_API_KEY`, `FCM_APP_ID`, `FCM_MESSAGING_SENDER_ID` or `FCM_PROJECT_ID` (or leaving it empty) skips Firebase entirely; the app starts and behaves as before.
+- On sign-in and on a restored session the app requests notification permission, reads the FCM token, and calls `POST /api/v1/me/push/devices` with `{"token": "...", "platform": "android"}`. Token refreshes re-register.
+- Sign-out calls `DELETE /api/v1/me/push/devices` with the last token in the body, best effort, while the Bearer token is still valid, then invalidates the registration at Firebase (`unregister()`) even if the request failed, so a lost request cannot leave the device receiving another account's notifications.
+- The server sends `notification.title/body`, `data.url`, high Android priority, `collapse_key=sodapop-notification`, and channel `sodapop_default`. Foreground messages refresh the notifications screen; the background handler is registered so data messages are delivered.
+
+## 8. CI & Release Pipeline
 
 - `.github/workflows/flutter-android.yaml` runs `flutter analyze`, `flutter test`, and `flutter build apk --release` in `mobile/` with SHA-pinned actions.
 - `.releaserc.yaml` + `.github/workflows/release.yaml` bump `mobile/pubspec.yaml` to `${nextRelease.version}+${runNumber}`, sign the release APK when `ANDROID_KEYSTORE_BASE64` is configured (falling back to a debug-signed APK), and attach `sodapop-<version>-android.apk` to the GitHub Release.

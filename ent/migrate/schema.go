@@ -324,7 +324,7 @@ var (
 	DeliveryOutboxColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "user_id", Type: field.TypeString, Default: ""},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"webhook", "matrix", "trmnl", "push"}},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"webhook", "matrix", "trmnl", "push", "fcm"}},
 		{Name: "target", Type: field.TypeString, Default: ""},
 		{Name: "payload_json", Type: field.TypeString, Default: ""},
 		{Name: "attempts", Type: field.TypeInt, Default: 0},
@@ -797,6 +797,28 @@ var (
 		Columns:    PasswordResetTokensColumns,
 		PrimaryKey: []*schema.Column{PasswordResetTokensColumns[0]},
 	}
+	// PushDevicesColumns holds the columns for the "push_devices" table.
+	PushDevicesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "token", Type: field.TypeString, Unique: true},
+		{Name: "platform", Type: field.TypeEnum, Enums: []string{"android"}},
+		{Name: "created_at", Type: field.TypeString},
+		{Name: "last_seen_at", Type: field.TypeString},
+	}
+	// PushDevicesTable holds the schema information for the "push_devices" table.
+	PushDevicesTable = &schema.Table{
+		Name:       "push_devices",
+		Columns:    PushDevicesColumns,
+		PrimaryKey: []*schema.Column{PushDevicesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pushdevice_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{PushDevicesColumns[1]},
+			},
+		},
+	}
 	// PushSubscriptionsColumns holds the columns for the "push_subscriptions" table.
 	PushSubscriptionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1157,6 +1179,7 @@ var (
 		NotificationsTable,
 		OffProductsTable,
 		PasswordResetTokensTable,
+		PushDevicesTable,
 		PushSubscriptionsTable,
 		ReportsTable,
 		RuntimeSettingsTable,

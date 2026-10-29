@@ -85,6 +85,7 @@ const (
 	KindMatrix  Kind = "matrix"
 	KindTrmnl   Kind = "trmnl"
 	KindPush    Kind = "push"
+	KindFcm     Kind = "fcm"
 )
 
 func (k Kind) String() string {
@@ -94,7 +95,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindWebhook, KindMatrix, KindTrmnl, KindPush:
+	case KindWebhook, KindMatrix, KindTrmnl, KindPush, KindFcm:
 		return nil
 	default:
 		return fmt.Errorf("deliveryoutbox: invalid enum value for kind field: %q", k)

@@ -108,6 +108,9 @@ type OffProduct func(*sql.Selector)
 // PasswordResetToken is the predicate function for passwordresettoken builders.
 type PasswordResetToken func(*sql.Selector)
 
+// PushDevice is the predicate function for pushdevice builders.
+type PushDevice func(*sql.Selector)
+
 // PushSubscription is the predicate function for pushsubscription builders.
 type PushSubscription func(*sql.Selector)
 

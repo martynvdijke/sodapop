@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
+import '../push/push_service.dart';
 import '../utils/url.dart';
 
 final apiProvider = Provider<ApiClient>((ref) => ApiClient());
@@ -88,6 +90,7 @@ class AuthController extends Notifier<AuthState> {
         oidcEnabled: status.oidcEnabled,
         passwordFallback: status.passwordFallback,
       );
+      unawaited(PushService.instance.signIn(api));
     } catch (_) {
       state = AuthState(loading: false, serverUrl: server);
     }
@@ -142,6 +145,7 @@ class AuthController extends Notifier<AuthState> {
       await _storage.write(key: _tokenKey, value: token);
       api.setToken(token);
       state = state.copyWith(busy: false, token: token, me: me, clearError: true);
+      unawaited(PushService.instance.signIn(api));
       return true;
     } catch (error) {
       api.setToken(null);
@@ -177,8 +181,12 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> signOut() async {
+    final api = ref.read(apiProvider);
+    // Start the best-effort device removal while the bearer token is still
+    // available; sign-out never waits for the network.
+    unawaited(PushService.instance.signOut(api));
     await _storage.delete(key: _tokenKey);
-    ref.read(apiProvider).setToken(null);
+    api.setToken(null);
     state = AuthState(
       loading: false,
       serverUrl: state.serverUrl,
