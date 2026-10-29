@@ -25,21 +25,6 @@ Shipped on top of v1.9. The OpenAPI surface is `1.10.0`.
 - **Personal activity timeline:** `/you` shows the viewer's own recent activity, backed by `GET /api/v1/me/activity`. There is still no global feed.
 - **Analytics allowlist:** browser events are restricted to a fixed, sanitized set of names and properties, and nothing fires when Umami is disabled.
 
-## v1.2 highlights
-
-Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product surface and [docs/architecture.md](docs/architecture.md) for routes and access rules.
-
-- **Comments on check-ins:** flat threads on any check-in the viewer can see, capped at 1,000 characters and 30 comments per user per hour. Comment visibility inherits the parent check-in, and blocked pairs are filtered from the thread.
-- **Venue photos and menus:** verified members can attach up to 6 active photos or menus per venue (20 per venue) with an optional 80-character label; the uploader or a moderator can remove them.
-- **Compare sodas:** `/compare` renders 2–6 drinks side by side, including nutrition per 100 ml, container, taxonomy and ratings once the three-rater threshold is met.
-- **Richer public profiles:** opted-in `/u/{handle}` pages show earned badges, top styles and visible lists. Unearned badges and their progress stay private.
-- **Blocks and safety:** block or unblock from a profile or `/settings/blocked`. Blocking removes friendships and follows in both directions and hides both users from feeds, profiles, comments, toasts and notifications; API list reads also return 404. Cross-user reads stay `404`, never `403`.
-- **Drink image galleries:** verified members can add attributed images through the same 12 MiB image pipeline; admins set the primary image and remove images. Open Food Facts images remain proxied and attributed under the existing ODbL boundary.
-- **AI draft sessions:** conversational drink drafting persists turns in `ai_draft_sessions` with message, revise and commit endpoints, reusing the same `x-opencode-session` across the conversation.
-- **Catalog audit and admin notes:** reports carry internal admin notes, catalog writes keep their revision trail, and runtime settings changes are audited.
-- **First-run setup and runtime settings:** a fresh instance prints a one-time `setup required:` token, `/setup` creates the first verified admin, and `/admin/settings` overlays audited runtime values with `default|env|db` source badges.
-- **Expanded API and Android:** OpenAPI `1.2.0` added comments, media, lists, mixes, taste, badges/passport, saved venues, follows/blocks and admin notes. The Android app covers check-in detail and comments, other-user profiles with follow/block, notification actions, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes; video clips still open in the web app.
-
 ## v1.9 highlights
 
 Shipped on top of v1.8. The OpenAPI surface is `1.9.0`. This release adds account lifecycle endpoints, a privacy-reviewed nearby feed across web, API and Android, an opt-in public drink fact sheet, and social push coverage.
@@ -80,6 +65,21 @@ Shipped on top of v1.5. The OpenAPI surface is now `1.3.0`.
 - **@mentions:** `@handle` in a comment links to the profile and sends a best-effort mention notification that respects blocks and the parent check-in's visibility.
 - **Comment pagination:** threads load oldest-first in keyset pages via `before`, 50 per page by default and 100 maximum, with `has_more`/`next_before` and no total, so long threads are not silently cut off.
 - **Report controls:** comments and drink gallery images can be reported through the same moderation queue, and comment/mention notifications deep-link to `/checkins/{id}#comments`.
+
+## v1.2 highlights
+
+Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product surface and [docs/architecture.md](docs/architecture.md) for routes and access rules.
+
+- **Comments on check-ins:** flat threads on any check-in the viewer can see, capped at 1,000 characters and 30 comments per user per hour. Comment visibility inherits the parent check-in, and blocked pairs are filtered from the thread.
+- **Venue photos and menus:** verified members can attach up to 6 active photos or menus per venue (20 per venue) with an optional 80-character label; the uploader or a moderator can remove them.
+- **Compare sodas:** `/compare` renders 2–6 drinks side by side, including nutrition per 100 ml, container, taxonomy and ratings once the three-rater threshold is met.
+- **Richer public profiles:** opted-in `/u/{handle}` pages show earned badges, top styles and visible lists. Unearned badges and their progress stay private.
+- **Blocks and safety:** block or unblock from a profile or `/settings/blocked`. Blocking removes friendships and follows in both directions and hides both users from feeds, profiles, comments, toasts and notifications; API list reads also return 404. Cross-user reads stay `404`, never `403`.
+- **Drink image galleries:** verified members can add attributed images through the same 12 MiB image pipeline; admins set the primary image and remove images. Open Food Facts images remain proxied and attributed under the existing ODbL boundary.
+- **AI draft sessions:** conversational drink drafting persists turns in `ai_draft_sessions` with message, revise and commit endpoints, reusing the same `x-opencode-session` across the conversation.
+- **Catalog audit and admin notes:** reports carry internal admin notes, catalog writes keep their revision trail, and runtime settings changes are audited.
+- **First-run setup and runtime settings:** a fresh instance prints a one-time `setup required:` token, `/setup` creates the first verified admin, and `/admin/settings` overlays audited runtime values with `default|env|db` source badges.
+- **Expanded API and Android:** OpenAPI `1.2.0` added comments, media, lists, mixes, taste, badges/passport, saved venues, follows/blocks and admin notes. The Android app covers check-in detail and comments, other-user profiles with follow/block, notification actions, lists, saved venues, venue search/detail, insights, taste, passport/badges and mixes; video clips still open in the web app.
 
 ## Planning & Specification Docs
 

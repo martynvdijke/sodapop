@@ -245,7 +245,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 **Build**
 - `manifest.webmanifest`, icons, shortcuts, theme-color metas, install prompt.
 - Service worker: app shell precache, image stale-while-revalidate, HTML network-first, wasm reader cached after first scan, versioned cache cleanup.
-- IndexedDB offline check-in queue with idempotency keys, replay on `online`, merge-remap handling, visible pending badge.
+- IndexedDB offline check-in queue (text fields plus photo blobs under a 200 MB quota) with idempotency keys, replay on `online`, merge-remap handling, visible pending badge.
 - Offline fallback page and offline drink detail for the last 100 viewed drinks.
 - Umami injection with CSP origin, allowlisted events from `analytics/events.go`, TS helper, per-user opt-out server-side.
 - Settings page completion: appearance, privacy, sessions, tokens, blocked users.
