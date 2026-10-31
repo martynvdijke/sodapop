@@ -1,3 +1,15 @@
+# [1.13.0](https://github.com/martynvdijke/sodapop/compare/v1.12.2...v1.13.0) (2026-10-31)
+
+
+### Bug Fixes
+
+* **deps:** update module modernc.org/sqlite to v1.61.1 ([#12](https://github.com/martynvdijke/sodapop/issues/12)) ([f4d3504](https://github.com/martynvdijke/sodapop/commit/f4d3504a387c316e3fb3e5ec2b194eaad44f4991))
+
+
+### Features
+
+* **mobile:** default to sodapop.vandijke.xyz and offer self-hosted option ([e5e8bc3](https://github.com/martynvdijke/sodapop/commit/e5e8bc3086cd7e594d400552c0cc5061ba8f463b))
+
 ## [1.12.2](https://github.com/martynvdijke/sodapop/compare/v1.12.1...v1.12.2) (2026-10-30)
 
 ## [1.12.1](https://github.com/martynvdijke/sodapop/compare/v1.12.0...v1.12.1) (2026-10-29)
