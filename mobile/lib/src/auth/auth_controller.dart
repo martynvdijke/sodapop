@@ -8,6 +8,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../push/push_service.dart';
 import '../utils/url.dart';
+import 'server_defaults.dart';
 
 final apiProvider = Provider<ApiClient>((ref) => ApiClient());
 
@@ -17,7 +18,8 @@ class AuthState {
   const AuthState({
     this.loading = true,
     this.busy = false,
-    this.serverUrl = '',
+    this.serverUrl = defaultServerUrl,
+    this.hasSavedServer = false,
     this.token = '',
     this.me,
     this.oidcEnabled = false,
@@ -28,6 +30,9 @@ class AuthState {
   final bool loading;
   final bool busy;
   final String serverUrl;
+
+  /// Whether [serverUrl] came from storage, so onboarding must not replace it.
+  final bool hasSavedServer;
   final String token;
   final Me? me;
   final bool oidcEnabled;
@@ -40,6 +45,7 @@ class AuthState {
     bool? loading,
     bool? busy,
     String? serverUrl,
+    bool? hasSavedServer,
     String? token,
     Me? me,
     bool? oidcEnabled,
@@ -51,6 +57,7 @@ class AuthState {
         loading: loading ?? this.loading,
         busy: busy ?? this.busy,
         serverUrl: serverUrl ?? this.serverUrl,
+        hasSavedServer: hasSavedServer ?? this.hasSavedServer,
         token: token ?? this.token,
         me: me ?? this.me,
         oidcEnabled: oidcEnabled ?? this.oidcEnabled,
@@ -73,8 +80,13 @@ class AuthController extends Notifier<AuthState> {
   Future<void> _restore() async {
     final server = await _storage.read(key: _serverKey);
     final token = await _storage.read(key: _tokenKey);
-    if (server == null || token == null || token.isEmpty) {
-      state = const AuthState(loading: false);
+    final saved = server != null && server.isNotEmpty;
+    if (!saved || token == null || token.isEmpty) {
+      state = AuthState(
+        loading: false,
+        serverUrl: saved ? server : defaultServerUrl,
+        hasSavedServer: saved,
+      );
       return;
     }
     final api = ref.read(apiProvider);
@@ -85,6 +97,7 @@ class AuthController extends Notifier<AuthState> {
       state = AuthState(
         loading: false,
         serverUrl: server,
+        hasSavedServer: true,
         token: token,
         me: me,
         oidcEnabled: status.oidcEnabled,
@@ -92,7 +105,7 @@ class AuthController extends Notifier<AuthState> {
       );
       unawaited(PushService.instance.signIn(api));
     } catch (_) {
-      state = AuthState(loading: false, serverUrl: server);
+      state = AuthState(loading: false, serverUrl: server, hasSavedServer: true);
     }
   }
 
@@ -190,6 +203,7 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState(
       loading: false,
       serverUrl: state.serverUrl,
+      hasSavedServer: true,
       oidcEnabled: state.oidcEnabled,
       passwordFallback: state.passwordFallback,
     );

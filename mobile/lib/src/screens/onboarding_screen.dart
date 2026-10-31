@@ -26,8 +26,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    _server.text = ref.read(authProvider).serverUrl;
-    _connected = _server.text.isNotEmpty;
+    final auth = ref.read(authProvider);
+    // A stored server always wins; only a true first run falls back to the
+    // hosted default (already the default value of AuthState.serverUrl).
+    _server.text = auth.serverUrl;
+    _connected = auth.hasSavedServer && _server.text.isNotEmpty;
+    if (!auth.hasSavedServer) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _probeDefault());
+    }
+  }
+
+  /// Probes the default instance once so first-run users can go straight to
+  /// logging in. Connection details are only persisted after a successful
+  /// sign-in, so this never overwrites a saved server URL.
+  Future<void> _probeDefault() async {
+    if (!mounted) return;
+    final auth = ref.read(authProvider);
+    if (auth.hasSavedServer || auth.serverUrl.isEmpty) return;
+    final ok = await ref.read(authProvider.notifier).connect(auth.serverUrl);
+    if (ok && mounted) setState(() => _connected = true);
   }
 
   @override
@@ -101,8 +118,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Your server', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Use the default instance below, or enter another self-hosted Sodapop server.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     TextField(
+                      key: const Key('onboarding-server'),
                       controller: _server,
                       keyboardType: TextInputType.url,
                       autocorrect: false,
