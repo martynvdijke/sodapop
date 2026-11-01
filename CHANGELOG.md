@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/martynvdijke/sodapop/compare/v1.14.0...v1.15.0) (2026-11-01)
+
+
+### Features
+
+* close the Google Play policy gaps ([70f52df](https://github.com/martynvdijke/sodapop/commit/70f52dff803edede416dc86d9dfb4d444f5b26c3))
+
 # [1.14.0](https://github.com/martynvdijke/sodapop/compare/v1.13.4...v1.14.0) (2026-11-01)
 
 
