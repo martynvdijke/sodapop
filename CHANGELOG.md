@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/martynvdijke/sodapop/compare/v1.15.0...v1.16.0) (2026-11-01)
+
+
+### Features
+
+* **moderation:** let moderators act on what gets reported ([36de520](https://github.com/martynvdijke/sodapop/commit/36de52016875215b10ddcdf87db923eb66ba427a))
+
 # [1.15.0](https://github.com/martynvdijke/sodapop/compare/v1.14.0...v1.15.0) (2026-11-01)
 
 
