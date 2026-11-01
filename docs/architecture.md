@@ -461,7 +461,7 @@ Report-scoped internal notes use the same `admin_notes` table with `entity='syst
 
 - `.github/workflows/ci.yaml`: gofmt/vet/`go test -race` with coverage; `npm ci` + build + typecheck + Vitest; Playwright with artifacts; actionlint/zizmor/pinact.
 - `.github/workflows/flutter-android.yaml`: `flutter analyze`, `flutter test`, and `flutter build apk --release` in `mobile/` with SHA-pinned actions and `continue-on-error: true`.
-- `.github/workflows/release.yaml` + `.releaserc.yaml`: semantic-release on `main` (Conventional Commits) updating `CHANGELOG.md` and `mobile/pubspec.yaml`, publishing multi-arch GHCR/Docker Hub images, building & attaching `sodapop-<version>-android.apk` to the GitHub Release, and exporting CI OTel spans.
+- `.github/workflows/release.yaml` + `.releaserc.yaml`: semantic-release on `main` (Conventional Commits) updating `CHANGELOG.md` and `mobile/pubspec.yaml`, publishing multi-arch GHCR/Docker Hub images, building & attaching the signed `sodapop-<version>-android.apk` asset to the GitHub Release (plus a signed App Bundle kept as a workflow artifact rather than a public download), and exporting CI OTel spans. `.github/workflows/play-store.yaml` then uploads that bundle to Google Play when `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` is configured.
 
 ## 17. Deliberate non-goals for v1
 

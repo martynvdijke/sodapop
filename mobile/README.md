@@ -100,6 +100,9 @@ Debug builds allow cleartext HTTP to the local test server; release builds keep
 cleartext disabled. CI runs the same flow in
 `.github/workflows/android-emulator.yaml` with `reactivecircus/android-emulator-runner`.
 
-Release signing reads `android/key.properties`; without it the build falls back
-to the debug key. CI attaches a signed (or debug-signed) APK to GitHub Releases
-as `sodapop-<version>-android.apk`.
+Release signing reads `android/key.properties`; without it `flutter build appbundle`
+fails in CI rather than shipping a bundle Play would reject. CI attaches the
+signed APK (`sodapop-<version>-android.apk`) to GitHub Releases and keeps the
+matching App Bundle as the `app-release-aab` workflow artifact — it is a
+submission format, so it is uploaded to the Play track named in
+`GOOGLE_PLAY_TRACK` rather than offered for download.

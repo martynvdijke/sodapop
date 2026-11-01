@@ -106,7 +106,7 @@ jobs:
           fi
 
   android:
-    name: Build Android APK
+    name: Build Android APK and App Bundle
     needs: release
     if: needs.release.outputs.new_release_published == 'true' && needs.release.result == 'success'
     runs-on: ubuntu-latest
@@ -161,6 +161,27 @@ jobs:
             --build-name="$VERSION" \
             --build-number="${{ github.run_number }}" \
             --dart-define=APP_VERSION="$VERSION"
+
+      - name: Build App Bundle
+        working-directory: mobile
+        env:
+          VERSION: ${{ needs.release.outputs.new_release_version }}
+        run: |
+          if [ ! -f android/key.properties ]; then
+            echo "::error::No signing config; refusing to build an app bundle that Play will reject."
+            exit 1
+          fi
+          flutter build appbundle --release \
+            --build-name="$VERSION" \
+            --build-number="${{ github.run_number }}" \
+            --dart-define=APP_VERSION="$VERSION"
+
+      - name: Upload App Bundle artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-release-aab
+          path: mobile/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
 
       - name: Attach APK to release
         env:
@@ -229,8 +250,8 @@ jobs:
 
   play-store:
     name: Play Store
-    needs: [release]
-    if: needs.release.result == 'success' && needs.release.outputs.new_release_version != ''
+    needs: [release, android]
+    if: needs.release.result == 'success' && needs.release.outputs.new_release_version != '' && needs.android.result == 'success'
     uses: ./.github/workflows/play-store.yaml
     with:
       version: ${{ needs.release.outputs.new_release_version }}
