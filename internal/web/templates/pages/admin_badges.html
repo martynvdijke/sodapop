@@ -19,10 +19,11 @@
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
     <div class="field-grid">
       <label for="badge-create-name">Name
-        <input id="badge-create-name" name="name" required autocomplete="off">
+        <input id="badge-create-name" name="name" required maxlength="80" autocomplete="off">
       </label>
       <label for="badge-create-slug">Slug
-        <input id="badge-create-slug" name="slug" required autocomplete="off" autocapitalize="none" spellcheck="false">
+        <input id="badge-create-slug" name="slug" required pattern="[a-z0-9-]{3,48}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="badge-create-slug-hint">
+        <span class="hint" id="badge-create-slug-hint">3–48 lowercase letters, digits or hyphens.</span>
       </label>
       <label for="badge-create-kind">Kind
         <select id="badge-create-kind" name="kind" required>
@@ -43,7 +44,8 @@
       </label>
     </div>
     <label for="badge-create-description">Description
-      <textarea id="badge-create-description" name="description" rows="2" maxlength="240" placeholder="What earns this badge?"></textarea>
+      <textarea id="badge-create-description" name="description" rows="2" maxlength="240" placeholder="What earns this badge?" aria-describedby="badge-create-description-hint"></textarea>
+      <span class="hint" id="badge-create-description-hint">Optional. 240 characters max.</span>
     </label>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">Create badge</button>
@@ -103,10 +105,11 @@
                 <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
                 <div class="field-grid">
                   <label for="badge-edit-name-{{.ID}}">Name
-                    <input id="badge-edit-name-{{.ID}}" name="name" value="{{.Name}}" required autocomplete="off">
+                    <input id="badge-edit-name-{{.ID}}" name="name" value="{{.Name}}" required maxlength="80" autocomplete="off">
                   </label>
                   <label for="badge-edit-slug-{{.ID}}">Slug
-                    <input id="badge-edit-slug-{{.ID}}" name="slug" value="{{.Slug}}" required readonly autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="badge-slug-lock-{{.ID}}">
+                    <input id="badge-edit-slug-{{.ID}}" name="slug" value="{{.Slug}}" readonly autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="badge-slug-lock-{{.ID}}">
+                    <span class="hint" id="badge-slug-lock-{{.ID}}">Permanent; keeps existing links and awards stable.</span>
                   </label>
                   <label for="badge-edit-kind-{{.ID}}">Kind
                     <select id="badge-edit-kind-{{.ID}}" name="kind" required>
@@ -125,7 +128,7 @@
                 </div>
                 <label for="badge-edit-description-{{.ID}}">Description
                   <textarea id="badge-edit-description-{{.ID}}" name="description" rows="2" maxlength="240">{{.Description}}</textarea>
-                <p class="muted" id="badge-slug-lock-{{.ID}}">The slug is permanent; it keeps existing links and awards stable.</p>
+                  <span class="hint">Optional. 240 characters max.</span>
                 </label>
                 <div class="form-actions">
                   <button class="btn btn-small btn-primary" type="submit">Save changes</button>

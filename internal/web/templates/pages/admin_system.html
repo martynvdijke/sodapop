@@ -23,9 +23,9 @@
       <span class="stat-label">uptime</span>
     </div>
     <div>
-      <strong>{{if .DBSize}}{{.DBSize}}{{else}}—{{end}}</strong>
-      <span class="stat-label">database size</span>
-      {{if .WALSize}}<span class="stat-sub">WAL {{.WALSize}}</span>{{end}}
+      <strong>{{.DBSize}}</strong>
+      <span class="stat-label">database bytes</span>
+      {{if .WALSize}}<span class="stat-sub">WAL {{.WALSize}} bytes</span>{{end}}
     </div>
     <div>
       <strong>{{if .MigrationVersion}}{{.MigrationVersion}}{{else}}—{{end}}</strong>
@@ -52,8 +52,12 @@
       <dd>{{if .DBPath}}<code class="admin-code">{{.DBPath}}</code>{{else}}—{{end}}</dd>
     </div>
     <div>
+      <dt>Database size</dt>
+      <dd>{{.DBSize}} bytes</dd>
+    </div>
+    <div>
       <dt>WAL size</dt>
-      <dd>{{if .WALSize}}{{.WALSize}}{{else}}—{{end}}</dd>
+      <dd>{{.WALSize}} bytes</dd>
     </div>
     <div>
       <dt>Migration</dt>
@@ -142,7 +146,7 @@
       <thead>
         <tr>
           <th scope="col">Name</th>
-          <th scope="col" class="num">Size</th>
+          <th scope="col" class="num">Size (bytes)</th>
           <th scope="col">Created</th>
           <th scope="col">Path</th>
         </tr>
@@ -152,7 +156,7 @@
         <tr>
           <th scope="row"><span class="admin-code">{{.Name}}</span></th>
           <td class="num">{{.Size}}</td>
-          <td>{{.CreatedAt}}</td>
+          <td>{{.CreatedAt.Format "2006-01-02 15:04 MST"}}</td>
           <td><span class="admin-path">{{.Path}}</span></td>
         </tr>
         {{end}}

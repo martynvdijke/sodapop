@@ -39,7 +39,7 @@
     </div>
     <div>
       <dt>Locked until</dt>
-      <dd>{{if .LockedUntil}}<span class="pill pill-warn">{{.LockedUntil}}</span>{{else}}Not locked{{end}}</dd>
+      <dd>{{if and .LockedUntil (ne .LockedUntil "Unlocked")}}<span class="pill pill-warn">{{.LockedUntil}}</span>{{else}}<span class="muted">Unlocked</span>{{end}}</dd>
     </div>
   </dl>
 
