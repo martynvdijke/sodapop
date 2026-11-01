@@ -1,3 +1,10 @@
+## [1.13.4](https://github.com/martynvdijke/sodapop/compare/v1.13.3...v1.13.4) (2026-11-01)
+
+
+### Bug Fixes
+
+* **ci:** keep the Android version code above what Play already has ([be79880](https://github.com/martynvdijke/sodapop/commit/be79880943d1f4cafeabd6a9e5194ff0944238c0))
+
 ## [1.13.3](https://github.com/martynvdijke/sodapop/compare/v1.13.2...v1.13.3) (2026-11-01)
 
 
