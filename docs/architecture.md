@@ -208,6 +208,7 @@ POST /api/v1/users/{handle}/follow    follow (404 for blocked/unknown)
 DELETE /api/v1/users/{handle}/follow  unfollow
 POST /api/v1/users/{handle}/block     block
 DELETE /api/v1/users/{handle}/block   unblock
+POST /api/v1/reports            report a check-in, comment or user (queue-shared with web)
 GET  /api/v1/me/lists           own lists including the wishlist
 GET  /api/v1/lists/{id}         visibility-scoped list
 GET  /api/v1/mix                own mixes

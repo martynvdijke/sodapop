@@ -10,15 +10,21 @@ class _FakeMessaging implements PushMessaging {
   String? token = 'token-1';
   bool permissionRequested = false;
   int permissionCalls = 0;
+  bool permissionGranted = true;
   int invalidations = 0;
 
-  final StreamController<String> _refresh = StreamController<String>.broadcast();
+  final StreamController<String> _refresh =
+      StreamController<String>.broadcast();
   final StreamController<void> _messages = StreamController<void>.broadcast();
 
   @override
-  Future<void> requestPermission() async {
+  Future<bool> hasPermission() async => permissionGranted;
+
+  @override
+  Future<bool> requestPermission() async {
     permissionRequested = true;
     permissionCalls++;
+    return permissionGranted;
   }
 
   @override
@@ -141,12 +147,38 @@ void main() {
       await messaging.close();
     });
 
-    test('requests permission and registers the device token', () async {
+    test(
+      'registers the device token once permission is already granted',
+      () async {
+        await registrar.signIn(api);
+
+        expect(api.registered, ['android:token-1']);
+        expect(registrar.lastToken, 'token-1');
+      },
+    );
+
+    test('signing in never prompts for notification permission', () async {
       await registrar.signIn(api);
 
-      expect(messaging.permissionRequested, isTrue);
-      expect(api.registered, ['android:token-1']);
-      expect(registrar.lastToken, 'token-1');
+      expect(messaging.permissionRequested, isFalse);
+      expect(messaging.permissionCalls, 0);
+    });
+
+    test('does not register a token while permission is refused', () async {
+      messaging.permissionGranted = false;
+
+      await registrar.signIn(api);
+
+      expect(messaging.permissionRequested, isFalse);
+      expect(api.registered, isEmpty);
+      expect(registrar.lastToken, isNull);
+    });
+
+    test('prompts only when the user asks for push', () async {
+      final granted = await registrar.requestPermission();
+
+      expect(granted, isTrue);
+      expect(messaging.permissionCalls, 1);
     });
 
     test('does nothing when the token is empty', () async {
@@ -166,18 +198,21 @@ void main() {
       expect(registrar.lastToken, 'token-2');
     });
 
-    test('logs a failed registration and retries on the next sign-in', () async {
-      api.failRegister = true;
-      await registrar.signIn(api);
+    test(
+      'logs a failed registration and retries on the next sign-in',
+      () async {
+        api.failRegister = true;
+        await registrar.signIn(api);
 
-      expect(api.registered, isEmpty);
-      expect(registrar.lastToken, 'token-1');
+        expect(api.registered, isEmpty);
+        expect(registrar.lastToken, 'token-1');
 
-      api.failRegister = false;
-      await registrar.signIn(api);
+        api.failRegister = false;
+        await registrar.signIn(api);
 
-      expect(api.registered, ['android:token-1']);
-    });
+        expect(api.registered, ['android:token-1']);
+      },
+    );
 
     test('deletes the last token on sign-out before going inactive', () async {
       await registrar.signIn(api);
@@ -188,15 +223,18 @@ void main() {
       expect(registrar.lastToken, isNull);
     });
 
-    test('invalidates the Firebase token after a failed server delete', () async {
-      api.failUnregister = true;
-      await registrar.signIn(api);
+    test(
+      'invalidates the Firebase token after a failed server delete',
+      () async {
+        api.failUnregister = true;
+        await registrar.signIn(api);
 
-      await expectLater(registrar.signOut(api), completes);
+        await expectLater(registrar.signOut(api), completes);
 
-      expect(messaging.invalidations, 1);
-      expect(registrar.lastToken, isNull);
-    });
+        expect(messaging.invalidations, 1);
+        expect(registrar.lastToken, isNull);
+      },
+    );
 
     test('does not invalidate the Firebase token without a token', () async {
       messaging.token = '';

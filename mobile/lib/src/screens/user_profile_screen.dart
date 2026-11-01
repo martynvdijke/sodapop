@@ -5,6 +5,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
+import '../widgets/report_sheet.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'list_detail_screen.dart';
@@ -109,6 +110,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     }
   }
 
+  /// Reporting does not block: the person may just want the moderators to see
+  /// something, and hiding them is a separate decision.
+  Future<void> _reportProfile() async {
+    final profile = _profile;
+    if (profile == null) return;
+    await showReportSheet(
+      context,
+      entity: 'user',
+      handle: profile.handle,
+      title: 'Report @${profile.handle}?',
+    );
+  }
+
   Future<void> _confirmBlock() async {
     final profile = _profile;
     if (profile == null || _blockBusy) return;
@@ -185,8 +199,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               tooltip: 'More options',
               onSelected: (value) {
                 if (value == 'block') _confirmBlock();
+                if (value == 'report') _reportProfile();
               },
               itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'report',
+                  child: Text('Report @${_profile!.handle}'),
+                ),
                 PopupMenuItem(
                   value: 'block',
                   child: Text('Block @${_profile!.handle}'),

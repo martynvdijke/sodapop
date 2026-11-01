@@ -140,6 +140,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "POST /api/v1/checkins/{id}/comments", s.protect("write", true, s.createComment))
 	s.route(mux, "DELETE /api/v1/comments/{id}", s.protect("write", true, s.deleteComment))
 
+	s.route(mux, "POST /api/v1/reports", s.protect("write", true, s.createReport))
 	s.route(mux, "POST /api/v1/users/{handle}/block", s.protect("write", true, s.blockUser))
 	s.route(mux, "DELETE /api/v1/users/{handle}/block", s.protect("write", true, s.unblockUser))
 	s.route(mux, "POST /api/v1/users/{handle}/follow", s.protect("write", true, s.followUser))

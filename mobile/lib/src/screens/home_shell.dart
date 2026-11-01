@@ -20,8 +20,6 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   StreamSubscription<void>? _pushSub;
 
-  static const _pages = [FeedScreen(), ScannerScreen(), DiscoverScreen(), ProfileScreen()];
-
   @override
   void initState() {
     super.initState();
@@ -55,15 +53,40 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      // The scanner is mounted only while its tab is selected. MobileScanner
+      // requests camera permission as soon as it is built, and Play expects
+      // that prompt to follow a deliberate action rather than a cold start.
+      body: IndexedStack(
+        index: _index,
+        children: [
+          const FeedScreen(),
+          if (_index == 1) const ScannerScreen() else const SizedBox.shrink(),
+          const DiscoverScreen(),
+          const ProfileScreen(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.people_alt_outlined), selectedIcon: Icon(Icons.people_alt), label: 'Friends'),
-          NavigationDestination(icon: Icon(Icons.qr_code_scanner_rounded), label: 'Scan'),
-          NavigationDestination(icon: Icon(Icons.search_rounded), label: 'Discover'),
-          NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person), label: 'You'),
+          NavigationDestination(
+            icon: Icon(Icons.people_alt_outlined),
+            selectedIcon: Icon(Icons.people_alt),
+            label: 'Friends',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_scanner_rounded),
+            label: 'Scan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.search_rounded),
+            label: 'Discover',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person),
+            label: 'You',
+          ),
         ],
       ),
     );

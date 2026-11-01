@@ -6,10 +6,10 @@ The `mobile/` directory contains the native Flutter Android companion app for So
 
 - **SDK:** Dart `^3.9.0`, Flutter Material 3
 - **State management:** `flutter_riverpod: ^3.4.3` for the API client, auth state, and theme mode; screens keep local state.
-- **Routing:** imperative `Navigator` pushes with a static `open(...)` helper per screen. `go_router` remains in `pubspec.yaml` but is not used.
+- **Routing:** imperative `Navigator` pushes with a static `open(...)` helper per screen. There is no router package.
 - **HTTP:** `dio: ^5.11.1` with Bearer token, idempotency key injection, and W3C `traceparent` propagation.
 - **Storage:** `flutter_secure_storage: ^11.2.0` (server URL + `sd_` Bearer token) and `shared_preferences: ^2.5.4` (offline check-in queue and offline read cache).
-- **Media:** `image_picker: ^1.2.4` for camera/gallery photos and short videos; `video_player: ^2.14.1` for native playback of check-in clips.
+- **Media:** `image_picker: ^1.2.4` for camera/gallery photos and short videos; `video_player: ^2.14.1` for native playback of check-in clips. The scanner tab is built lazily, so the camera permission prompt only appears when someone opens Scan rather than at launch.
 - **Location:** `geolocator` for a one-shot Nearby query using coarse or fine permission only. There is no background location and no stored position.
 - **Connectivity:** `connectivity_plus: ^7.3.2` triggers offline outbox flush and app-resume refresh.
 - **Push (optional):** `firebase_core` + `firebase_messaging`, initialised from `--dart-define` values with no `google-services.json`; omitted defines leave push disabled.
@@ -101,9 +101,9 @@ mobile/
 - **Lists, passport, badges, mixes:** create/edit/delete lists and add or remove sodas; the system Wishlist is read-only for its title. Passport shows style, venue-kind, and country stamps plus recent pours. Badges show earned and locked progress. Mix Lab creates 2–6 component recipes.
 - **Venues:** capped search, detail with saved state, recent drinks, and photo/menu upload with optional labels and delete for the uploader or a moderator.
 - **AI drafting:** start from notes or a scanned barcode, continue a multi-turn conversation, revise, and commit a provisional soda. A 503 renders a clear "not available on this server" state. Check-in notes can also be polished by AI.
-- **Notifications:** friend requests, accepts, toasts, comments, mentions, badges, and system messages, with accept/decline and mark-all-read. When FCM defines are supplied, the device token is registered on sign-in and the list refreshes on foreground push; otherwise the app shows notifications when it loads rather than waking the device.
+- **Notifications:** friend requests, accepts, toasts, comments, mentions, badges, and system messages, with accept/decline and mark-all-read. When FCM defines are supplied, the device token is registered on sign-in and the list refreshes on foreground push; otherwise the app shows notifications when it loads rather than waking the device. The OS permission is requested only when the push switch in Settings is turned on, and a build without FCM defines labels the switch "not configured" instead of pretending it works.
 - **Insights and taste:** 7/30/90-day sugar and caffeine totals, caffeine clearance, taste twins, and recommendations.
-- **Settings:** profile and bio, theme (applied immediately and persisted), units, email and push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session list/revoke/sign out other sessions, blocked people with unblock, and account counts. The Data section exports the account as JSON and deletes it after an exact-handle confirmation, listing what is erased (email, handle, name, bio, avatar, password) and that posted check-ins stay as a deleted user; the last-admin refusal is shown as a message. Notification preferences are editable, and native Android push registers automatically when the server build supplies FCM defines.
+- **Settings:** profile and bio, theme (applied immediately and persisted), units, email and push preferences, public profile, analytics opt-out, caffeine bedtime, password change, session list/revoke/sign out other sessions, blocked people with unblock, and account counts. An About section links the server's `/privacy` and `/terms` in a WebView, since a store listing alone is not a privacy policy a signed-in user can read. The Data section exports the account as JSON and deletes it after an exact-handle confirmation, listing what is erased (email, handle, name, bio, avatar, password) and that posted check-ins stay as a deleted user; the last-admin refusal is shown as a message. Notification preferences are editable, and native Android push registers automatically when the server build supplies FCM defines.
 
 ## 5. Offline behaviour
 
@@ -125,7 +125,7 @@ flutter build apk --release \
 ```
 
 - Omitting any of `FCM_API_KEY`, `FCM_APP_ID`, `FCM_MESSAGING_SENDER_ID` or `FCM_PROJECT_ID` (or leaving it empty) skips Firebase entirely; the app starts and behaves as before.
-- On sign-in and on a restored session the app requests notification permission, reads the FCM token, and calls `POST /api/v1/me/push/devices` with `{"token": "...", "platform": "android"}`. Token refreshes re-register.
+- Sign-in and session restore never prompt: the registrar registers a token only if `hasPermission()` is already true. Turning the push switch on in Settings calls `requestPermission()` first, and a refusal leaves the preference off with an explanation. Once granted, `POST /api/v1/me/push/devices` stores `{"token": "...", "platform": "android"}` and token refreshes re-register.
 - Sign-out calls `DELETE /api/v1/me/push/devices` with the last token in the body, best effort, while the Bearer token is still valid, then invalidates the registration at Firebase (`unregister()`) even if the request failed, so a lost request cannot leave the device receiving another account's notifications.
 - The server sends `notification.title/body`, `data.url`, high Android priority, `collapse_key=sodapop-notification`, and channel `sodapop_default`. Foreground messages refresh the notifications screen; the background handler is registered so data messages are delivered.
 

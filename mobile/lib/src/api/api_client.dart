@@ -123,7 +123,9 @@ class ApiClient {
       'api/v1/auth/config',
       options: _options(auth: false),
     );
-    return AuthConfig.fromJson((_data(response) as Map).cast<String, dynamic>());
+    return AuthConfig.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
   }
 
   /// Creates a local account. The server answers `created` or
@@ -339,9 +341,7 @@ class ApiClient {
     final form = FormData();
     final credit = attribution.trim();
     if (credit.isNotEmpty) form.fields.add(MapEntry('attribution', credit));
-    form.files.add(
-      MapEntry('image', await MultipartFile.fromFile(file.path)),
-    );
+    form.files.add(MapEntry('image', await MultipartFile.fromFile(file.path)));
     final response = await _dio.post<dynamic>(
       'api/v1/drinks/${Uri.encodeComponent(slug)}/images',
       data: form,
@@ -360,24 +360,19 @@ class ApiClient {
   });
 
   Future<void> deleteDrinkImage(int id) => _guard(() async {
-    await _dio.delete<dynamic>(
-      'api/v1/drinks/images/$id',
-      options: _options(),
-    );
+    await _dio.delete<dynamic>('api/v1/drinks/images/$id', options: _options());
   });
 
   /// The signed-in user's own check-ins, newest first.
-  Future<List<CheckinSummary>> myCheckins({
-    int limit = 20,
-    String? before,
-  }) => _guard(() async {
-    final response = await _dio.get<dynamic>(
-      'api/v1/me/checkins',
-      queryParameters: _page(limit, before),
-      options: _options(),
-    );
-    return _checkinRows(response);
-  });
+  Future<List<CheckinSummary>> myCheckins({int limit = 20, String? before}) =>
+      _guard(() async {
+        final response = await _dio.get<dynamic>(
+          'api/v1/me/checkins',
+          queryParameters: _page(limit, before),
+          options: _options(),
+        );
+        return _checkinRows(response);
+      });
 
   /// A friend's check-ins. Non-friends return 404 by design.
   Future<List<CheckinSummary>> userCheckins(
@@ -457,15 +452,15 @@ class ApiClient {
     form.fields.add(MapEntry('kind', kind));
     final caption = label.trim();
     if (caption.isNotEmpty) form.fields.add(MapEntry('label', caption));
-    form.files.add(
-      MapEntry('image', await MultipartFile.fromFile(file.path)),
-    );
+    form.files.add(MapEntry('image', await MultipartFile.fromFile(file.path)));
     final response = await _dio.post<dynamic>(
       'api/v1/venues/$venueId/media',
       data: form,
       options: _options(),
     );
-    return VenueMedia.fromJson((_data(response) as Map).cast<String, dynamic>());
+    return VenueMedia.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
   });
 
   Future<void> deleteVenueMedia(String id) => _guard(() async {
@@ -664,6 +659,30 @@ class ApiClient {
     await _dio.delete<dynamic>('api/v1/friends/$id', options: _options());
   });
 
+  /// Files a moderation report for a check-in, comment or user. The server
+  /// rejects targets this account cannot see, so a hidden row fails the same
+  /// way a deleted one does.
+  Future<void> report({
+    required String entity,
+    String? id,
+    String? handle,
+    String reason = 'other',
+    String? details,
+  }) => _guard(() async {
+    await _dio.post<dynamic>(
+      'api/v1/reports',
+      options: _options(),
+      data: {
+        'entity': entity,
+        'id': ?id,
+        'handle': ?handle,
+        'reason': reason,
+        if (details != null && details.trim().isNotEmpty)
+          'details': details.trim(),
+      },
+    );
+  });
+
   Future<void> blockUser(String handle) => _guard(() async {
     await _dio.post<dynamic>(
       'api/v1/users/${Uri.encodeComponent(handle)}/block',
@@ -739,10 +758,7 @@ class ApiClient {
   });
 
   Future<void> revokeSession(int id) => _guard(() async {
-    await _dio.delete<dynamic>(
-      'api/v1/me/sessions/$id',
-      options: _options(),
-    );
+    await _dio.delete<dynamic>('api/v1/me/sessions/$id', options: _options());
   });
 
   Future<void> revokeAllSessions() => _guard(() async {
@@ -932,9 +948,7 @@ class ApiClient {
       data: payload,
       options: _options(),
     );
-    return ListItem.fromJson(
-      (_data(response) as Map).cast<String, dynamic>(),
-    );
+    return ListItem.fromJson((_data(response) as Map).cast<String, dynamic>());
   });
 
   Future<void> removeListItem(String listId, int drinkId) => _guard(() async {
@@ -1137,9 +1151,7 @@ class ApiClient {
       'api/v1/ai/drafts/${Uri.encodeComponent(sessionId)}/commit',
       options: _options(),
     );
-    return AiCommit.fromJson(
-      (_data(response) as Map).cast<String, dynamic>(),
-    );
+    return AiCommit.fromJson((_data(response) as Map).cast<String, dynamic>());
   });
 
   AiDraftTurn _turn(Response<dynamic> response) =>

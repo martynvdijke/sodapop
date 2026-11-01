@@ -5901,6 +5901,155 @@
         ]
       }
     },
+    "/api/v1/reports": {
+      "post": {
+        "summary": "Report a check-in, comment or user",
+        "description": "Files a moderation report for the moderation queue. The target must already be visible to the caller, so anything invisible is reported as 404 rather than revealing that the row exists. Repeating a report while an earlier one is still open returns the existing report with 200 instead of duplicating the queue entry. This app has no public content collection endpoints; reports are only ever written by the person who saw the content.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "entity"
+                ],
+                "properties": {
+                  "entity": {
+                    "type": "string",
+                    "enum": [
+                      "checkin",
+                      "comment",
+                      "user"
+                    ]
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Check-in or comment id. Required for entity=checkin and entity=comment."
+                  },
+                  "handle": {
+                    "type": "string",
+                    "description": "Handle of the reported user. Required for entity=user."
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "spam",
+                      "harassment",
+                      "hate",
+                      "sexual",
+                      "violence",
+                      "self-harm",
+                      "other"
+                    ],
+                    "description": "Anything unrecognised is filed as other."
+                  },
+                  "details": {
+                    "type": "string",
+                    "description": "Free text, truncated to 1000 characters."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report filed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "entity": {
+                          "type": "string"
+                        },
+                        "entity_ref": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "An open report from this account already exists for the target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "entity": {
+                          "type": "string"
+                        },
+                        "entity_ref": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown entity, missing id/handle, or a self-report"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "Target missing or not visible to the caller"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "moderation"
+        ]
+      }
+    },
     "/api/v1/users/{handle}/follow": {
       "post": {
         "summary": "Follow a user",

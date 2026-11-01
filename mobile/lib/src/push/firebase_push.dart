@@ -47,9 +47,20 @@ class _FirebasePushMessaging implements PushMessaging {
   final FirebaseMessaging _messaging;
 
   @override
-  Future<void> requestPermission() async {
-    await _messaging.requestPermission();
+  Future<bool> requestPermission() async {
+    final settings = await _messaging.requestPermission();
+    return _granted(settings.authorizationStatus);
   }
+
+  @override
+  Future<bool> hasPermission() async {
+    final settings = await _messaging.getNotificationSettings();
+    return _granted(settings.authorizationStatus);
+  }
+
+  static bool _granted(AuthorizationStatus status) =>
+      status == AuthorizationStatus.authorized ||
+      status == AuthorizationStatus.provisional;
 
   @override
   Future<String?> getToken() =>

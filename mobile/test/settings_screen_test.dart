@@ -286,7 +286,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
 
-    await tester.enterText(find.byKey(const Key('password-current')), 'old-pass-1');
+    await tester.enterText(
+      find.byKey(const Key('password-current')),
+      'old-pass-1',
+    );
     await tester.enterText(find.byKey(const Key('password-new')), 'short');
     await tester.enterText(find.byKey(const Key('password-confirm')), 'short');
     await tester.tap(find.text('Update password'));
@@ -367,14 +370,16 @@ void main() {
     final api = await _pump(tester);
     api.updateFails = true;
 
-    final push = find.byKey(const Key('settings-push'));
-    expect(tester.widget<SwitchListTile>(push).value, isFalse);
+    // Push is disabled in a build without Firebase config, so drive the same
+    // optimistic-update path through the weekly email switch instead.
+    final toggle = find.byKey(const Key('settings-email-weekly'));
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
 
-    await tester.tap(push);
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
 
-    expect(tester.widget<SwitchListTile>(push).value, isFalse);
-    expect(api.updates.single, {'push_enabled': true});
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    expect(api.updates.single, {'email_weekly': false});
     expect(find.text('Could not save.'), findsOneWidget);
   });
 

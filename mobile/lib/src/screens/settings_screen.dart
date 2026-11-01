@@ -7,10 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
+import '../push/push_service.dart';
 import '../theme/soda_theme.dart';
 import '../theme/theme_mode.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
+import 'legal_screen.dart';
 
 /// Account settings: the private profile, preferences, security, browser
 /// sessions and the people the member has blocked.
@@ -18,9 +20,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   static Future<void> open(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
   }
 
   @override
@@ -214,6 +216,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (mounted) setState(() => _savingNotifications = false);
+  }
+
+  /// Push is an opt-in, so the Android prompt follows this switch instead of
+  /// sign-in. A refusal leaves the switch off rather than registering a device
+  /// that can never be notified.
+  Future<void> _togglePush(bool value) async {
+    if (value) {
+      final granted = await PushService.instance.requestPermission();
+      if (!granted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Android is blocking notifications for Sodapop. Allow them in '
+              'system settings, then try again.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    await _saveNotifications(pushEnabled: value);
   }
 
   Future<void> _savePrivacy({
@@ -723,6 +747,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _notificationsSection(ThemeData theme, SettingsPrefs prefs) {
     final busy = _savingNotifications;
+    final pushConfigured = PushService.instance.enabled;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -757,11 +782,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 key: const Key('settings-push'),
                 icon: Icons.notifications_active_outlined,
                 title: 'Push notifications',
-                subtitle: 'Toasts, friend requests and badges on this phone.',
-                value: prefs.pushEnabled,
-                onChanged: busy
+                subtitle: pushConfigured
+                    ? 'Toasts, friend requests and badges on this phone.'
+                    : 'Push is not configured for this build.',
+                value: pushConfigured && prefs.pushEnabled,
+                onChanged: busy || !pushConfigured
                     ? null
-                    : (value) => _saveNotifications(pushEnabled: value),
+                    : (value) => _togglePush(value),
               ),
               if (busy)
                 Padding(
@@ -783,9 +810,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final hint = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
-    final visibility = const ['private', 'friends', 'public'].contains(
-      prefs.defaultVisibility,
-    )
+    final visibility =
+        const ['private', 'friends', 'public'].contains(prefs.defaultVisibility)
         ? prefs.defaultVisibility
         : 'public';
     return Column(
@@ -841,10 +867,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'You can change this on each check-in.',
-                      style: hint,
-                    ),
+                    Text('You can change this on each check-in.', style: hint),
                     _busyBar(busy),
                   ],
                 ),
@@ -886,7 +909,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     labelText: 'Bedtime',
                     hintText: '21:30',
                     counterText: '',
-                    helperText: 'Used to show caffeine against the time you sleep.',
+                    helperText:
+                        'Used to show caffeine against the time you sleep.',
                     errorText: _bedtimeError,
                     suffixIcon: _bedtime.text.isEmpty
                         ? null
@@ -1147,9 +1171,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       subtitle: Text('@${user.handle}'),
       trailing: TextButton(
         key: Key('unblock-${user.handle}'),
-        onPressed: _unblockingHandle == null
-            ? () => _unblock(user)
-            : null,
+        onPressed: _unblockingHandle == null ? () => _unblock(user) : null,
         child: busy
             ? const SizedBox(
                 width: 16,
@@ -1230,7 +1252,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
                 subtitle: const Text(
-                  'Hide your check-ins and end every session.',
+                  'Erase your profile and sign out everywhere.',
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: _closeAccount,
@@ -1238,7 +1260,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 22),
+        const SodaSectionTitle(title: 'About'),
+        const SizedBox(height: 10),
+        Card(
+          child: Column(
+            children: [
+              _legalTile(
+                key: const Key('settings-privacy'),
+                title: 'Privacy policy',
+                subtitle: 'What this server stores and why.',
+                path: '/privacy',
+              ),
+              const Divider(height: 1),
+              _legalTile(
+                key: const Key('settings-terms'),
+                title: 'Terms of use',
+                subtitle: 'The rules for using this server.',
+                path: '/terms',
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  /// Opens the server's own policy page, so the text always matches the
+  /// instance the account actually lives on.
+  Widget _legalTile({
+    required Key key,
+    required String title,
+    required String subtitle,
+    required String path,
+  }) {
+    final server = ref.read(apiProvider).server;
+    return ListTile(
+      key: key,
+      leading: const Icon(Icons.gavel_outlined),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+      enabled: server != null,
+      onTap: server == null
+          ? null
+          : () => LegalScreen.open(context, title: title, url: '$server$path'),
     );
   }
 
@@ -1259,9 +1325,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       secondary: Icon(icon, color: theme.colorScheme.onSurfaceVariant),
       title: Text(
         title,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
+        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(subtitle),
       value: value,
@@ -1549,7 +1613,10 @@ class _ExportSheetState extends State<_ExportSheet> {
                   color: scheme.primary.withValues(alpha: 0.32),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.download_done_rounded, color: scheme.onSurface),
+                child: Icon(
+                  Icons.download_done_rounded,
+                  color: scheme.onSurface,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1715,10 +1782,7 @@ class _CloseAccountDialogState extends State<_CloseAccountDialog> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        effect,
-                        style: theme.textTheme.bodyMedium,
-                      ),
+                      child: Text(effect, style: theme.textTheme.bodyMedium),
                     ),
                   ],
                 ),

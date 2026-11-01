@@ -9,6 +9,7 @@ import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
 import '../utils/url.dart';
+import '../widgets/report_sheet.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'drink_detail_screen.dart';
@@ -138,11 +139,7 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
     try {
       final page = await ref
           .read(apiProvider)
-          .commentPage(
-            widget.checkinId,
-            before: _olderCursor,
-            limit: 50,
-          );
+          .commentPage(widget.checkinId, before: _olderCursor, limit: 50);
       if (!mounted) return;
       final seen = _comments.map((comment) => comment.id).toSet();
       final older = page.items
@@ -312,6 +309,17 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
     UserProfileScreen.open(context, handle);
   }
 
+  Future<void> _reportCheckin() async {
+    final detail = _detail;
+    if (detail == null) return;
+    await showReportSheet(
+      context,
+      entity: 'checkin',
+      id: detail.id,
+      title: 'Report this check-in?',
+    );
+  }
+
   Future<void> _deleteCheckin() async {
     final detail = _detail;
     if (detail == null || !detail.canDelete || _deletingCheckin) return;
@@ -369,14 +377,24 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                 ),
               ),
             )
-          else if (detail?.canDelete == true)
+          else
             PopupMenuButton<String>(
               tooltip: 'Check-in options',
               onSelected: (value) {
                 if (value == 'delete') _deleteCheckin();
+                if (value == 'report') _reportCheckin();
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'delete', child: Text('Delete check-in')),
+              itemBuilder: (context) => [
+                if (detail?.canDelete == true)
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete check-in'),
+                  ),
+                if (detail != null)
+                  const PopupMenuItem(
+                    value: 'report',
+                    child: Text('Report check-in'),
+                  ),
               ],
             ),
         ],
@@ -638,7 +656,9 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    _toasts == 0 ? 'No toasts yet' : sodaCount(_toasts, 'toast'),
+                    _toasts == 0
+                        ? 'No toasts yet'
+                        : sodaCount(_toasts, 'toast'),
                     maxLines: 2,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -789,24 +809,35 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                   onMention: _openAuthor,
                   style: theme.textTheme.bodyMedium,
                 ),
-                if (comment.canDelete || _detail?.canComment == true)
-                  Row(
-                    children: [
-                      if (!comment.canDelete && _detail?.canComment == true)
-                        TextButton(
-                          onPressed: () => _replyTo(comment),
-                          child: const Text('Reply'),
+                // Every comment gets an action row so the report path is
+                // reachable even when the viewer cannot reply to it.
+                Row(
+                  children: [
+                    if (!comment.canDelete && _detail?.canComment == true)
+                      TextButton(
+                        onPressed: () => _replyTo(comment),
+                        child: const Text('Reply'),
+                      ),
+                    const Spacer(),
+                    if (!comment.canDelete)
+                      TextButton(
+                        onPressed: () => showReportSheet(
+                          context,
+                          entity: 'comment',
+                          id: comment.id,
+                          title: 'Report this comment?',
                         ),
-                      const Spacer(),
-                      if (comment.canDelete)
-                        TextButton(
-                          onPressed: _deletingComment
-                              ? null
-                              : () => _deleteComment(comment),
-                          child: const Text('Delete'),
-                        ),
-                    ],
-                  ),
+                        child: const Text('Report'),
+                      ),
+                    if (comment.canDelete)
+                      TextButton(
+                        onPressed: _deletingComment
+                            ? null
+                            : () => _deleteComment(comment),
+                        child: const Text('Delete'),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

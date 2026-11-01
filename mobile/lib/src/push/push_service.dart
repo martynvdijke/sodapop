@@ -55,7 +55,14 @@ class FirebasePushConfig {
 /// The slice of `FirebaseMessaging` the registration flow needs. Keeping it
 /// behind this interface means widget and unit tests never touch the plugin.
 abstract class PushMessaging {
-  Future<void> requestPermission();
+  /// Shows the Android notification prompt. Returns whether notifications are
+  /// now allowed. Called only from a deliberate opt-in, never on sign-in:
+  /// Play expects the prompt to follow a user action.
+  Future<bool> requestPermission();
+
+  /// Whether notifications are already allowed, without prompting.
+  Future<bool> hasPermission();
+
   Future<String?> getToken();
   Stream<String> get onTokenRefresh;
   Stream<void> get onMessage;
@@ -108,9 +115,23 @@ class PushRegistrar {
     unawaited(_save(api, token));
   }
 
+  /// Prompts for notification permission and reports the result. Exposed so
+  /// the settings toggle can ask only when someone turns push on.
+  Future<bool> requestPermission() async {
+    try {
+      return await _messaging.requestPermission();
+    } catch (error) {
+      _warn(error);
+      return false;
+    }
+  }
+
   Future<void> _register(ApiClient api) async {
     try {
-      await _messaging.requestPermission();
+      // Sign-in must never raise a permission dialog, and a device that has not
+      // allowed notifications should not be registered: the token would only
+      // accumulate dead rows on the server.
+      if (!await _messaging.hasPermission()) return;
       final token = (await _messaging.getToken())?.trim();
       if (token == null || token.isEmpty) return;
       await _save(api, token);
@@ -192,6 +213,14 @@ class PushService {
 
   Future<void> signIn(ApiClient api) async {
     await _registrar?.signIn(api);
+  }
+
+  /// Asks Android for notification permission. Returns false when push is not
+  /// configured in this build, so callers can keep the switch off.
+  Future<bool> requestPermission() async {
+    final registrar = _registrar;
+    if (registrar == null) return false;
+    return registrar.requestPermission();
   }
 
   Future<void> signOut(ApiClient api) async {
