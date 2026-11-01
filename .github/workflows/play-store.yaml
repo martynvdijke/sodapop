@@ -28,23 +28,25 @@ jobs:
     outputs:
       configured: ${{ steps.credentials.outputs.configured }}
     steps:
-      - name: Check GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+      - name: Check Android signing and Play Store credentials
         id: credentials
         env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           set -euo pipefail
-          if [ -n "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}" ]; then
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ] && [ -n "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not configured; skipping Play Store publish."
+            echo "::warning::Play Store credentials are not configured; skipping Play Store publish."
           fi
 
   publish:
     name: Publish to Google Play
     needs: check
     if: needs.check.outputs.configured == 'true'
+    continue-on-error: true
     runs-on: ubuntu-latest
     permissions:
       contents: read
