@@ -15,6 +15,7 @@ import (
 	"sodapop/ent/list"
 	"sodapop/ent/listitem"
 	"sodapop/ent/report"
+	"sodapop/ent/user"
 	"sodapop/ent/venuemedia"
 	"sodapop/internal/db"
 	"sodapop/internal/mix"
@@ -406,7 +407,29 @@ func (s *Server) reportSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		entityID = 0
-	case "drink", "brand", "venue", "checkin", "user":
+	case "checkin":
+		// Check-in ids are random hex strings, so the target travels in
+		// entity_ref rather than the integer column.
+		if entityRef == "" {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
+		if !s.reportableCheckin(r.Context(), u.ID, entityRef) {
+			http.NotFound(w, r)
+			return
+		}
+		entityID = 0
+	case "user":
+		if entityRef == "" {
+			http.Error(w, "invalid entity", http.StatusBadRequest)
+			return
+		}
+		if !s.reportableUser(r.Context(), u.ID, entityRef) {
+			http.NotFound(w, r)
+			return
+		}
+		entityID = 0
+	case "drink", "brand", "venue":
 		entityRef = ""
 		if entityID <= 0 {
 			http.Error(w, "invalid entity", http.StatusBadRequest)
@@ -455,6 +478,34 @@ func (s *Server) reportableComment(ctx context.Context, viewerID, id string) boo
 	}
 	_, err = s.Checkins.Get(ctx, viewerID, c.CheckinID)
 	return err == nil
+}
+
+// reportableCheckin reports whether a check-in exists and is visible to the
+// viewer. The check-in service owns the visibility and blocking rules, so this
+// cannot be used to confirm that an invisible check-in exists.
+func (s *Server) reportableCheckin(ctx context.Context, viewerID, id string) bool {
+	_, err := s.Checkins.Get(ctx, viewerID, id)
+	return err == nil
+}
+
+// reportableUser reports whether a live, active account with that handle exists
+// and is somebody other than the reporter.
+func (s *Server) reportableUser(ctx context.Context, viewerID, handle string) bool {
+	handle = strings.ToLower(strings.TrimSpace(handle))
+	if handle == "" {
+		return false
+	}
+	target, err := s.Auth.Client.User.Query().
+		Where(
+			user.HandleEqualFold(handle),
+			user.DeletedAtIsNil(),
+			user.StatusEQ(user.StatusActive),
+		).
+		Only(ctx)
+	if err != nil {
+		return false
+	}
+	return target.ID != viewerID
 }
 
 // reportableVenueMedia reports whether venue media exists, is not soft-deleted,

@@ -68,6 +68,30 @@
           </div>
         </details>
       {{end}}
+      {{if .CanReport}}
+        <details class="profile-report">
+          <summary>Report</summary>
+          <div class="profile-report-panel">
+            <p>Reports go to the operators of this instance. @{{.Profile.Handle}} is not told who reported them.</p>
+            <form method="post" action="/reports">
+              <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+              <input type="hidden" name="entity" value="user">
+              <input type="hidden" name="entity_ref" value="{{.Profile.Handle}}">
+              <label>Reason
+                <select name="reason">
+                  <option value="off">Offensive content</option>
+                  <option value="incorrect">Impersonation or misleading</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>Details <span class="hint">optional</span>
+                <textarea name="details" rows="2" maxlength="500"></textarea>
+              </label>
+              <button class="btn" type="submit">Send report</button>
+            </form>
+          </div>
+        </details>
+      {{end}}
     </div>
     {{end}}
   {{end}}

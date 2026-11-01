@@ -14,13 +14,18 @@ import (
 	"sodapop/ent/comment"
 	"sodapop/ent/drink"
 	"sodapop/ent/drinkimage"
+	"sodapop/ent/pushdevice"
 	"sodapop/ent/report"
+	"sodapop/ent/session"
+	"sodapop/ent/user"
 	"sodapop/ent/venue"
 	"sodapop/ent/venuemedia"
 	"sodapop/internal/ai"
 	"sodapop/internal/auth"
 	"sodapop/internal/catalog"
+	"sodapop/internal/checkins"
 	"sodapop/internal/comments"
+	"sodapop/internal/db"
 	"sodapop/internal/venues"
 )
 
@@ -368,6 +373,11 @@ type adminReportView struct {
 	EntitySlug  string
 	CanRemove   bool
 	RemoveLabel string
+	CanEdit     bool
+	EditBody    string
+	EditLabel   string
+	CanSuspend  bool
+	SuspendName string
 	Notes       []adminNoteView
 }
 
@@ -514,6 +524,40 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 			v.Context = "Comment: " + excerptText(commentBodies[row.EntityRef], 140)
 			v.CanRemove = true
 			v.RemoveLabel = "Remove comment"
+			v.CanEdit = true
+			v.EditBody = commentBodies[row.EntityRef]
+			v.EditLabel = "Edit comment"
+		case "checkin":
+			v.EntityRef = shortenRef(row.EntityRef)
+			if c, err := s.Auth.Client.Checkin.Get(ctx, row.EntityRef); err == nil {
+				author := "deleted user"
+				if u, err := s.Auth.Client.User.Get(ctx, c.UserID); err == nil {
+					author = "@" + u.Handle
+				}
+				v.Context = "Check-in by " + author
+				if note := excerptText(c.Note, 140); note != "" {
+					v.Context += ": " + note
+				} else {
+					v.Context += " · no note"
+				}
+				v.EditBody = c.Note
+			}
+			v.CanRemove = true
+			v.RemoveLabel = "Remove check-in"
+			v.CanEdit = true
+			v.EditLabel = "Edit note"
+		case "user":
+			handle := strings.TrimPrefix(row.EntityRef, "@")
+			if u, err := s.Auth.Client.User.Query().
+				Where(user.HandleEqualFold(handle)).Only(ctx); err == nil {
+				name := u.DisplayName
+				if name == "" {
+					name = "@" + u.Handle
+				}
+				v.Context = "Account " + name + " (@" + u.Handle + ") · " + string(u.Status)
+				v.CanSuspend = u.Status == user.StatusActive
+				v.SuspendName = "@" + u.Handle
+			}
 		case "venue_media":
 			v.EntityRef = shortenRef(row.EntityRef)
 			if mc, ok := mediaContexts[row.EntityRef]; ok {
@@ -572,6 +616,7 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 		"Users": users, "AIEndpoints": endpoints, "Revisions": revisionViews,
 		"OpenReports": len(reportViews), "Provisional": len(drinkViews),
 	}
+	data["Notice"], data["Error"] = adminReportQueryMessages(r)
 	if u := UserFromContext(r); u != nil {
 		data["Role"] = string(u.Role)
 	}
@@ -660,6 +705,12 @@ func (s *Server) adminReportRemove(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, err)
 			return
 		}
+	case "checkin":
+		if err := s.Checkins.DeleteAsModerator(ctx, row.EntityRef); err != nil &&
+			!errors.Is(err, checkins.ErrNotFound) {
+			s.fail(w, r, err)
+			return
+		}
 	case "drink_image":
 		imageID, err := strconv.Atoi(row.EntityRef)
 		if err != nil || imageID <= 0 {
@@ -690,7 +741,133 @@ func (s *Server) adminReportRemove(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not update report", http.StatusBadRequest)
 		return
 	}
-	http.Redirect(w, r, "/admin", http.StatusFound)
+	http.Redirect(w, r, "/admin?done=removed", http.StatusFound)
+}
+
+// adminReportQueryMessages turns the redirect flags the moderation actions set
+// into the banner text the queue renders.
+func adminReportQueryMessages(r *http.Request) (notice, errMsg string) {
+	switch r.URL.Query().Get("done") {
+	case "edited":
+		notice = "Content updated."
+	case "removed":
+		notice = "Content removed."
+	case "suspended":
+		notice = "Account suspended. Their sessions, tokens and push devices are revoked."
+	}
+	switch r.URL.Query().Get("error") {
+	case "invalid":
+		errMsg = "That change was not valid. Comments and notes are capped at 1,000 characters."
+	case "missing":
+		errMsg = "That content no longer exists."
+	}
+	return notice, errMsg
+}
+
+// adminReportEdit rewrites the text a report is about, so an admin can fix a
+// note or comment without deleting the whole check-in. The report stays open:
+// editing is not a verdict, and the queue still needs a resolve or dismiss.
+func (s *Server) adminReportEdit(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	ctx := r.Context()
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	row, err := s.Auth.Client.Report.Get(ctx, id)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			http.NotFound(w, r)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	body := r.FormValue("body")
+	switch row.Entity {
+	case "comment":
+		err = s.commentService().EditAsModerator(ctx, row.EntityRef, body)
+		if errors.Is(err, comments.ErrInvalid) {
+			http.Redirect(w, r, "/admin?error=invalid", http.StatusFound)
+			return
+		}
+	case "checkin":
+		err = s.Checkins.SetNoteAsModerator(ctx, row.EntityRef, body)
+		if errors.Is(err, checkins.ErrInvalidInput) {
+			http.Redirect(w, r, "/admin?error=invalid", http.StatusFound)
+			return
+		}
+	default:
+		http.Error(w, "report target cannot be edited", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		if errors.Is(err, comments.ErrNotFound) || errors.Is(err, checkins.ErrNotFound) {
+			http.Redirect(w, r, "/admin?error=missing", http.StatusFound)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/admin?done=edited", http.StatusFound)
+}
+
+// adminReportSuspend disables a reported account. Suspension is the account
+// equivalent of removal: rows stay so other people's feeds do not unravel, but
+// the status check in session and token authentication locks the user out
+// immediately, and dropping sessions and push devices makes that stick.
+func (s *Server) adminReportSuspend(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	ctx := r.Context()
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	row, err := s.Auth.Client.Report.Get(ctx, id)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			http.NotFound(w, r)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	if row.Entity != "user" {
+		http.Error(w, "only accounts can be suspended", http.StatusBadRequest)
+		return
+	}
+	handle := strings.TrimPrefix(row.EntityRef, "@")
+	target, err := s.Auth.Client.User.Query().
+		Where(user.HandleEqualFold(handle), user.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			http.Redirect(w, r, "/admin?error=missing", http.StatusFound)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	if row.UserID != nil && *row.UserID == target.ID {
+		http.Error(w, "you cannot suspend yourself", http.StatusBadRequest)
+		return
+	}
+	if _, err := target.Update().SetStatus(user.StatusSuspended).SetUpdatedAt(db.Now()).Save(ctx); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	_, _ = s.Auth.Client.Session.Delete().Where(session.UserID(target.ID)).Exec(ctx)
+	_, _ = s.Auth.Client.PushDevice.Delete().Where(pushdevice.UserID(target.ID)).Exec(ctx)
+	_, _ = s.Auth.Client.Report.UpdateOneID(id).
+		SetStatus(report.StatusResolved).
+		SetResolvedAt(time.Now().UTC().Format(time.RFC3339)).Save(ctx)
+	http.Redirect(w, r, "/admin?done=suspended", http.StatusFound)
 }
 
 func (s *Server) setReportStatus(w http.ResponseWriter, r *http.Request, status string) {

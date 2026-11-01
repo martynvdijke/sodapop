@@ -69,6 +69,30 @@
     {{if ne $c.Visibility "private"}}
       <button class="btn" type="button" data-share data-share-url="/checkins/{{$c.ID}}" data-share-title="{{$c.DrinkName}}" data-share-text="{{$c.DrinkName}} on Sodapop">Share</button>
     {{end}}
+    {{if .CanReport}}
+      <details class="checkin-report">
+        <summary>Report</summary>
+        <div class="checkin-report-panel">
+          <p>Reports go to the operators of this instance. @{{$c.UserHandle}} is not told who reported this check-in.</p>
+          <form method="post" action="/reports">
+            <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+            <input type="hidden" name="entity" value="checkin">
+            <input type="hidden" name="entity_ref" value="{{$c.ID}}">
+            <label>Reason
+              <select name="reason">
+                <option value="off">Offensive content</option>
+                <option value="incorrect">Not a real drink</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Details <span class="hint">optional</span>
+              <textarea name="details" rows="2" maxlength="500"></textarea>
+            </label>
+            <button class="btn btn-small" type="submit">Send report</button>
+          </form>
+        </div>
+      </details>
+    {{end}}
   </div>
 
   <section id="comments" class="comments" aria-labelledby="comments-heading">

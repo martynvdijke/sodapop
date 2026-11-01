@@ -426,6 +426,26 @@ func (s *Service) Delete(ctx context.Context, userID string, admin bool, comment
 	return s.Client.Comment.UpdateOneID(c.ID).SetDeletedAt(db.Now()).Exec(ctx)
 }
 
+// EditAsModerator replaces the body of any live comment. Moderation happens
+// outside the ownership and visibility rules the author path enforces, so the
+// body is re-validated here instead of trusting the form.
+func (s *Service) EditAsModerator(ctx context.Context, commentID, body string) error {
+	body = strings.TrimSpace(body)
+	if n := utf8.RuneCountInString(body); n < 1 || n > maxBodyRunes {
+		return ErrInvalid
+	}
+	c, err := s.Client.Comment.Query().
+		Where(comment.ID(commentID), comment.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	return s.Client.Comment.UpdateOneID(c.ID).SetBody(body).Exec(ctx)
+}
+
 // newID mirrors the schema's random 16-byte hex identifier.
 func newID() (string, error) {
 	b := make([]byte, 16)

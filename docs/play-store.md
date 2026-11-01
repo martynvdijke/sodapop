@@ -70,6 +70,12 @@ The UGC policy expects both reporting and blocking to exist inside the app:
 - Account deletion is reachable from Settings → Account, and the same URL is
   submitted as the Data deletion link.
 
+Operators act on those reports at `/admin`: resolve, dismiss, remove the
+content, rewrite a comment or note, or suspend the reported account. Suspension
+revokes sessions, API tokens and push devices, so a reviewer testing the report
+flow will find it closes end to end. The same queue accepts reports filed from
+the browser on a check-in page or a profile.
+
 A manual `flutter build appbundle --release` is signed only if
 `android/key.properties` exists, and it inherits the version code from
 `pubspec.yaml`, which semantic-release pins at `+1`. Pass

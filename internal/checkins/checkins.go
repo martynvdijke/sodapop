@@ -26,6 +26,10 @@ var (
 	ErrIdempotencyUse = errors.New("idempotency key already used")
 )
 
+// maxNoteLength caps the free-text note on a check-in. Moderated edits share
+// the limit so they cannot store what create would reject.
+const maxNoteLength = 1000
+
 // Service owns check-in writes and personal reads.
 type Service struct {
 	Client *ent.Client
@@ -57,7 +61,7 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	if in.Rating != nil && (*in.Rating < 0 || *in.Rating > 20) {
 		return nil, false, ErrInvalidRating
 	}
-	if len(in.Note) > 1000 {
+	if len(in.Note) > maxNoteLength {
 		return nil, false, errors.New("note is too long")
 	}
 	if _, err := s.Client.Drink.Query().
@@ -242,6 +246,45 @@ func (s *Service) Delete(ctx context.Context, userID, id string) error {
 		return ErrForbidden
 	}
 	_, err = c.Update().SetDeletedAt(db.Now()).SetUpdatedAt(db.Now()).Save(ctx)
+	return err
+}
+
+// DeleteAsModerator soft-deletes a check-in on behalf of an admin or moderator.
+// The ownership check is skipped because the caller already holds the role, but
+// a missing or already-deleted row is still ErrNotFound so moderation answers
+// 404 like every other read.
+func (s *Service) DeleteAsModerator(ctx context.Context, id string) error {
+	c, err := s.Client.Checkin.Query().
+		Where(checkin.ID(id), checkin.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	_, err = c.Update().SetDeletedAt(db.Now()).SetUpdatedAt(db.Now()).Save(ctx)
+	return err
+}
+
+// SetNoteAsModerator rewrites the free-text note on any check-in. The cap
+// matches the one Create enforces so a moderated edit cannot introduce a note
+// the app itself would have refused.
+func (s *Service) SetNoteAsModerator(ctx context.Context, id, note string) error {
+	note = strings.TrimSpace(note)
+	if len(note) > maxNoteLength {
+		return ErrInvalidInput
+	}
+	c, err := s.Client.Checkin.Query().
+		Where(checkin.ID(id), checkin.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	_, err = c.Update().SetNote(note).SetUpdatedAt(db.Now()).Save(ctx)
 	return err
 }
 

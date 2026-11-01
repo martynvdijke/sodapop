@@ -1535,6 +1535,42 @@ label { display: grid; gap: .3rem; font-weight: 600; }
 .comment-report-form textarea { width: 100%; min-width: 0; }
 .comment-report-form .btn { justify-self: start; min-height: 44px; }
 
+/* Profile and check-in reports reuse the comment report chrome so the three
+   reporting paths look like one control instead of three. */
+.profile-report,
+.checkin-report { margin: 8px 0 0; }
+.profile-report > summary,
+.checkin-report > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+.profile-report-panel,
+.checkin-report-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 4px;
+  padding: 12px;
+  background: var(--surface-sunken);
+  border-radius: 10px;
+}
+.profile-report-panel p,
+.checkin-report-panel p { margin: 0; font-size: .8125rem; color: var(--text-muted); }
+.profile-report-panel label,
+.checkin-report-panel label { font-size: .8125rem; }
+.profile-report-panel .hint,
+.checkin-report-panel .hint { font-weight: 400; }
+.profile-report-panel select,
+.profile-report-panel textarea,
+.checkin-report-panel select,
+.checkin-report-panel textarea { width: 100%; min-width: 0; }
+.profile-report-panel .btn,
+.checkin-report-panel .btn { justify-self: start; min-height: 44px; }
+
 .comments-pagination {
   display: flex;
   flex-wrap: wrap;
@@ -2267,6 +2303,26 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
   border-radius: 10px;
   background: var(--surface-sunken);
 }
+.report-edit { margin: 12px 0 0; }
+.report-edit > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+.report-edit-form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.report-edit-form label { font-size: .8125rem; }
+.report-edit-form textarea { width: 100%; min-width: 0; }
+.report-edit-form .btn { justify-self: start; min-height: 44px; }
 .report-notes-head {
   display: flex;
   flex-wrap: wrap;

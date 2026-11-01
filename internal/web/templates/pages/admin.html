@@ -17,6 +17,7 @@
 </div>
 {{if eq .Role "admin"}}{{template "adminnav" "overview"}}{{end}}
 {{if .Notice}}<p class="banner success">{{.Notice}}</p>{{end}}
+{{if .Error}}<p class="banner error">{{.Error}}</p>{{end}}
 
 <section class="stat-grid">
   <div><strong>{{.OpenReports}}</strong><span>open reports</span></div>
@@ -48,8 +49,27 @@
         <button class="btn btn-small" type="submit">{{.RemoveLabel}}</button>
       </form>
       {{end}}
+      {{if .CanSuspend}}
+      <form method="post" action="/admin/reports/{{.ID}}/suspend" class="inline" onsubmit="return confirm('Suspend {{.SuspendName}}? They are signed out everywhere and cannot sign in again until an admin restores the account.');">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <button class="btn btn-small" type="submit">Suspend account</button>
+      </form>
+      {{end}}
       {{if eq .Entity "drink"}}<a class="btn btn-small" href="/drinks/{{.EntitySlug}}">Open soda</a>{{end}}
     </div>
+
+    {{if .CanEdit}}
+    <details class="report-edit">
+      <summary>{{.EditLabel}}</summary>
+      <form class="report-edit-form" method="post" action="/admin/reports/{{.ID}}/edit">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <label>Content
+          <textarea name="body" rows="4" maxlength="1000">{{.EditBody}}</textarea>
+        </label>
+        <button class="btn btn-small" type="submit">Save changes</button>
+      </form>
+    </details>
+    {{end}}
 
     <section class="report-notes" aria-labelledby="report-notes-{{.ID}}">
       <div class="report-notes-head">

@@ -190,6 +190,7 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		"IsBlocked":       isBlocked,
 		"BlockedByTarget": false,
 		"CanBlock":        viewerID != "" && viewerID != target.ID,
+		"CanReport":       viewer != nil && viewer.EmailVerifiedAt != nil && viewerID != target.ID,
 		"FollowerCount":   followerCount,
 		"FollowingCount":  followingCount,
 		"Authenticated":   viewerID != "",

@@ -187,6 +187,7 @@ func (s *Server) renderCheckinDetail(w http.ResponseWriter, r *http.Request, sta
 		"Authenticated":  u != nil,
 		"CanDelete":      u != nil && u.ID == detail.UserID,
 		"CanToast":       u != nil && u.ID != detail.UserID,
+		"CanReport":      u != nil && u.EmailVerifiedAt != nil && u.ID != detail.UserID,
 		"CanSave":        u != nil,
 		"Saved":          saved,
 		"Comments":       list,
