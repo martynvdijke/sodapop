@@ -12,6 +12,11 @@ Future<void> sodapopBackgroundPushHandler(RemoteMessage message) async {}
 
 /// Initialises Firebase when all FCM defines are present. Missing config or a
 /// failed initialisation leaves push disabled without affecting the app.
+///
+/// This Dart-only path keeps delivery working while the process is alive. A
+/// push that cold-starts a force-stopped app reaches the native FCM service
+/// before this runs, so guaranteed cold-start delivery needs a build-time
+/// `google-services.json` (see docs/mobile.md).
 Future<PushService> initialisePush() async {
   final service = PushService.instance;
   final config = FirebasePushConfig.fromDefines();
