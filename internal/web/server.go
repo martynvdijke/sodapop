@@ -90,6 +90,12 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /verify", s.verify)
 	mux.HandleFunc("POST /logout", s.logout)
 
+	// Public legal pages: stores and data-protection law both require these to
+	// be readable before sign-up, so they never sit behind requireUser.
+	mux.HandleFunc("GET /privacy", s.privacyPage)
+	mux.HandleFunc("GET /terms", s.termsPage)
+	mux.HandleFunc("GET /account/delete", s.accountDeletePage)
+
 	mux.HandleFunc("GET /auth/oidc/login", s.Auth.BeginLogin)
 	mux.HandleFunc("GET /auth/oidc/callback", s.oidcCallback)
 	mux.HandleFunc("POST /auth/oidc/logout", s.logout)

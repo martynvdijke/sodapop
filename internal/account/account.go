@@ -14,10 +14,15 @@ import (
 
 	"sodapop/ent"
 	"sodapop/ent/apitoken"
+	"sodapop/ent/block"
+	"sodapop/ent/follow"
+	"sodapop/ent/friendship"
 	"sodapop/ent/inboundtoken"
+	"sodapop/ent/notification"
 	"sodapop/ent/pushdevice"
 	"sodapop/ent/session"
 	"sodapop/ent/user"
+	"sodapop/ent/useridentity"
 	"sodapop/internal/db"
 	"sodapop/internal/integrations"
 )
@@ -138,6 +143,9 @@ func (s *Service) deleteSQL(ctx context.Context, userID string) error {
 	if _, err := client.PushDevice.Delete().Where(pushdevice.UserID(userID)).Exec(ctx); err != nil {
 		return err
 	}
+	if err := anonymise(ctx, client, userID, now); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE share_links SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`,
 		now, userID); err != nil {
@@ -203,7 +211,58 @@ func (s *Service) deleteEnt(ctx context.Context, userID string) error {
 		_ = tx.Rollback()
 		return err
 	}
+	if err := anonymise(ctx, tx.Client(), userID, now); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
 	return tx.Commit()
+}
+
+// anonymise strips every direct identifier from a closed account in the same
+// transaction that closes it, so deleting means erasing rather than hiding. The
+// user row itself has to survive because check-ins, comments and media point at
+// it; what remains is an anonymous marker that no longer identifies anyone.
+func anonymise(ctx context.Context, client *ent.Client, userID, now string) error {
+	suffix := strings.TrimPrefix(userID, "-")
+	suffix = strings.ReplaceAll(suffix, "-", "")
+	if len(suffix) > 12 {
+		suffix = suffix[:12]
+	}
+	if _, err := client.User.Update().
+		Where(user.IDEQ(userID)).
+		SetEmail("deleted-" + suffix + "@deleted.invalid").
+		SetHandle("deleted-" + suffix).
+		SetDisplayName("Deleted user").
+		SetBio("").
+		ClearCountry().
+		ClearAvatarMediaID().
+		ClearPasswordHash().
+		ClearEmailVerifiedAt().
+		SetUpdatedAt(now).
+		Save(ctx); err != nil {
+		return err
+	}
+	// The external identity carries the IdP subject and often a second copy of
+	// the address, so it goes with the account.
+	if _, err := client.UserIdentity.Delete().Where(useridentity.UserID(userID)).Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := client.Follow.Delete().
+		Where(follow.Or(follow.FollowerID(userID), follow.FolloweeID(userID))).Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := client.Friendship.Delete().
+		Where(friendship.Or(friendship.UserA(userID), friendship.UserB(userID))).Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := client.Block.Delete().
+		Where(block.Or(block.BlockerID(userID), block.BlockedID(userID))).Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := client.Notification.Delete().Where(notification.UserID(userID)).Exec(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Export returns the user's own data as JSON. The serializer lives in the

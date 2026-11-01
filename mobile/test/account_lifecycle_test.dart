@@ -178,11 +178,8 @@ void main() {
     await _openClose(tester);
 
     expect(find.text('Close your account?'), findsOneWidget);
-    expect(find.text('This cannot be undone in the app.'), findsOneWidget);
-    expect(
-      find.text('Your handle stays reserved and cannot be reused.'),
-      findsOneWidget,
-    );
+    expect(find.text('This cannot be undone.'), findsOneWidget);
+    expect(find.text('Your handle becomes available again.'), findsOneWidget);
     expect(_submitButton(tester).onPressed, isNull);
 
     await tester.enterText(

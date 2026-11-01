@@ -5,15 +5,20 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
 	"sodapop/ent"
 	"sodapop/ent/apitoken"
+	"sodapop/ent/comment"
+	"sodapop/ent/follow"
 	"sodapop/ent/inboundtoken"
+	"sodapop/ent/notification"
 	"sodapop/ent/pushdevice"
 	"sodapop/ent/session"
 	"sodapop/ent/user"
+	"sodapop/ent/useridentity"
 	"sodapop/internal/account"
 	"sodapop/internal/db"
 )
@@ -130,6 +135,87 @@ func TestDeleteClosesAccountAndRevokesCredentials(t *testing.T) {
 	}
 	if !revoked.Valid {
 		t.Error("share link was not revoked")
+	}
+}
+
+func TestDeleteAnonymisesTheAccount(t *testing.T) {
+	svc, database := newTestService(t)
+	ctx := context.Background()
+	u := makeUser(t, database, "alice", user.RoleUser)
+	peer := makeUser(t, database, "bob", user.RoleUser)
+	addCredentials(t, database, u.ID)
+
+	passwordHash := "$2a$12$notarealhash"
+	if _, err := database.Client.User.UpdateOneID(u.ID).
+		SetBio("lives in a van").
+		SetCountry("NL").
+		SetPasswordHash(passwordHash).
+		Save(ctx); err != nil {
+		t.Fatalf("seed profile: %v", err)
+	}
+	if _, err := database.Client.UserIdentity.Create().
+		SetProvider("oidc").SetSubject("subject-alice").SetUserID(u.ID).
+		SetEmail("alice@idp.example").Save(ctx); err != nil {
+		t.Fatalf("identity: %v", err)
+	}
+	if _, err := database.Client.Follow.Create().
+		SetFollowerID(u.ID).SetFolloweeID(peer.ID).Save(ctx); err != nil {
+		t.Fatalf("follow: %v", err)
+	}
+	if _, err := database.Client.Notification.Create().
+		SetUserID(u.ID).SetKind("system").SetText("hello alice").Save(ctx); err != nil {
+		t.Fatalf("notification: %v", err)
+	}
+	if _, err := database.Client.Comment.Create().
+		SetCheckinID("checkin-1").SetUserID(u.ID).SetBody("nice fizz").
+		Save(ctx); err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+
+	if err := svc.Delete(ctx, u.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	row, err := database.Client.User.Get(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if row.Email == "alice@example.com" || !strings.HasSuffix(row.Email, "@deleted.invalid") {
+		t.Errorf("email = %q, want an anonymised address", row.Email)
+	}
+	if row.Handle == "alice" || !strings.HasPrefix(row.Handle, "deleted-") {
+		t.Errorf("handle = %q, want an anonymised handle", row.Handle)
+	}
+	if row.DisplayName != "Deleted user" {
+		t.Errorf("display name = %q, want %q", row.DisplayName, "Deleted user")
+	}
+	if row.Bio != "" {
+		t.Errorf("bio = %q, want empty", row.Bio)
+	}
+	if row.Country != nil {
+		t.Errorf("country = %v, want nil", row.Country)
+	}
+	if row.PasswordHash != nil && *row.PasswordHash != "" {
+		t.Error("password hash survived deletion")
+	}
+	if row.EmailVerifiedAt != nil {
+		t.Error("email verification survived deletion")
+	}
+
+	if n, err := database.Client.UserIdentity.Query().Where(useridentity.UserID(u.ID)).Count(ctx); err != nil || n != 0 {
+		t.Errorf("identities = %d (err %v), want 0", n, err)
+	}
+	if n, err := database.Client.Follow.Query().Where(follow.FollowerID(u.ID)).Count(ctx); err != nil || n != 0 {
+		t.Errorf("follows = %d (err %v), want 0", n, err)
+	}
+	if n, err := database.Client.Notification.Query().Where(notification.UserID(u.ID)).Count(ctx); err != nil || n != 0 {
+		t.Errorf("notifications = %d (err %v), want 0", n, err)
+	}
+
+	// Content other people can still see is kept, which is why the user row has
+	// to survive as an anonymous marker.
+	if n, err := database.Client.Comment.Query().Where(comment.UserID(u.ID)).Count(ctx); err != nil || n != 1 {
+		t.Errorf("comments = %d (err %v), want 1 kept", n, err)
 	}
 }
 

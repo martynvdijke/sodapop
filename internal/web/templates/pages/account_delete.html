@@ -1,0 +1,36 @@
+{{define "content"}}
+<section class="narrow legal">
+  <p class="eyebrow">Account</p>
+  <h1>Delete your account</h1>
+  <p class="lede">Deletion is immediate. Your identity is erased the moment you confirm; nothing is held for a waiting period.</p>
+
+  <h2>Delete it yourself</h2>
+  {{if .User}}
+  <p>You are signed in as {{.User.Handle}}. Go to <a href="/settings">Settings</a>, open <strong>Delete account</strong>, and type your handle to confirm.</p>
+  {{else}}
+  <p>Sign in, then go to <a href="/settings">Settings</a> → <strong>Delete account</strong> and type your handle to confirm. <a href="/login">Sign in</a> if you have not already.</p>
+  {{end}}
+  <p>In the Android app the same action lives under Settings → Account → Delete account, and it calls the same endpoint with the same confirmation.</p>
+
+  <h2>If you cannot sign in</h2>
+  {{if .Legal.ContactEmail}}
+  <p>Write to <a href="mailto:{{.Legal.ContactEmail}}">{{.Legal.ContactEmail}}</a> from the address on the account and ask for it to be deleted. Requests are handled within one month, usually much sooner.</p>
+  {{else}}
+  <p>Ask the administrator of this instance to delete the account for you. They can do it from the admin tools; there is no self-service route that works without signing in.</p>
+  {{end}}
+
+  <h2>What is removed</h2>
+  <ul>
+    <li>Your email address, handle, display name, bio, country and avatar.</li>
+    <li>Your password, and every way into the account: browser sessions, API tokens, webhook tokens, push subscriptions and share links.</li>
+    <li>Your link to an external login provider, if you used one.</li>
+    <li>Your friend connections, follows and blocks, and your notifications.</li>
+  </ul>
+
+  <h2>What stays</h2>
+  <p>Check-ins, comments and photos you posted remain, because other people's feeds and conversations refer to them. They are detached from your identity and appear as a deleted user, so they cannot be traced back to you.</p>
+  <p>Backups taken before the deletion may still contain the old data until they rotate out; they are not used to restore individual accounts.</p>
+
+  <p class="muted">The full detail is in the <a href="/privacy">privacy policy</a>.</p>
+</section>
+{{end}}

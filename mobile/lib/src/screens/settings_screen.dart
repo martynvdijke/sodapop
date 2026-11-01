@@ -1639,11 +1639,11 @@ class _CloseAccountDialog extends StatefulWidget {
 
 class _CloseAccountDialogState extends State<_CloseAccountDialog> {
   static const _effects = [
-    'Your profile is soft-deleted on the server.',
-    'Your check-ins are hidden from friends and discovery.',
+    'Your email, handle, name, bio, avatar and password are erased.',
     'Every session and API token is revoked, including this phone.',
-    'Your handle stays reserved and cannot be reused.',
-    'This cannot be undone in the app.',
+    'Your check-ins and comments stay, shown as a deleted user.',
+    'Your handle becomes available again.',
+    'This cannot be undone.',
   ];
 
   final _confirm = TextEditingController();

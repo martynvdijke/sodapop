@@ -273,6 +273,13 @@ textarea { min-height: 90px; resize: vertical; }
 .tabbar a.scan .scan-label { position: absolute; bottom: 1px; font-weight: 700; color: var(--text); }
 .tabbar a.scan:focus-visible .scan-circle { outline: 2px solid var(--text); outline-offset: 2px; }
 .site-footer { color: var(--text-muted); font-size: .8rem; padding: 2rem 0; border-top: 1px solid var(--border); margin-top: 2rem; }
+.site-footer p { margin: .25rem 0; }
+.footer-links a { color: inherit; }
+.legal { max-width: 42rem; }
+.legal h2 { margin-top: 2rem; font-size: 1.15rem; }
+.legal ul { padding-left: 1.15rem; }
+.legal li { margin: .35rem 0; }
+.legal code { font-size: .9em; }
 
 @media (max-width: 720px) {
   .tabbar { display: flex; }

@@ -100,6 +100,10 @@ CREATE TABLE users (
 -- migration 0001: case-insensitive identity lookups
 CREATE UNIQUE INDEX idx_users_handle_nocase ON users(handle COLLATE NOCASE);
 CREATE UNIQUE INDEX idx_users_email_nocase ON users(email COLLATE NOCASE);
+-- account deletion keeps the row as an anonymous marker: email becomes
+-- deleted-<id>@deleted.invalid, handle becomes deleted-<id>, display_name
+-- 'Deleted user', and bio/country/avatar/password_hash/email_verified_at are
+-- cleared, so shared check-ins and comments stay but stop identifying anyone.
 
 CREATE TABLE user_identities (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -54,6 +54,15 @@ type Config struct {
 
 	RateLimitPerMin int
 	TrustedProxies  []string
+
+	// Legal identity of the instance operator. These appear verbatim in the
+	// published privacy policy, so they are deployment configuration rather
+	// than runtime-editable content: a self-hoster sets them once and the page
+	// states only what is true for their deployment.
+	LegalControllerName string
+	LegalContactEmail   string
+	LegalContactAddress string
+	LegalHostingRegion  string
 }
 
 // Load reads configuration from the environment, applying safe local defaults.
@@ -87,6 +96,11 @@ func Load() (*Config, error) {
 		FCMProjectID:     strings.TrimSpace(env("FCM_PROJECT_ID", "")),
 		RateLimitPerMin:  envInt("API_RATE_LIMIT_PER_MIN", 120),
 		TrustedProxies:   splitCSV(env("TRUSTED_PROXIES", "")),
+
+		LegalControllerName: strings.TrimSpace(env("LEGAL_CONTROLLER_NAME", "")),
+		LegalContactEmail:   strings.TrimSpace(env("LEGAL_CONTACT_EMAIL", "")),
+		LegalContactAddress: strings.TrimSpace(env("LEGAL_CONTACT_ADDRESS", "")),
+		LegalHostingRegion:  strings.TrimSpace(env("LEGAL_HOSTING_REGION", "")),
 	}
 	c.SessionTTL = envDuration("SESSION_TTL", 720*time.Hour)
 
