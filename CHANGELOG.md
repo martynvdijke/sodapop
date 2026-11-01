@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/martynvdijke/sodapop/compare/v1.13.4...v1.14.0) (2026-11-01)
+
+
+### Features
+
+* **legal:** publish privacy, terms and deletion pages ([e6fd1c3](https://github.com/martynvdijke/sodapop/commit/e6fd1c3c865ebde98d87fc6667cf92d9e8296dd9))
+
 ## [1.13.4](https://github.com/martynvdijke/sodapop/compare/v1.13.3...v1.13.4) (2026-11-01)
 
 
