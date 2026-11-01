@@ -118,6 +118,26 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The version code comes from the commit count, so the full history
+          # has to be present.
+          fetch-depth: 0
+
+      - name: Compute version code
+        id: version_code
+        # Play requires a code that increases on every upload in any track.
+        # The commit count keeps the APK and the bundle on one series, unlike
+        # github.run_number, which restarts whenever a workflow is replaced.
+        env:
+          PUBLISHED_VERSION_CODE: '74'
+        run: |
+          set -euo pipefail
+          code=$(git rev-list --count HEAD)
+          if [ "$code" -le "$PUBLISHED_VERSION_CODE" ]; then
+            echo "::error::Version code $code does not exceed $PUBLISHED_VERSION_CODE, which is already on Google Play. Check that the checkout has full history or raise PUBLISHED_VERSION_CODE."
+            exit 1
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
@@ -159,7 +179,7 @@ jobs:
         run: |
           flutter build apk --release \
             --build-name="$VERSION" \
-            --build-number="${{ github.run_number }}" \
+            --build-number="${{ steps.version_code.outputs.code }}" \
             --dart-define=APP_VERSION="$VERSION"
 
       - name: Build App Bundle
@@ -173,7 +193,7 @@ jobs:
           fi
           flutter build appbundle --release \
             --build-name="$VERSION" \
-            --build-number="${{ github.run_number }}" \
+            --build-number="${{ steps.version_code.outputs.code }}" \
             --dart-define=APP_VERSION="$VERSION"
 
       - name: Upload App Bundle artifact
