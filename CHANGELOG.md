@@ -1,3 +1,10 @@
+## [1.13.3](https://github.com/martynvdijke/sodapop/compare/v1.13.2...v1.13.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **web:** make the admin badge, digest and system pages self-explanatory ([90411f9](https://github.com/martynvdijke/sodapop/commit/90411f932320f3b7cb80b8dc26cd0e78fabb9dd0))
+
 ## [1.13.2](https://github.com/martynvdijke/sodapop/compare/v1.13.1...v1.13.2) (2026-11-01)
 
 
