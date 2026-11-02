@@ -13,6 +13,7 @@ import (
 	"sodapop/ent/report"
 	"sodapop/ent/session"
 	"sodapop/ent/user"
+	"sodapop/internal/auth"
 )
 
 // reportUserAndCheckin seeds the two report kinds the app can now file but the
@@ -298,5 +299,105 @@ func TestAdminReportSuspendRevokesAccess(t *testing.T) {
 	}
 	if rep.Status != report.StatusResolved {
 		t.Fatalf("report status = %s, want resolved", rep.Status)
+	}
+}
+
+func (h *v12Harness) postUnsuspend(t *testing.T, actor *ent.User, handle string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := h.request(http.MethodPost, "/admin/users/"+handle+"/unsuspend", actor, h.form())
+	req.SetPathValue("handle", handle)
+	rec := httptest.NewRecorder()
+	h.srv.requireAdmin(h.srv.adminUserUnsuspend)(rec, req)
+	return rec
+}
+
+func TestAdminUnsuspendRestoresSignIn(t *testing.T) {
+	h := newV12Harness(t)
+	ctx := context.Background()
+	admin := h.verifiedUser(t, "admin", user.RoleAdmin)
+	owner, _, _, userReport := h.reportUserAndCheckin(t)
+
+	if rec := h.postReportAction(t, admin, userReport.ID, "suspend", nil); rec.Code != http.StatusFound {
+		t.Fatalf("suspend status = %d, want 302", rec.Code)
+	}
+
+	rec := h.postUnsuspend(t, admin, owner.Handle)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("unsuspend status = %d, want 302: %s", rec.Code, rec.Body.String())
+	}
+	if loc := rec.Header().Get("Location"); loc != "/admin?done=restored" {
+		t.Fatalf("redirect = %q, want /admin?done=restored", loc)
+	}
+	restored, err := h.db.Client.User.Get(ctx, owner.ID)
+	if err != nil {
+		t.Fatalf("user: %v", err)
+	}
+	if restored.Status != user.StatusActive {
+		t.Fatalf("status = %s, want active", restored.Status)
+	}
+
+	// The status is what session and token auth check, so a fresh session for
+	// the restored account now resolves again.
+	res, err := h.srv.Auth.CreateSession(ctx, owner.ID, "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("session: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/settings", nil)
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookie, Value: res.Token})
+	if _, got, err := h.srv.Auth.CurrentSession(ctx, req); err != nil || got == nil || got.ID != owner.ID {
+		t.Fatalf("restored session did not authenticate: user=%v err=%v", got, err)
+	}
+}
+
+func TestAdminUnsuspendRefusesNonSuspendedAndMissing(t *testing.T) {
+	h := newV12Harness(t)
+	ctx := context.Background()
+	admin := h.verifiedUser(t, "admin", user.RoleAdmin)
+	active := h.verifiedUser(t, "active", user.RoleUser)
+	gone := h.verifiedUser(t, "gone", user.RoleUser)
+	if _, err := gone.Update().SetStatus(user.StatusDeleted).Save(ctx); err != nil {
+		t.Fatalf("set deleted: %v", err)
+	}
+
+	rec := h.postUnsuspend(t, admin, active.Handle)
+	if loc := rec.Header().Get("Location"); loc != "/admin?error=notsuspended" {
+		t.Fatalf("active redirect = %q, want /admin?error=notsuspended", loc)
+	}
+	if row, err := h.db.Client.User.Get(ctx, active.ID); err != nil || row.Status != user.StatusActive {
+		t.Fatalf("active user status changed: %v %v", row, err)
+	}
+
+	rec = h.postUnsuspend(t, admin, gone.Handle)
+	if loc := rec.Header().Get("Location"); loc != "/admin?error=notsuspended" {
+		t.Fatalf("deleted redirect = %q, want /admin?error=notsuspended", loc)
+	}
+	if row, err := h.db.Client.User.Get(ctx, gone.ID); err != nil || row.Status != user.StatusDeleted {
+		t.Fatalf("deleted user status changed: %v %v", row, err)
+	}
+
+	rec = h.postUnsuspend(t, admin, "nobody-here")
+	if loc := rec.Header().Get("Location"); loc != "/admin?error=missing" {
+		t.Fatalf("missing redirect = %q, want /admin?error=missing", loc)
+	}
+}
+
+func TestAdminUnsuspendRequiresModerator(t *testing.T) {
+	h := newV12Harness(t)
+	member := h.verifiedUser(t, "member", user.RoleUser)
+	target := h.verifiedUser(t, "target", user.RoleUser)
+	if _, err := target.Update().SetStatus(user.StatusSuspended).Save(context.Background()); err != nil {
+		t.Fatalf("suspend target: %v", err)
+	}
+
+	rec := h.postUnsuspend(t, member, target.Handle)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("member status = %d, want 403", rec.Code)
+	}
+	row, err := h.db.Client.User.Get(context.Background(), target.ID)
+	if err != nil {
+		t.Fatalf("user: %v", err)
+	}
+	if row.Status != user.StatusSuspended {
+		t.Fatalf("status = %s, want still suspended", row.Status)
 	}
 }

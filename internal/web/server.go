@@ -223,6 +223,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/reports/{id}/remove", s.requireAdmin(s.adminReportRemove))
 	mux.HandleFunc("POST /admin/reports/{id}/edit", s.requireAdmin(s.adminReportEdit))
 	mux.HandleFunc("POST /admin/reports/{id}/suspend", s.requireAdmin(s.adminReportSuspend))
+	mux.HandleFunc("POST /admin/users/{handle}/unsuspend", s.requireAdmin(s.adminUserUnsuspend))
 	mux.HandleFunc("POST /admin/reports/{id}/notes", s.requireAdmin(s.adminReportNoteCreate))
 	mux.HandleFunc("POST /admin/notes/{id}/delete", s.requireAdmin(s.adminNoteDelete))
 	mux.HandleFunc("POST /admin/drinks/{id}/activate", s.requireAdmin(s.adminDrinkActivate))

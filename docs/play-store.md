@@ -73,7 +73,9 @@ The UGC policy expects both reporting and blocking to exist inside the app:
 Operators act on those reports at `/admin`: resolve, dismiss, remove the
 content, rewrite a comment or note, or suspend the reported account. Suspension
 revokes sessions, API tokens and push devices, so a reviewer testing the report
-flow will find it closes end to end. The same queue accepts reports filed from
+flow will find it closes end to end. Suspended accounts are listed on the same
+page with a restore action, because a moderation tool that cannot undo a
+suspension is a one-way door. The same queue accepts reports filed from
 the browser on a check-in page or a profile.
 
 A manual `flutter build appbundle --release` is signed only if

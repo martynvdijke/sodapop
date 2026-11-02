@@ -48,5 +48,27 @@ test.describe('moderation queue', () => {
     // Suspension is not cosmetic: the target's session stops working at once.
     await page.goto('/settings');
     await expect(page).toHaveURL(/\/login/);
+
+    // Restoring is the counterpart. The report that caused the suspension is
+    // resolved, so the operator acts from the suspended-accounts table.
+    await moderator.goto('/admin');
+    const suspendedRow = moderator.locator('#suspended-accounts tr').filter({ hasText: target.handle });
+    await expect(suspendedRow).toBeVisible();
+
+    moderator.once('dialog', (dialog) => dialog.accept());
+    await suspendedRow.getByRole('button', { name: 'Restore account' }).click();
+
+    await expect(moderator).toHaveURL(/\/admin\?done=restored$/);
+    await expect(moderator.getByText('Account restored.')).toBeVisible();
+    await expect(moderator.locator('#suspended-accounts tr').filter({ hasText: target.handle })).toHaveCount(0);
+
+    // And the account can sign in again.
+    await page.goto('/login');
+    await page.getByLabel('Email or handle').fill(target.handle);
+    await page.getByLabel('Password', { exact: true }).fill(target.password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    const settings = await page.goto('/settings');
+    expect(settings?.status()).toBe(200);
   });
 });

@@ -390,6 +390,15 @@ type adminNoteView struct {
 	CreatedAt    string
 }
 
+// adminSuspendedUserView is one row in the suspended-accounts table. Handles
+// are the stable key because suspension resolves the report that caused it, so
+// the queue no longer holds the row this table is meant to undo.
+type adminSuspendedUserView struct {
+	Handle      string
+	Name        string
+	SuspendedAt string
+}
+
 type adminDrinkView struct {
 	ID        int
 	Slug      string
@@ -598,6 +607,21 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 		drinkViews = append(drinkViews, adminDrinkView{ID: row.ID, Slug: row.Slug, Name: row.Name, Brand: brand, CreatedAt: row.CreatedAt})
 	}
 	users, _ := s.Auth.Client.User.Query().Count(ctx)
+	suspended, _ := s.Auth.Client.User.Query().
+		Where(user.StatusEQ(user.StatusSuspended), user.DeletedAtIsNil()).
+		Order(ent.Desc(user.FieldUpdatedAt)).Limit(50).All(ctx)
+	suspendedViews := make([]adminSuspendedUserView, 0, len(suspended))
+	for _, row := range suspended {
+		name := row.DisplayName
+		if name == "" {
+			name = "@" + row.Handle
+		}
+		suspendedViews = append(suspendedViews, adminSuspendedUserView{
+			Handle:      row.Handle,
+			Name:        name,
+			SuspendedAt: row.UpdatedAt,
+		})
+	}
 	endpoints, _ := s.AI.ListEndpoints(ctx)
 	revisions, _ := s.Auth.Client.CatalogRevision.Query().
 		Order(ent.Desc(catalogrevision.FieldCreatedAt)).Limit(20).All(ctx)
@@ -613,8 +637,10 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	data := map[string]any{
 		"Title": "Admin", "Reports": reportViews, "ProvisionalDrinks": drinkViews,
-		"Users": users, "AIEndpoints": endpoints, "Revisions": revisionViews,
+		"Users": users, "SuspendedUsers": suspendedViews, "AIEndpoints": endpoints,
+		"Revisions":   revisionViews,
 		"OpenReports": len(reportViews), "Provisional": len(drinkViews),
+		"Suspended": len(suspendedViews),
 	}
 	data["Notice"], data["Error"] = adminReportQueryMessages(r)
 	if u := UserFromContext(r); u != nil {
@@ -754,12 +780,16 @@ func adminReportQueryMessages(r *http.Request) (notice, errMsg string) {
 		notice = "Content removed."
 	case "suspended":
 		notice = "Account suspended. Their sessions, tokens and push devices are revoked."
+	case "restored":
+		notice = "Account restored. They can sign in again."
 	}
 	switch r.URL.Query().Get("error") {
 	case "invalid":
 		errMsg = "That change was not valid. Comments and notes are capped at 1,000 characters."
 	case "missing":
 		errMsg = "That content no longer exists."
+	case "notsuspended":
+		errMsg = "That account is not suspended, so there is nothing to restore."
 	}
 	return notice, errMsg
 }
@@ -868,6 +898,45 @@ func (s *Server) adminReportSuspend(w http.ResponseWriter, r *http.Request) {
 		SetStatus(report.StatusResolved).
 		SetResolvedAt(time.Now().UTC().Format(time.RFC3339)).Save(ctx)
 	http.Redirect(w, r, "/admin?done=suspended", http.StatusFound)
+}
+
+// adminUserUnsuspend reverses a suspension. It lives outside the report queue
+// on purpose: suspending resolves the report that triggered it, so the queue
+// has nothing left to act from and an operator needs a durable place to undo a
+// mistake. Only `suspended` accounts are touched; a deleted account is a
+// different state with a different promise.
+func (s *Server) adminUserUnsuspend(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	ctx := r.Context()
+	handle := strings.ToLower(strings.TrimSpace(r.PathValue("handle")))
+	if handle == "" {
+		http.NotFound(w, r)
+		return
+	}
+	target, err := s.Auth.Client.User.Query().
+		Where(user.HandleEqualFold(handle), user.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			http.Redirect(w, r, "/admin?error=missing", http.StatusFound)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	if target.Status != user.StatusSuspended {
+		http.Redirect(w, r, "/admin?error=notsuspended", http.StatusFound)
+		return
+	}
+	if _, err := target.Update().
+		SetStatus(user.StatusActive).
+		SetUpdatedAt(db.Now()).Save(ctx); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/admin?done=restored", http.StatusFound)
 }
 
 func (s *Server) setReportStatus(w http.ResponseWriter, r *http.Request, status string) {

@@ -23,6 +23,7 @@
   <div><strong>{{.OpenReports}}</strong><span>open reports</span></div>
   <div><strong>{{.Provisional}}</strong><span>provisional sodas</span></div>
   <div><strong>{{.Users}}</strong><span>accounts</span></div>
+  {{if .Suspended}}<div><strong>{{.Suspended}}</strong><span>suspended</span></div>{{end}}
 </section>
 
 <h2>Moderation queue</h2>
@@ -107,6 +108,30 @@
     </section>
   </article>
 {{else}}<div class="empty"><p>No open reports. Rare and pleasant.</p></div>{{end}}
+
+{{if .SuspendedUsers}}
+<section id="suspended-accounts">
+<h2>Suspended accounts</h2>
+<p class="muted">Suspension signs the account out everywhere and blocks sign-in. Restoring re-enables sign-in; their check-ins and comments were never touched.</p>
+<table class="admin-table">
+  <thead><tr><th>Account</th><th>Suspended</th><th></th></tr></thead>
+  <tbody>
+  {{range .SuspendedUsers}}
+    <tr>
+      <td>{{.Name}} <span class="muted">@{{.Handle}}</span></td>
+      <td>{{.SuspendedAt}}</td>
+      <td>
+        <form method="post" action="/admin/users/{{.Handle}}/unsuspend" class="inline" onsubmit="return confirm('Restore @{{.Handle}}? They can sign in again immediately.');">
+          <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+          <button class="btn btn-small" type="submit">Restore account</button>
+        </form>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+{{end}}
 
 <h2>Provisional catalog rows</h2>
 <table class="admin-table">

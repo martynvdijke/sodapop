@@ -168,6 +168,7 @@ POST /admin/ai                  save an AI endpoint (admin or moderator)
 POST /admin/ai/{id}/toggle      enable or disable an AI endpoint (admin or moderator)
 POST /admin/ai/{id}/test        probe an AI endpoint (admin or moderator)
 POST /admin/reports/{id}/{resolve,dismiss,remove,edit,suspend,notes}   report actions (admin or moderator)
+POST /admin/users/{handle}/unsuspend          restore a suspended account (admin or moderator)
 POST /admin/notes/{id}/delete   delete an internal note (admin or moderator)
 POST /admin/drinks/{id}/status  lifecycle change (active/limited/seasonal/discontinued)
 POST /admin/drinks/{id}/activate  return a drink to active
