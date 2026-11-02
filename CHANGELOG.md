@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/martynvdijke/sodapop/compare/v1.16.0...v1.17.0) (2026-11-02)
+
+
+### Features
+
+* **moderation:** let an admin undo a suspension ([8d0a81a](https://github.com/martynvdijke/sodapop/commit/8d0a81a1c858f70a585fe2c812b490b3cd5207da))
+
 # [1.16.0](https://github.com/martynvdijke/sodapop/compare/v1.15.0...v1.16.0) (2026-11-01)
 
 
