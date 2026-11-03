@@ -349,6 +349,7 @@ func TestInvalidValuesRejected(t *testing.T) {
 		{KeySMTPPort, "smtp"},
 		{KeySMTPTLS, "plaintext"},
 		{KeySMTPFrom, "Evil\r\nBcc: x@example.test"},
+		{KeySMTPFrom, "not-an-address"},
 		{KeyUmamiURL, "ftp://umami.test"},
 		{KeyUmamiURL, "https://user:pass@umami.test"},
 		{KeyUmamiURL, "https://umami.test/script.js"},

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/mail"
 	"net/smtp"
 	"os"
 	"path/filepath"
@@ -178,18 +179,38 @@ func (m *Mailer) deliver(to string, p payload) error {
 		raw := "To: " + to + "\r\nFrom: " + smtpCfg.From + "\r\nSubject: " + p.Subject + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + p.Body
 		return os.WriteFile(filepath.Join(m.Cfg.EmailDevDir, name), []byte(raw), 0o640)
 	}
+	// Display names are legal in the From header but not in the SMTP envelope:
+	// net/smtp wraps the envelope sender in angle brackets, so
+	// "Sodapop <no-reply@example.com>" becomes an invalid MAIL FROM command.
+	envelope, header, err := envelopeFrom(smtpCfg.From)
+	if err != nil {
+		return err
+	}
 	addr := net.JoinHostPort(smtpCfg.Host, fmt.Sprintf("%d", smtpCfg.Port))
-	msg := []byte("To: " + to + "\r\nFrom: " + smtpCfg.From + "\r\nSubject: " + p.Subject + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + p.Body)
+	msg := []byte("To: " + to + "\r\nFrom: " + header + "\r\nSubject: " + p.Subject + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + p.Body)
 	var auth smtp.Auth
 	if smtpCfg.Username != "" {
 		auth = smtp.PlainAuth("", smtpCfg.Username, smtpCfg.Password, smtpCfg.Host)
 	}
 	switch strings.ToLower(smtpCfg.TLS) {
 	case "tls", "465":
-		return smtpSendTLS(addr, smtpCfg.Host, auth, smtpCfg.From, to, msg)
+		return smtpSendTLS(addr, smtpCfg.Host, auth, envelope, to, msg)
+	case "starttls":
+		return smtpSendStartTLS(addr, smtpCfg.Host, auth, envelope, to, msg)
 	default:
-		return smtp.SendMail(addr, auth, smtpCfg.From, []string{to}, msg)
+		return smtp.SendMail(addr, auth, envelope, []string{to}, msg)
 	}
+}
+
+// envelopeFrom returns the bare address for the SMTP envelope and the value to
+// use in the From header.
+func envelopeFrom(from string) (string, string, error) {
+	from = strings.TrimSpace(from)
+	addr, err := mail.ParseAddress(from)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid SMTP from address %q: %w", from, err)
+	}
+	return addr.Address, from, nil
 }
 
 func smtpSendTLS(addr, host string, auth smtp.Auth, from, to string, msg []byte) error {
@@ -197,10 +218,39 @@ func smtpSendTLS(addr, host string, auth smtp.Auth, from, to string, msg []byte)
 	if err != nil {
 		return err
 	}
-	c, err := smtp.NewClient(conn, host)
+	return smtpSendConn(conn, host, auth, from, to, msg)
+}
+
+// smtpSendStartTLS upgrades a plain connection before any credentials are
+// exchanged. STARTTLS is mandatory here: silently falling back to plaintext
+// would put the SMTP password on the wire.
+func smtpSendStartTLS(addr, host string, auth smtp.Auth, from, to string, msg []byte) error {
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return err
 	}
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
+	if err := c.StartTLS(&tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}); err != nil {
+		_ = c.Close()
+		return err
+	}
+	return smtpSendClient(c, auth, from, to, msg)
+}
+
+func smtpSendConn(conn net.Conn, host string, auth smtp.Auth, from, to string, msg []byte) error {
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
+	return smtpSendClient(c, auth, from, to, msg)
+}
+
+func smtpSendClient(c *smtp.Client, auth smtp.Auth, from, to string, msg []byte) error {
 	defer c.Close()
 	if auth != nil {
 		if err := c.Auth(auth); err != nil {

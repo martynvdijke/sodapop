@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/url"
 	"strconv"
 	"strings"
@@ -210,6 +211,12 @@ func normalizeValue(key, raw string) (string, error) {
 		}
 		if len(v) > 320 || strings.ContainsAny(v, "\r\n") {
 			return "", invalid("%s is invalid", key)
+		}
+		// Accept "Name <user@example.com>" and bare addresses, but reject
+		// values that would produce an invalid SMTP envelope sender.
+		addr, err := mail.ParseAddress(v)
+		if err != nil || addr.Address == "" {
+			return "", invalid("%s must be a valid email address", key)
 		}
 		return v, nil
 

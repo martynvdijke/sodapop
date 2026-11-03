@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -87,7 +88,7 @@ func Load() (*Config, error) {
 		SMTPUser:         env("SMTP_USER", ""),
 		SMTPTLS:          env("SMTP_TLS", "starttls"),
 		SMTPFrom:         env("SMTP_FROM", "Sodapop <no-reply@sodapop.local>"),
-		EmailDevDir:      env("EMAIL_DEV_DIR", "data/outbox"),
+		EmailDevDir:      env("EMAIL_DEV_DIR", ""),
 		OFFBaseURL:       strings.TrimRight(env("OPENFOODFACTS_URL", "https://world.openfoodfacts.org"), "/"),
 		OFFUserAgent:     env("OPENFOODFACTS_USER_AGENT", "Sodapop/"+env("VERSION", "0.0.0-dev")+" (admin@sodapop.local)"),
 		OFFEnabled:       envBool("OPENFOODFACTS_ENABLED", true),
@@ -103,6 +104,11 @@ func Load() (*Config, error) {
 		LegalHostingRegion:  strings.TrimSpace(env("LEGAL_HOSTING_REGION", "")),
 	}
 	c.SessionTTL = envDuration("SESSION_TTL", 720*time.Hour)
+	if c.EmailDevDir == "" {
+		// The dev sink must live on the writable data volume. A relative
+		// default would resolve under the read-only working directory.
+		c.EmailDevDir = filepath.Join(c.DataDir, "outbox")
+	}
 
 	if err := c.loadFCM(); err != nil {
 		return nil, err

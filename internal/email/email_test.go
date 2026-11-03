@@ -130,3 +130,91 @@ func containsLine(lines []string, want string) bool {
 	}
 	return false
 }
+
+func drainLines(t *testing.T, lines <-chan string) []string {
+	t.Helper()
+	var got []string
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case line, ok := <-lines:
+			if !ok {
+				return got
+			}
+			got = append(got, line)
+		case <-timeout:
+			t.Fatalf("timed out waiting for SMTP session: %v", got)
+		}
+	}
+}
+
+func TestSendTestUsesBareEnvelopeSender(t *testing.T) {
+	host, port, lines := fakeSMTPServer(t)
+	database, err := db.Init(filepath.Join(t.TempDir(), "email.db"))
+	if err != nil {
+		t.Fatalf("db.Init: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	cfg := &config.Config{
+		SessionKey:  []byte("0123456789abcdef0123456789abcdef"),
+		EmailDevDir: t.TempDir(),
+		SMTPPort:    587,
+		SMTPFrom:    "default@example.test",
+		SMTPTLS:     "starttls",
+	}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	svc, err := settings.New(database.Client, cfg, "", log)
+	if err != nil {
+		t.Fatalf("settings.New: %v", err)
+	}
+	if err := svc.Load(context.Background()); err != nil {
+		t.Fatalf("settings.Load: %v", err)
+	}
+	for key, value := range map[string]string{
+		settings.KeySMTPHost: fmt.Sprintf("%s", host),
+		settings.KeySMTPPort: fmt.Sprintf("%d", port),
+		settings.KeySMTPFrom: "Sodapop <no-reply@example.test>",
+		settings.KeySMTPTLS:  "none",
+	} {
+		if err := svc.Set(context.Background(), key, value, false, "admin"); err != nil {
+			t.Fatalf("settings.Set(%s): %v", key, err)
+		}
+	}
+
+	mailer := New(cfg, database, log, svc)
+	if err := mailer.SendTest(context.Background(), "admin@example.com"); err != nil {
+		t.Fatalf("SendTest: %v", err)
+	}
+
+	got := drainLines(t, lines)
+	if !containsLine(got, "MAIL FROM:<no-reply@example.test>") {
+		t.Fatalf("envelope sender was not the bare address: %v", got)
+	}
+	if !containsLine(got, "From: Sodapop <no-reply@example.test>") {
+		t.Fatalf("From header lost its display name: %v", got)
+	}
+}
+
+func TestStartTLSRequiredWhenConfigured(t *testing.T) {
+	host, port, _ := fakeSMTPServer(t)
+	database, err := db.Init(filepath.Join(t.TempDir(), "email.db"))
+	if err != nil {
+		t.Fatalf("db.Init: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	cfg := &config.Config{
+		SessionKey:  []byte("0123456789abcdef0123456789abcdef"),
+		EmailDevDir: t.TempDir(),
+		SMTPHost:    host,
+		SMTPPort:    port,
+		SMTPFrom:    "no-reply@example.test",
+		SMTPTLS:     "starttls",
+	}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mailer := New(cfg, database, log)
+	if err := mailer.SendTest(context.Background(), "admin@example.com"); err == nil {
+		t.Fatal("SendTest succeeded against a server without STARTTLS")
+	}
+}
