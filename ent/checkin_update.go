@@ -153,6 +153,60 @@ func (_u *CheckinUpdate) ClearPhotoMediaID() *CheckinUpdate {
 	return _u
 }
 
+// SetLat sets the "lat" field.
+func (_u *CheckinUpdate) SetLat(v float64) *CheckinUpdate {
+	_u.mutation.ResetLat()
+	_u.mutation.SetLat(v)
+	return _u
+}
+
+// SetNillableLat sets the "lat" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillableLat(v *float64) *CheckinUpdate {
+	if v != nil {
+		_u.SetLat(*v)
+	}
+	return _u
+}
+
+// AddLat adds value to the "lat" field.
+func (_u *CheckinUpdate) AddLat(v float64) *CheckinUpdate {
+	_u.mutation.AddLat(v)
+	return _u
+}
+
+// ClearLat clears the value of the "lat" field.
+func (_u *CheckinUpdate) ClearLat() *CheckinUpdate {
+	_u.mutation.ClearLat()
+	return _u
+}
+
+// SetLng sets the "lng" field.
+func (_u *CheckinUpdate) SetLng(v float64) *CheckinUpdate {
+	_u.mutation.ResetLng()
+	_u.mutation.SetLng(v)
+	return _u
+}
+
+// SetNillableLng sets the "lng" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillableLng(v *float64) *CheckinUpdate {
+	if v != nil {
+		_u.SetLng(*v)
+	}
+	return _u
+}
+
+// AddLng adds value to the "lng" field.
+func (_u *CheckinUpdate) AddLng(v float64) *CheckinUpdate {
+	_u.mutation.AddLng(v)
+	return _u
+}
+
+// ClearLng clears the value of the "lng" field.
+func (_u *CheckinUpdate) ClearLng() *CheckinUpdate {
+	_u.mutation.ClearLng()
+	return _u
+}
+
 // SetVisibility sets the "visibility" field.
 func (_u *CheckinUpdate) SetVisibility(v checkin.Visibility) *CheckinUpdate {
 	_u.mutation.SetVisibility(v)
@@ -363,6 +417,24 @@ func (_u *CheckinUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.PhotoMediaIDCleared() {
 		_spec.ClearField(checkin.FieldPhotoMediaID, field.TypeString)
+	}
+	if value, ok := _u.mutation.Lat(); ok {
+		_spec.SetField(checkin.FieldLat, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLat(); ok {
+		_spec.AddField(checkin.FieldLat, field.TypeFloat64, value)
+	}
+	if _u.mutation.LatCleared() {
+		_spec.ClearField(checkin.FieldLat, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Lng(); ok {
+		_spec.SetField(checkin.FieldLng, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLng(); ok {
+		_spec.AddField(checkin.FieldLng, field.TypeFloat64, value)
+	}
+	if _u.mutation.LngCleared() {
+		_spec.ClearField(checkin.FieldLng, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.Visibility(); ok {
 		_spec.SetField(checkin.FieldVisibility, field.TypeEnum, value)
@@ -615,6 +687,60 @@ func (_u *CheckinUpdateOne) ClearPhotoMediaID() *CheckinUpdateOne {
 	return _u
 }
 
+// SetLat sets the "lat" field.
+func (_u *CheckinUpdateOne) SetLat(v float64) *CheckinUpdateOne {
+	_u.mutation.ResetLat()
+	_u.mutation.SetLat(v)
+	return _u
+}
+
+// SetNillableLat sets the "lat" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillableLat(v *float64) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetLat(*v)
+	}
+	return _u
+}
+
+// AddLat adds value to the "lat" field.
+func (_u *CheckinUpdateOne) AddLat(v float64) *CheckinUpdateOne {
+	_u.mutation.AddLat(v)
+	return _u
+}
+
+// ClearLat clears the value of the "lat" field.
+func (_u *CheckinUpdateOne) ClearLat() *CheckinUpdateOne {
+	_u.mutation.ClearLat()
+	return _u
+}
+
+// SetLng sets the "lng" field.
+func (_u *CheckinUpdateOne) SetLng(v float64) *CheckinUpdateOne {
+	_u.mutation.ResetLng()
+	_u.mutation.SetLng(v)
+	return _u
+}
+
+// SetNillableLng sets the "lng" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillableLng(v *float64) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetLng(*v)
+	}
+	return _u
+}
+
+// AddLng adds value to the "lng" field.
+func (_u *CheckinUpdateOne) AddLng(v float64) *CheckinUpdateOne {
+	_u.mutation.AddLng(v)
+	return _u
+}
+
+// ClearLng clears the value of the "lng" field.
+func (_u *CheckinUpdateOne) ClearLng() *CheckinUpdateOne {
+	_u.mutation.ClearLng()
+	return _u
+}
+
 // SetVisibility sets the "visibility" field.
 func (_u *CheckinUpdateOne) SetVisibility(v checkin.Visibility) *CheckinUpdateOne {
 	_u.mutation.SetVisibility(v)
@@ -855,6 +981,24 @@ func (_u *CheckinUpdateOne) sqlSave(ctx context.Context) (_node *Checkin, err er
 	}
 	if _u.mutation.PhotoMediaIDCleared() {
 		_spec.ClearField(checkin.FieldPhotoMediaID, field.TypeString)
+	}
+	if value, ok := _u.mutation.Lat(); ok {
+		_spec.SetField(checkin.FieldLat, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLat(); ok {
+		_spec.AddField(checkin.FieldLat, field.TypeFloat64, value)
+	}
+	if _u.mutation.LatCleared() {
+		_spec.ClearField(checkin.FieldLat, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Lng(); ok {
+		_spec.SetField(checkin.FieldLng, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLng(); ok {
+		_spec.AddField(checkin.FieldLng, field.TypeFloat64, value)
+	}
+	if _u.mutation.LngCleared() {
+		_spec.ClearField(checkin.FieldLng, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.Visibility(); ok {
 		_spec.SetField(checkin.FieldVisibility, field.TypeEnum, value)

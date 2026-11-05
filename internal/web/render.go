@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"sodapop/ent"
@@ -33,7 +34,7 @@ func NewRenderer() (*Renderer, error) {
 		"notifications", "checkin_detail", "settings", "forgot", "reset",
 		"browse", "brand", "style", "profile", "insights", "drops", "venues_saved", "saved", "nearby", "compare", "settings_blocked", "setup", "admin_settings",
 		"admin_system", "admin_badges", "admin_venues", "admin_digest", "share", "admin_deliveries",
-		"privacy", "terms", "account_delete"}
+		"privacy", "terms", "account_delete", "people"}
 	r := &Renderer{
 		pages:         map[string]*template.Template{},
 		imperialPages: map[string]*template.Template{},
@@ -65,7 +66,24 @@ func metricFuncs() template.FuncMap {
 		"volume":    templateVolume,
 		"per100":    templatePer100,
 		"truncate":  truncateText,
+		"isLast":    func(i, n int) bool { return i == n-1 },
+		"coord":     coordValue,
 	}
+}
+
+// coordValue renders a pointer or plain float with three decimal places, the
+// same precision the nearby search already shares. It is used for map links,
+// never for visible coordinate text.
+func coordValue(v any) string {
+	switch p := v.(type) {
+	case *float64:
+		if p != nil {
+			return strconv.FormatFloat(*p, 'f', 3, 64)
+		}
+	case float64:
+		return strconv.FormatFloat(p, 'f', 3, 64)
+	}
+	return ""
 }
 
 func imperialFuncs() template.FuncMap {

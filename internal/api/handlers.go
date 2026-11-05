@@ -357,6 +357,9 @@ type checkinRequest struct {
 	Note           string
 	Visibility     string
 	IdempotencyKey string
+	Lat            *float64
+	Lng            *float64
+	FriendIDs      []string
 }
 
 // createCheckin accepts JSON, or multipart/form-data with an optional `image`
@@ -374,6 +377,9 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 		Note           string   `json:"note"`
 		Visibility     string   `json:"visibility"`
 		IdempotencyKey string   `json:"idempotency_key"`
+		Lat            *float64 `json:"lat"`
+		Lng            *float64 `json:"lng"`
+		FriendIDs      []string `json:"friend_ids"`
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
@@ -381,6 +387,7 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 	return s.saveCheckin(w, r, tok, checkinRequest{
 		DrinkID: in.DrinkID, VenueID: in.VenueID, Rating: in.Rating, Serving: in.Serving,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
+		Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs,
 	}, nil)
 }
 
@@ -424,6 +431,23 @@ func (s *Server) createCheckinMultipart(w http.ResponseWriter, r *http.Request, 
 			return bad("invalid rating")
 		}
 		in.Rating = &rating
+	}
+	if raw := strings.TrimSpace(r.FormValue("lat")); raw != "" {
+		lat, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return bad("invalid lat")
+		}
+		in.Lat = &lat
+	}
+	if raw := strings.TrimSpace(r.FormValue("lng")); raw != "" {
+		lng, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return bad("invalid lng")
+		}
+		in.Lng = &lng
+	}
+	if r.MultipartForm != nil {
+		in.FriendIDs = append(in.FriendIDs, r.MultipartForm.Value["friend_ids"]...)
 	}
 
 	file, hdr, err := r.FormFile("image")
@@ -472,7 +496,7 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 	c, created, err := s.Checkins.Create(r.Context(), tok.User, checkins.CreateInput{
 		DrinkID: in.DrinkID, VenueID: in.VenueID, Rating: rating, Serving: in.Serving,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
-		PhotoMediaID: photoMediaID,
+		PhotoMediaID: photoMediaID, Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs,
 	})
 	if err != nil {
 		s.discardCheckinMedia(r.Context(), stored)
@@ -498,9 +522,14 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 			s.Integrations.Dispatch(r.Context(), integrations.Event{UserID: tok.User.ID, Kind: "checkin", Text: "Logged a soda.", URL: s.Integrations.BaseURL() + "/you"})
 		}
 	}
+	tags := []map[string]any{}
+	if detail, err := s.Checkins.Get(r.Context(), tok.User.ID, c.ID); err == nil {
+		tags = taggedFriendDTOs(detail.TaggedFriends)
+	}
 	data := map[string]any{
 		"id": c.ID, "drink_id": c.DrinkID, "rating": c.Rating, "visibility": c.Visibility,
 		"created_at": c.CreatedAt, "created": created,
+		"lat": c.Lat, "lng": c.Lng, "tagged_friends": tags,
 	}
 	if c.PhotoMediaID != nil && *c.PhotoMediaID != "" {
 		data["photo_media_id"] = *c.PhotoMediaID
@@ -575,12 +604,46 @@ func (s *Server) untoast(w http.ResponseWriter, r *http.Request, tok *auth.APITo
 }
 
 func (s *Server) searchVenues(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
-	results, err := s.Venues.Search(r.Context(), r.URL.Query().Get("q"), queryInt(r, "limit", 10, 20))
+	q := r.URL.Query()
+	lat, lng, err := optionalCoords(q.Get("lat"), q.Get("lng"))
+	if err != nil {
+		return err
+	}
+	radius := 0
+	if raw := strings.TrimSpace(q.Get("radius")); raw != "" {
+		radius, err = strconv.Atoi(raw)
+		if err != nil || radius <= 0 {
+			return bad("radius must be a positive number of metres")
+		}
+	}
+	results, err := s.Venues.SearchNear(r.Context(), q.Get("q"), queryInt(r, "limit", 10, 20), lat, lng, radius)
 	if err != nil {
 		return err
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": results})
 	return nil
+}
+
+// optionalCoords parses an optional lat/lng pair. Both must be present or both
+// absent; a single value or an out-of-range value is a bad request.
+func optionalCoords(latRaw, lngRaw string) (*float64, *float64, error) {
+	latRaw = strings.TrimSpace(latRaw)
+	lngRaw = strings.TrimSpace(lngRaw)
+	if latRaw == "" && lngRaw == "" {
+		return nil, nil, nil
+	}
+	if latRaw == "" || lngRaw == "" {
+		return nil, nil, bad("lat and lng must be provided together")
+	}
+	lat, err := strconv.ParseFloat(latRaw, 64)
+	if err != nil || math.IsNaN(lat) || math.IsInf(lat, 0) || lat < -90 || lat > 90 {
+		return nil, nil, bad("lat must be -90..90")
+	}
+	lng, err := strconv.ParseFloat(lngRaw, 64)
+	if err != nil || math.IsNaN(lng) || math.IsInf(lng, 0) || lng < -180 || lng > 180 {
+		return nil, nil, bad("lng must be -180..180")
+	}
+	return &lat, &lng, nil
 }
 
 func (s *Server) getVenue(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {

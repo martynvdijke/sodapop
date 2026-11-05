@@ -32,12 +32,20 @@
 
   {{if $c.Note}}<p class="detail-note">{{$c.Note}}</p>{{end}}
 
+  {{if $c.TaggedFriends}}
+    {{$tags := $c.TaggedFriends}}
+    <p class="detail-with">With {{range $i, $f := $tags}}{{if $i}}{{if isLast $i (len $tags)}} and {{else}}, {{end}}{{end}}<a href="/u/{{$f.Handle}}">{{if $f.DisplayName}}{{$f.DisplayName}}{{else}}@{{$f.Handle}}{{end}}</a>{{end}}</p>
+  {{end}}
+
   <div class="detail-meta">
     {{if $c.Visibility}}
       <span class="pill">{{if eq $c.Visibility "friends"}}Friends{{else if eq $c.Visibility "private"}}Only you{{else if eq $c.Visibility "public"}}Anyone{{end}}</span>
     {{end}}
     {{if $c.VenueName}}
       {{if $c.VenueID}}<a class="pill" href="/venues/{{$c.VenueID}}">{{$c.VenueName}}</a>{{else}}<span class="pill">{{$c.VenueName}}</span>{{end}}
+    {{end}}
+    {{if and $c.Lat $c.Lng (not $c.VenueName)}}
+      <a class="pill" href="https://www.openstreetmap.org/?mlat={{coord $c.Lat}}&amp;mlon={{coord $c.Lng}}#map=16/{{coord $c.Lat}}/{{coord $c.Lng}}" target="_blank" rel="nofollow noopener" aria-label="View the location of this check-in on OpenStreetMap">Location</a>
     {{end}}
   </div>
 

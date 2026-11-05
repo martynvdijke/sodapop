@@ -198,10 +198,9 @@ class Drink {
           .whereType<Map>()
           .map((row) => DrinkFlavour.fromJson(row.cast<String, dynamic>()))
           .toList(),
-      aliases: _list(json['aliases'])
-          .map(_string)
-          .where((alias) => alias.isNotEmpty)
-          .toList(),
+      aliases: _list(
+        json['aliases'],
+      ).map(_string).where((alias) => alias.isNotEmpty).toList(),
       barcodeCount: _int(json['barcode_count']) ?? 0,
     );
   }
@@ -250,6 +249,27 @@ class DrinkImage {
   }
 }
 
+/// A friend tagged on a check-in. The server sends only these three fields.
+class TaggedFriend {
+  const TaggedFriend({this.id = '', this.handle = '', this.displayName = ''});
+
+  final String id;
+  final String handle;
+  final String displayName;
+
+  String get name => displayName.isNotEmpty
+      ? displayName
+      : handle.isNotEmpty
+      ? '@$handle'
+      : '';
+
+  factory TaggedFriend.fromJson(Map<String, dynamic> json) => TaggedFriend(
+    id: _string(json['id']),
+    handle: _string(json['handle']),
+    displayName: _string(json['display_name']),
+  );
+}
+
 class FeedItem {
   const FeedItem({
     required this.id,
@@ -262,11 +282,15 @@ class FeedItem {
     this.note = '',
     this.venueName = '',
     this.photoId = '',
+    this.photoMime = '',
     this.createdAt = '',
     this.toasts = 0,
     this.comments = 0,
     this.toasted = false,
     this.saved = false,
+    this.lat,
+    this.lng,
+    this.taggedFriends = const [],
   });
 
   final String id;
@@ -279,6 +303,10 @@ class FeedItem {
   final String note;
   final String venueName;
   final String photoId;
+
+  /// `image/...` or `video/...` when the feed row carries it. Older rows omit
+  /// the mime, so only the id is guaranteed.
+  final String photoMime;
   final String createdAt;
   final int toasts;
 
@@ -288,6 +316,13 @@ class FeedItem {
   final bool toasted;
   final bool saved;
 
+  /// Set when the check-in was shared from a place without a venue.
+  final double? lat;
+  final double? lng;
+  final List<TaggedFriend> taggedFriends;
+
+  bool get hasLocation => lat != null && lng != null;
+
   /// The friends feed is flat; `/me/saved` reuses the nested check-in detail
   /// projection and adds `saved`, so both shapes are accepted here.
   factory FeedItem.fromJson(Map<String, dynamic> json) {
@@ -295,11 +330,7 @@ class FeedItem {
     final drink = _map(json['drink']);
     final venue = _map(json['venue']);
     final photo = _map(json['photo']);
-    final drinkName = _firstString([
-      json['drink_name'],
-      drink['name'],
-      'Soda',
-    ]);
+    final drinkName = _firstString([json['drink_name'], drink['name'], 'Soda']);
     return FeedItem(
       id: _string(json['id']),
       handle: _firstString([json['handle'], user['handle']]),
@@ -320,6 +351,7 @@ class FeedItem {
       note: _string(json['note']),
       venueName: _firstString([json['venue_name'], venue['name']]),
       photoId: _firstString([photo['id'], json['photo_id']]),
+      photoMime: _firstString([photo['mime'], json['photo_mime']]),
       createdAt: _firstString([json['created_at'], json['createdAt']]),
       toasts: _int(_firstValue([json['toasts'], json['toast_count']])) ?? 0,
       comments:
@@ -333,6 +365,12 @@ class FeedItem {
           0,
       toasted: _bool(json['toasted']),
       saved: _bool(json['saved']),
+      lat: _double(json['lat']),
+      lng: _double(json['lng']),
+      taggedFriends: _list(json['tagged_friends'])
+          .whereType<Map>()
+          .map((row) => TaggedFriend.fromJson(row.cast<String, dynamic>()))
+          .toList(),
     );
   }
 
@@ -348,11 +386,15 @@ class FeedItem {
         note: note,
         venueName: venueName,
         photoId: photoId,
+        photoMime: photoMime,
         createdAt: createdAt,
         toasts: toasts ?? this.toasts,
         comments: comments ?? this.comments,
         toasted: toasted ?? this.toasted,
         saved: saved ?? this.saved,
+        lat: lat,
+        lng: lng,
+        taggedFriends: taggedFriends,
       );
 }
 
@@ -410,25 +452,79 @@ class NearbyPage {
   }
 }
 
-class BarcodeResult {
-  const BarcodeResult({
-    required this.status,
-    this.drink,
-    this.suggestedName = '',
+/// An Open Food Facts guess for a barcode that is not in the catalog yet.
+class BarcodeSuggestion {
+  const BarcodeSuggestion({
+    this.name = '',
+    this.brand = '',
+    this.quantity = '',
+    this.imageUrl = '',
+    this.barcode = '',
   });
+
+  final String name;
+  final String brand;
+  final String quantity;
+  final String imageUrl;
+  final String barcode;
+
+  bool get isEmpty =>
+      name.isEmpty && brand.isEmpty && quantity.isEmpty && barcode.isEmpty;
+
+  /// The label volume in millilitres when [quantity] is a plain metric amount.
+  ///
+  /// Open Food Facts also returns imperial and multipack strings; those are
+  /// left to the drinker rather than guessed.
+  int? get volumeMl {
+    final match = RegExp(
+      r'^\s*([0-9]+(?:[.,][0-9]+)?)\s*(ml|cl|l)\s*$',
+      caseSensitive: false,
+    ).firstMatch(quantity);
+    if (match == null) return null;
+    final amount = double.tryParse(match.group(1)!.replaceAll(',', '.'));
+    if (amount == null) return null;
+    final unit = match.group(2)!.toLowerCase();
+    final ml = switch (unit) {
+      'l' => amount * 1000,
+      'cl' => amount * 10,
+      _ => amount,
+    };
+    final rounded = ml.round();
+    return rounded >= 1 && rounded <= 5000 ? rounded : null;
+  }
+
+  factory BarcodeSuggestion.fromJson(Map<String, dynamic> json) =>
+      BarcodeSuggestion(
+        name: _string(json['name']).trim(),
+        brand: _string(json['brand']).trim(),
+        quantity: _string(json['quantity']).trim(),
+        imageUrl: _string(json['image_url']).trim(),
+        barcode: _string(json['barcode']).trim(),
+      );
+}
+
+class BarcodeResult {
+  const BarcodeResult({required this.status, this.drink, this.suggested});
 
   final String status;
   final Drink? drink;
-  final String suggestedName;
+
+  /// The server's Open Food Facts guess when the barcode is not in the local
+  /// catalog.
+  final BarcodeSuggestion? suggested;
 
   bool get matched => status == 'matched' && drink != null;
 
   factory BarcodeResult.fromJson(Map<String, dynamic> json) => BarcodeResult(
     status: '${json['status'] ?? 'unknown'}',
-    drink: json['drink'] is Map<String, dynamic>
-        ? Drink.fromJson(json['drink'] as Map<String, dynamic>)
+    drink: json['drink'] is Map
+        ? Drink.fromDetail((json['drink'] as Map).cast<String, dynamic>())
         : null,
-    suggestedName: '${json['suggested_name'] ?? ''}',
+    suggested: json['suggested'] is Map
+        ? BarcodeSuggestion.fromJson(
+            (json['suggested'] as Map).cast<String, dynamic>(),
+          )
+        : null,
   );
 }
 
@@ -445,6 +541,7 @@ class Venue {
     this.website = '',
     this.lat = 0,
     this.lng = 0,
+    this.distanceM = 0,
   });
 
   final int id;
@@ -459,6 +556,10 @@ class Venue {
   final double lat;
   final double lng;
 
+  /// Distance from the coordinates sent with the request. Zero when the
+  /// server did not have a location to compare against.
+  final int distanceM;
+
   factory Venue.fromJson(Map<String, dynamic> json) => Venue(
     id: _int(json['id']) ?? 0,
     name: _string(json['name']),
@@ -471,6 +572,7 @@ class Venue {
     website: _string(json['website']),
     lat: _double(json['lat']) ?? 0,
     lng: _double(json['lng']) ?? 0,
+    distanceM: _int(json['distance_m']) ?? 0,
   );
 }
 
@@ -514,6 +616,9 @@ class CheckinDetail {
     this.venueName = '',
     this.photoId = '',
     this.photoMime = '',
+    this.lat,
+    this.lng,
+    this.taggedFriends = const [],
     this.canDelete = false,
     this.canToast = false,
     this.canComment = false,
@@ -539,6 +644,12 @@ class CheckinDetail {
   final String venueName;
   final String photoId;
   final String photoMime;
+  final double? lat;
+  final double? lng;
+  final List<TaggedFriend> taggedFriends;
+
+  bool get hasLocation => lat != null && lng != null;
+
   final bool canDelete;
   final bool canToast;
   final bool canComment;
@@ -593,6 +704,12 @@ class CheckinDetail {
       venueName: _firstString([venue['name'], json['venue_name']]),
       photoId: _firstString([photo['id'], json['photo_id']]),
       photoMime: _firstString([photo['mime'], json['photo_mime']]),
+      lat: _double(json['lat']),
+      lng: _double(json['lng']),
+      taggedFriends: _list(json['tagged_friends'])
+          .whereType<Map>()
+          .map((row) => TaggedFriend.fromJson(row.cast<String, dynamic>()))
+          .toList(),
       canDelete: _bool(json['can_delete']),
       canToast: _bool(json['can_toast']),
       canComment: _bool(json['can_comment']),
@@ -658,11 +775,7 @@ class CheckinSummary {
       venueName: _firstString([json['venue_name'], venue['name']]),
       visibility: _string(json['visibility']),
       createdAt: _firstString([json['created_at'], json['createdAt']]),
-      photoUrl: _firstString([
-        json['photo_url'],
-        photo['url'],
-        photo['id'],
-      ]),
+      photoUrl: _firstString([json['photo_url'], photo['url'], photo['id']]),
     );
   }
 }
@@ -1822,16 +1935,17 @@ class AccountSettings {
   final int tokenCount;
   final int blockedCount;
 
-  factory AccountSettings.fromJson(Map<String, dynamic> json) => AccountSettings(
-    profile: SettingsProfile.fromJson(_map(json['profile'])),
-    prefs: SettingsPrefs.fromJson(_map(json['prefs'])),
-    sessions: _list(json['sessions'])
-        .whereType<Map>()
-        .map((row) => SettingsSession.fromJson(row.cast<String, dynamic>()))
-        .toList(),
-    tokenCount: _int(json['token_count']) ?? 0,
-    blockedCount: _int(json['blocked_count']) ?? 0,
-  );
+  factory AccountSettings.fromJson(Map<String, dynamic> json) =>
+      AccountSettings(
+        profile: SettingsProfile.fromJson(_map(json['profile'])),
+        prefs: SettingsPrefs.fromJson(_map(json['prefs'])),
+        sessions: _list(json['sessions'])
+            .whereType<Map>()
+            .map((row) => SettingsSession.fromJson(row.cast<String, dynamic>()))
+            .toList(),
+        tokenCount: _int(json['token_count']) ?? 0,
+        blockedCount: _int(json['blocked_count']) ?? 0,
+      );
 }
 
 /// One account the viewer has blocked.
@@ -1866,19 +1980,105 @@ class AuthConfig {
     this.passwordFallback = false,
     this.oidcEnabled = false,
     this.emailVerificationRequired = false,
+    this.demoEnabled = false,
+    this.demoHandle = '',
+    this.demoPassword = '',
   });
 
   final bool registrationOpen;
   final bool passwordFallback;
   final bool oidcEnabled;
   final bool emailVerificationRequired;
+  final bool demoEnabled;
+  final String demoHandle;
+  final String demoPassword;
 
-  factory AuthConfig.fromJson(Map<String, dynamic> json) => AuthConfig(
-    registrationOpen: _bool(json['registration_open']),
-    passwordFallback: _bool(json['password_fallback']),
-    oidcEnabled: _bool(json['oidc_enabled']),
-    emailVerificationRequired: _bool(json['email_verification_required']),
+  factory AuthConfig.fromJson(Map<String, dynamic> json) {
+    final demo = _map(json['demo']);
+    return AuthConfig(
+      registrationOpen: _bool(json['registration_open']),
+      passwordFallback: _bool(json['password_fallback']),
+      oidcEnabled: _bool(json['oidc_enabled']),
+      emailVerificationRequired: _bool(json['email_verification_required']),
+      demoEnabled: _bool(demo['enabled']),
+      demoHandle: _string(demo['handle']),
+      demoPassword: _string(demo['password']),
+    );
+  }
+}
+
+/// One opted-in public profile from the logged-out people directory.
+class PublicPerson {
+  const PublicPerson({
+    required this.handle,
+    this.displayName = '',
+    this.bio = '',
+    this.pours = 0,
+    this.styles = 0,
+    this.lastPour = '',
+    this.avatarUrl = '',
+  });
+
+  final String handle;
+  final String displayName;
+  final String bio;
+  final int pours;
+  final int styles;
+  final String lastPour;
+  final String avatarUrl;
+
+  factory PublicPerson.fromJson(Map<String, dynamic> json) => PublicPerson(
+    handle: _string(json['handle']),
+    displayName: _string(json['display_name']),
+    bio: _string(json['bio']),
+    pours: _int(json['pours']) ?? 0,
+    styles: _int(json['styles']) ?? 0,
+    lastPour: _string(json['last_pour']),
+    avatarUrl: _string(json['avatar_url']),
   );
+}
+
+/// Public profile header for the read-only preview.
+class PublicProfile {
+  const PublicProfile({
+    required this.handle,
+    this.displayName = '',
+    this.bio = '',
+    this.joinedAt = '',
+    this.pours = 0,
+    this.styles = 0,
+    this.venues = 0,
+    this.badges = 0,
+    this.uniqueDrinks = 0,
+    this.toasts = 0,
+  });
+
+  final String handle;
+  final String displayName;
+  final String bio;
+  final String joinedAt;
+  final int pours;
+  final int styles;
+  final int venues;
+  final int badges;
+  final int uniqueDrinks;
+  final int toasts;
+
+  factory PublicProfile.fromJson(Map<String, dynamic> json) {
+    final stats = _map(json['stats']);
+    return PublicProfile(
+      handle: _string(json['handle']),
+      displayName: _string(json['display_name']),
+      bio: _string(json['bio']),
+      joinedAt: _string(json['joined_at']),
+      pours: _int(stats['pours']) ?? 0,
+      styles: _int(stats['styles']) ?? 0,
+      venues: _int(stats['venues']) ?? 0,
+      badges: _int(stats['badges']) ?? 0,
+      uniqueDrinks: _int(stats['unique_drinks']) ?? 0,
+      toasts: _int(stats['toasts']) ?? 0,
+    );
+  }
 }
 
 /// The outcome of `POST /api/v1/auth/register`.
@@ -1920,5 +2120,42 @@ class AiCommit {
     status: _string(json['status']),
     sessionId: _string(json['session_id']),
     message: _string(json['message']),
+  );
+}
+
+/// The outcome of `POST /api/v1/drinks`.
+///
+/// The server deduplicates: it answers 201 when it created the row and 200
+/// when an equivalent soda already existed. [created] carries that distinction
+/// so callers can word the confirmation without re-checking the status code.
+class DrinkCreation {
+  const DrinkCreation({
+    this.id = 0,
+    this.slug = '',
+    this.name = '',
+    this.status = '',
+    this.message = '',
+    this.created = false,
+  });
+
+  final int id;
+  final String slug;
+  final String name;
+  final String status;
+  final String message;
+
+  /// True only for a fresh row (HTTP 201).
+  final bool created;
+
+  factory DrinkCreation.fromJson(
+    Map<String, dynamic> json, {
+    required bool created,
+  }) => DrinkCreation(
+    id: _int(json['id']) ?? 0,
+    slug: _string(json['slug']),
+    name: _string(json['name']),
+    status: _string(json['status']),
+    message: _string(json['message']),
+    created: created,
   );
 }

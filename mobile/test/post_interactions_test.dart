@@ -41,8 +41,10 @@ class _FeedApi extends ApiClient {
   final List<String> unsaved = [];
 
   @override
-  Future<List<FeedItem>> feed({int limit = 30}) async =>
-      const [_savedPour, _unsavedPour];
+  Future<List<FeedItem>> feed({int limit = 30}) async => const [
+    _savedPour,
+    _unsavedPour,
+  ];
 
   @override
   Future<void> saveCheckin(String id) async {
@@ -141,6 +143,59 @@ class _SavedApi extends ApiClient {
     cursors.add(before);
     return pages[before ?? 'first'] ?? const [];
   }
+}
+
+class _PhotoFeedApi extends ApiClient {
+  _PhotoFeedApi() {
+    configure('https://soda.test', token: 'sd_test');
+  }
+
+  @override
+  Future<List<FeedItem>> feed({int limit = 30}) async => const [
+    FeedItem(
+      id: 'c9',
+      handle: 'ada',
+      displayName: 'Ada Lovelace',
+      drinkName: 'Cherry Cola',
+      drinkSlug: 'cherry-cola',
+      note: 'Cold and sharp.',
+      venueName: 'Corner Shop',
+      photoId: 'm9',
+      taggedFriends: [
+        TaggedFriend(
+          id: 'u-grace',
+          handle: 'grace',
+          displayName: 'Grace Hopper',
+        ),
+      ],
+      lat: 51.5,
+      lng: -0.12,
+    ),
+  ];
+}
+
+class _TaggedDetailApi extends ApiClient {
+  @override
+  Future<CheckinDetail> getCheckin(String id) async => const CheckinDetail(
+    id: 'c-tagged',
+    handle: 'ada',
+    displayName: 'Ada Lovelace',
+    initial: 'A',
+    drinkSlug: 'cherry-cola',
+    drinkName: 'Cherry Cola',
+    lat: 51.5,
+    lng: -0.12,
+    taggedFriends: [
+      TaggedFriend(id: 'u-grace', handle: 'grace', displayName: 'Grace Hopper'),
+    ],
+  );
+
+  @override
+  Future<CommentPage> commentPage(
+    String checkinId, {
+    String? before,
+    int limit = 50,
+  }) async => const CommentPage();
 }
 
 Widget _app(ApiClient api, Widget home) => ProviderScope(
@@ -266,9 +321,7 @@ void main() {
   });
 
   group('saved posts', () {
-    testWidgets('loads the first page and appends older saves', (
-      tester,
-    ) async {
+    testWidgets('loads the first page and appends older saves', (tester) async {
       tester.view.physicalSize = const Size(420, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -337,10 +390,7 @@ void main() {
           nextBefore: 'm1',
         ),
         older: CommentPage(
-          items: [
-            _comment('m1', 'Oldest note'),
-            _comment('m2', 'Middle note'),
-          ],
+          items: [_comment('m1', 'Oldest note'), _comment('m2', 'Middle note')],
           count: 2,
         ),
       );
@@ -373,7 +423,10 @@ void main() {
 
       final api = _DetailApi(
         newest: CommentPage(
-          items: [_comment('m1', 'Great fizz.'), _comment('m2', 'Thank you', handle: 'ada', canDelete: true)],
+          items: [
+            _comment('m1', 'Great fizz.'),
+            _comment('m2', 'Thank you', handle: 'ada', canDelete: true),
+          ],
           count: 2,
         ),
       );
@@ -394,9 +447,7 @@ void main() {
       expect(field.focusNode?.hasFocus, isTrue);
     });
 
-    testWidgets('mention links hand the handle to the profile', (
-      tester,
-    ) async {
+    testWidgets('mention links hand the handle to the profile', (tester) async {
       String? tapped;
       await tester.pumpWidget(
         MaterialApp(
@@ -423,6 +474,42 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tapped, 'grace');
+    });
+  });
+
+  group('feed media and tags', () {
+    testWidgets('renders the check-in photo and tagged friends', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(420, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(_app(_PhotoFeedApi(), const FeedScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('feed-photo-c9')), findsOneWidget);
+      expect(find.text('with Grace Hopper'), findsOneWidget);
+      expect(find.text('at Corner Shop'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('check-in detail shows tags and a location chip', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(420, 1100);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _app(_TaggedDetailApi(), const CheckinDetailScreen(checkinId: 'c1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('detail-tags')), findsOneWidget);
+      expect(find.text('With Grace Hopper'), findsOneWidget);
+      expect(find.text('Location shared'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

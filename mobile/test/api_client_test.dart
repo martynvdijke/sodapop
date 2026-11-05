@@ -114,6 +114,31 @@ void main() {
         'visibility': 'friends',
       });
     });
+
+    test('carries a fix and tagged friends, and returns the row id', () async {
+      final h = _Harness(body: '{"data":{"id":"c9"}}', status: 201);
+      final id = await h.api.createCheckin(
+        drinkId: 7,
+        lat: 51.50722,
+        lng: -0.1275,
+        friendIds: const ['u-ada', ' ', 'u-grace'],
+      );
+
+      expect(id, 'c9');
+      expect(h.adapter.requests.single.data, {
+        'drink_id': 7,
+        'lat': 51.50722,
+        'lng': -0.1275,
+        'friend_ids': ['u-ada', 'u-grace'],
+      });
+    });
+
+    test('a lone coordinate is omitted entirely', () async {
+      final h = _Harness();
+      await h.api.createCheckin(drinkId: 7, lat: 51.5);
+
+      expect(h.adapter.requests.single.data, {'drink_id': 7});
+    });
   });
 
   group('createCheckin multipart', () {
@@ -179,6 +204,27 @@ void main() {
         h.captured!.files.single.value.contentType?.mimeType,
         'image/jpeg',
       );
+    });
+
+    test('adds lat/lng and repeated friend ids', () async {
+      final h = _Harness(body: '{"data":{"id":"c10"}}', status: 201);
+      final id = await h.api.createCheckin(
+        drinkId: 7,
+        lat: 51.50722,
+        lng: -0.1275,
+        friendIds: const ['u-ada', 'u-grace'],
+        photo: Uint8List.fromList([1]),
+      );
+
+      final form = h.captured!;
+      expect(_fields(form), containsPair('lat', '51.50722'));
+      expect(_fields(form), containsPair('lng', '-0.1275'));
+      final friends = form.fields
+          .where((field) => field.key == 'friend_ids')
+          .map((field) => field.value)
+          .toList();
+      expect(friends, ['u-ada', 'u-grace']);
+      expect(id, 'c10');
     });
   });
 
@@ -271,8 +317,14 @@ void main() {
       expect(h.captured!.files.single.key, 'image');
       expect(h.captured!.files.single.value.filename, 'cola.jpg');
       expect(h.captured!.files.single.value.length, 4);
-      expect(h.captured!.files.single.value.contentType?.mimeType, 'image/jpeg');
-      expect(h.adapter.bodies.single, contains('name="image"; filename="cola.jpg"'));
+      expect(
+        h.captured!.files.single.value.contentType?.mimeType,
+        'image/jpeg',
+      );
+      expect(
+        h.adapter.bodies.single,
+        contains('name="image"; filename="cola.jpg"'),
+      );
       expect(image.id, 10);
     });
 
@@ -292,6 +344,134 @@ void main() {
       await remove.api.deleteDrinkImage(10);
       expect(remove.adapter.requests.single.method, 'DELETE');
       expect(remove.adapter.requests.single.path, 'api/v1/drinks/images/10');
+    });
+  });
+
+  group('barcode lookup', () {
+    test('parses an Open Food Facts suggestion for an unknown code', () async {
+      final h = _Harness(
+        status: 200,
+        body: jsonEncode({
+          'data': {
+            'status': 'off',
+            'suggested': {
+              'name': 'Cherry Cola',
+              'brand': 'Soda Co',
+              'quantity': '330 ml',
+              'image_url': 'https://images.example/cherry.jpg',
+              'barcode': '5449000000996',
+            },
+          },
+        }),
+      );
+
+      final result = await h.api.barcode('5449000000996');
+
+      expect(h.adapter.requests.single.path, 'api/v1/barcodes/5449000000996');
+      expect(result.status, 'off');
+      expect(result.matched, isFalse);
+      expect(result.drink, isNull);
+      expect(result.suggested!.name, 'Cherry Cola');
+      expect(result.suggested!.brand, 'Soda Co');
+      expect(result.suggested!.quantity, '330 ml');
+      expect(result.suggested!.imageUrl, 'https://images.example/cherry.jpg');
+      expect(result.suggested!.barcode, '5449000000996');
+      expect(result.suggested!.volumeMl, 330);
+    });
+
+    test('reads the nested drink detail for a matched code', () async {
+      final h = _Harness(
+        status: 200,
+        body: jsonEncode({
+          'data': {
+            'status': 'matched',
+            'drink': {
+              'Drink': {'id': 1, 'slug': 'coca-cola', 'name': 'Coca-Cola'},
+              'BrandName': 'Coca-Cola',
+            },
+          },
+        }),
+      );
+
+      final result = await h.api.barcode('5449000000996');
+
+      expect(result.matched, isTrue);
+      expect(result.drink!.slug, 'coca-cola');
+      expect(result.drink!.brand, 'Coca-Cola');
+      expect(result.suggested, isNull);
+    });
+  });
+
+  group('venues', () {
+    test('passes a fix and parses distance_m', () async {
+      final h = _Harness(
+        status: 200,
+        body: jsonEncode({
+          'data': [
+            {
+              'id': 7,
+              'name': 'Corner Shop',
+              'kind': 'shop',
+              'city': 'Leeds',
+              'distance_m': 180,
+            },
+          ],
+        }),
+      );
+
+      final venues = await h.api.venues(
+        'Corner',
+        lat: 51.5,
+        lng: -0.12,
+        radiusM: 25000,
+      );
+      final request = h.adapter.requests.single;
+      expect(request.path, 'api/v1/venues/search');
+      expect(request.queryParameters, {
+        'q': 'Corner',
+        'lat': 51.5,
+        'lng': -0.12,
+        'radius': 25000,
+      });
+      expect(venues.single.distanceM, 180);
+    });
+
+    test('creates a venue with the supplied place and fix', () async {
+      final h = _Harness(
+        status: 201,
+        body: jsonEncode({
+          'data': {
+            'id': 99,
+            'slug': 'corner-shop',
+            'name': 'Corner Shop',
+            'created': true,
+          },
+        }),
+      );
+
+      final venue = await h.api.createVenue(
+        name: ' Corner Shop ',
+        address: '12 High Street',
+        city: 'Leeds',
+        country: 'United Kingdom',
+        lat: 51.5,
+        lng: -0.12,
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, 'api/v1/venues');
+      expect(request.data, {
+        'name': 'Corner Shop',
+        'address': '12 High Street',
+        'city': 'Leeds',
+        'country': 'United Kingdom',
+        'lat': 51.5,
+        'lng': -0.12,
+      });
+      expect(venue.id, 99);
+      expect(venue.name, 'Corner Shop');
+      expect(venue.slug, 'corner-shop');
     });
   });
 
@@ -373,10 +553,7 @@ void main() {
     });
 
     test('posts a friend request with the handle', () async {
-      final h = _Harness(
-        body: '{"data":{"status":"requested"}}',
-        status: 202,
-      );
+      final h = _Harness(body: '{"data":{"status":"requested"}}', status: 202);
       await h.api.sendFriendRequest('ada');
       final request = h.adapter.requests.single;
       expect(request.method, 'POST');
@@ -448,11 +625,7 @@ void main() {
         status: 200,
       );
 
-      final page = await h.api.commentPage(
-        'c1',
-        before: 'm9',
-        limit: 30,
-      );
+      final page = await h.api.commentPage('c1', before: 'm9', limit: 30);
 
       final request = h.adapter.requests.single;
       expect(request.method, 'GET');
@@ -880,10 +1053,7 @@ void main() {
     };
 
     test('starts a draft with notes and a barcode', () async {
-      final h = _Harness(
-        body: jsonEncode({'data': turnBody}),
-        status: 200,
-      );
+      final h = _Harness(body: jsonEncode({'data': turnBody}), status: 200);
 
       final turn = await h.api.aiDraft(
         notes: '  Cherry cola, canned  ',
@@ -912,10 +1082,7 @@ void main() {
     });
 
     test('appends a message to the encoded session path', () async {
-      final h = _Harness(
-        body: jsonEncode({'data': turnBody}),
-        status: 200,
-      );
+      final h = _Harness(body: jsonEncode({'data': turnBody}), status: 200);
 
       final turn = await h.api.aiDraftMessage('s 1', '  Less sweet  ');
 
@@ -1264,10 +1431,7 @@ void main() {
     });
 
     test('parses a created registration', () async {
-      final h = _Harness(
-        body: '{"data":{"status":"created"}}',
-        status: 201,
-      );
+      final h = _Harness(body: '{"data":{"status":"created"}}', status: 201);
 
       final result = await h.api.register(
         email: 'ada@soda.test',
@@ -1293,10 +1457,7 @@ void main() {
     });
 
     test('resends verification and accepts 202', () async {
-      final h = _Harness(
-        body: '{"data":{"status":"sent"}}',
-        status: 202,
-      );
+      final h = _Harness(body: '{"data":{"status":"sent"}}', status: 202);
 
       await h.api.resendVerification('ada@soda.test');
 
@@ -1308,10 +1469,7 @@ void main() {
     });
 
     test('requests a password reset and accepts 202', () async {
-      final h = _Harness(
-        body: '{"data":{"status":"sent"}}',
-        status: 202,
-      );
+      final h = _Harness(body: '{"data":{"status":"sent"}}', status: 202);
 
       await h.api.requestPasswordReset('ada@soda.test');
 
@@ -1331,10 +1489,7 @@ void main() {
       expect(request.method, 'POST');
       expect(request.path, 'api/v1/auth/password/reset/confirm');
       expect(request.headers['Authorization'], isNull);
-      expect(request.data, {
-        'token': 'tok',
-        'new_password': 'new-secret-123',
-      });
+      expect(request.data, {'token': 'tok', 'new_password': 'new-secret-123'});
     });
 
     test('maps registration_conflict to ApiException', () async {
@@ -1390,12 +1545,68 @@ void main() {
     });
   });
 
+  group('createDrink', () {
+    test('maps the form fields onto the documented body', () async {
+      final h = _Harness(
+        body:
+            '{"data":{"id":12,"slug":"soda-co-cherry-cola",'
+            '"name":"Cherry Cola","status":"provisional",'
+            '"message":"provisional drink created"}}',
+      );
+
+      final result = await h.api.createDrink(
+        name: ' Cherry Cola ',
+        brand: ' Soda Co ',
+        styleSlug: 'cola',
+        container: 'glass',
+        volumeMl: 330,
+        sweetener: 'sugar',
+        carbonation: 'standard',
+        acid: 'citric',
+        barcode: '05449000000996',
+        description: ' Sharp and dry. ',
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, 'api/v1/drinks');
+      expect(request.data, {
+        'name': 'Cherry Cola',
+        'brand': 'Soda Co',
+        'style_slug': 'cola',
+        'container': 'glass',
+        'volume_ml': 330,
+        'sweetener': 'sugar',
+        'carbonation': 'standard',
+        'acid': 'citric',
+        'barcode': '05449000000996',
+        'description': 'Sharp and dry.',
+      });
+      expect(result.created, isTrue);
+      expect(result.slug, 'soda-co-cherry-cola');
+      expect(result.name, 'Cherry Cola');
+    });
+
+    test('a 200 means the server matched an existing soda', () async {
+      final h = _Harness(
+        status: 200,
+        body:
+            '{"data":{"id":3,"slug":"coca-cola","name":"Coca-Cola",'
+            '"status":"active","message":"existing equivalent drink returned"}}',
+      );
+
+      final result = await h.api.createDrink(name: 'Coca-Cola', barcode: '');
+
+      // An empty barcode is omitted rather than sent blank.
+      expect(h.adapter.requests.single.data, isNot(contains('barcode')));
+      expect(result.created, isFalse);
+      expect(result.slug, 'coca-cola');
+    });
+  });
+
   group('error mapping', () {
     test('wraps existing endpoints in ApiException', () async {
-      final h = _Harness(
-        body: '{"error":{"message":"boom"}}',
-        status: 500,
-      );
+      final h = _Harness(body: '{"error":{"message":"boom"}}', status: 500);
       await expectLater(
         h.api.feed(),
         throwsA(

@@ -1,0 +1,21 @@
+{{define "content"}}
+<section class="narrow">
+  <p class="eyebrow">Public preview</p>
+  <h1>Public people</h1>
+  <p class="lede">These people chose to share a public profile. Open one to see their public pours.</p>
+  <div class="actions">
+    <a class="btn" href="/">← Public pours</a>
+    <a class="btn btn-primary" href="/login">Sign in to post</a>
+  </div>
+
+  {{if .People}}
+  <div class="people-grid people-grid-wide">
+    {{range .People}}{{template "public_person_card" .}}{{end}}
+  </div>
+  {{else}}
+  <div class="empty">
+    <p>Nobody has a public profile yet.</p>
+  </div>
+  {{end}}
+</section>
+{{end}}

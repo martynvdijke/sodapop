@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sodapop/src/api/api_client.dart';
@@ -38,6 +39,9 @@ class _Call {
     required this.photo,
     required this.photoFilename,
     required this.photoMime,
+    required this.lat,
+    required this.lng,
+    required this.friendIds,
   });
 
   final int drinkId;
@@ -50,24 +54,99 @@ class _Call {
   final Uint8List? photo;
   final String? photoFilename;
   final String? photoMime;
+  final double? lat;
+  final double? lng;
+  final List<String> friendIds;
+}
+
+class _VenueCall {
+  _VenueCall({
+    required this.name,
+    required this.address,
+    required this.city,
+    required this.country,
+    required this.lat,
+    required this.lng,
+  });
+
+  final String name;
+  final String address;
+  final String city;
+  final String country;
+  final double? lat;
+  final double? lng;
 }
 
 class _FakeApi extends ApiClient {
-  _FakeApi({this.venueResults = const [], this.failure});
+  _FakeApi({
+    this.venueResults = const [],
+    this.friendResults = const [],
+    this.failure,
+  });
 
   final List<Venue> venueResults;
+  final List<FriendUser> friendResults;
   final Object? failure;
   final calls = <_Call>[];
+  final venueCalls = <_VenueCall>[];
   String? venueQuery;
+  final venueQueries = <String>[];
+  double? venueLat;
+  double? venueLng;
+  int? venueRadiusM;
 
   @override
-  Future<List<Venue>> venues(String query) async {
+  Future<List<Venue>> venues(
+    String query, {
+    double? lat,
+    double? lng,
+    int? radiusM,
+  }) async {
     venueQuery = query;
+    venueQueries.add(query);
+    venueLat = lat;
+    venueLng = lng;
+    venueRadiusM = radiusM;
     return venueResults;
   }
 
   @override
-  Future<void> createCheckin({
+  Future<FriendsDirectory> friends() async =>
+      FriendsDirectory(friends: friendResults);
+
+  @override
+  Future<Venue> createVenue({
+    required String name,
+    String address = '',
+    String city = '',
+    String country = '',
+    double? lat,
+    double? lng,
+  }) async {
+    venueCalls.add(
+      _VenueCall(
+        name: name,
+        address: address,
+        city: city,
+        country: country,
+        lat: lat,
+        lng: lng,
+      ),
+    );
+    return Venue(
+      id: 99,
+      name: name,
+      kind: 'shop',
+      city: city,
+      address: address,
+      country: country,
+      lat: lat ?? 0,
+      lng: lng ?? 0,
+    );
+  }
+
+  @override
+  Future<String> createCheckin({
     required int drinkId,
     int? rating,
     String note = '',
@@ -78,6 +157,9 @@ class _FakeApi extends ApiClient {
     Uint8List? photo,
     String? photoFilename,
     String? photoMime,
+    double? lat,
+    double? lng,
+    List<String> friendIds = const [],
   }) async {
     calls.add(
       _Call(
@@ -91,15 +173,19 @@ class _FakeApi extends ApiClient {
         photo: photo,
         photoFilename: photoFilename,
         photoMime: photoMime,
+        lat: lat,
+        lng: lng,
+        friendIds: friendIds,
       ),
     );
     final error = failure;
     if (error != null) throw error;
+    return 'c-9';
   }
 }
 
 void _useTallScreen(WidgetTester tester) {
-  tester.view.physicalSize = const Size(420, 1200);
+  tester.view.physicalSize = const Size(420, 1500);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 }
@@ -109,6 +195,9 @@ Future<void> _openSheet(
   required ApiClient api,
   CheckinImagePicker? pickImage,
   CheckinVideoPicker? pickVideo,
+  Future<Position> Function()? locationProvider,
+  Future<LocationPermission> Function()? permissionChecker,
+  Future<bool> Function()? serviceChecker,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -119,7 +208,7 @@ Future<void> _openSheet(
           body: Builder(
             builder: (context) => Center(
               child: FilledButton(
-                onPressed: () => showModalBottomSheet<bool>(
+                onPressed: () => showModalBottomSheet<CheckinSave>(
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Theme.of(context).colorScheme.surface,
@@ -127,6 +216,9 @@ Future<void> _openSheet(
                     drink: _drink,
                     pickImage: pickImage,
                     pickVideo: pickVideo,
+                    locationProvider: locationProvider,
+                    permissionChecker: permissionChecker,
+                    serviceChecker: serviceChecker,
                   ),
                 ),
                 child: const Text('Open check-in'),
@@ -140,6 +232,19 @@ Future<void> _openSheet(
   await tester.tap(find.text('Open check-in'));
   await tester.pumpAndSettle();
 }
+
+Position _fix({double lat = 51.50722, double lng = -0.1275}) => Position(
+  latitude: lat,
+  longitude: lng,
+  timestamp: DateTime.utc(2026, 10, 28, 12),
+  accuracy: 12,
+  altitude: 0,
+  altitudeAccuracy: 0,
+  heading: 0,
+  headingAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
+);
 
 Future<void> _tapVisible(WidgetTester tester, String label) async {
   final finder = find.text(label);
@@ -385,5 +490,181 @@ void main() {
     expect(api.calls.single.photo, video);
     expect(api.calls.single.photoMime, 'video/mp4');
     expect(await CheckinOutbox().pending(), isEmpty);
+  });
+
+  testWidgets('tags friends and submits their ids', (tester) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      friendResults: const [
+        FriendUser(id: 'u-ada', handle: 'ada', displayName: 'Ada Lovelace'),
+        FriendUser(id: 'u-grace', handle: 'grace', displayName: 'Grace Hopper'),
+      ],
+    );
+    await _openSheet(tester, api: api);
+
+    await _tapVisible(tester, 'Tag friends');
+    await tester.tap(find.byKey(const Key('friend-pick-u-ada')));
+    await tester.tap(find.byKey(const Key('friend-pick-u-grace')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('friend-picker-done')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('checkin-friend-u-ada')), findsOneWidget);
+    expect(find.byKey(const Key('checkin-friend-u-grace')), findsOneWidget);
+
+    // A chip removes one friend without reopening the picker.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('checkin-friend-u-grace')),
+        matching: find.byTooltip('Remove tagged friend'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('checkin-friend-u-grace')), findsNothing);
+
+    await _save(tester);
+    expect(api.calls.single.friendIds, ['u-ada']);
+  });
+
+  testWidgets('a long friend list can be filtered', (tester) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      friendResults: [
+        for (var i = 0; i < 8; i++)
+          FriendUser(
+            id: 'u-$i',
+            handle: 'friend$i',
+            displayName: i == 7 ? 'Grace Hopper' : 'Friend $i',
+          ),
+      ],
+    );
+    await _openSheet(tester, api: api);
+
+    await _tapVisible(tester, 'Tag friends');
+    expect(find.byKey(const Key('friend-search')), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('friend-search')), 'grace');
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('friend-pick-u-7')), findsOneWidget);
+    expect(find.byKey(const Key('friend-pick-u-0')), findsNothing);
+  });
+
+  testWidgets('creates a venue from the check-in and submits the fix', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final api = _FakeApi();
+    await _openSheet(
+      tester,
+      api: api,
+      locationProvider: () async => _fix(),
+      permissionChecker: () async => LocationPermission.whileInUse,
+      serviceChecker: () async => true,
+    );
+
+    await _tapVisible(tester, 'Use my location');
+    expect(find.byKey(const Key('checkin-location-chip')), findsOneWidget);
+
+    await _tapVisible(tester, 'Choose a venue');
+    await tester.enterText(find.byKey(const Key('venue-query')), 'Corner');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(api.venueLat, closeTo(51.50722, 0.00001));
+    expect(api.venueLng, closeTo(-0.1275, 0.00001));
+    expect(api.venueRadiusM, 25000);
+
+    await tester.tap(find.byKey(const Key('venue-create')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('venue-create-name')),
+      'Corner Shop',
+    );
+    await tester.enterText(find.byKey(const Key('venue-create-city')), 'Leeds');
+    await tester.tap(find.byKey(const Key('venue-create-submit')));
+    await tester.pumpAndSettle();
+
+    expect(api.venueCalls.single.name, 'Corner Shop');
+    expect(api.venueCalls.single.city, 'Leeds');
+    expect(api.venueCalls.single.lat, closeTo(51.50722, 0.00001));
+    expect(find.byKey(const Key('venue-chip')), findsOneWidget);
+
+    await _save(tester);
+    expect(api.calls.single.venueId, 99);
+    expect(api.calls.single.lat, closeTo(51.50722, 0.00001));
+    expect(api.calls.single.lng, closeTo(-0.1275, 0.00001));
+  });
+
+  testWidgets('opens on venues near you and returns after clearing', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      venueResults: const [
+        Venue(
+          id: 7,
+          name: 'Corner Shop',
+          kind: 'shop',
+          city: 'Leeds',
+          distanceM: 180,
+        ),
+      ],
+    );
+    await _openSheet(
+      tester,
+      api: api,
+      locationProvider: () async => _fix(),
+      permissionChecker: () async => LocationPermission.whileInUse,
+      serviceChecker: () async => true,
+    );
+
+    await _tapVisible(tester, 'Use my location');
+    await _tapVisible(tester, 'Choose a venue');
+
+    // Opening with a fix browses nearby venues before any typing.
+    expect(api.venueQueries, ['']);
+    expect(api.venueLat, closeTo(51.50722, 0.00001));
+    expect(api.venueRadiusM, 25000);
+    expect(find.text('Venues near you'), findsOneWidget);
+    expect(find.text('Corner Shop'), findsOneWidget);
+    expect(find.textContaining('180 m'), findsOneWidget);
+
+    // Typing switches to the distance-ordered search.
+    await tester.enterText(find.byKey(const Key('venue-query')), 'Corner');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(api.venueQueries.last, 'Corner');
+    expect(find.text('Search results'), findsOneWidget);
+
+    // Clearing brings the browse list back.
+    await tester.enterText(find.byKey(const Key('venue-query')), '');
+    await tester.pumpAndSettle();
+    expect(api.venueQueries, ['', 'Corner', '']);
+    expect(find.text('Venues near you'), findsOneWidget);
+    expect(find.text('Corner Shop'), findsOneWidget);
+  });
+
+  testWidgets('an empty nearby browse offers the create path', (tester) async {
+    _useTallScreen(tester);
+    final api = _FakeApi();
+    await _openSheet(
+      tester,
+      api: api,
+      locationProvider: () async => _fix(),
+      permissionChecker: () async => LocationPermission.whileInUse,
+      serviceChecker: () async => true,
+    );
+
+    await _tapVisible(tester, 'Use my location');
+    await _tapVisible(tester, 'Choose a venue');
+
+    expect(find.text('No venues within 25 km'), findsOneWidget);
+    expect(find.text('Create a venue'), findsOneWidget);
+
+    await tester.tap(find.text('Create a venue'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('venue-create-name')), findsOneWidget);
   });
 }

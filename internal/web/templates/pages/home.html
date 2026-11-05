@@ -75,12 +75,39 @@
       {{if .RegistrationOpen}}<a class="btn btn-primary" href="/register">Create an account</a>{{end}}
       <a class="btn" href="/login">Sign in</a>
     </div>
+    <p class="muted">Just looking? Scroll the public pours below. No account needed.</p>
   </section>
+
+  <section class="public-preview" id="public-pours" aria-labelledby="public-pours-title">
+    <div class="preview-head">
+      <h2 id="public-pours-title" class="section-title">Public pours</h2>
+      <a href="/people">Public people →</a>
+    </div>
+    {{range .PublicFeed}}{{template "public_feed_item" .}}{{else}}
+      <div class="empty">
+        <p>No public pours yet. The first one could be yours.</p>
+        <a class="btn btn-primary" href="/login">Sign in to post</a>
+      </div>
+    {{end}}
+    {{if .PublicFeedNext}}<p class="preview-more"><a class="btn" href="/?before={{.PublicFeedNext}}#public-pours">Older pours</a></p>{{end}}
+  </section>
+
+  {{if .PublicPeople}}
+  <section aria-labelledby="public-people-title">
+    <div class="preview-head">
+      <h2 id="public-people-title" class="section-title">Public people</h2>
+      <a href="/people">See everyone →</a>
+    </div>
+    <div class="people-grid">
+      {{range .PublicPeople}}{{template "public_person_card" .}}{{end}}
+    </div>
+  </section>
+  {{end}}
 
   <section class="features">
     <article class="card"><h2>Scan first</h2><p>Point your camera at a barcode. If the soda is new, add it in about twenty seconds.</p></article>
     <article class="card"><h2>Rate honestly</h2><p>Quarter-stars, no decimals theatre. Averages only appear once three people have rated a drink.</p></article>
-    <article class="card"><h2>Keep it small</h2><p>Friends, not followers-for-hire. There is no public feed and no way to scrape the catalog.</p></article>
+    <article class="card"><h2>You choose the window</h2><p>Public pours can be seen by anyone. Friends-only and private pours stay locked behind a sign-in.</p></article>
     <article class="card"><h2>Remember where</h2><p>Hotel minibar, corner shop, vending machine, festival. Venues include the places soda actually lives.</p></article>
   </section>
 {{end}}

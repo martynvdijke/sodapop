@@ -85,14 +85,21 @@ func (s *Server) authEmailAllowed(emailAddr string) bool {
 
 // authConfig handles GET /api/v1/auth/config.
 func (s *Server) authConfig(w http.ResponseWriter, r *http.Request) {
-	if s.authRateLimited(w, r, "auth-config") {
-		return
+	// This is a read-only capability probe, like oidcStatus. Clients call it on
+	// every launch, so it is deliberately not in the auth-attempt bucket: a
+	// shared NAT would otherwise lock restored sessions out for 15 minutes.
+	demoEnabled := s.Cfg != nil && s.Cfg.DemoUserEnabled && s.authPasswordFallback()
+	demo := map[string]any{"enabled": demoEnabled}
+	if demoEnabled {
+		demo["handle"] = s.Cfg.DemoUserHandle
+		demo["password"] = s.Cfg.DemoUserPassword
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
 		"registration_open":           s.authRegistrationOpen(),
 		"password_fallback":           s.authPasswordFallback(),
 		"oidc_enabled":                s.Auth.OIDC != nil && s.Auth.OIDC.Enabled,
 		"email_verification_required": true,
+		"demo":                        demo,
 	}})
 }
 

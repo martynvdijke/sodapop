@@ -3359,3 +3359,132 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
 .share-manage-body { display: grid; gap: .1rem; min-width: 0; }
 .share-manage-body .share-url { font-size: .8rem; }
 .share-manage-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+
+/* Public preview --------------------------------------------------------- */
+.preview-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; margin-top: 1.5rem; }
+.preview-head .section-title { margin: 0; }
+.preview-head > a { font-size: .9rem; font-weight: 600; }
+.public-preview { margin-bottom: 2rem; }
+.preview-more { display: flex; justify-content: center; margin-top: .85rem; }
+.people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .75rem; }
+.people-grid-wide { margin-top: 1.25rem; }
+.person-card { display: flex; align-items: flex-start; gap: .75rem; text-decoration: none; }
+.person-card:hover { text-decoration: none; }
+.person-card .avatar { flex: 0 0 auto; object-fit: cover; }
+.person-card > div { min-width: 0; }
+.person-bio { margin: .25rem 0; font-size: .9rem; color: var(--text-muted); }
+.demo-login { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+.demo-login code { padding: .1rem .35rem; border-radius: 4px; background: var(--surface-sunken); }
+
+
+/* Check-in composer: venue picker, friend tags and location ---------------- */
+.checkin-page .stack fieldset {
+  margin: 0;
+  padding: .9rem 1rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.checkin-page .stack fieldset > legend {
+  padding: 0 .35rem;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.checkin-page .stack fieldset > legend .hint { display: inline; font-weight: 400; }
+.venue-search-row { display: flex; gap: .5rem; margin: .35rem 0 .7rem; }
+.venue-search-row input { flex: 1; min-width: 0; }
+.venue-select-label { margin-bottom: .3rem; font-size: .85rem; }
+.checkin-venue select { width: 100%; }
+.checkin-venue .hint { margin: .4rem 0 0; }
+.venue-create { margin-top: .8rem; }
+.venue-create > summary {
+  padding: .35rem 0;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.venue-create label {
+  margin-top: .6rem;
+  font-size: .85rem;
+  font-weight: 600;
+}
+.venue-create input { width: 100%; }
+.venue-create-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+
+.checkin-location .hint { margin: .35rem 0 0; }
+.checkin-location.is-ready { border-color: var(--success); background: var(--success-tint); }
+.location-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .35rem 0 0; }
+
+.friend-filter { width: 100%; margin: .55rem 0 .6rem; }
+.friend-options {
+  display: grid;
+  gap: .3rem;
+  max-height: 15rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.friend-options li[hidden] { display: none; }
+.friend-options .friend-option {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .4rem .5rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.friend-options .friend-option:hover { background: var(--surface-sunken); }
+.friend-options .friend-option.is-selected { border-color: var(--primary-press); background: var(--primary-tint); }
+.friend-options .friend-option input {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: 0;
+  accent-color: var(--primary-press);
+}
+.friend-option .avatar { width: 30px; height: 30px; flex-basis: 30px; font-size: .8rem; }
+.friend-name { display: grid; line-height: 1.25; }
+.friend-name .muted { font-size: .78rem; }
+.friend-count { min-height: 1.2em; margin: .5rem 0 0; }
+
+.photo-preview { display: flex; align-items: flex-start; gap: .75rem; margin-top: -.35rem; }
+.photo-preview[hidden] { display: none; }
+.photo-preview img {
+  width: 120px;
+  height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  object-fit: cover;
+}
+
+/* Search results with a direct log action -------------------------------- */
+.result-card { display: flex; align-items: center; gap: .75rem; }
+.result-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: .85rem;
+  min-width: 0;
+  text-decoration: none;
+}
+.result-link:hover { text-decoration: none; }
+.result-body { display: grid; gap: .1rem; min-width: 0; }
+.result-body .muted { font-size: .85rem; }
+.result-log { flex: 0 0 auto; }
+
+/* Tagged friends and a modest map link ----------------------------------- */
+.checkin-with { margin: .45rem 0 0; color: var(--text-muted); font-size: .88rem; }
+.checkin-with a { color: var(--text); font-weight: 600; text-decoration: none; }
+.checkin-with a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.checkin-location-link { margin: .55rem 0 0; }
+.chip-location { gap: .3rem; }
+.detail-with { margin: .6rem 0 0; color: var(--text-muted); font-size: .95rem; }
+.detail-with a { color: var(--text); font-weight: 600; }
+
+@media (max-width: 420px) {
+  .venue-create-row { grid-template-columns: 1fr; }
+  .result-card { align-items: stretch; }
+  .photo-preview img { width: 96px; height: 96px; }
+}

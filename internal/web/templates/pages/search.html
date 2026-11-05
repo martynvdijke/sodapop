@@ -19,13 +19,16 @@
         {{if .Unified.Drinks}}
           <h2>Drinks</h2>
           {{range .Unified.Drinks}}
-          <a class="card drink-card" href="/drinks/{{.Slug}}">
-            <div class="bottle" aria-hidden="true">{{initial .Name}}</div>
-            <div>
-              <strong>{{.Name}}</strong>
-              {{if .Subtitle}}<div class="muted">{{.Subtitle}}</div>{{end}}
-            </div>
-          </a>
+          <div class="card result-card">
+            <a class="result-link" href="/drinks/{{.Slug}}">
+              <span class="bottle" aria-hidden="true">{{initial .Name}}</span>
+              <span class="result-body">
+                <strong>{{.Name}}</strong>
+                {{if .Subtitle}}<span class="muted">{{.Subtitle}}</span>{{end}}
+              </span>
+            </a>
+            <a class="btn btn-small result-log" href="/checkins/new?slug={{.Slug}}">Log</a>
+          </div>
           {{end}}
         {{end}}
 
@@ -67,7 +70,19 @@
   {{else}}
     {{if .Results}}
       <section class="results">
-        {{range .Results}}{{template "drink_card" .}}{{end}}
+        {{range .Results}}
+        <article class="card result-card">
+          <a class="result-link" href="/drinks/{{.Slug}}">
+            <span class="bottle" aria-hidden="true">{{initial .Name}}</span>
+            <span class="result-body">
+              <strong>{{.Name}}</strong>
+              <span class="muted">{{.Brand}}{{if .Style}} · {{.Style}}{{end}}</span>
+              <span class="muted">{{volume .VolumeML}} {{container .Container}}</span>
+            </span>
+          </a>
+          <a class="btn btn-small result-log" href="/checkins/new?slug={{.Slug}}">Log</a>
+        </article>
+        {{end}}
       </section>
     {{else}}{{if not .Error}}
       <div class="empty">

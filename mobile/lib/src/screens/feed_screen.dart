@@ -232,8 +232,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         var offset = index;
         if (_offline && offset == 0) {
           return const _OfflineBanner(
-            message:
-                'Showing saved feed. Pull to refresh when you are online.',
+            message: 'Showing saved feed. Pull to refresh when you are online.',
           );
         }
         if (_offline) offset -= 1;
@@ -301,7 +300,7 @@ class _OfflineBanner extends StatelessWidget {
   }
 }
 
-class _FeedCard extends StatelessWidget {
+class _FeedCard extends ConsumerWidget {
   const _FeedCard({
     required this.item,
     required this.saving,
@@ -319,8 +318,13 @@ class _FeedCard extends StatelessWidget {
   final VoidCallback onOpenAuthor;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final api = ref.watch(apiProvider);
+    final tagged = item.taggedFriends
+        .map((friend) => friend.name)
+        .where((name) => name.isNotEmpty)
+        .join(', ');
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -411,9 +415,35 @@ class _FeedCard extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+              if (tagged.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  key: const Key('feed-tags'),
+                  children: [
+                    Icon(
+                      Icons.group_outlined,
+                      size: 15,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'with $tagged',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               if (item.note.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(item.note, style: theme.textTheme.bodyMedium),
+              ],
+              if (item.photoId.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _FeedPhoto(item: item, api: api),
               ],
               const SizedBox(height: 10),
               Align(
@@ -433,6 +463,77 @@ class _FeedCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The check-in photo, matching the rounded 4:3 frame used on the detail
+/// screen. A video row shows a quiet placeholder instead of a broken image.
+class _FeedPhoto extends StatelessWidget {
+  const _FeedPhoto({required this.item, required this.api});
+
+  final FeedItem item;
+  final ApiClient api;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (!api.configured) return const SizedBox.shrink();
+
+    if (item.photoMime.startsWith('video/')) {
+      return Container(
+        key: Key('feed-video-${item.id}'),
+        height: 150,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.play_circle_outline_rounded,
+              size: 34,
+              color: theme.colorScheme.onSurface,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Video check-in',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final placeholder = Container(
+      color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: AspectRatio(
+        aspectRatio: 4 / 3,
+        child: Image.network(
+          api.mediaUrl(item.photoId),
+          key: Key('feed-photo-${item.id}'),
+          headers: api.imageHeaders,
+          fit: BoxFit.cover,
+          semanticLabel: 'Photo of ${item.drinkName}',
+          errorBuilder: (_, _, _) => placeholder,
         ),
       ),
     );

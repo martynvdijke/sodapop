@@ -3,8 +3,8 @@
   "info": {
     "title": "Sodapop API",
     "version": "1.11.0",
-    "summary": "Authenticated, friend-scoped soda check-in API (v1.11 surface).",
-    "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. All data endpoints require a personal `sd_` bearer token; requests are rate limited per token.",
+    "summary": "Soda check-in API with a narrow read-only public preview",
+    "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. The only anonymous data routes are the read-only public preview (public check-ins from authors who opted into a public profile) and the public drink fact sheet. All member data endpoints require a personal `sd_` bearer token; requests are rate limited per token or per IP for the public preview.",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -76,6 +76,24 @@
           "venue_name": {
             "type": "string"
           },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tagged_friends": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaggedFriend"
+            }
+          },
           "rating": {
             "type": [
               "integer",
@@ -138,6 +156,9 @@
           "drink_slug",
           "container",
           "volume_ml",
+          "lat",
+          "lng",
+          "tagged_friends",
           "visibility",
           "created_at",
           "toasts",
@@ -146,7 +167,27 @@
           "saved"
         ]
       },
+      "TaggedFriend": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "handle",
+          "display_name"
+        ]
+      },
       "NearbyFeedItem": {
+        "description": "Shares FeedItem's fields except lat, lng and tagged_friends, which the nearby feed omits so a location response cannot expose raw device coordinates.",
         "allOf": [
           {
             "$ref": "#/components/schemas/FeedItem"
@@ -323,6 +364,32 @@
             "type": "string",
             "maxLength": 100,
             "description": "Replaying the same key returns the original check-in."
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": -90,
+            "maximum": 90,
+            "description": "Raw device latitude. Must be sent together with lng."
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": -180,
+            "maximum": 180,
+            "description": "Raw device longitude. Must be sent together with lat."
+          },
+          "friend_ids": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string"
+            },
+            "description": "Accepted friend user IDs to tag. Duplicates and the author's own id are ignored."
           }
         }
       },
@@ -671,6 +738,24 @@
           "note": {
             "type": "string"
           },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tagged_friends": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaggedFriend"
+            }
+          },
           "visibility": {
             "type": "string",
             "enum": [
@@ -739,6 +824,9 @@
           "id",
           "user",
           "drink",
+          "lat",
+          "lng",
+          "tagged_friends",
           "visibility",
           "toasts",
           "toasted",
@@ -1848,6 +1936,273 @@
         "required": [
           "token"
         ]
+      },
+      "PublicFeedItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "handle": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            }
+          },
+          "drink": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "brand": {
+                "type": "string"
+              },
+              "container": {
+                "type": "string"
+              },
+              "volume_ml": {
+                "type": "integer"
+              }
+            }
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 20,
+            "description": "Quarter-star rating, 0..20."
+          },
+          "note": {
+            "type": "string"
+          },
+          "toasts": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "venue": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "photo": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "mime": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "thumb_url": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "id",
+          "user",
+          "drink",
+          "created_at"
+        ]
+      },
+      "PublicPerson": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "pours": {
+            "type": "integer"
+          },
+          "styles": {
+            "type": "integer"
+          },
+          "last_pour": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "avatar_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "display_name",
+          "pours",
+          "styles"
+        ]
+      },
+      "PublicProfile": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "pours": {
+                "type": "integer"
+              },
+              "styles": {
+                "type": "integer"
+              },
+              "venues": {
+                "type": "integer"
+              },
+              "badges": {
+                "type": "integer"
+              },
+              "unique_drinks": {
+                "type": "integer"
+              },
+              "toasts": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "required": [
+          "handle",
+          "display_name",
+          "stats"
+        ]
+      },
+      "PublicCheckin": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "handle": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            }
+          },
+          "drink": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "brand": {
+                "type": "string"
+              },
+              "style": {
+                "type": "string"
+              }
+            }
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 20,
+            "description": "Quarter-star rating, 0..20."
+          },
+          "note": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public"
+            ]
+          },
+          "toasts": {
+            "type": "integer"
+          },
+          "comments_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "venue": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "photo": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "mime": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "thumb_url": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "id",
+          "user",
+          "drink",
+          "visibility",
+          "created_at"
+        ]
       }
     },
     "responses": {
@@ -1890,7 +2245,7 @@
     },
     {
       "name": "public",
-      "description": "The single published, unauthenticated catalog fact sheet. There is no public collection route."
+      "description": "Read-only preview of public check-ins and opted-in public profiles. friends and private rows are never exposed, and there are no public write routes."
     },
     {
       "name": "auth",
@@ -2120,6 +2475,24 @@
                         },
                         "email_verification_required": {
                           "type": "boolean"
+                        },
+                        "demo": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "handle": {
+                              "type": "string"
+                            },
+                            "password": {
+                              "type": "string",
+                              "description": "Public shared credential; present only so the app can offer a demo sign-in."
+                            }
+                          },
+                          "required": [
+                            "enabled"
+                          ]
                         }
                       },
                       "required": [
@@ -2136,9 +2509,6 @@
                 }
               }
             }
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "tags": [
@@ -3684,6 +4054,26 @@
                     "type": "string",
                     "maxLength": 100
                   },
+                  "lat": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90,
+                    "description": "Decimal latitude. Must be sent with lng."
+                  },
+                  "lng": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180,
+                    "description": "Decimal longitude. Must be sent with lat."
+                  },
+                  "friend_ids": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Accepted friend user IDs. Repeat the field for multiple friends; duplicates and the author are ignored."
+                  },
                   "image": {
                     "type": "string",
                     "format": "binary",
@@ -4431,16 +4821,17 @@
     "/api/v1/venues/search": {
       "get": {
         "summary": "Search venues (capped)",
-        "description": "Requires 2+ characters and returns at most 20 results; no directory export.",
+        "description": "Without GPS, q is required and must be at least 2 characters. When both lat and lng are supplied, q may be empty to return the nearest venues within radius; results are ordered nearest first and each carries distance_m. Returns at most 20 results and never a directory export.",
         "parameters": [
           {
             "name": "q",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "minLength": 2
-            }
+              "minLength": 0
+            },
+            "description": "Text filter. Optional only when lat and lng are both present; otherwise at least 2 characters are required."
           },
           {
             "name": "limit",
@@ -4450,14 +4841,103 @@
               "default": 10,
               "maximum": 20
             }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "description": "Optional reference latitude. Must be sent with lng."
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "description": "Optional reference longitude. Must be sent with lat."
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 2000,
+              "minimum": 1,
+              "maximum": 25000
+            },
+            "description": "Search radius in metres used only when lat/lng are present."
           }
         ],
         "responses": {
           "200": {
-            "description": "Venues"
+            "description": "Venues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string"
+                          },
+                          "city": {
+                            "type": "string"
+                          },
+                          "region": {
+                            "type": "string"
+                          },
+                          "country": {
+                            "type": "string"
+                          },
+                          "lat": {
+                            "type": "number"
+                          },
+                          "lng": {
+                            "type": "number"
+                          },
+                          "website": {
+                            "type": "string"
+                          },
+                          "distance_m": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Only present when lat/lng were supplied; venues are ordered nearest first."
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
-            "description": "Query too short"
+            "description": "Query too short or invalid lat/lng/radius"
           }
         },
         "tags": [
@@ -6996,6 +7476,405 @@
         },
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/v1/public/feed": {
+      "get": {
+        "summary": "Public preview feed",
+        "description": "Newest public check-ins from people with an opted-in public profile. Read-only and unauthenticated. friends-only and private rows are never included.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "created_at cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public check-ins",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicFeedItem"
+                      }
+                    },
+                    "next_before": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/people": {
+      "get": {
+        "summary": "Public preview people",
+        "description": "Directory of users who opted into a public profile. Only public activity is counted. Unauthenticated and read-only.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 24,
+              "maximum": 60
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Opted-in public profiles",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicPerson"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/users/{handle}": {
+      "get": {
+        "summary": "One public preview profile",
+        "description": "An opted-in public profile with public-only stats. Missing, non-public and suspended accounts return the same 404.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public profile",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicProfile"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or not public"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/users/{handle}/checkins": {
+      "get": {
+        "summary": "Public preview feed",
+        "description": "Public check-ins for one opted-in public profile. The profile must be public; otherwise 404.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "created_at cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public check-ins",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicFeedItem"
+                      }
+                    },
+                    "next_before": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/checkins/{id}": {
+      "get": {
+        "summary": "One public preview check-in",
+        "description": "A single public check-in with no viewer capability flags. friends-only, private, deleted and hidden rows return 404.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public check-in",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicCheckin"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or not public"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/media/{id}": {
+      "get": {
+        "summary": "Public preview photo or video",
+        "description": "Bytes are served only when the media service allows an anonymous viewer: public check-in photos, avatars, catalog images and active venue media. Everything else is 404.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media bytes",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or not public"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/media/{id}/thumb": {
+      "get": {
+        "summary": "Public preview thumbnail",
+        "description": "Bytes are served only when the media service allows an anonymous viewer: public check-in photos, avatars, catalog images and active venue media. Everything else is 404.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media bytes",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or not public"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "public"
         ]
       }
     }

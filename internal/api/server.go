@@ -75,8 +75,10 @@ func (s *Server) APIRoutes() []string {
 
 type apiFunc func(http.ResponseWriter, *http.Request, *auth.APIToken) error
 
-// Register wires every /api route. There is intentionally no route that lists
-// the full catalog, all users or all venues.
+// Register wires every /api route. The only unauthenticated data routes are
+// the read-only public preview (public check-ins and opted-in public profiles)
+// and the public drink page. There is intentionally no route that lists the
+// full catalog, all venues, or any non-public user data.
 func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "GET /api/openapi.json", s.openapiJSON)
 	s.RegisterGalleryRoutes(mux)
@@ -88,6 +90,13 @@ func (s *Server) Register(mux *http.ServeMux) {
 	})
 
 	s.route(mux, "GET /api/v1/public/drinks/{slug}", s.publicDrink)
+	s.route(mux, "GET /api/v1/public/feed", s.publicPreviewFeed)
+	s.route(mux, "GET /api/v1/public/people", s.publicPreviewPeople)
+	s.route(mux, "GET /api/v1/public/users/{handle}", s.publicPreviewUser)
+	s.route(mux, "GET /api/v1/public/users/{handle}/checkins", s.publicPreviewUserCheckins)
+	s.route(mux, "GET /api/v1/public/checkins/{id}", s.publicPreviewCheckin)
+	s.route(mux, "GET /api/v1/public/media/{id}", s.publicMediaFull)
+	s.route(mux, "GET /api/v1/public/media/{id}/thumb", s.publicMediaThumb)
 
 	s.route(mux, "GET /api/v1/auth/oidc/status", s.oidcStatus)
 	s.route(mux, "GET /api/v1/auth/config", s.authConfig)
@@ -261,6 +270,12 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusTooManyRequests, "upstream_rate_limited", "product lookup is temporarily rate limited")
 	case errors.Is(err, checkins.ErrForbidden), errors.Is(err, social.ErrNotFriend):
 		writeError(w, http.StatusForbidden, "forbidden", "you do not have access to this resource")
+	case errors.Is(err, checkins.ErrInvalidFriend):
+		writeError(w, http.StatusBadRequest, "invalid_friend", "every tagged user must be an accepted friend")
+	case errors.Is(err, checkins.ErrTooManyFriends):
+		writeError(w, http.StatusBadRequest, "invalid_friend", "a check-in can tag at most 10 friends")
+	case errors.Is(err, checkins.ErrInvalidCoords):
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 	case errors.Is(err, checkins.ErrInvalidRating), errors.Is(err, checkins.ErrInvalidInput), errors.Is(err, venues.ErrInvalid),
 		errors.Is(err, comments.ErrInvalid), errors.Is(err, venues.ErrInvalidKind), errors.Is(err, venues.ErrInvalidLabel),
 		errors.Is(err, mix.ErrInvalidInput), errors.Is(err, saves.ErrInvalid):

@@ -104,6 +104,34 @@ func (_c *CheckinCreate) SetNillablePhotoMediaID(v *string) *CheckinCreate {
 	return _c
 }
 
+// SetLat sets the "lat" field.
+func (_c *CheckinCreate) SetLat(v float64) *CheckinCreate {
+	_c.mutation.SetLat(v)
+	return _c
+}
+
+// SetNillableLat sets the "lat" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillableLat(v *float64) *CheckinCreate {
+	if v != nil {
+		_c.SetLat(*v)
+	}
+	return _c
+}
+
+// SetLng sets the "lng" field.
+func (_c *CheckinCreate) SetLng(v float64) *CheckinCreate {
+	_c.mutation.SetLng(v)
+	return _c
+}
+
+// SetNillableLng sets the "lng" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillableLng(v *float64) *CheckinCreate {
+	if v != nil {
+		_c.SetLng(*v)
+	}
+	return _c
+}
+
 // SetVisibility sets the "visibility" field.
 func (_c *CheckinCreate) SetVisibility(v checkin.Visibility) *CheckinCreate {
 	_c.mutation.SetVisibility(v)
@@ -363,6 +391,14 @@ func (_c *CheckinCreate) createSpec() (*Checkin, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PhotoMediaID(); ok {
 		_spec.SetField(checkin.FieldPhotoMediaID, field.TypeString, value)
 		_node.PhotoMediaID = &value
+	}
+	if value, ok := _c.mutation.Lat(); ok {
+		_spec.SetField(checkin.FieldLat, field.TypeFloat64, value)
+		_node.Lat = &value
+	}
+	if value, ok := _c.mutation.Lng(); ok {
+		_spec.SetField(checkin.FieldLng, field.TypeFloat64, value)
+		_node.Lng = &value
 	}
 	if value, ok := _c.mutation.Visibility(); ok {
 		_spec.SetField(checkin.FieldVisibility, field.TypeEnum, value)

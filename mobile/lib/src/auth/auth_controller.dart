@@ -12,7 +12,9 @@ import 'server_defaults.dart';
 
 final apiProvider = Provider<ApiClient>((ref) => ApiClient());
 
-final authProvider = NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);
 
 class AuthState {
   const AuthState({
@@ -24,6 +26,10 @@ class AuthState {
     this.me,
     this.oidcEnabled = false,
     this.passwordFallback = true,
+    this.demoEnabled = false,
+    this.demoHandle = '',
+    this.demoPassword = '',
+    this.preview = false,
     this.error,
   });
 
@@ -37,6 +43,15 @@ class AuthState {
   final Me? me;
   final bool oidcEnabled;
   final bool passwordFallback;
+
+  /// The hosted instance may expose a shared demo account. Its credentials are
+  /// public by design and come from `GET /api/v1/auth/config`.
+  final bool demoEnabled;
+  final String demoHandle;
+  final String demoPassword;
+
+  /// True while the app is showing the read-only logged-out preview.
+  final bool preview;
   final String? error;
 
   bool get signedIn => token.isNotEmpty && me != null;
@@ -50,20 +65,27 @@ class AuthState {
     Me? me,
     bool? oidcEnabled,
     bool? passwordFallback,
+    bool? demoEnabled,
+    String? demoHandle,
+    String? demoPassword,
+    bool? preview,
     String? error,
     bool clearError = false,
-  }) =>
-      AuthState(
-        loading: loading ?? this.loading,
-        busy: busy ?? this.busy,
-        serverUrl: serverUrl ?? this.serverUrl,
-        hasSavedServer: hasSavedServer ?? this.hasSavedServer,
-        token: token ?? this.token,
-        me: me ?? this.me,
-        oidcEnabled: oidcEnabled ?? this.oidcEnabled,
-        passwordFallback: passwordFallback ?? this.passwordFallback,
-        error: clearError ? null : (error ?? this.error),
-      );
+  }) => AuthState(
+    loading: loading ?? this.loading,
+    busy: busy ?? this.busy,
+    serverUrl: serverUrl ?? this.serverUrl,
+    hasSavedServer: hasSavedServer ?? this.hasSavedServer,
+    token: token ?? this.token,
+    me: me ?? this.me,
+    oidcEnabled: oidcEnabled ?? this.oidcEnabled,
+    passwordFallback: passwordFallback ?? this.passwordFallback,
+    demoEnabled: demoEnabled ?? this.demoEnabled,
+    demoHandle: demoHandle ?? this.demoHandle,
+    demoPassword: demoPassword ?? this.demoPassword,
+    preview: preview ?? this.preview,
+    error: clearError ? null : (error ?? this.error),
+  );
 }
 
 class AuthController extends Notifier<AuthState> {
@@ -93,19 +115,26 @@ class AuthController extends Notifier<AuthState> {
     api.configure(server, token: token);
     try {
       final me = await api.me();
-      final status = await api.oidcStatus();
+      final config = await api.authConfig();
       state = AuthState(
         loading: false,
         serverUrl: server,
         hasSavedServer: true,
         token: token,
         me: me,
-        oidcEnabled: status.oidcEnabled,
-        passwordFallback: status.passwordFallback,
+        oidcEnabled: config.oidcEnabled,
+        passwordFallback: config.passwordFallback,
+        demoEnabled: config.demoEnabled,
+        demoHandle: config.demoHandle,
+        demoPassword: config.demoPassword,
       );
       unawaited(PushService.instance.signIn(api));
     } catch (_) {
-      state = AuthState(loading: false, serverUrl: server, hasSavedServer: true);
+      state = AuthState(
+        loading: false,
+        serverUrl: server,
+        hasSavedServer: true,
+      );
     }
   }
 
@@ -123,17 +152,23 @@ class AuthController extends Notifier<AuthState> {
     final api = ref.read(apiProvider);
     api.configure(server);
     try {
-      final status = await api.oidcStatus();
+      final config = await api.authConfig();
       state = state.copyWith(
         busy: false,
         serverUrl: server,
-        oidcEnabled: status.oidcEnabled,
-        passwordFallback: status.passwordFallback,
+        oidcEnabled: config.oidcEnabled,
+        passwordFallback: config.passwordFallback,
+        demoEnabled: config.demoEnabled,
+        demoHandle: config.demoHandle,
+        demoPassword: config.demoPassword,
         clearError: true,
       );
       return true;
     } catch (error) {
-      state = state.copyWith(busy: false, error: ApiClient.describe(error).message);
+      state = state.copyWith(
+        busy: false,
+        error: ApiClient.describe(error).message,
+      );
       return false;
     }
   }
@@ -157,12 +192,20 @@ class AuthController extends Notifier<AuthState> {
       await _storage.write(key: _serverKey, value: state.serverUrl);
       await _storage.write(key: _tokenKey, value: token);
       api.setToken(token);
-      state = state.copyWith(busy: false, token: token, me: me, clearError: true);
+      state = state.copyWith(
+        busy: false,
+        token: token,
+        me: me,
+        clearError: true,
+      );
       unawaited(PushService.instance.signIn(api));
       return true;
     } catch (error) {
       api.setToken(null);
-      state = state.copyWith(busy: false, error: ApiClient.describe(error).message);
+      state = state.copyWith(
+        busy: false,
+        error: ApiClient.describe(error).message,
+      );
       return false;
     }
   }
@@ -173,7 +216,10 @@ class AuthController extends Notifier<AuthState> {
       final token = await ref.read(apiProvider).passwordToken(login, password);
       return await signInWithToken(token);
     } catch (error) {
-      state = state.copyWith(busy: false, error: ApiClient.describe(error).message);
+      state = state.copyWith(
+        busy: false,
+        error: ApiClient.describe(error).message,
+      );
       return false;
     }
   }
@@ -181,16 +227,38 @@ class AuthController extends Notifier<AuthState> {
   Future<bool> completeOidc(String cookie, String csrf) async {
     state = state.copyWith(busy: true, clearError: true);
     try {
-      final token = await ref.read(apiProvider).exchangeBrowserSession(
+      final token = await ref
+          .read(apiProvider)
+          .exchangeBrowserSession(
             cookie: cookie,
             csrf: csrf,
             serverUrl: state.serverUrl,
           );
       return await signInWithToken(token);
     } catch (error) {
-      state = state.copyWith(busy: false, error: ApiClient.describe(error).message);
+      state = state.copyWith(
+        busy: false,
+        error: ApiClient.describe(error).message,
+      );
       return false;
     }
+  }
+
+  Future<bool> signInWithDemo() =>
+      signInWithPassword(state.demoHandle, state.demoPassword);
+
+  /// Enters the logged-out preview without persisting anything. The API is
+  /// configured for the selected server but receives no bearer token.
+  void startPreview() {
+    final api = ref.read(apiProvider);
+    api.configure(state.serverUrl);
+    api.setToken(null);
+    state = state.copyWith(preview: true, loading: false, clearError: true);
+  }
+
+  /// Leaves the preview and returns to onboarding.
+  void stopPreview() {
+    state = state.copyWith(preview: false, clearError: true);
   }
 
   Future<void> signOut() async {
@@ -206,6 +274,9 @@ class AuthController extends Notifier<AuthState> {
       hasSavedServer: true,
       oidcEnabled: state.oidcEnabled,
       passwordFallback: state.passwordFallback,
+      demoEnabled: state.demoEnabled,
+      demoHandle: state.demoHandle,
+      demoPassword: state.demoPassword,
     );
   }
 

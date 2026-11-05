@@ -83,6 +83,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.loginSubmit)
+	mux.HandleFunc("GET /people", s.peoplePage)
 	mux.HandleFunc("GET /register", s.registerPage)
 	mux.HandleFunc("POST /register", s.registerSubmit)
 	mux.HandleFunc("GET /setup", s.setupPage)
@@ -104,6 +105,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /drinks/{slug}", s.requireUser(s.drinkPage))
 	mux.HandleFunc("GET /scan", s.requireVerified(s.scanPage))
 	mux.HandleFunc("GET /checkins/new", s.requireVerified(s.checkinPage))
+	mux.HandleFunc("GET /checkins/venues", s.requireVerified(s.checkinVenueOptionsJSON))
 	mux.HandleFunc("POST /checkins", s.requireVerified(s.checkinSubmit))
 	mux.HandleFunc("POST /checkins/{id}/toast", s.requireVerified(s.checkinToast))
 	mux.HandleFunc("POST /checkins/{id}/untoast", s.requireVerified(s.untoast))
@@ -276,7 +278,7 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 // indexablePath reports whether a route may be indexed. Public catalog pages and
 // opt-in profiles opt in; everything else stays noindex.
 func indexablePath(p string) bool {
-	return p == "/" || strings.HasPrefix(p, "/u/")
+	return p == "/" || p == "/people" || strings.HasPrefix(p, "/u/")
 }
 
 func (s *Server) base(r *http.Request) map[string]any {

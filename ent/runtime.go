@@ -16,6 +16,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/checkinsave"
+	"sodapop/ent/checkintag"
 	"sodapop/ent/comment"
 	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
@@ -291,11 +292,11 @@ func init() {
 	// checkin.DefaultNote holds the default value on creation for the note field.
 	checkin.DefaultNote = checkinDescNote.Default.(string)
 	// checkinDescCreatedAt is the schema descriptor for created_at field.
-	checkinDescCreatedAt := checkinFields[10].Descriptor()
+	checkinDescCreatedAt := checkinFields[12].Descriptor()
 	// checkin.DefaultCreatedAt holds the default value on creation for the created_at field.
 	checkin.DefaultCreatedAt = checkinDescCreatedAt.Default.(func() string)
 	// checkinDescUpdatedAt is the schema descriptor for updated_at field.
-	checkinDescUpdatedAt := checkinFields[11].Descriptor()
+	checkinDescUpdatedAt := checkinFields[13].Descriptor()
 	// checkin.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	checkin.DefaultUpdatedAt = checkinDescUpdatedAt.Default.(func() string)
 	// checkinDescID is the schema descriptor for id field.
@@ -334,6 +335,20 @@ func init() {
 	checkinsaveDescID := checkinsaveFields[0].Descriptor()
 	// checkinsave.DefaultID holds the default value on creation for the id field.
 	checkinsave.DefaultID = checkinsaveDescID.Default.(func() string)
+	checkintagFields := schema.CheckinTag{}.Fields()
+	_ = checkintagFields
+	// checkintagDescCheckinID is the schema descriptor for checkin_id field.
+	checkintagDescCheckinID := checkintagFields[0].Descriptor()
+	// checkintag.CheckinIDValidator is a validator for the "checkin_id" field. It is called by the builders before save.
+	checkintag.CheckinIDValidator = checkintagDescCheckinID.Validators[0].(func(string) error)
+	// checkintagDescUserID is the schema descriptor for user_id field.
+	checkintagDescUserID := checkintagFields[1].Descriptor()
+	// checkintag.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	checkintag.UserIDValidator = checkintagDescUserID.Validators[0].(func(string) error)
+	// checkintagDescCreatedAt is the schema descriptor for created_at field.
+	checkintagDescCreatedAt := checkintagFields[2].Descriptor()
+	// checkintag.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkintag.DefaultCreatedAt = checkintagDescCreatedAt.Default.(func() string)
 	commentFields := schema.Comment{}.Fields()
 	_ = commentFields
 	// commentDescCheckinID is the schema descriptor for checkin_id field.

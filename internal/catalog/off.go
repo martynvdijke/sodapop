@@ -30,7 +30,7 @@ type OFFProduct struct {
 	Brands       string          `json:"brands"`
 	Quantity     string          `json:"quantity"`
 	ImageFront   string          `json:"image_front_url"`
-	Categories   string          `json:"categories_tags"`
+	Categories   []string        `json:"categories_tags"`
 	LastModified int64           `json:"last_modified_t"`
 	Raw          json.RawMessage `json:"-"`
 }

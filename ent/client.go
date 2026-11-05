@@ -24,6 +24,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/checkinsave"
+	"sodapop/ent/checkintag"
 	"sodapop/ent/comment"
 	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
@@ -99,6 +100,8 @@ type Client struct {
 	CheckinLike *CheckinLikeClient
 	// CheckinSave is the client for interacting with the CheckinSave builders.
 	CheckinSave *CheckinSaveClient
+	// CheckinTag is the client for interacting with the CheckinTag builders.
+	CheckinTag *CheckinTagClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
 	// DeliveryOutbox is the client for interacting with the DeliveryOutbox builders.
@@ -197,6 +200,7 @@ func (c *Client) init() {
 	c.Checkin = NewCheckinClient(c.config)
 	c.CheckinLike = NewCheckinLikeClient(c.config)
 	c.CheckinSave = NewCheckinSaveClient(c.config)
+	c.CheckinTag = NewCheckinTagClient(c.config)
 	c.Comment = NewCommentClient(c.config)
 	c.DeliveryOutbox = NewDeliveryOutboxClient(c.config)
 	c.Drink = NewDrinkClient(c.config)
@@ -339,6 +343,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Checkin:                NewCheckinClient(cfg),
 		CheckinLike:            NewCheckinLikeClient(cfg),
 		CheckinSave:            NewCheckinSaveClient(cfg),
+		CheckinTag:             NewCheckinTagClient(cfg),
 		Comment:                NewCommentClient(cfg),
 		DeliveryOutbox:         NewDeliveryOutboxClient(cfg),
 		Drink:                  NewDrinkClient(cfg),
@@ -408,6 +413,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Checkin:                NewCheckinClient(cfg),
 		CheckinLike:            NewCheckinLikeClient(cfg),
 		CheckinSave:            NewCheckinSaveClient(cfg),
+		CheckinTag:             NewCheckinTagClient(cfg),
 		Comment:                NewCommentClient(cfg),
 		DeliveryOutbox:         NewDeliveryOutboxClient(cfg),
 		Drink:                  NewDrinkClient(cfg),
@@ -476,14 +482,14 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AIDraftSession, c.AIEndpoint, c.APIToken, c.Activity, c.AdminNote,
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
-		c.CheckinLike, c.CheckinSave, c.Comment, c.DeliveryOutbox, c.Drink,
-		c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
-		c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship, c.InboundToken,
-		c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
-		c.OffProduct, c.PasswordResetToken, c.PushDevice, c.PushSubscription, c.Report,
-		c.RuntimeSetting, c.SchedulerState, c.Session, c.Style, c.User, c.UserBadge,
-		c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueMedia,
-		c.VenueName, c.VenueSave,
+		c.CheckinLike, c.CheckinSave, c.CheckinTag, c.Comment, c.DeliveryOutbox,
+		c.Drink, c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage,
+		c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship,
+		c.InboundToken, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
+		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushDevice,
+		c.PushSubscription, c.Report, c.RuntimeSetting, c.SchedulerState, c.Session,
+		c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue,
+		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
 	} {
 		n.Use(hooks...)
 	}
@@ -495,14 +501,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AIDraftSession, c.AIEndpoint, c.APIToken, c.Activity, c.AdminNote,
 		c.AppSetting, c.Badge, c.Block, c.Brand, c.CatalogRevision, c.Checkin,
-		c.CheckinLike, c.CheckinSave, c.Comment, c.DeliveryOutbox, c.Drink,
-		c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage, c.EmailOutbox,
-		c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship, c.InboundToken,
-		c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media, c.Notification,
-		c.OffProduct, c.PasswordResetToken, c.PushDevice, c.PushSubscription, c.Report,
-		c.RuntimeSetting, c.SchedulerState, c.Session, c.Style, c.User, c.UserBadge,
-		c.UserIdentity, c.UserSetting, c.Venue, c.VenueDrink, c.VenueMedia,
-		c.VenueName, c.VenueSave,
+		c.CheckinLike, c.CheckinSave, c.CheckinTag, c.Comment, c.DeliveryOutbox,
+		c.Drink, c.DrinkAlias, c.DrinkBarcode, c.DrinkFlavour, c.DrinkImage,
+		c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship,
+		c.InboundToken, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
+		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushDevice,
+		c.PushSubscription, c.Report, c.RuntimeSetting, c.SchedulerState, c.Session,
+		c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue,
+		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -537,6 +543,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CheckinLike.mutate(ctx, m)
 	case *CheckinSaveMutation:
 		return c.CheckinSave.mutate(ctx, m)
+	case *CheckinTagMutation:
+		return c.CheckinTag.mutate(ctx, m)
 	case *CommentMutation:
 		return c.Comment.mutate(ctx, m)
 	case *DeliveryOutboxMutation:
@@ -2422,6 +2430,139 @@ func (c *CheckinSaveClient) mutate(ctx context.Context, m *CheckinSaveMutation) 
 		return (&CheckinSaveDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CheckinSave mutation op: %q", m.Op())
+	}
+}
+
+// CheckinTagClient is a client for the CheckinTag schema.
+type CheckinTagClient struct {
+	config
+}
+
+// NewCheckinTagClient returns a client for the CheckinTag from the given config.
+func NewCheckinTagClient(c config) *CheckinTagClient {
+	return &CheckinTagClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `checkintag.Hooks(f(g(h())))`.
+func (c *CheckinTagClient) Use(hooks ...Hook) {
+	c.hooks.CheckinTag = append(c.hooks.CheckinTag, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `checkintag.Intercept(f(g(h())))`.
+func (c *CheckinTagClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CheckinTag = append(c.inters.CheckinTag, interceptors...)
+}
+
+// Create returns a builder for creating a CheckinTag entity.
+func (c *CheckinTagClient) Create() *CheckinTagCreate {
+	mutation := newCheckinTagMutation(c.config, OpCreate)
+	return &CheckinTagCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CheckinTag entities.
+func (c *CheckinTagClient) CreateBulk(builders ...*CheckinTagCreate) *CheckinTagCreateBulk {
+	return &CheckinTagCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CheckinTagClient) MapCreateBulk(slice any, setFunc func(*CheckinTagCreate, int)) *CheckinTagCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CheckinTagCreateBulk{err: fmt.Errorf("calling to CheckinTagClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CheckinTagCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CheckinTagCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CheckinTag.
+func (c *CheckinTagClient) Update() *CheckinTagUpdate {
+	mutation := newCheckinTagMutation(c.config, OpUpdate)
+	return &CheckinTagUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CheckinTagClient) UpdateOne(_m *CheckinTag) *CheckinTagUpdateOne {
+	mutation := newCheckinTagMutation(c.config, OpUpdateOne, withCheckinTag(_m))
+	return &CheckinTagUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CheckinTagClient) UpdateOneID(id int) *CheckinTagUpdateOne {
+	mutation := newCheckinTagMutation(c.config, OpUpdateOne, withCheckinTagID(id))
+	return &CheckinTagUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CheckinTag.
+func (c *CheckinTagClient) Delete() *CheckinTagDelete {
+	mutation := newCheckinTagMutation(c.config, OpDelete)
+	return &CheckinTagDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CheckinTagClient) DeleteOne(_m *CheckinTag) *CheckinTagDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CheckinTagClient) DeleteOneID(id int) *CheckinTagDeleteOne {
+	builder := c.Delete().Where(checkintag.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CheckinTagDeleteOne{builder}
+}
+
+// Query returns a query builder for CheckinTag.
+func (c *CheckinTagClient) Query() *CheckinTagQuery {
+	return &CheckinTagQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCheckinTag},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CheckinTag entity by its id.
+func (c *CheckinTagClient) Get(ctx context.Context, id int) (*CheckinTag, error) {
+	return c.Query().Where(checkintag.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CheckinTagClient) GetX(ctx context.Context, id int) *CheckinTag {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CheckinTagClient) Hooks() []Hook {
+	return c.hooks.CheckinTag
+}
+
+// Interceptors returns the client interceptors.
+func (c *CheckinTagClient) Interceptors() []Interceptor {
+	return c.inters.CheckinTag
+}
+
+func (c *CheckinTagClient) mutate(ctx context.Context, m *CheckinTagMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CheckinTagCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CheckinTagUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CheckinTagUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CheckinTagDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CheckinTag mutation op: %q", m.Op())
 	}
 }
 
@@ -7814,22 +7955,23 @@ func (c *VenueSaveClient) mutate(ctx context.Context, m *VenueSaveMutation) (Val
 type (
 	hooks struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
-		Block, Brand, CatalogRevision, Checkin, CheckinLike, CheckinSave, Comment,
-		DeliveryOutbox, Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage,
-		EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship, InboundToken,
-		Integration, List, ListItem, LoginAttempt, Media, Notification, OffProduct,
-		PasswordResetToken, PushDevice, PushSubscription, Report, RuntimeSetting,
-		SchedulerState, Session, Style, User, UserBadge, UserIdentity, UserSetting,
-		Venue, VenueDrink, VenueMedia, VenueName, VenueSave []ent.Hook
+		Block, Brand, CatalogRevision, Checkin, CheckinLike, CheckinSave, CheckinTag,
+		Comment, DeliveryOutbox, Drink, DrinkAlias, DrinkBarcode, DrinkFlavour,
+		DrinkImage, EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship,
+		InboundToken, Integration, List, ListItem, LoginAttempt, Media, Notification,
+		OffProduct, PasswordResetToken, PushDevice, PushSubscription, Report,
+		RuntimeSetting, SchedulerState, Session, Style, User, UserBadge, UserIdentity,
+		UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave []ent.Hook
 	}
 	inters struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
-		Block, Brand, CatalogRevision, Checkin, CheckinLike, CheckinSave, Comment,
-		DeliveryOutbox, Drink, DrinkAlias, DrinkBarcode, DrinkFlavour, DrinkImage,
-		EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship, InboundToken,
-		Integration, List, ListItem, LoginAttempt, Media, Notification, OffProduct,
-		PasswordResetToken, PushDevice, PushSubscription, Report, RuntimeSetting,
-		SchedulerState, Session, Style, User, UserBadge, UserIdentity, UserSetting,
-		Venue, VenueDrink, VenueMedia, VenueName, VenueSave []ent.Interceptor
+		Block, Brand, CatalogRevision, Checkin, CheckinLike, CheckinSave, CheckinTag,
+		Comment, DeliveryOutbox, Drink, DrinkAlias, DrinkBarcode, DrinkFlavour,
+		DrinkImage, EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship,
+		InboundToken, Integration, List, ListItem, LoginAttempt, Media, Notification,
+		OffProduct, PasswordResetToken, PushDevice, PushSubscription, Report,
+		RuntimeSetting, SchedulerState, Session, Style, User, UserBadge, UserIdentity,
+		UserSetting, Venue, VenueDrink, VenueMedia, VenueName,
+		VenueSave []ent.Interceptor
 	}
 )

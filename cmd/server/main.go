@@ -23,6 +23,7 @@ import (
 	"sodapop/internal/comments"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/demo"
 	"sodapop/internal/email"
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
@@ -134,6 +135,11 @@ func run() error {
 	catalogSvc := catalog.New(cfg, database)
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
+	if err := demo.Ensure(context.Background(), database.Client, cfg, checkinSvc); err != nil {
+		log.Error("demo account could not be provisioned", "err", err)
+	} else if cfg.DemoUserEnabled {
+		log.Info("demo account ready", "handle", cfg.DemoUserHandle)
+	}
 	savesSvc := saves.New(database, checkinSvc)
 	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)

@@ -33,6 +33,10 @@ type Checkin struct {
 	Note string `json:"note,omitempty"`
 	// PhotoMediaID holds the value of the "photo_media_id" field.
 	PhotoMediaID *string `json:"photo_media_id,omitempty"`
+	// Lat holds the value of the "lat" field.
+	Lat *float64 `json:"lat,omitempty"`
+	// Lng holds the value of the "lng" field.
+	Lng *float64 `json:"lng,omitempty"`
 	// Visibility holds the value of the "visibility" field.
 	Visibility checkin.Visibility `json:"visibility,omitempty"`
 	// IdempotencyKey holds the value of the "idempotency_key" field.
@@ -100,6 +104,8 @@ func (*Checkin) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case checkin.FieldLat, checkin.FieldLng:
+			values[i] = new(sql.NullFloat64)
 		case checkin.FieldDrinkID, checkin.FieldVenueID, checkin.FieldRating:
 			values[i] = new(sql.NullInt64)
 		case checkin.FieldID, checkin.FieldUserID, checkin.FieldServing, checkin.FieldNote, checkin.FieldPhotoMediaID, checkin.FieldVisibility, checkin.FieldIdempotencyKey, checkin.FieldCreatedAt, checkin.FieldUpdatedAt, checkin.FieldDeletedAt:
@@ -169,6 +175,20 @@ func (_m *Checkin) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PhotoMediaID = new(string)
 				*_m.PhotoMediaID = value.String
+			}
+		case checkin.FieldLat:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field lat", values[i])
+			} else if value.Valid {
+				_m.Lat = new(float64)
+				*_m.Lat = value.Float64
+			}
+		case checkin.FieldLng:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field lng", values[i])
+			} else if value.Valid {
+				_m.Lng = new(float64)
+				*_m.Lng = value.Float64
 			}
 		case checkin.FieldVisibility:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -278,6 +298,16 @@ func (_m *Checkin) String() string {
 	if v := _m.PhotoMediaID; v != nil {
 		builder.WriteString("photo_media_id=")
 		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.Lat; v != nil {
+		builder.WriteString("lat=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.Lng; v != nil {
+		builder.WriteString("lng=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("visibility=")

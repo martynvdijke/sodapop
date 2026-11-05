@@ -387,15 +387,15 @@ func TestPublicAuthPasswordResetConfirm(t *testing.T) {
 	}
 }
 
-func TestPublicAuthRateLimited(t *testing.T) {
+func TestPublicAuthRegisterRateLimited(t *testing.T) {
 	h := newAuthHarness(t)
 	for i := 0; i < 5; i++ {
-		rec := h.do(t, http.MethodGet, "/api/v1/auth/config", "", false)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("request %d = %d", i, rec.Code)
+		rec := h.do(t, http.MethodPost, "/api/v1/auth/register", "", false)
+		if rec.Code == http.StatusTooManyRequests {
+			t.Fatalf("request %d was rate limited too early", i+1)
 		}
 	}
-	rec := h.do(t, http.MethodGet, "/api/v1/auth/config", "", false)
+	rec := h.do(t, http.MethodPost, "/api/v1/auth/register", "", false)
 	if rec.Code != http.StatusTooManyRequests || !containsCode(rec.Body.Bytes(), "rate_limited") {
 		t.Fatalf("sixth request = %d %s", rec.Code, rec.Body.String())
 	}

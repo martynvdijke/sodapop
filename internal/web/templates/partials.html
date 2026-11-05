@@ -21,6 +21,13 @@
     {{end}}
   {{end}}
   {{if .Note}}<p class="note">{{.Note}}</p>{{end}}
+  {{if .TaggedFriends}}
+    {{$tags := .TaggedFriends}}
+    <p class="checkin-with">With {{range $i, $f := $tags}}{{if $i}}{{if isLast $i (len $tags)}} and {{else}}, {{end}}{{end}}<a href="/u/{{$f.Handle}}">{{if $f.DisplayName}}{{$f.DisplayName}}{{else}}@{{$f.Handle}}{{end}}</a>{{end}}</p>
+  {{end}}
+  {{if and .Lat .Lng (not .VenueName)}}
+    <p class="checkin-location-link"><a class="chip chip-location" href="https://www.openstreetmap.org/?mlat={{coord .Lat}}&amp;mlon={{coord .Lng}}#map=16/{{coord .Lat}}/{{coord .Lng}}" target="_blank" rel="nofollow noopener" aria-label="View the location of this pour on OpenStreetMap">Location</a></p>
+  {{end}}
   <div class="checkin-actions" data-checkin-actions>
     {{if .CSRF}}
     <form method="post" action="/checkins/{{.ID}}/{{if .Toasted}}untoast{{else}}toast{{end}}" class="inline toast-form">
@@ -72,4 +79,51 @@
     <li><a href="/admin/system"{{if eq . "system"}} aria-current="page"{{end}}>System</a></li>
   </ul>
 </nav>
+{{end}}
+
+{{define "public_feed_item"}}
+<article class="card checkin public-checkin" data-checkin-id="{{.ID}}">
+  <div class="checkin-head">
+    <a class="avatar" href="/u/{{.Handle}}" aria-label="View {{.DisplayName}}'s profile">{{initial .Handle}}</a>
+    <div>
+      <strong><a href="/u/{{.Handle}}">{{.DisplayName}}</a></strong>
+      <div class="muted">@{{.Handle}} · {{.CreatedAt}}</div>
+    </div>
+    <span class="rating-pill">{{if .Rating}}{{stars .Rating}}{{else}}Not rated{{end}}</span>
+  </div>
+  <h3><a href="/checkins/{{.ID}}">{{.DrinkName}}</a></h3>
+  <p class="muted">{{.Brand}}{{if .VenueName}} · at {{.VenueName}}{{end}} · {{volume .VolumeML}} {{container .Container}}</p>
+  {{if .PhotoID}}
+    {{if hasPrefix .PhotoMime "video/"}}
+      <video class="checkin-media" controls preload="metadata" {{if .PosterPath}}poster="/media/{{.PhotoID}}/poster"{{end}}>
+        <source src="/media/{{.PhotoID}}" type="{{.PhotoMime}}">
+        <a href="/media/{{.PhotoID}}">Download video</a>
+      </video>
+    {{else}}
+      <img class="checkin-media" src="/media/{{.PhotoID}}" alt="Photo of {{.DrinkName}}" loading="lazy">
+    {{end}}
+  {{end}}
+  {{if .Note}}<p class="note">{{.Note}}</p>{{end}}
+  <div class="checkin-actions">
+    <span class="chip" aria-label="{{.Toasts}} toasts">{{.Toasts}} toasts</span>
+    <a class="chip" href="/checkins/{{.ID}}">View pour</a>
+    <a class="chip" href="/login?next=/checkins/{{.ID}}">Sign in to toast</a>
+  </div>
+</article>
+{{end}}
+
+{{define "public_person_card"}}
+<a class="card person-card" href="/u/{{.Handle}}">
+  {{if .AvatarID}}
+    <img class="avatar" src="/media/{{.AvatarID}}" alt="" width="44" height="44" loading="lazy">
+  {{else}}
+    <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+  {{end}}
+  <div>
+    <strong>{{.DisplayName}}</strong>
+    <div class="muted">@{{.Handle}}</div>
+    {{if .Bio}}<p class="person-bio">{{truncate .Bio 120}}</p>{{end}}
+    <div class="muted">{{.Pours}} public {{if eq .Pours 1}}pour{{else}}pours{{end}}{{if .Styles}} · {{.Styles}} {{if eq .Styles 1}}style{{else}}styles{{end}}{{end}}</div>
+  </div>
+</a>
 {{end}}

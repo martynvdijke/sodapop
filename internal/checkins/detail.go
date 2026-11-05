@@ -28,9 +28,19 @@ type Detail struct {
 	VenueName     string
 	MediaID       string
 	MediaMime     string
+	Lat           *float64
+	Lng           *float64
+	TaggedFriends []TaggedFriend
 	Toasts        int
 	Toasted       bool
 	CommentsCount int
+}
+
+// TaggedFriend is a compact profile of a friend tagged on a check-in.
+type TaggedFriend struct {
+	ID          string `json:"id"`
+	Handle      string `json:"handle"`
+	DisplayName string `json:"display_name"`
 }
 
 // Initial exposes the avatar initial under the name the detail template uses.
@@ -85,6 +95,8 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		d       Detail
 		rating  sql.NullInt64
 		venueID sql.NullInt64
+		lat     sql.NullFloat64
+		lng     sql.NullFloat64
 		toasted int
 	)
 	err := s.SQL.QueryRowContext(ctx, `
@@ -92,6 +104,7 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		       d.id, d.slug, d.name, COALESCE(b.name,''), COALESCE(st.name,''),
 		       c.rating, COALESCE(c.note,''), c.created_at, c.visibility,
 		       c.venue_id, COALESCE(v.name,''),
+		       c.lat, c.lng,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
 		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?),
@@ -112,6 +125,7 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		&d.DrinkID, &d.DrinkSlug, &d.DrinkName, &d.Brand, &d.Style,
 		&rating, &d.Note, &d.CreatedAt, &d.Visibility,
 		&venueID, &d.VenueName,
+		&lat, &lng,
 		&d.MediaID, &d.MediaMime,
 		&d.Toasts, &toasted, &d.CommentsCount,
 	)
@@ -129,6 +143,16 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		v := int(venueID.Int64)
 		d.VenueID = &v
 	}
+	if lat.Valid && lng.Valid {
+		la, ln := lat.Float64, lng.Float64
+		d.Lat = &la
+		d.Lng = &ln
+	}
+	tags, err := s.loadTags(ctx, d.ID)
+	if err != nil {
+		return nil, err
+	}
+	d.TaggedFriends = tags
 	d.Toasted = toasted != 0
 
 	name := d.UserName
@@ -137,6 +161,31 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 	}
 	d.UserInitial = initialOf(name)
 	return &d, nil
+}
+
+// loadTags returns the visible tagged friends. Callers only reach this after
+// the check-in itself has passed visibility, so a tag can never widen access.
+func (s *Service) loadTags(ctx context.Context, checkinID string) ([]TaggedFriend, error) {
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT u.id, u.handle, COALESCE(u.display_name,'')
+		FROM checkin_tags t
+		JOIN users u ON u.id = t.user_id
+		WHERE t.checkin_id = ?
+		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
+		ORDER BY t.created_at, t.id`, checkinID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []TaggedFriend{}
+	for rows.Next() {
+		var f TaggedFriend
+		if err := rows.Scan(&f.ID, &f.Handle, &f.DisplayName); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
 }
 
 // blocked reports whether either user has blocked the other. It queries the

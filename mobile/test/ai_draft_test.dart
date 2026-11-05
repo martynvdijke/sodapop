@@ -403,6 +403,7 @@ void main() {
     );
     expect(find.text('AI features are not configured'), findsNothing);
     expect(find.byKey(const Key('ai-commit')), findsNothing);
+    expect(find.byKey(const Key('ai-add-manual')), findsOneWidget);
 
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();

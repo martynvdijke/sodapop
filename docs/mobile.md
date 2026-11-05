@@ -1,6 +1,6 @@
 # Sodapop — Flutter Android App (`mobile/`)
 
-The `mobile/` directory contains the native Flutter Android companion app for Sodapop. It talks exclusively to a self-hosted Sodapop server over `/api/v1` and `/auth/oidc/*`, and covers the same member surface as the web app apart from admin tools and public marketing pages. Native push and admin surfaces are not in the app.
+The `mobile/` directory contains the native Flutter Android companion app for Sodapop. It talks exclusively to a self-hosted Sodapop server over `/api/v1` and `/auth/oidc/*`, and covers the same member surface as the web app apart from admin tools. It also ships a read-only public preview for signed-out users. Native push and admin surfaces are not in the app.
 
 ## 1. Architecture & Stack
 
@@ -84,11 +84,13 @@ mobile/
 
 ## 3. Onboarding & Authentication
 
-1. **Zero hardcoded server URL:** on a fresh install the server URL input is empty (hint `https://soda.example.com`). Submission validates a non-empty `http://` or `https://` origin, strips trailing slashes, and blocks API calls while unconfigured.
-2. **OIDC discovery (`GET /api/v1/auth/oidc/status`):** once the origin is valid the app probes the endpoint. When enabled, **Sign in with Authelia** is the primary lime CTA. Tapping it clears WebView cookies, opens `{serverUrl}/auth/oidc/login`, detects the redirect back, reads `sd_session` through the native cookie channel, calls `POST /api/v1/auth/mobile-token`, and stores the device-scoped `sd_` token in secure storage.
-3. **Password and token fallback:** when `password_fallback` is true, email/handle + password is available. A personal `sd_…` token from `/settings/tokens` can always be pasted and is verified with `GET /api/v1/me`.
-4. **Registration and reset:** **New here? Create an account** opens the native registration screen (`POST /api/v1/auth/register`). It supports display name, handle, email, and a 10+ character password, then shows either an inbox/verification state with a 60-second resend cooldown or a created state. **Forgot password?** requests a reset link with an enumeration-safe confirmation. Verification and reset links land on the server's web pages.
-5. **Sign out and server switch:** clearing credentials deletes the token, clears WebView cookies, and prefills the saved server URL on onboarding.
+1. **Default server:** the server URL defaults to `https://sodapop.vandijke.xyz` on a fresh install. A saved server always wins. Submission validates a non-empty `http://` or `https://` origin, strips trailing slashes, and blocks API calls while unconfigured.
+2. **Public preview:** **Browse without signing in** opens a read-only Public/People shell backed by `/api/v1/public/*`. It lists only public pours from authors who opted into a public profile, and offers no toast, save, comment, or scan controls. **Sign in** returns to onboarding.
+3. **OIDC discovery (`GET /api/v1/auth/config`):** once the origin is valid the app probes the endpoint. The same response reports whether the hosted demo account is available. When OIDC is enabled, **Sign in with Authelia** is the primary lime CTA. Tapping it clears WebView cookies, opens `{serverUrl}/auth/oidc/login`, detects the redirect back, reads `sd_session` through the native cookie channel, calls `POST /api/v1/auth/mobile-token`, and stores the device-scoped `sd_` token in secure storage.
+4. **Demo account:** when `demo.enabled` is true, **Try the demo account** signs in with the shared handle and password returned by the server (on the hosted instance, `demo` / `demo`). The credentials are public by design; posting with them is still a normal authenticated write.
+5. **Password and token fallback:** when `password_fallback` is true, email/handle + password is available. A personal `sd_…` token from `/settings/tokens` can always be pasted and is verified with `GET /api/v1/me`.
+6. **Registration and reset:** **New here? Create an account** opens the native registration screen (`POST /api/v1/auth/register`). It supports display name, handle, email, and a 10+ character password, then shows either an inbox/verification state with a 60-second resend cooldown or a created state. **Forgot password?** requests a reset link with an enumeration-safe confirmation. Verification and reset links land on the server's web pages.
+7. **Sign out and server switch:** clearing credentials deletes the token, clears WebView cookies, and prefills the saved server URL on onboarding.
 
 ## 4. Member surface
 

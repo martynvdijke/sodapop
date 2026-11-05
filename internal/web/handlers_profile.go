@@ -12,6 +12,26 @@ import (
 	"sodapop/internal/social"
 )
 
+// profileFeedItem lets profile rows share the feed_item partial with feed
+// rows. ProfileItem does not load friend tags or coordinates, so those
+// optional fields stay nil and the partial simply omits them.
+type profileFeedItem struct {
+	checkins.ProfileItem
+	TaggedFriends []social.FeedTaggedFriend
+	Lat           *float64
+	Lng           *float64
+	Comments      int
+	Saved         bool
+}
+
+func profileFeedItems(items []checkins.ProfileItem) []profileFeedItem {
+	out := make([]profileFeedItem, len(items))
+	for i, item := range items {
+		out[i] = profileFeedItem{ProfileItem: item}
+	}
+	return out
+}
+
 // profilePage renders the opt-in public profile at GET /u/{handle}. Access is
 // decided by checkins.DecideProfileAccess so a private profile is either a
 // login redirect (anonymous) or a 404 (signed-in stranger), never a 403.
@@ -167,7 +187,8 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 	nextBefore := ""
 	hasMore := len(items) == pageSize
 	if hasMore {
-		nextBefore = items[len(items)-1].CreatedAt
+		last := items[len(items)-1]
+		nextBefore = checkins.Cursor(last.CreatedAt, last.ID)
 	}
 
 	if !indexable {
@@ -180,7 +201,7 @@ func (s *Server) profilePage(w http.ResponseWriter, r *http.Request) {
 		"Title":           displayName,
 		"Profile":         profile,
 		"Stats":           statMap,
-		"Checkins":        items,
+		"Checkins":        profileFeedItems(items),
 		"Lists":           lists,
 		"Badges":          badges,
 		"TopStyles":       topStyles,

@@ -45,6 +45,11 @@ class ApiClient {
   /// Absolute URL for a stored media row.
   String mediaUrl(String id) => '${_server ?? ''}/api/v1/media/$id';
 
+  /// Absolute URL for a public preview image. Public media never needs a
+  /// bearer token, so [Image.network] can fetch it directly.
+  String publicMediaUrl(String id) =>
+      '${_server ?? ''}/api/v1/public/media/$id';
+
   /// Bearer headers for an authenticated image fetch; empty when signed out.
   Map<String, String> get imageHeaders {
     final token = _token;
@@ -246,6 +251,77 @@ class ApiClient {
         .toList();
   });
 
+  /// Newest public pours from people who opted into a public profile. This is
+  /// the logged-out preview and never sends a bearer token.
+  Future<List<FeedItem>> publicFeed({int limit = 20, String? before}) =>
+      _guard(() async {
+        final response = await _dio.get<dynamic>(
+          'api/v1/public/feed',
+          queryParameters: {
+            'limit': limit,
+            if (before != null && before.isNotEmpty) 'before': before,
+          },
+          options: _options(auth: false),
+        );
+        final rows = _data(response);
+        return (rows as List)
+            .map((e) => FeedItem.fromJson((e as Map).cast<String, dynamic>()))
+            .toList();
+      });
+
+  /// The logged-out directory of opted-in public profiles.
+  Future<List<PublicPerson>> publicPeople({int limit = 24}) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/public/people',
+      queryParameters: {'limit': limit},
+      options: _options(auth: false),
+    );
+    final rows = _data(response);
+    return (rows as List)
+        .map((e) => PublicPerson.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  });
+
+  /// One opted-in public profile header.
+  Future<PublicProfile> publicUser(String handle) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/public/users/${Uri.encodeComponent(handle)}',
+      options: _options(auth: false),
+    );
+    return PublicProfile.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  /// One page of public check-ins for an opted-in profile.
+  Future<List<FeedItem>> publicUserCheckins(
+    String handle, {
+    int limit = 20,
+    String? before,
+  }) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/public/users/${Uri.encodeComponent(handle)}/checkins',
+      queryParameters: {
+        'limit': limit,
+        if (before != null && before.isNotEmpty) 'before': before,
+      },
+      options: _options(auth: false),
+    );
+    final rows = _data(response);
+    return (rows as List)
+        .map((e) => FeedItem.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  });
+
+  /// A single public check-in without viewer capabilities.
+  Future<FeedItem> publicCheckin(String id) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/public/checkins/${Uri.encodeComponent(id)}',
+      options: _options(auth: false),
+    );
+    return FeedItem.fromJson((_data(response) as Map).cast<String, dynamic>());
+  });
+
   /// One page of pours around a point. The coordinates are used for this
   /// request only; the server neither stores nor echoes them. `radius` is in
   /// kilometres (0.1–25) and `limit` is capped at 50 by the server.
@@ -294,20 +370,8 @@ class ApiClient {
       'api/v1/barcodes/$gtin',
       options: _options(),
     );
-    final data = (_data(response) as Map).cast<String, dynamic>();
-    Drink? drink;
-    if (data['drink'] is Map) {
-      drink = Drink.fromDetail((data['drink'] as Map).cast<String, dynamic>());
-    }
-    var suggestedName = '';
-    if (data['suggested'] is Map) {
-      final suggested = (data['suggested'] as Map).cast<String, dynamic>();
-      suggestedName = '${suggested['name'] ?? ''}';
-    }
-    return BarcodeResult(
-      status: '${data['status'] ?? 'unknown'}',
-      drink: drink,
-      suggestedName: suggestedName,
+    return BarcodeResult.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
     );
   });
 
@@ -318,6 +382,46 @@ class ApiClient {
       options: _options(),
     );
     return Drink.fromJson((_data(response) as Map).cast<String, dynamic>());
+  });
+
+  /// Adds a soda to the shared catalog.
+  ///
+  /// The server deduplicates by barcode first, then by name, volume, container
+  /// and brand. It answers 201 for a new provisional drink and 200 for an
+  /// existing equivalent, which [DrinkCreation.created] preserves.
+  Future<DrinkCreation> createDrink({
+    required String name,
+    String brand = '',
+    String styleSlug = '',
+    String container = 'can',
+    int volumeMl = 355,
+    String sweetener = '',
+    String carbonation = '',
+    String acid = '',
+    String barcode = '',
+    String description = '',
+  }) => _guard(() async {
+    final code = _trimmed(barcode);
+    final response = await _dio.post<dynamic>(
+      'api/v1/drinks',
+      data: {
+        'name': name.trim(),
+        'brand': brand.trim(),
+        'style_slug': styleSlug.trim(),
+        'container': container,
+        'volume_ml': volumeMl,
+        'sweetener': sweetener,
+        'carbonation': carbonation,
+        'acid': acid,
+        'barcode': ?code,
+        'description': description.trim(),
+      },
+      options: _options(),
+    );
+    return DrinkCreation.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+      created: response.statusCode == 201,
+    );
   });
 
   Future<List<DrinkImage>> drinkImages(String slug) => _guard(() async {
@@ -472,7 +576,8 @@ class ApiClient {
 
   /// Creates a check-in. A [photo] switches the request to `multipart/form-data`
   /// with the bytes in the `image` field; without one the JSON body is unchanged.
-  Future<void> createCheckin({
+  /// Returns the check-in id; an idempotent replay returns the original row's id.
+  Future<String> createCheckin({
     required int drinkId,
     int? rating,
     String note = '',
@@ -483,12 +588,21 @@ class ApiClient {
     Uint8List? photo,
     String? photoFilename,
     String? photoMime,
+    double? lat,
+    double? lng,
+    List<String> friendIds = const [],
   }) => _guard(() async {
     final key = idempotencyKey ?? newIdempotencyKey();
     final ratingValue = rating == null ? null : rating / 4;
     final noteText = note.trim();
     final servingText = _trimmed(serving);
     final visibilityText = _trimmed(visibility);
+    // The server rejects one coordinate without the other, so send neither.
+    final hasLocation = lat != null && lng != null;
+    final tagged = friendIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList();
 
     if (photo == null) {
       final payload = <String, dynamic>{
@@ -497,14 +611,19 @@ class ApiClient {
         'serving': ?servingText,
         'visibility': ?visibilityText,
       };
+      if (hasLocation) {
+        payload['lat'] = lat;
+        payload['lng'] = lng;
+      }
       if (ratingValue != null) payload['rating'] = ratingValue;
       if (noteText.isNotEmpty) payload['note'] = noteText;
-      await _dio.post<dynamic>(
+      if (tagged.isNotEmpty) payload['friend_ids'] = tagged;
+      final response = await _dio.post<dynamic>(
         'api/v1/checkins',
         data: payload,
         options: _options(idempotencyKey: key),
       );
-      return;
+      return _createdId(response);
     }
 
     // Dio owns the multipart boundary and Content-Type; setting it here would
@@ -520,6 +639,13 @@ class ApiClient {
     if (visibilityText != null) {
       form.fields.add(MapEntry('visibility', visibilityText));
     }
+    if (hasLocation) {
+      form.fields.add(MapEntry('lat', '$lat'));
+      form.fields.add(MapEntry('lng', '$lng'));
+    }
+    for (final id in tagged) {
+      form.fields.add(MapEntry('friend_ids', id));
+    }
     form.fields.add(MapEntry('idempotency_key', key));
     form.files.add(
       MapEntry(
@@ -531,12 +657,18 @@ class ApiClient {
         ),
       ),
     );
-    await _dio.post<dynamic>(
+    final response = await _dio.post<dynamic>(
       'api/v1/checkins',
       data: form,
       options: _options(idempotencyKey: key),
     );
+    return _createdId(response);
   });
+
+  String _createdId(Response<dynamic> response) {
+    final data = (_data(response) as Map).cast<String, dynamic>();
+    return '${data['id'] ?? ''}';
+  }
 
   static String? _trimmed(String? value) {
     final text = value?.trim();
@@ -1098,16 +1230,56 @@ class ApiClient {
     await _dio.delete<dynamic>('api/v1/venues/$id/save', options: _options());
   });
 
-  Future<List<Venue>> venues(String query) => _guard(() async {
+  /// Searches venues. Passing both [lat] and [lng] makes the server order the
+  /// results by distance and fill in [Venue.distanceM]. [radiusM] is in metres
+  /// and defaults to the server's 2 km when omitted.
+  Future<List<Venue>> venues(
+    String query, {
+    double? lat,
+    double? lng,
+    int? radiusM,
+  }) => _guard(() async {
+    final hasLocation = lat != null && lng != null;
     final response = await _dio.get<dynamic>(
       'api/v1/venues/search',
-      queryParameters: {'q': query},
+      queryParameters: {
+        'q': query,
+        if (hasLocation) 'lat': lat,
+        if (hasLocation) 'lng': lng,
+        if (hasLocation && radiusM != null) 'radius': radiusM,
+      },
       options: _options(),
     );
     final rows = _data(response);
     return (rows as List)
         .map((e) => Venue.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
+  });
+
+  /// Adds a community venue. The server answers 200 with an existing row when
+  /// the same name and place already exist, and 201 for a fresh one.
+  Future<Venue> createVenue({
+    required String name,
+    String address = '',
+    String city = '',
+    String country = '',
+    double? lat,
+    double? lng,
+  }) => _guard(() async {
+    final hasLocation = lat != null && lng != null;
+    final response = await _dio.post<dynamic>(
+      'api/v1/venues',
+      data: {
+        'name': name.trim(),
+        'address': address.trim(),
+        'city': city.trim(),
+        'country': country.trim(),
+        if (hasLocation) 'lat': lat,
+        if (hasLocation) 'lng': lng,
+      },
+      options: _options(),
+    );
+    return Venue.fromJson((_data(response) as Map).cast<String, dynamic>());
   });
 
   /// Starts a conversational drink draft. The server needs notes, a barcode or

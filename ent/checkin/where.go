@@ -94,6 +94,16 @@ func PhotoMediaID(v string) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldPhotoMediaID, v))
 }
 
+// Lat applies equality check predicate on the "lat" field. It's identical to LatEQ.
+func Lat(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldLat, v))
+}
+
+// Lng applies equality check predicate on the "lng" field. It's identical to LngEQ.
+func Lng(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldLng, v))
+}
+
 // IdempotencyKey applies equality check predicate on the "idempotency_key" field. It's identical to IdempotencyKeyEQ.
 func IdempotencyKey(v string) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldIdempotencyKey, v))
@@ -437,6 +447,106 @@ func PhotoMediaIDEqualFold(v string) predicate.Checkin {
 // PhotoMediaIDContainsFold applies the ContainsFold predicate on the "photo_media_id" field.
 func PhotoMediaIDContainsFold(v string) predicate.Checkin {
 	return predicate.Checkin(sql.FieldContainsFold(FieldPhotoMediaID, v))
+}
+
+// LatEQ applies the EQ predicate on the "lat" field.
+func LatEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldLat, v))
+}
+
+// LatNEQ applies the NEQ predicate on the "lat" field.
+func LatNEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldLat, v))
+}
+
+// LatIn applies the In predicate on the "lat" field.
+func LatIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldLat, vs...))
+}
+
+// LatNotIn applies the NotIn predicate on the "lat" field.
+func LatNotIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldLat, vs...))
+}
+
+// LatGT applies the GT predicate on the "lat" field.
+func LatGT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldLat, v))
+}
+
+// LatGTE applies the GTE predicate on the "lat" field.
+func LatGTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldLat, v))
+}
+
+// LatLT applies the LT predicate on the "lat" field.
+func LatLT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldLat, v))
+}
+
+// LatLTE applies the LTE predicate on the "lat" field.
+func LatLTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldLat, v))
+}
+
+// LatIsNil applies the IsNil predicate on the "lat" field.
+func LatIsNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldIsNull(FieldLat))
+}
+
+// LatNotNil applies the NotNil predicate on the "lat" field.
+func LatNotNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotNull(FieldLat))
+}
+
+// LngEQ applies the EQ predicate on the "lng" field.
+func LngEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldLng, v))
+}
+
+// LngNEQ applies the NEQ predicate on the "lng" field.
+func LngNEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldLng, v))
+}
+
+// LngIn applies the In predicate on the "lng" field.
+func LngIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldLng, vs...))
+}
+
+// LngNotIn applies the NotIn predicate on the "lng" field.
+func LngNotIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldLng, vs...))
+}
+
+// LngGT applies the GT predicate on the "lng" field.
+func LngGT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldLng, v))
+}
+
+// LngGTE applies the GTE predicate on the "lng" field.
+func LngGTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldLng, v))
+}
+
+// LngLT applies the LT predicate on the "lng" field.
+func LngLT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldLng, v))
+}
+
+// LngLTE applies the LTE predicate on the "lng" field.
+func LngLTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldLng, v))
+}
+
+// LngIsNil applies the IsNil predicate on the "lng" field.
+func LngIsNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldIsNull(FieldLng))
+}
+
+// LngNotNil applies the NotNil predicate on the "lng" field.
+func LngNotNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotNull(FieldLng))
 }
 
 // VisibilityEQ applies the EQ predicate on the "visibility" field.

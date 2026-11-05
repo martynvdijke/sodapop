@@ -3,6 +3,7 @@ package social
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"math"
 	"sort"
@@ -32,6 +33,30 @@ type NearbyItem struct {
 	FeedItem
 	VenueID   int `json:"venue_id,omitempty"`
 	DistanceM int `json:"distance_m"`
+}
+
+// MarshalJSON deliberately drops raw coordinates and tags from the nearby
+// feed: the viewer's request point must not be reflected back, and a location
+// feed should not expose a device's exact GPS.
+func (n NearbyItem) MarshalJSON() ([]byte, error) {
+	type feedAlias FeedItem
+	base := struct {
+		feedAlias
+		VenueID   int `json:"venue_id,omitempty"`
+		DistanceM int `json:"distance_m"`
+	}{feedAlias: feedAlias(n.FeedItem), VenueID: n.VenueID, DistanceM: n.DistanceM}
+	raw, err := json.Marshal(base)
+	if err != nil {
+		return nil, err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, err
+	}
+	delete(fields, "lat")
+	delete(fields, "lng")
+	delete(fields, "tagged_friends")
+	return json.Marshal(fields)
 }
 
 // Nearby returns visible check-ins at venues within radiusKM of the snapped

@@ -26,6 +26,11 @@ const _cherry = Drink(
 
 class _DiscoverApi extends ApiClient {}
 
+class _EmptySearchApi extends ApiClient {
+  @override
+  Future<List<Drink>> search(String query, {String? style}) async => const [];
+}
+
 class _FeedApi extends ApiClient {
   @override
   Future<List<FeedItem>> feed({int limit = 30}) async => const [];
@@ -53,8 +58,13 @@ class _ScannerApi extends ApiClient {
     calls.add(gtin);
     if (unmatched) {
       return const BarcodeResult(
-        status: 'not_found',
-        suggestedName: 'Cherry Cola',
+        status: 'off',
+        suggested: BarcodeSuggestion(
+          name: 'Cherry Cola',
+          brand: 'Soda Co',
+          quantity: '330 ml',
+          barcode: '05449000000996',
+        ),
       );
     }
     return const BarcodeResult(
@@ -171,6 +181,7 @@ void main() {
     _sizeTo(tester, const Size(420, 900));
     var compares = 0;
     var drafts = 0;
+    final added = <String>[];
 
     await tester.pumpWidget(
       _app(
@@ -178,6 +189,7 @@ void main() {
         DiscoverScreen(
           compareOpener: () => compares++,
           draftOpener: () => drafts++,
+          addOpener: added.add,
         ),
       ),
     );
@@ -188,6 +200,7 @@ void main() {
     expect(find.byTooltip('Venues'), findsOneWidget);
     expect(find.byTooltip('Compare sodas'), findsOneWidget);
     expect(find.text('Draft a soda with AI'), findsOneWidget);
+    expect(find.text('Add a soda'), findsOneWidget);
     expect(
       find.text('Turn a few notes into a provisional soda.'),
       findsOneWidget,
@@ -201,6 +214,41 @@ void main() {
     await tester.pump();
     expect(drafts, 1);
 
+    await tester.tap(find.byKey(const Key('discover-add')));
+    await tester.pump();
+    expect(added, ['']);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an empty search offers the manual add form', (tester) async {
+    _sizeTo(tester, const Size(420, 900));
+    final added = <String>[];
+
+    await tester.pumpWidget(
+      _app(
+        _EmptySearchApi(),
+        DiscoverScreen(
+          compareOpener: () {},
+          draftOpener: () {},
+          addOpener: added.add,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'zzz soda');
+    await tester.tap(find.byIcon(Icons.search_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No sodas matched.'), findsOneWidget);
+    expect(find.byKey(const Key('discover-add-empty')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('discover-add-empty')));
+    await tester.pump();
+
+    // The query becomes the proposed name for the new soda.
+    expect(added, ['zzz soda']);
     expect(tester.takeException(), isNull);
   });
 
@@ -229,9 +277,16 @@ void main() {
     _sizeTo(tester, const Size(420, 900));
     final api = _ScannerApi(unmatched: true);
     final drafted = <String>[];
+    final added = <(String, BarcodeSuggestion?)>[];
 
     await tester.pumpWidget(
-      _app(api, ScannerScreen(draftOpener: drafted.add)),
+      _app(
+        api,
+        ScannerScreen(
+          draftOpener: drafted.add,
+          addOpener: (barcode, suggested) => added.add((barcode, suggested)),
+        ),
+      ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -243,7 +298,10 @@ void main() {
     expect(find.text('05449000000996'), findsOneWidget);
     expect(find.textContaining('Open Food Facts suggests'), findsOneWidget);
     expect(find.textContaining('Cherry Cola'), findsOneWidget);
+    expect(find.textContaining('Soda Co'), findsOneWidget);
+    expect(find.textContaining('330 ml'), findsOneWidget);
     expect(find.text('Draft it with AI'), findsOneWidget);
+    expect(find.text('Add it manually'), findsOneWidget);
     expect(find.text('Scan again'), findsOneWidget);
     // The old web-catalog instruction is gone.
     expect(find.textContaining('web catalog'), findsNothing);
@@ -253,6 +311,14 @@ void main() {
     await tester.pump();
 
     expect(drafted, ['05449000000996']);
+
+    await tester.tap(find.byKey(const Key('scanner-add-manual')));
+    await tester.pump();
+
+    expect(added.single.$1, '05449000000996');
+    expect(added.single.$2?.name, 'Cherry Cola');
+    expect(added.single.$2?.brand, 'Soda Co');
+    expect(added.single.$2?.volumeMl, 330);
     expect(tester.takeException(), isNull);
   });
 
@@ -261,9 +327,7 @@ void main() {
     final api = _ScannerApi();
     final drafted = <String>[];
 
-    await tester.pumpWidget(
-      _app(api, ScannerScreen(draftOpener: drafted.add)),
-    );
+    await tester.pumpWidget(_app(api, ScannerScreen(draftOpener: drafted.add)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -273,6 +337,7 @@ void main() {
     expect(find.text('Log this soda'), findsOneWidget);
     expect(find.text('Scan again'), findsOneWidget);
     expect(find.text('Draft it with AI'), findsNothing);
+    expect(find.text('Add it manually'), findsNothing);
     expect(find.text('New to Sodapop'), findsNothing);
     expect(drafted, isEmpty);
   });
@@ -302,10 +367,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         _DetailApi(),
-        DrinkDetailScreen(
-          slug: 'cherry-cola',
-          compareOpener: compared.add,
-        ),
+        DrinkDetailScreen(slug: 'cherry-cola', compareOpener: compared.add),
       ),
     );
     await tester.pumpAndSettle();
@@ -330,10 +392,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         _MissingDetailApi(),
-        DrinkDetailScreen(
-          slug: 'gone-soda',
-          compareOpener: compared.add,
-        ),
+        DrinkDetailScreen(slug: 'gone-soda', compareOpener: compared.add),
       ),
     );
     await tester.pumpAndSettle();

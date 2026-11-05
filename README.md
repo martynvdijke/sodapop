@@ -4,6 +4,8 @@ Untappd, but for soda. Scan a can or bottle, log where you found it, rate it in 
 
 Self-hosted, single Go binary + SQLite (Ent ORM + versioned migrations), server-rendered HTML with a TypeScript PWA and a native Flutter Android companion app.
 
+**Public preview:** signed-out visitors can browse `/` and `/people` for public pours and the opted-in public profile directory, and the Android app starts on `https://sodapop.vandijke.xyz` with the same read-only preview. On that hosted instance a shared `demo` / `demo` account is seeded so anyone can post. Posting, toasting, saving, commenting, search, and catalog browse still require a real login, and friends-only or private pours are never exposed anonymously.
+
 ## v1.11 highlights
 
 Shipped on top of v1.10. The OpenAPI surface is `1.11.0`.
@@ -22,7 +24,7 @@ Shipped on top of v1.9. The OpenAPI surface is `1.10.0`.
 - **Badge levels and new families:** badge rules accept one to three ascending thresholds per counter, and awarding keeps the highest level. New seeded badges cover brands, countries, venue kinds, friends and streaks, and the admin editor round-trips multi-threshold rules.
 - **Streaks:** personal stats gain current and longest streak, counted from distinct UTC check-in days, and `GET /api/v1/stats/me` exposes both.
 - **Venue offers:** an admin can mark a drink as on offer at a venue from `/admin/venues/{id}`, and the venue page surfaces the flag.
-- **Personal activity timeline:** `/you` shows the viewer's own recent activity, backed by `GET /api/v1/me/activity`. There is still no global feed.
+- **Personal activity timeline:** `/you` shows the viewer's own recent activity, backed by `GET /api/v1/me/activity`. Member feeds stay friends-scoped; the only anonymous feed is the read-only public preview.
 - **Analytics allowlist:** browser events are restricted to a fixed, sanitized set of names and properties, and nothing fires when Umami is disabled.
 
 ## v1.9 highlights

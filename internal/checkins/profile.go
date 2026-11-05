@@ -66,6 +66,16 @@ type ProfileCheckinsFilter struct {
 	Before   string
 }
 
+// Cursor encodes a keyset position for created_at-ordered lists. Stored
+// timestamps have second precision, so the row id breaks ties on equal
+// seconds and pagination cannot skip rows.
+func Cursor(createdAt, id string) string { return createdAt + "|" + id }
+
+func splitCursor(raw string) (createdAt, id string, ok bool) {
+	createdAt, id, ok = strings.Cut(raw, "|")
+	return createdAt, id, ok && createdAt != "" && id != ""
+}
+
 // ProfileItem is one check-in on a public profile. It carries the full feed
 // contract (author, drink, venue, photo, toast state) because a profile page
 // shows other people's check-ins, unlike Item which is personal/friend scoped.
@@ -190,8 +200,13 @@ func (s *Service) ProfileCheckins(ctx context.Context, f ProfileCheckinsFilter) 
 	args := []any{f.ViewerID, f.TargetID}
 	args = append(args, visibilityArgs(vis)...)
 	if f.Before != "" {
-		q += ` AND c.created_at < ?`
-		args = append(args, f.Before)
+		if createdAt, id, ok := splitCursor(f.Before); ok {
+			q += ` AND (c.created_at < ? OR (c.created_at = ? AND c.id < ?))`
+			args = append(args, createdAt, createdAt, id)
+		} else {
+			q += ` AND c.created_at < ?`
+			args = append(args, f.Before)
+		}
 	}
 	q += ` ORDER BY c.created_at DESC, c.id DESC LIMIT ?`
 	args = append(args, limit)

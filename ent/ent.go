@@ -20,6 +20,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/checkinsave"
+	"sodapop/ent/checkintag"
 	"sodapop/ent/comment"
 	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
@@ -135,6 +136,7 @@ func checkColumn(t, c string) error {
 			checkin.Table:                checkin.ValidColumn,
 			checkinlike.Table:            checkinlike.ValidColumn,
 			checkinsave.Table:            checkinsave.ValidColumn,
+			checkintag.Table:             checkintag.ValidColumn,
 			comment.Table:                comment.ValidColumn,
 			deliveryoutbox.Table:         deliveryoutbox.ValidColumn,
 			drink.Table:                  drink.ValidColumn,

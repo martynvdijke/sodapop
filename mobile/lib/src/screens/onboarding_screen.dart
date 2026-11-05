@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
 import '../auth/oidc_webview_screen.dart';
+import '../auth/server_defaults.dart';
 import '../theme/soda_theme.dart';
 import 'password_reset_screen.dart';
 import 'register_screen.dart';
@@ -29,7 +30,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final auth = ref.read(authProvider);
     // A stored server always wins; only a true first run falls back to the
     // hosted default (already the default value of AuthState.serverUrl).
-    _server.text = auth.serverUrl;
+    // The hosted instance is always the default. A stored server is used only
+    // when the user explicitly connected to another one on a previous run.
+    _server.text = auth.serverUrl.isEmpty ? defaultServerUrl : auth.serverUrl;
     _connected = auth.hasSavedServer && _server.text.isNotEmpty;
     if (!auth.hasSavedServer) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _probeDefault());
@@ -63,10 +66,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _oidc() async {
     final result = await Navigator.of(context).push<Map<String, String>>(
-      MaterialPageRoute(builder: (_) => OidcWebViewScreen(serverUrl: ref.read(authProvider).serverUrl)),
+      MaterialPageRoute(
+        builder: (_) =>
+            OidcWebViewScreen(serverUrl: ref.read(authProvider).serverUrl),
+      ),
     );
     if (result == null || !mounted) return;
-    await ref.read(authProvider.notifier).completeOidc(result['cookie']!, result['csrf']!);
+    await ref
+        .read(authProvider.notifier)
+        .completeOidc(result['cookie']!, result['csrf']!);
   }
 
   Future<void> _openRegister() async {
@@ -100,15 +108,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Container(
               width: 64,
               height: 64,
-              decoration: const BoxDecoration(color: Soda.lime, shape: BoxShape.circle),
-              child: const Icon(Icons.bolt_rounded, color: Soda.forest, size: 36),
+              decoration: const BoxDecoration(
+                color: Soda.lime,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.bolt_rounded,
+                color: Soda.forest,
+                size: 36,
+              ),
             ),
             const SizedBox(height: 24),
-            Text('Sodapop', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              'Sodapop',
+              style: theme.textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               'A quiet place for loud fizz. Scan a can, rate it, and see what your friends are drinking.',
-              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 32),
             Card(
@@ -131,7 +153,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       controller: _server,
                       keyboardType: TextInputType.url,
                       autocorrect: false,
-                      decoration: const InputDecoration(hintText: 'https://soda.example.com'),
+                      decoration: const InputDecoration(
+                        hintText: 'https://soda.example.com',
+                      ),
                       onSubmitted: (_) => _connect(),
                     ),
                     const SizedBox(height: 12),
@@ -148,6 +172,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
             if (_connected) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: auth.busy
+                    ? null
+                    : () => ref.read(authProvider.notifier).startPreview(),
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Browse without signing in'),
+              ),
+              if (auth.demoEnabled) ...[
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: auth.busy
+                      ? null
+                      : () => ref.read(authProvider.notifier).signInWithDemo(),
+                  icon: const Icon(Icons.science_outlined),
+                  label: const Text('Try the demo account'),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Shared account @${auth.demoHandle} with password ${auth.demoPassword}. Anyone can post with it.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               if (auth.oidcEnabled) ...[
                 FilledButton.icon(
@@ -159,7 +209,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ],
               if (auth.passwordFallback) ...[
                 OutlinedButton(
-                  onPressed: () => setState(() => _showPassword = !_showPassword),
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
                   child: const Text('Use email and password'),
                 ),
                 const SizedBox(height: 4),
@@ -189,7 +240,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _login,
-                    decoration: const InputDecoration(hintText: 'Email or handle'),
+                    decoration: const InputDecoration(
+                      hintText: 'Email or handle',
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -202,8 +255,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onPressed: auth.busy
                         ? null
                         : () => ref
-                            .read(authProvider.notifier)
-                            .signInWithPassword(_login.text, _password.text),
+                              .read(authProvider.notifier)
+                              .signInWithPassword(_login.text, _password.text),
                     child: const Text('Sign in'),
                   ),
                 ],
@@ -224,7 +277,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 FilledButton(
                   onPressed: auth.busy
                       ? null
-                      : () => ref.read(authProvider.notifier).signInWithToken(_token.text),
+                      : () => ref
+                            .read(authProvider.notifier)
+                            .signInWithToken(_token.text),
                   child: const Text('Use token'),
                 ),
               ],
@@ -237,13 +292,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   color: theme.colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(auth.error!, style: TextStyle(color: theme.colorScheme.onErrorContainer)),
+                child: Text(
+                  auth.error!,
+                  style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                ),
               ),
             ],
             const SizedBox(height: 24),
             Text(
               'Tokens are stored in Android encrypted storage. The app never sends your password anywhere except your own server.',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

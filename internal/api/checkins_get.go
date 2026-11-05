@@ -48,6 +48,9 @@ func checkinDTO(detail *checkins.Detail, tok *auth.APIToken) map[string]any {
 		"rating":         detail.Rating,
 		"note":           detail.Note,
 		"visibility":     detail.Visibility,
+		"lat":            detail.Lat,
+		"lng":            detail.Lng,
+		"tagged_friends": taggedFriendDTOs(detail.TaggedFriends),
 		"toasts":         detail.Toasts,
 		"toasted":        detail.Toasted,
 		"comments_count": detail.CommentsCount,
@@ -63,4 +66,16 @@ func checkinDTO(detail *checkins.Detail, tok *auth.APIToken) map[string]any {
 		data["photo"] = map[string]any{"id": detail.MediaID, "mime": detail.MediaMime}
 	}
 	return data
+}
+
+// taggedFriendDTOs always returns a non-nil slice so the JSON contract is an
+// empty array rather than null when nobody was tagged.
+func taggedFriendDTOs(friends []checkins.TaggedFriend) []map[string]any {
+	out := make([]map[string]any, 0, len(friends))
+	for _, f := range friends {
+		out = append(out, map[string]any{
+			"id": f.ID, "handle": f.Handle, "display_name": f.DisplayName,
+		})
+	}
+	return out
 }

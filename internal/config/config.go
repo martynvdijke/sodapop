@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -56,6 +57,13 @@ type Config struct {
 	RateLimitPerMin int
 	TrustedProxies  []string
 
+	// Demo login. The hosted instance at sodapop.vandijke.xyz enables this by
+	// default; self-hosters opt in with DEMO_USER_ENABLED=true.
+	DemoUserEnabled  bool
+	DemoUserHandle   string
+	DemoUserPassword string
+	DemoUserEmail    string
+
 	// Legal identity of the instance operator. These appear verbatim in the
 	// published privacy policy, so they are deployment configuration rather
 	// than runtime-editable content: a self-hoster sets them once and the page
@@ -102,6 +110,11 @@ func Load() (*Config, error) {
 		LegalContactEmail:   strings.TrimSpace(env("LEGAL_CONTACT_EMAIL", "")),
 		LegalContactAddress: strings.TrimSpace(env("LEGAL_CONTACT_ADDRESS", "")),
 		LegalHostingRegion:  strings.TrimSpace(env("LEGAL_HOSTING_REGION", "")),
+
+		DemoUserEnabled:  envBool("DEMO_USER_ENABLED", isDemoHost(env("BASE_URL", "http://localhost:8097"))),
+		DemoUserHandle:   strings.ToLower(strings.TrimSpace(env("DEMO_USER_HANDLE", "demo"))),
+		DemoUserPassword: env("DEMO_USER_PASSWORD", "demo"),
+		DemoUserEmail:    strings.ToLower(strings.TrimSpace(env("DEMO_USER_EMAIL", "demo@sodapop.local"))),
 	}
 	c.SessionTTL = envDuration("SESSION_TTL", 720*time.Hour)
 	if c.EmailDevDir == "" {
@@ -152,6 +165,16 @@ func Load() (*Config, error) {
 		c.BcryptCost = 12
 	}
 	return c, nil
+}
+
+// isDemoHost reports whether the configured base URL is the hosted Sodapop
+// instance. Only that instance gets a demo login unless the operator opts in.
+func isDemoHost(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Hostname(), "sodapop.vandijke.xyz")
 }
 
 func env(key, def string) string {

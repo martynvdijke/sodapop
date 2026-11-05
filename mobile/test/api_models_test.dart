@@ -521,11 +521,7 @@ void main() {
         'carbonation': 'standard',
         'acid': 'phosphoric',
         'status': 'active',
-        'rating': {
-          'avg_rating': 16.5,
-          'rater_count': 4,
-          'rating_shown': true,
-        },
+        'rating': {'avg_rating': 16.5, 'rater_count': 4, 'rating_shown': true},
         'flavours': [
           {'name': 'Cola', 'slug': 'cola', 'intensity': 4},
         ],
@@ -671,10 +667,20 @@ void main() {
     test('reads the capitalised Go keys', () {
       final directory = FriendsDirectory.fromJson({
         'Friends': [
-          {'id': 'u1', 'handle': 'ada', 'display_name': 'Ada', 'since': '2026-01-01'},
+          {
+            'id': 'u1',
+            'handle': 'ada',
+            'display_name': 'Ada',
+            'since': '2026-01-01',
+          },
         ],
         'Incoming': [
-          {'id': 'f1', 'handle': 'bob', 'display_name': 'Bob', 'created_at': '2026-02-01'},
+          {
+            'id': 'f1',
+            'handle': 'bob',
+            'display_name': 'Bob',
+            'created_at': '2026-02-01',
+          },
         ],
         'Outgoing': [
           {'id': 'f2', 'handle': 'cat'},
@@ -736,10 +742,7 @@ void main() {
     });
 
     test('tolerates missing fields and an empty draft', () {
-      final turn = AiDraftTurn.fromJson({
-        'session_id': 's1',
-        'draft': null,
-      });
+      final turn = AiDraftTurn.fromJson({'session_id': 's1', 'draft': null});
 
       expect(turn.sessionId, 's1');
       expect(turn.status, '');
@@ -1037,6 +1040,41 @@ void main() {
       expect(config.passwordFallback, isFalse);
       expect(config.oidcEnabled, isFalse);
       expect(config.emailVerificationRequired, isFalse);
+    });
+  });
+
+  group('FeedItem', () {
+    test('parses location and tagged friends when present', () {
+      final item = FeedItem.fromJson({
+        'id': 'c1',
+        'handle': 'ada',
+        'drink_name': 'Cola',
+        'lat': 51.5,
+        'lng': -0.12,
+        'tagged_friends': [
+          {'id': 'u1', 'handle': 'grace', 'display_name': 'Grace Hopper'},
+        ],
+      });
+
+      expect(item.hasLocation, isTrue);
+      expect(item.lat, 51.5);
+      expect(item.lng, -0.12);
+      expect(item.taggedFriends.single.name, 'Grace Hopper');
+    });
+
+    test('nearby rows omit location and tags without failing', () {
+      final nearby = NearbyItem.fromJson({
+        'id': 'c1',
+        'handle': 'ada',
+        'drink_name': 'Cola',
+        'distance_m': 120,
+      });
+
+      expect(nearby.distanceM, 120);
+      expect(nearby.checkin.lat, isNull);
+      expect(nearby.checkin.lng, isNull);
+      expect(nearby.checkin.hasLocation, isFalse);
+      expect(nearby.checkin.taggedFriends, isEmpty);
     });
   });
 

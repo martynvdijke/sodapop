@@ -160,19 +160,17 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
 
   bool _needsConnection() {
     if (!_offline) return false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Needs a connection')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Needs a connection')));
     return true;
   }
 
   Future<void> _logThisSoda(Drink drink) async {
     if (_needsConnection()) return;
-    final logged = await showCheckinSheet(context, drink);
-    if (!mounted || !logged) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Check-in saved.')));
+    final saved = await showCheckinSheet(context, drink);
+    if (!mounted || saved == null) return;
+    await _load();
   }
 
   Future<void> _addPhoto() async {

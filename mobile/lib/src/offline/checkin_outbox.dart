@@ -68,6 +68,9 @@ class CheckinOutbox {
           serving: item['serving'] as String?,
           visibility: item['visibility'] as String?,
           idempotencyKey: '${item['idempotency_key']}',
+          lat: (item['lat'] as num?)?.toDouble(),
+          lng: (item['lng'] as num?)?.toDouble(),
+          friendIds: _friendIds(item['friend_ids']),
           photo: _decodePhoto(item['photo_base64']),
           photoFilename: item['photo_filename'] as String?,
           photoMime: item['photo_mime'] as String?,
@@ -79,6 +82,15 @@ class CheckinOutbox {
     }
     await prefs.setStringList(_key, remaining);
     return sent;
+  }
+
+  /// The server takes friend ids as strings; older rows have no field at all.
+  static List<String> _friendIds(Object? raw) {
+    if (raw is! List) return const [];
+    return raw
+        .map((value) => '$value'.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
   }
 
   /// Old rows have no photo field, and a malformed one must not block replay.

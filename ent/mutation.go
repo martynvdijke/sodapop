@@ -19,6 +19,7 @@ import (
 	"sodapop/ent/checkin"
 	"sodapop/ent/checkinlike"
 	"sodapop/ent/checkinsave"
+	"sodapop/ent/checkintag"
 	"sodapop/ent/comment"
 	"sodapop/ent/deliveryoutbox"
 	"sodapop/ent/drink"
@@ -85,6 +86,7 @@ const (
 	TypeCheckin                = "Checkin"
 	TypeCheckinLike            = "CheckinLike"
 	TypeCheckinSave            = "CheckinSave"
+	TypeCheckinTag             = "CheckinTag"
 	TypeComment                = "Comment"
 	TypeDeliveryOutbox         = "DeliveryOutbox"
 	TypeDrink                  = "Drink"
@@ -6886,6 +6888,10 @@ type CheckinMutation struct {
 	serving         *checkin.Serving
 	note            *string
 	photo_media_id  *string
+	lat             *float64
+	addlat          *float64
+	lng             *float64
+	addlng          *float64
 	visibility      *checkin.Visibility
 	idempotency_key *string
 	created_at      *string
@@ -7319,6 +7325,146 @@ func (m *CheckinMutation) ResetPhotoMediaID() {
 	delete(m.clearedFields, checkin.FieldPhotoMediaID)
 }
 
+// SetLat sets the "lat" field.
+func (m *CheckinMutation) SetLat(f float64) {
+	m.lat = &f
+	m.addlat = nil
+}
+
+// Lat returns the value of the "lat" field in the mutation.
+func (m *CheckinMutation) Lat() (r float64, exists bool) {
+	v := m.lat
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat returns the old "lat" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldLat(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat: %w", err)
+	}
+	return oldValue.Lat, nil
+}
+
+// AddLat adds f to the "lat" field.
+func (m *CheckinMutation) AddLat(f float64) {
+	if m.addlat != nil {
+		*m.addlat += f
+	} else {
+		m.addlat = &f
+	}
+}
+
+// AddedLat returns the value that was added to the "lat" field in this mutation.
+func (m *CheckinMutation) AddedLat() (r float64, exists bool) {
+	v := m.addlat
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLat clears the value of the "lat" field.
+func (m *CheckinMutation) ClearLat() {
+	m.lat = nil
+	m.addlat = nil
+	m.clearedFields[checkin.FieldLat] = struct{}{}
+}
+
+// LatCleared returns if the "lat" field was cleared in this mutation.
+func (m *CheckinMutation) LatCleared() bool {
+	_, ok := m.clearedFields[checkin.FieldLat]
+	return ok
+}
+
+// ResetLat resets all changes to the "lat" field.
+func (m *CheckinMutation) ResetLat() {
+	m.lat = nil
+	m.addlat = nil
+	delete(m.clearedFields, checkin.FieldLat)
+}
+
+// SetLng sets the "lng" field.
+func (m *CheckinMutation) SetLng(f float64) {
+	m.lng = &f
+	m.addlng = nil
+}
+
+// Lng returns the value of the "lng" field in the mutation.
+func (m *CheckinMutation) Lng() (r float64, exists bool) {
+	v := m.lng
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLng returns the old "lng" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldLng(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLng is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLng requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLng: %w", err)
+	}
+	return oldValue.Lng, nil
+}
+
+// AddLng adds f to the "lng" field.
+func (m *CheckinMutation) AddLng(f float64) {
+	if m.addlng != nil {
+		*m.addlng += f
+	} else {
+		m.addlng = &f
+	}
+}
+
+// AddedLng returns the value that was added to the "lng" field in this mutation.
+func (m *CheckinMutation) AddedLng() (r float64, exists bool) {
+	v := m.addlng
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLng clears the value of the "lng" field.
+func (m *CheckinMutation) ClearLng() {
+	m.lng = nil
+	m.addlng = nil
+	m.clearedFields[checkin.FieldLng] = struct{}{}
+}
+
+// LngCleared returns if the "lng" field was cleared in this mutation.
+func (m *CheckinMutation) LngCleared() bool {
+	_, ok := m.clearedFields[checkin.FieldLng]
+	return ok
+}
+
+// ResetLng resets all changes to the "lng" field.
+func (m *CheckinMutation) ResetLng() {
+	m.lng = nil
+	m.addlng = nil
+	delete(m.clearedFields, checkin.FieldLng)
+}
+
 // SetVisibility sets the "visibility" field.
 func (m *CheckinMutation) SetVisibility(c checkin.Visibility) {
 	m.visibility = &c
@@ -7640,7 +7786,7 @@ func (m *CheckinMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CheckinMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 14)
 	if m.user != nil {
 		fields = append(fields, checkin.FieldUserID)
 	}
@@ -7661,6 +7807,12 @@ func (m *CheckinMutation) Fields() []string {
 	}
 	if m.photo_media_id != nil {
 		fields = append(fields, checkin.FieldPhotoMediaID)
+	}
+	if m.lat != nil {
+		fields = append(fields, checkin.FieldLat)
+	}
+	if m.lng != nil {
+		fields = append(fields, checkin.FieldLng)
 	}
 	if m.visibility != nil {
 		fields = append(fields, checkin.FieldVisibility)
@@ -7699,6 +7851,10 @@ func (m *CheckinMutation) Field(name string) (ent.Value, bool) {
 		return m.Note()
 	case checkin.FieldPhotoMediaID:
 		return m.PhotoMediaID()
+	case checkin.FieldLat:
+		return m.Lat()
+	case checkin.FieldLng:
+		return m.Lng()
 	case checkin.FieldVisibility:
 		return m.Visibility()
 	case checkin.FieldIdempotencyKey:
@@ -7732,6 +7888,10 @@ func (m *CheckinMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldNote(ctx)
 	case checkin.FieldPhotoMediaID:
 		return m.OldPhotoMediaID(ctx)
+	case checkin.FieldLat:
+		return m.OldLat(ctx)
+	case checkin.FieldLng:
+		return m.OldLng(ctx)
 	case checkin.FieldVisibility:
 		return m.OldVisibility(ctx)
 	case checkin.FieldIdempotencyKey:
@@ -7800,6 +7960,20 @@ func (m *CheckinMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPhotoMediaID(v)
 		return nil
+	case checkin.FieldLat:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat(v)
+		return nil
+	case checkin.FieldLng:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLng(v)
+		return nil
 	case checkin.FieldVisibility:
 		v, ok := value.(checkin.Visibility)
 		if !ok {
@@ -7846,6 +8020,12 @@ func (m *CheckinMutation) AddedFields() []string {
 	if m.addrating != nil {
 		fields = append(fields, checkin.FieldRating)
 	}
+	if m.addlat != nil {
+		fields = append(fields, checkin.FieldLat)
+	}
+	if m.addlng != nil {
+		fields = append(fields, checkin.FieldLng)
+	}
 	return fields
 }
 
@@ -7856,6 +8036,10 @@ func (m *CheckinMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case checkin.FieldRating:
 		return m.AddedRating()
+	case checkin.FieldLat:
+		return m.AddedLat()
+	case checkin.FieldLng:
+		return m.AddedLng()
 	}
 	return nil, false
 }
@@ -7871,6 +8055,20 @@ func (m *CheckinMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRating(v)
+		return nil
+	case checkin.FieldLat:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat(v)
+		return nil
+	case checkin.FieldLng:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLng(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Checkin numeric field %s", name)
@@ -7888,6 +8086,12 @@ func (m *CheckinMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(checkin.FieldPhotoMediaID) {
 		fields = append(fields, checkin.FieldPhotoMediaID)
+	}
+	if m.FieldCleared(checkin.FieldLat) {
+		fields = append(fields, checkin.FieldLat)
+	}
+	if m.FieldCleared(checkin.FieldLng) {
+		fields = append(fields, checkin.FieldLng)
 	}
 	if m.FieldCleared(checkin.FieldIdempotencyKey) {
 		fields = append(fields, checkin.FieldIdempotencyKey)
@@ -7917,6 +8121,12 @@ func (m *CheckinMutation) ClearField(name string) error {
 		return nil
 	case checkin.FieldPhotoMediaID:
 		m.ClearPhotoMediaID()
+		return nil
+	case checkin.FieldLat:
+		m.ClearLat()
+		return nil
+	case checkin.FieldLng:
+		m.ClearLng()
 		return nil
 	case checkin.FieldIdempotencyKey:
 		m.ClearIdempotencyKey()
@@ -7952,6 +8162,12 @@ func (m *CheckinMutation) ResetField(name string) error {
 		return nil
 	case checkin.FieldPhotoMediaID:
 		m.ResetPhotoMediaID()
+		return nil
+	case checkin.FieldLat:
+		m.ResetLat()
+		return nil
+	case checkin.FieldLng:
+		m.ResetLng()
 		return nil
 	case checkin.FieldVisibility:
 		m.ResetVisibility()
@@ -8954,6 +9170,440 @@ func (m *CheckinSaveMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *CheckinSaveMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown CheckinSave edge %s", name)
+}
+
+// CheckinTagMutation represents an operation that mutates the CheckinTag nodes in the graph.
+type CheckinTagMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	checkin_id    *string
+	user_id       *string
+	created_at    *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*CheckinTag, error)
+	predicates    []predicate.CheckinTag
+}
+
+var _ ent.Mutation = (*CheckinTagMutation)(nil)
+
+// checkintagOption allows management of the mutation configuration using functional options.
+type checkintagOption func(*CheckinTagMutation)
+
+// newCheckinTagMutation creates new mutation for the CheckinTag entity.
+func newCheckinTagMutation(c config, op Op, opts ...checkintagOption) *CheckinTagMutation {
+	m := &CheckinTagMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCheckinTag,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCheckinTagID sets the ID field of the mutation.
+func withCheckinTagID(id int) checkintagOption {
+	return func(m *CheckinTagMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CheckinTag
+		)
+		m.oldValue = func(ctx context.Context) (*CheckinTag, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CheckinTag.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCheckinTag sets the old CheckinTag of the mutation.
+func withCheckinTag(node *CheckinTag) checkintagOption {
+	return func(m *CheckinTagMutation) {
+		m.oldValue = func(context.Context) (*CheckinTag, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CheckinTagMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CheckinTagMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CheckinTagMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CheckinTagMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CheckinTag.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCheckinID sets the "checkin_id" field.
+func (m *CheckinTagMutation) SetCheckinID(s string) {
+	m.checkin_id = &s
+}
+
+// CheckinID returns the value of the "checkin_id" field in the mutation.
+func (m *CheckinTagMutation) CheckinID() (r string, exists bool) {
+	v := m.checkin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckinID returns the old "checkin_id" field's value of the CheckinTag entity.
+// If the CheckinTag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinTagMutation) OldCheckinID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckinID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckinID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckinID: %w", err)
+	}
+	return oldValue.CheckinID, nil
+}
+
+// ResetCheckinID resets all changes to the "checkin_id" field.
+func (m *CheckinTagMutation) ResetCheckinID() {
+	m.checkin_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *CheckinTagMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *CheckinTagMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the CheckinTag entity.
+// If the CheckinTag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinTagMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *CheckinTagMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CheckinTagMutation) SetCreatedAt(s string) {
+	m.created_at = &s
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CheckinTagMutation) CreatedAt() (r string, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CheckinTag entity.
+// If the CheckinTag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinTagMutation) OldCreatedAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CheckinTagMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the CheckinTagMutation builder.
+func (m *CheckinTagMutation) Where(ps ...predicate.CheckinTag) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CheckinTagMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CheckinTagMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CheckinTag, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CheckinTagMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CheckinTagMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CheckinTag).
+func (m *CheckinTagMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CheckinTagMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.checkin_id != nil {
+		fields = append(fields, checkintag.FieldCheckinID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, checkintag.FieldUserID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, checkintag.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CheckinTagMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case checkintag.FieldCheckinID:
+		return m.CheckinID()
+	case checkintag.FieldUserID:
+		return m.UserID()
+	case checkintag.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CheckinTagMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case checkintag.FieldCheckinID:
+		return m.OldCheckinID(ctx)
+	case checkintag.FieldUserID:
+		return m.OldUserID(ctx)
+	case checkintag.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CheckinTag field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinTagMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case checkintag.FieldCheckinID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckinID(v)
+		return nil
+	case checkintag.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case checkintag.FieldCreatedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinTag field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CheckinTagMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CheckinTagMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinTagMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CheckinTag numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CheckinTagMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CheckinTagMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CheckinTagMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown CheckinTag nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CheckinTagMutation) ResetField(name string) error {
+	switch name {
+	case checkintag.FieldCheckinID:
+		m.ResetCheckinID()
+		return nil
+	case checkintag.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case checkintag.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinTag field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CheckinTagMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CheckinTagMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CheckinTagMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CheckinTagMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CheckinTagMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CheckinTagMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CheckinTagMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CheckinTag unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CheckinTagMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CheckinTag edge %s", name)
 }
 
 // CommentMutation represents an operation that mutates the Comment nodes in the graph.

@@ -24,8 +24,12 @@ func (s *Server) mediaThumb(w http.ResponseWriter, r *http.Request, tok *auth.AP
 }
 
 func (s *Server) serveAPIMedia(w http.ResponseWriter, r *http.Request, tok *auth.APIToken, thumb bool) error {
+	return s.serveAPIMediaAs(w, r, tok.User.ID, thumb)
+}
+
+func (s *Server) serveAPIMediaAs(w http.ResponseWriter, r *http.Request, viewerID string, thumb bool) error {
 	id := r.PathValue("id")
-	ok, err := s.Media.CanView(r.Context(), tok.User.ID, id)
+	ok, err := s.Media.CanView(r.Context(), viewerID, id)
 	if err != nil || !ok {
 		// Never distinguish "missing" from "not visible", and never let an
 		// earlier cached 200 survive a takedown.
@@ -61,9 +65,13 @@ func (s *Server) serveAPIMedia(w http.ResponseWriter, r *http.Request, tok *auth
 	if size, ok := mediaLength(rc); ok {
 		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	}
-	// Photos are personal content; a private browser cache is fine but shared
-	// caches must not retain them.
-	w.Header().Set("Cache-Control", "private, max-age=86400")
+	// Signed-in media is personal: only the browser may cache it. Anonymous
+	// preview media is limited to public rows, so a short shared cache is safe.
+	if viewerID == "" {
+		w.Header().Set("Cache-Control", "public, max-age=60")
+	} else {
+		w.Header().Set("Cache-Control", "private, max-age=86400")
+	}
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, _ = io.Copy(w, rc)
 	return nil

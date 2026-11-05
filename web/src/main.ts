@@ -3,6 +3,7 @@
 
 import { initInstall } from './install'
 import './analytics'
+import './checkin'
 import './nearby'
 import './notifications'
 import { announce, isAnnouncing } from './notice'
@@ -13,7 +14,14 @@ import { initShare } from './share'
 
 const QUEUE_KEY = 'sodapop.offline.checkins.v1'
 
-type QueuedCheckin = { data: Record<string, string>; at: number; photo?: boolean }
+type QueuedField = string | string[]
+type QueuedCheckin = { data: Record<string, QueuedField>; at: number; photo?: boolean }
+
+/** Repeated form fields (friend_ids) are kept as arrays in the queue. */
+function firstValue(value: QueuedField | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? ''
+  return value ?? ''
+}
 
 const SAVED_MESSAGE = 'Saved on this device. It will sync when you are back online.'
 const PHOTO_SKIPPED_MESSAGE = 'Photo skipped — low storage'
@@ -56,16 +64,23 @@ function newIdempotencyKey(): string {
 }
 
 async function queueForm(form: HTMLFormElement): Promise<void> {
-  const data: Record<string, string> = {}
+  const data: Record<string, QueuedField> = {}
   const files: File[] = []
   new FormData(form).forEach((value, key) => {
     if (typeof value === 'string') {
-      data[key] = value
+      const existing = data[key]
+      if (existing === undefined) {
+        data[key] = value
+      } else if (Array.isArray(existing)) {
+        existing.push(value)
+      } else {
+        data[key] = [existing, value]
+      }
     } else if (value instanceof File && value.size > 0) {
       files.push(value)
     }
   })
-  const key = data.idempotency_key || newIdempotencyKey()
+  const key = firstValue(data.idempotency_key) || newIdempotencyKey()
   data.idempotency_key = key
 
   // The text fields always queue; the photo is best-effort.
@@ -103,19 +118,33 @@ function isAuthLoss(response: Response): boolean {
 }
 
 async function submitQueued(item: QueuedCheckin): Promise<Response> {
-  const key = item.data.idempotency_key || ''
+  const key = firstValue(item.data.idempotency_key)
   const photo = item.photo && key ? await loadPhoto(key) : null
   if (!photo) {
+    const encoded = new URLSearchParams()
+    for (const [name, value] of Object.entries(item.data)) {
+      if (Array.isArray(value)) {
+        for (const entry of value) encoded.append(name, entry)
+      } else {
+        encoded.append(name, value)
+      }
+    }
     return fetch('/checkins', {
       method: 'POST',
       credentials: 'same-origin',
       redirect: 'follow',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(item.data),
+      body: encoded,
     })
   }
   const body = new FormData()
-  for (const [name, value] of Object.entries(item.data)) body.append(name, value)
+  for (const [name, value] of Object.entries(item.data)) {
+    if (Array.isArray(value)) {
+      for (const entry of value) body.append(name, entry)
+    } else {
+      body.append(name, value)
+    }
+  }
   body.append('media', photo.blob, photo.name || 'photo')
   return fetch('/checkins', {
     method: 'POST',
@@ -128,7 +157,7 @@ async function submitQueued(item: QueuedCheckin): Promise<Response> {
 function queueKeys(queue: QueuedCheckin[]): string[] {
   const keys: string[] = []
   for (const item of queue) {
-    const key = item.data.idempotency_key
+    const key = firstValue(item.data.idempotency_key)
     if (key) keys.push(key)
   }
   return keys
@@ -151,8 +180,8 @@ function persistCsrfToken(key: string, token: string): void {
   let changed = false
   for (const entry of queue) {
     if (
-      (entry.data.idempotency_key || '') === key &&
-      entry.data.csrf_token !== token
+      firstValue(entry.data.idempotency_key) === key &&
+      firstValue(entry.data.csrf_token) !== token
     ) {
       entry.data.csrf_token = token
       changed = true
@@ -211,7 +240,7 @@ async function flushQueueOnce(): Promise<void> {
   // instead of being retried forever.
   let patched = false
   for (const entry of snapshot) {
-    if (!entry.data.idempotency_key) {
+    if (!firstValue(entry.data.idempotency_key)) {
       entry.data.idempotency_key = newIdempotencyKey()
       patched = true
     }
@@ -228,7 +257,7 @@ async function flushQueueOnce(): Promise<void> {
   let dropped = false
 
   for (const item of snapshot) {
-    const key = item.data.idempotency_key || ''
+    const key = firstValue(item.data.idempotency_key)
     if (key && handled.has(key)) continue
     try {
       let response = await submitQueued(item)
@@ -283,7 +312,7 @@ async function flushQueueOnce(): Promise<void> {
   }
 
   const next = readQueue().filter((entry) => {
-    const key = entry.data.idempotency_key
+    const key = firstValue(entry.data.idempotency_key)
     return !(key && handled.has(key))
   })
   writeQueue(next)

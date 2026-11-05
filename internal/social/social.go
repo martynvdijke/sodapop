@@ -393,31 +393,43 @@ func (s *Service) Unfollow(ctx context.Context, followerID, handle string) error
 
 // FeedItem is one check-in in the friends feed.
 type FeedItem struct {
+	ID            string             `json:"id"`
+	UserID        string             `json:"user_id"`
+	Handle        string             `json:"handle"`
+	DisplayName   string             `json:"display_name"`
+	DrinkID       int                `json:"drink_id"`
+	DrinkName     string             `json:"drink_name"`
+	DrinkSlug     string             `json:"drink_slug"`
+	Brand         string             `json:"brand,omitempty"`
+	Container     string             `json:"container"`
+	VolumeML      int                `json:"volume_ml"`
+	VenueName     string             `json:"venue_name,omitempty"`
+	Lat           *float64           `json:"lat"`
+	Lng           *float64           `json:"lng"`
+	TaggedFriends []FeedTaggedFriend `json:"tagged_friends"`
+	Rating        *int               `json:"rating,omitempty"`
+	Note          string             `json:"note,omitempty"`
+	Visibility    string             `json:"visibility"`
+	CreatedAt     string             `json:"created_at"`
+	PhotoID       string             `json:"photo_id,omitempty"`
+	PhotoMime     string             `json:"photo_mime,omitempty"`
+	PhotoKind     string             `json:"photo_kind,omitempty"`
+	PosterPath    string             `json:"poster_path,omitempty"`
+	Duration      int                `json:"duration_seconds,omitempty"`
+	Toasts        int                `json:"toasts"`
+	Toasted       bool               `json:"toasted"`
+	Comments      int                `json:"comments"`
+	Saved         bool               `json:"saved"`
+	CSRF          string             `json:"-"`
+}
+
+// FeedTaggedFriend is the compact profile shown for a friend tagged on a feed
+// check-in. Tags are only attached after the parent row has passed the feed's
+// visibility filters.
+type FeedTaggedFriend struct {
 	ID          string `json:"id"`
-	UserID      string `json:"user_id"`
 	Handle      string `json:"handle"`
 	DisplayName string `json:"display_name"`
-	DrinkID     int    `json:"drink_id"`
-	DrinkName   string `json:"drink_name"`
-	DrinkSlug   string `json:"drink_slug"`
-	Brand       string `json:"brand,omitempty"`
-	Container   string `json:"container"`
-	VolumeML    int    `json:"volume_ml"`
-	VenueName   string `json:"venue_name,omitempty"`
-	Rating      *int   `json:"rating,omitempty"`
-	Note        string `json:"note,omitempty"`
-	Visibility  string `json:"visibility"`
-	CreatedAt   string `json:"created_at"`
-	PhotoID     string `json:"photo_id,omitempty"`
-	PhotoMime   string `json:"photo_mime,omitempty"`
-	PhotoKind   string `json:"photo_kind,omitempty"`
-	PosterPath  string `json:"poster_path,omitempty"`
-	Duration    int    `json:"duration_seconds,omitempty"`
-	Toasts      int    `json:"toasts"`
-	Toasted     bool   `json:"toasted"`
-	Comments    int    `json:"comments"`
-	Saved       bool   `json:"saved"`
-	CSRF        string `json:"-"`
 }
 
 // Feed returns check-ins from the user, accepted friends and followed users,
@@ -452,7 +464,7 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 	query := `
 		SELECT c.id, c.user_id, u.handle, u.display_name,
 		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
-		       COALESCE(v.name,''), c.rating, c.note, c.visibility, c.created_at,
+		       COALESCE(v.name,''), c.lat, c.lng, c.rating, c.note, c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.kind,''),
 		       COALESCE(m.poster_path,''), COALESCE(m.duration_seconds,0),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
@@ -510,9 +522,10 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 	for rows.Next() {
 		var f FeedItem
 		var rating sql.NullInt64
+		var lat, lng sql.NullFloat64
 		if err := rows.Scan(&f.ID, &f.UserID, &f.Handle, &f.DisplayName,
 			&f.DrinkID, &f.DrinkName, &f.DrinkSlug, &f.Brand, &f.Container, &f.VolumeML,
-			&f.VenueName, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
+			&f.VenueName, &lat, &lng, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
 			&f.PhotoID, &f.PhotoMime, &f.PhotoKind, &f.PosterPath, &f.Duration,
 			&f.Toasts, &f.Toasted, &f.Comments); err != nil {
 			return nil, err
@@ -521,9 +534,62 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 			v := int(rating.Int64)
 			f.Rating = &v
 		}
+		if lat.Valid && lng.Valid {
+			la, ln := lat.Float64, lng.Float64
+			f.Lat, f.Lng = &la, &ln
+		}
+		f.TaggedFriends = []FeedTaggedFriend{}
 		out = append(out, f)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := s.attachTags(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// attachTags batch-loads the tagged friends for the given feed items. It never
+// changes visibility: callers only pass rows already selected for the viewer.
+func (s *Service) attachTags(ctx context.Context, items []FeedItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]string, len(items))
+	index := make(map[string]int, len(items))
+	for i := range items {
+		ids[i] = items[i].ID
+		index[items[i].ID] = i
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT t.checkin_id, u.id, u.handle, COALESCE(u.display_name,'')
+		FROM checkin_tags t
+		JOIN users u ON u.id = t.user_id
+		WHERE t.checkin_id IN (`+strings.Join(placeholders, ",")+`)
+		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
+		ORDER BY t.created_at, t.id`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var checkinID string
+		var f FeedTaggedFriend
+		if err := rows.Scan(&checkinID, &f.ID, &f.Handle, &f.DisplayName); err != nil {
+			return err
+		}
+		if i, ok := index[checkinID]; ok {
+			items[i].TaggedFriends = append(items[i].TaggedFriends, f)
+		}
+	}
+	return rows.Err()
 }
 
 // ByIDs loads check-ins by ID using the same projection as the feed, then
@@ -544,7 +610,7 @@ func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]F
 	query := `
 		SELECT c.id, c.user_id, u.handle, u.display_name,
 		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
-		       COALESCE(v.name,''), c.rating, c.note, c.visibility, c.created_at,
+		       COALESCE(v.name,''), c.lat, c.lng, c.rating, c.note, c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.kind,''),
 		       COALESCE(m.poster_path,''), COALESCE(m.duration_seconds,0),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
@@ -572,9 +638,10 @@ func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]F
 	for rows.Next() {
 		var f FeedItem
 		var rating sql.NullInt64
+		var lat, lng sql.NullFloat64
 		if err := rows.Scan(&f.ID, &f.UserID, &f.Handle, &f.DisplayName,
 			&f.DrinkID, &f.DrinkName, &f.DrinkSlug, &f.Brand, &f.Container, &f.VolumeML,
-			&f.VenueName, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
+			&f.VenueName, &lat, &lng, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
 			&f.PhotoID, &f.PhotoMime, &f.PhotoKind, &f.PosterPath, &f.Duration,
 			&f.Toasts, &f.Toasted, &f.Comments); err != nil {
 			return nil, err
@@ -583,6 +650,11 @@ func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]F
 			v := int(rating.Int64)
 			f.Rating = &v
 		}
+		if lat.Valid && lng.Valid {
+			la, ln := lat.Float64, lng.Float64
+			f.Lat, f.Lng = &la, &ln
+		}
+		f.TaggedFriends = []FeedTaggedFriend{}
 		byID[f.ID] = f
 	}
 	if err := rows.Err(); err != nil {
@@ -594,6 +666,9 @@ func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]F
 		if f, ok := byID[id]; ok {
 			out = append(out, f)
 		}
+	}
+	if err := s.attachTags(ctx, out); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

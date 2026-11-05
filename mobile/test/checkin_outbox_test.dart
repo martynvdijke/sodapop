@@ -15,6 +15,9 @@ class _Call {
     this.photo,
     this.photoFilename,
     this.photoMime,
+    this.lat,
+    this.lng,
+    this.friendIds = const [],
   });
 
   final int drinkId;
@@ -24,13 +27,16 @@ class _Call {
   final Uint8List? photo;
   final String? photoFilename;
   final String? photoMime;
+  final double? lat;
+  final double? lng;
+  final List<String> friendIds;
 }
 
 class _RecordingApi extends ApiClient {
   final calls = <_Call>[];
 
   @override
-  Future<void> createCheckin({
+  Future<String> createCheckin({
     required int drinkId,
     int? rating,
     String note = '',
@@ -41,6 +47,9 @@ class _RecordingApi extends ApiClient {
     Uint8List? photo,
     String? photoFilename,
     String? photoMime,
+    double? lat,
+    double? lng,
+    List<String> friendIds = const [],
   }) async {
     calls.add(
       _Call(
@@ -51,8 +60,12 @@ class _RecordingApi extends ApiClient {
         photo: photo,
         photoFilename: photoFilename,
         photoMime: photoMime,
+        lat: lat,
+        lng: lng,
+        friendIds: friendIds,
       ),
     );
+    return 'c-${calls.length}';
   }
 }
 
@@ -136,6 +149,31 @@ void main() {
     expect(await outbox.flush(api), 1);
     expect(api.calls.single.photo, isNull);
     expect(api.calls.single.idempotencyKey, 'key-big');
+  });
+
+  test('round-trips location and tagged friends', () async {
+    final outbox = CheckinOutbox();
+    final kept = await outbox.enqueue({
+      'drink_id': 9,
+      'rating': 16,
+      'note': 'At the corner.',
+      'idempotency_key': 'key-place',
+      'lat': 51.50722,
+      'lng': -0.1275,
+      'friend_ids': ['u-ada', 'u-grace'],
+    });
+    expect(kept, isTrue);
+
+    final row = (await outbox.pending()).single;
+    expect(row['lat'], 51.50722);
+    expect(row['lng'], -0.1275);
+    expect(row['friend_ids'], ['u-ada', 'u-grace']);
+
+    final api = _RecordingApi();
+    expect(await outbox.flush(api), 1);
+    expect(api.calls.single.lat, 51.50722);
+    expect(api.calls.single.lng, -0.1275);
+    expect(api.calls.single.friendIds, ['u-ada', 'u-grace']);
   });
 
   test('replays legacy rows without photo fields', () async {

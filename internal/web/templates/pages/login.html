@@ -19,6 +19,15 @@
     </label>
     <button class="btn btn-primary btn-block" type="submit">Sign in</button>
   </form>
+  {{if .DemoEnabled}}
+  <form method="post" action="/login" class="stack demo-login">
+    <input type="hidden" name="next" value="{{.Next}}">
+    <input type="hidden" name="identifier" value="{{.DemoHandle}}">
+    <input type="hidden" name="password" value="{{.DemoPassword}}">
+    <button class="btn btn-block" type="submit">Use the demo account</button>
+    <p class="muted">Shared account <strong>@{{.DemoHandle}}</strong> with the password <code>{{.DemoPassword}}</code>. Anyone can post with it.</p>
+  </form>
+  {{end}}
   {{if .RegistrationOpen}}<p class="muted">New here? <a href="/register">Create an account</a>.</p>{{end}}
   {{end}}
 </section>

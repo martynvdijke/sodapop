@@ -8,6 +8,7 @@ import 'auth/auth_controller.dart';
 import 'offline/checkin_outbox.dart';
 import 'screens/home_shell.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/public_shell.dart';
 import 'theme/soda_theme.dart';
 import 'theme/theme_mode.dart';
 
@@ -34,23 +35,19 @@ class _SodapopAppState extends ConsumerState<SodapopApp>
   /// Loads the saved theme once the account is available. Nothing here blocks
   /// the first paint; an offline or unconfigured server keeps system mode.
   void _watchAuth() {
-    ref.listenManual<AuthState>(
-      authProvider,
-      (previous, next) {
-        if (next.signedIn) {
-          if (!_signedIn) {
-            _signedIn = true;
-            unawaited(_loadTheme());
-          }
-          return;
+    ref.listenManual<AuthState>(authProvider, (previous, next) {
+      if (next.signedIn) {
+        if (!_signedIn) {
+          _signedIn = true;
+          unawaited(_loadTheme());
         }
-        if (_signedIn) {
-          _signedIn = false;
-          ref.read(themeModeProvider.notifier).apply(ThemeMode.system);
-        }
-      },
-      fireImmediately: true,
-    );
+        return;
+      }
+      if (_signedIn) {
+        _signedIn = false;
+        ref.read(themeModeProvider.notifier).apply(ThemeMode.system);
+      }
+    }, fireImmediately: true);
   }
 
   Future<void> _loadTheme() async {
@@ -62,14 +59,11 @@ class _SodapopAppState extends ConsumerState<SodapopApp>
 
   void _watchConnectivity() {
     try {
-      _connectivity = Connectivity().onConnectivityChanged.listen(
-        (results) {
-          if (results.any((result) => result != ConnectivityResult.none)) {
-            _flushOutbox();
-          }
-        },
-        onError: (_) {},
-      );
+      _connectivity = Connectivity().onConnectivityChanged.listen((results) {
+        if (results.any((result) => result != ConnectivityResult.none)) {
+          _flushOutbox();
+        }
+      }, onError: (_) {});
     } catch (_) {
       // Connectivity is best effort; the app still works without the plugin.
     }
@@ -108,10 +102,14 @@ class _SodapopAppState extends ConsumerState<SodapopApp>
       darkTheme: sodaTheme(Brightness.dark),
       themeMode: themeMode,
       home: auth.loading
-          ? const Scaffold(body: Center(child: CircularProgressIndicator(color: Soda.lime)))
+          ? const Scaffold(
+              body: Center(child: CircularProgressIndicator(color: Soda.lime)),
+            )
           : auth.signedIn
-              ? const HomeShell()
-              : const OnboardingScreen(),
+          ? const HomeShell()
+          : auth.preview
+          ? const PublicShell()
+          : const OnboardingScreen(),
     );
   }
 }

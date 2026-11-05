@@ -38,6 +38,8 @@ type Tx struct {
 	CheckinLike *CheckinLikeClient
 	// CheckinSave is the client for interacting with the CheckinSave builders.
 	CheckinSave *CheckinSaveClient
+	// CheckinTag is the client for interacting with the CheckinTag builders.
+	CheckinTag *CheckinTagClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
 	// DeliveryOutbox is the client for interacting with the DeliveryOutbox builders.
@@ -256,6 +258,7 @@ func (tx *Tx) init() {
 	tx.Checkin = NewCheckinClient(tx.config)
 	tx.CheckinLike = NewCheckinLikeClient(tx.config)
 	tx.CheckinSave = NewCheckinSaveClient(tx.config)
+	tx.CheckinTag = NewCheckinTagClient(tx.config)
 	tx.Comment = NewCommentClient(tx.config)
 	tx.DeliveryOutbox = NewDeliveryOutboxClient(tx.config)
 	tx.Drink = NewDrinkClient(tx.config)

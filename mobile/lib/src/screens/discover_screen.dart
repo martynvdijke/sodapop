@@ -5,6 +5,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
+import 'add_drink_screen.dart';
 import 'ai_draft_screen.dart';
 import 'checkin_sheet.dart';
 import 'compare_screen.dart';
@@ -13,12 +14,18 @@ import 'nearby_screen.dart';
 import 'venues_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
-  const DiscoverScreen({super.key, this.compareOpener, this.draftOpener});
+  const DiscoverScreen({
+    super.key,
+    this.compareOpener,
+    this.draftOpener,
+    this.addOpener,
+  });
 
-  /// Optional test overrides for the two drafting entry points. Production
-  /// opens [CompareScreen] and [AiDraftScreen].
+  /// Optional test overrides for the drafting entry points. Production opens
+  /// [CompareScreen], [AiDraftScreen] and [AddDrinkScreen].
   final VoidCallback? compareOpener;
   final VoidCallback? draftOpener;
+  final ValueChanged<String>? addOpener;
 
   @override
   ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
@@ -156,6 +163,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     AiDraftScreen.open(context);
   }
 
+  /// The manual form is the fallback when search finds nothing or the server
+  /// has no AI. The current query becomes the proposed name.
+  void _openAdd() {
+    final opener = widget.addOpener;
+    if (opener != null) {
+      opener(_query.text.trim());
+      return;
+    }
+    AddDrinkScreen.open(context, name: _query.text.trim());
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -220,7 +238,21 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                     ),
                   )
                 : _results.isEmpty
-                ? const Center(child: Text('No sodas matched.'))
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('No sodas matched.'),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          key: const Key('discover-add-empty'),
+                          onPressed: _openAdd,
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Add a soda'),
+                        ),
+                      ],
+                    ),
+                  )
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: _results.length,
@@ -255,12 +287,24 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Tip: scanning a barcode is faster than typing.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Tip: scanning a barcode is faster than typing.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  key: const Key('discover-add'),
+                  onPressed: _openAdd,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add a soda'),
+                ),
+              ],
             ),
           ),
         ],

@@ -24,6 +24,7 @@ import (
 	"sodapop/internal/integrations"
 	"sodapop/internal/search"
 	"sodapop/internal/social"
+	"sodapop/internal/venues"
 )
 
 var handleRE = regexp.MustCompile(`^[a-z0-9_]{3,24}$`)
@@ -63,6 +64,13 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		aiEnabled, aiRecs := s.aiRecommendations(r.Context(), u.ID)
 		data["AIEnabled"] = aiEnabled
 		data["AIRecommendations"] = aiRecs
+	} else {
+		// Logged-out visitors get a read-only preview of public pours and
+		// opted-in public profiles. Nothing here is friend- or private-scoped.
+		feed, next := s.previewFeed(r)
+		data["PublicFeed"] = feed
+		data["PublicFeedNext"] = next
+		data["PublicPeople"], _ = s.Checkins.PublicPeople(r.Context(), 8)
 	}
 	s.render(w, r, http.StatusOK, "home", data)
 }
@@ -72,14 +80,31 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	s.render(w, r, http.StatusOK, "login", map[string]any{
+	s.render(w, r, http.StatusOK, "login", s.loginData(r.URL.Query().Get("next"), nil))
+}
+
+// loginData is the shared view model for the login page. The demo credentials
+// are intentionally included in the HTML: they are advertised public
+// credentials, not secrets.
+func (s *Server) loginData(next string, extra map[string]any) map[string]any {
+	d := map[string]any{
 		"Title":    "Sign in",
-		"Next":     r.URL.Query().Get("next"),
+		"Next":     next,
 		"Fallback": s.passwordFallback(),
-	})
+	}
+	if s.Cfg != nil && s.Cfg.DemoUserEnabled && s.passwordFallback() {
+		d["DemoEnabled"] = true
+		d["DemoHandle"] = s.Cfg.DemoUserHandle
+		d["DemoPassword"] = s.Cfg.DemoUserPassword
+	}
+	for k, v := range extra {
+		d[k] = v
+	}
+	return d
 }
 
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
+	next := r.FormValue("next")
 	if !s.passwordFallback() {
 		http.Error(w, "password login is disabled", http.StatusForbidden)
 		return
@@ -92,23 +117,23 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	key := "login:" + clientIP(r) + "|" + ident
 	if !s.Limiter.Allow(key, 5, 15*time.Minute) {
-		s.render(w, r, http.StatusTooManyRequests, "login", map[string]any{
-			"Title": "Sign in", "Error": "Too many attempts. Try again in a few minutes.", "Fallback": true,
-		})
+		s.render(w, r, http.StatusTooManyRequests, "login", s.loginData(next, map[string]any{
+			"Error": "Too many attempts. Try again in a few minutes.",
+		}))
 		return
 	}
 	if ident == "" || password == "" {
-		s.render(w, r, http.StatusBadRequest, "login", map[string]any{
-			"Title": "Sign in", "Error": "Enter your email or handle and password.", "Fallback": true,
-		})
+		s.render(w, r, http.StatusBadRequest, "login", s.loginData(next, map[string]any{
+			"Error": "Enter your email or handle and password.",
+		}))
 		return
 	}
 	// Durable lockout is checked with the same generic response as a wrong
 	// password, so an attacker cannot tell a locked key from a bad guess.
 	if s.Auth.LoginLocked(r.Context(), ident) {
-		s.render(w, r, http.StatusUnauthorized, "login", map[string]any{
-			"Title": "Sign in", "Error": "That email/handle and password combination did not match.", "Fallback": true,
-		})
+		s.render(w, r, http.StatusUnauthorized, "login", s.loginData(next, map[string]any{
+			"Error": "That email/handle and password combination did not match.",
+		}))
 		return
 	}
 	u, err := s.Auth.Client.User.Query().
@@ -116,16 +141,16 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		Only(r.Context())
 	if err != nil || u.PasswordHash == nil || !auth.CheckPassword(*u.PasswordHash, password) {
 		_ = s.Auth.RecordLoginFailure(r.Context(), ident)
-		s.render(w, r, http.StatusUnauthorized, "login", map[string]any{
-			"Title": "Sign in", "Error": "That email/handle and password combination did not match.", "Fallback": true,
-		})
+		s.render(w, r, http.StatusUnauthorized, "login", s.loginData(next, map[string]any{
+			"Error": "That email/handle and password combination did not match.",
+		}))
 		return
 	}
 	_ = s.Auth.ClearLoginFailures(r.Context(), ident)
 	if u.Status != "active" {
-		s.render(w, r, http.StatusForbidden, "login", map[string]any{
-			"Title": "Sign in", "Error": "This account is disabled.", "Fallback": true,
-		})
+		s.render(w, r, http.StatusForbidden, "login", s.loginData(next, map[string]any{
+			"Error": "This account is disabled.",
+		}))
 		return
 	}
 	res, err := s.Auth.CreateSession(r.Context(), u.ID, clientIP(r), r.UserAgent())
@@ -134,7 +159,6 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Auth.SetSessionCookie(w, r, res.Token, res.ExpiresAt)
-	next := r.FormValue("next")
 	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
 		next = "/"
 	}
@@ -353,36 +377,9 @@ func (s *Server) checkinPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/search", http.StatusFound)
 		return
 	}
-	rows, _ := s.Auth.SQL.QueryContext(r.Context(), `
-		SELECT id, name, COALESCE(city,'') FROM venues
-		WHERE merged_into_id IS NULL ORDER BY updated_at DESC LIMIT 40`)
-	venues := []venueOption{}
-	if rows != nil {
-		defer rows.Close()
-		for rows.Next() {
-			var v venueOption
-			if rows.Scan(&v.ID, &v.Name, &v.City) == nil {
-				venues = append(venues, v)
-			}
-		}
-	}
-	defaultVisibility := "public"
-	if u := UserFromContext(r); u != nil {
-		if v := string(u.DefaultVisibility); v != "" {
-			defaultVisibility = v
-		}
-	}
-	s.render(w, r, http.StatusOK, "checkin", map[string]any{
-		"Title": "Log " + d.Drink.Name, "Drink": d, "Ratings": ratingChoices(),
-		"Idempotency": auth.RandomToken(16), "Venues": venues,
-		"DefaultVisibility": defaultVisibility,
-	})
-}
-
-type venueOption struct {
-	ID   int
-	Name string
-	City string
+	data := s.checkinFormData(r.Context(), r, d)
+	data["Title"] = "Log " + d.Drink.Name
+	s.render(w, r, http.StatusOK, "checkin", data)
 }
 
 func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
@@ -422,10 +419,39 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		scaled := int(math.Round(f * 4))
 		rating = &scaled
 	}
+	lat, lng, err := optionalCoordinates(r.FormValue("lat"), r.FormValue("lng"))
+	if err != nil {
+		http.Error(w, "that location could not be read. Turn on location and try again.", http.StatusBadRequest)
+		return
+	}
+
 	var venueID *int
 	if v, err := strconv.Atoi(r.FormValue("venue_id")); err == nil && v > 0 {
 		venueID = &v
 	}
+	// An inline new venue wins over the selected list entry: the fields are
+	// only filled when the member chose to add one.
+	if name := strings.TrimSpace(r.FormValue("new_venue_name")); name != "" {
+		var vLat, vLng float64
+		if lat != nil {
+			vLat, vLng = *lat, *lng
+		}
+		v, _, err := s.Venues.Create(r.Context(), u.ID, venues.CreateInput{
+			Name:    name,
+			Address: strings.TrimSpace(r.FormValue("new_venue_address")),
+			City:    strings.TrimSpace(r.FormValue("new_venue_city")),
+			Country: strings.TrimSpace(r.FormValue("new_venue_country")),
+			Lat:     vLat,
+			Lng:     vLng,
+		})
+		if err != nil {
+			s.Log.Warn("venue create from check-in failed", "err", err)
+			http.Error(w, "could not add that venue: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		venueID = &v.ID
+	}
+
 	c, created, err := s.Checkins.Create(r.Context(), u, checkins.CreateInput{
 		DrinkID:        drinkID,
 		VenueID:        venueID,
@@ -435,10 +461,22 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		Visibility:     r.FormValue("visibility"),
 		IdempotencyKey: r.FormValue("idempotency_key"),
 		PhotoMediaID:   photoID,
+		Lat:            lat,
+		Lng:            lng,
+		FriendIDs:      r.Form["friend_ids"],
 	})
 	if err != nil {
 		s.Log.Warn("checkin failed", "err", err)
-		http.Error(w, "could not save check-in", http.StatusBadRequest)
+		switch {
+		case errors.Is(err, checkins.ErrInvalidCoords):
+			http.Error(w, "that location could not be read. Turn on location and try again.", http.StatusBadRequest)
+		case errors.Is(err, checkins.ErrInvalidFriend):
+			http.Error(w, "you can only tag people you are friends with.", http.StatusBadRequest)
+		case errors.Is(err, checkins.ErrTooManyFriends):
+			http.Error(w, "tag up to 10 friends on one check-in.", http.StatusBadRequest)
+		default:
+			http.Error(w, "could not save check-in", http.StatusBadRequest)
+		}
 		return
 	}
 	if created {
@@ -455,7 +493,14 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 			UserID: u.ID, Kind: "checkin", Text: "Logged a new soda.", URL: s.baseURL() + "/checkins/" + c.ID,
 		})
 	}
-	http.Redirect(w, r, "/", http.StatusFound)
+	// The scan flow lands on the new pour so the member can see the photo,
+	// tags and location they just attached. The composer keeps its feed
+	// destination.
+	destination := "/"
+	if r.FormValue("next") == "checkin" {
+		destination = "/checkins/" + c.ID
+	}
+	http.Redirect(w, r, destination, http.StatusFound)
 }
 
 func (s *Server) friendsPage(w http.ResponseWriter, r *http.Request) {

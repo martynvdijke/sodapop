@@ -28,6 +28,10 @@ const (
 	FieldNote = "note"
 	// FieldPhotoMediaID holds the string denoting the photo_media_id field in the database.
 	FieldPhotoMediaID = "photo_media_id"
+	// FieldLat holds the string denoting the lat field in the database.
+	FieldLat = "lat"
+	// FieldLng holds the string denoting the lng field in the database.
+	FieldLng = "lng"
 	// FieldVisibility holds the string denoting the visibility field in the database.
 	FieldVisibility = "visibility"
 	// FieldIdempotencyKey holds the string denoting the idempotency_key field in the database.
@@ -79,6 +83,8 @@ var Columns = []string{
 	FieldServing,
 	FieldNote,
 	FieldPhotoMediaID,
+	FieldLat,
+	FieldLng,
 	FieldVisibility,
 	FieldIdempotencyKey,
 	FieldCreatedAt,
@@ -208,6 +214,16 @@ func ByNote(opts ...sql.OrderTermOption) OrderOption {
 // ByPhotoMediaID orders the results by the photo_media_id field.
 func ByPhotoMediaID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPhotoMediaID, opts...).ToFunc()
+}
+
+// ByLat orders the results by the lat field.
+func ByLat(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLat, opts...).ToFunc()
+}
+
+// ByLng orders the results by the lng field.
+func ByLng(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLng, opts...).ToFunc()
 }
 
 // ByVisibility orders the results by the visibility field.

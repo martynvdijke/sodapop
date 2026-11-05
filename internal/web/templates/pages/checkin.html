@@ -9,10 +9,19 @@
       <button class="btn btn-small" type="button" data-scanner-open>Scan barcode</button>
     </p>
 
-    <form method="post" action="/checkins" class="stack" enctype="multipart/form-data" data-offline-checkin>
+    {{/* The venue search is its own GET form so it works without JavaScript.
+         The field below belongs to it through the form attribute, which keeps
+         the control visually inside the composer without nesting forms. */}}
+    <form id="venue-search" method="get" action="/checkins/new" data-venue-search>
+      <input type="hidden" name="slug" value="{{$d.Drink.Slug}}">
+      {{if .SelectedVenueID}}<input type="hidden" name="venue_id" value="{{.SelectedVenueID}}">{{end}}
+    </form>
+
+    <form method="post" action="/checkins" class="stack" enctype="multipart/form-data" data-offline-checkin data-checkin-form data-friend-limit="{{.FriendLimit}}">
       <input type="hidden" name="csrf_token" value="{{.CSRF}}">
       <input type="hidden" name="drink_id" value="{{$d.Drink.ID}}">
       <input type="hidden" name="idempotency_key" value="{{.Idempotency}}">
+      {{if .Scanned}}<input type="hidden" name="next" value="checkin">{{end}}
 
       <label>Rating
         <select name="rating">
@@ -31,16 +40,75 @@
         </select>
       </label>
 
-      <label>Where? <span class="hint">optional</span>
-        <select name="venue_id">
+      <fieldset class="checkin-venue" data-venue-picker>
+        <legend>Where? <span class="hint">optional</span></legend>
+
+        <div class="venue-search-row">
+          <label class="sr-only" for="venue-q">Search venues</label>
+          <input id="venue-q" name="venue_q" type="search" form="venue-search" value="{{.VenueQuery}}" placeholder="Search by venue or city" autocomplete="off" data-venue-query>
+          <button class="btn btn-small" type="submit" form="venue-search">Search</button>
+        </div>
+
+        <label class="venue-select-label" for="venue-select">Venue</label>
+        <select id="venue-select" name="venue_id" data-venue-select>
           <option value="">No venue</option>
-          {{range .Venues}}<option value="{{.ID}}">{{.Name}}{{if .City}} · {{.City}}{{end}}</option>{{end}}
+          {{range .Venues}}<option value="{{.ID}}"{{if eq .ID $.SelectedVenueID}} selected{{end}}>{{.Name}}{{if .City}} · {{.City}}{{end}}{{if .Distance}} · {{.Distance}}{{end}}</option>{{end}}
         </select>
-      </label>
+        <p class="hint" data-venue-status aria-live="polite">{{if .VenueSearchActive}}Showing matches for “{{.VenueQuery}}”.{{else}}Search for a venue, pick a recent one, or add it below.{{end}}</p>
+
+        <details class="venue-create">
+          <summary>Add a new venue</summary>
+          <label>Name <input name="new_venue_name" maxlength="120" autocomplete="organization" placeholder="The Corner Fridge"></label>
+          <label>Address <span class="hint">optional</span> <input name="new_venue_address" maxlength="200"></label>
+          <div class="venue-create-row">
+            <label>City <span class="hint">optional</span> <input name="new_venue_city" maxlength="120"></label>
+            <label>Country <span class="hint">optional</span> <input name="new_venue_country" maxlength="120"></label>
+          </div>
+          <p class="hint">A new venue name takes priority over the selected venue. Coordinates from “Use my location” are attached to it.</p>
+        </details>
+      </fieldset>
+
+      <fieldset class="checkin-location" data-location>
+        <legend>Location <span class="hint">optional</span></legend>
+        <input type="hidden" name="lat" value="" data-lat>
+        <input type="hidden" name="lng" value="" data-lng>
+        <div class="location-actions">
+          <button class="btn btn-small" type="button" data-locate>Use my location</button>
+          <button class="btn btn-small" type="button" data-clear-location hidden>Clear location</button>
+        </div>
+        <p class="hint" data-location-status role="status" aria-live="polite">Share a location to see nearby venues and pin this pour on a map. It is only saved when you save the check-in.</p>
+      </fieldset>
+
+      <fieldset class="checkin-friends" data-friend-picker>
+        <legend>With friends <span class="hint">optional · up to {{.FriendLimit}}</span></legend>
+        {{if .Friends}}
+          <p class="hint">Tagged friends get a notification and appear on the check-in.</p>
+          <label class="sr-only" for="friend-filter">Filter friends</label>
+          <input id="friend-filter" type="search" class="friend-filter" placeholder="Filter your friends" autocomplete="off" data-friend-filter>
+          <ul class="friend-options">
+            {{range .Friends}}
+              <li>
+                <label class="friend-option" data-name="{{.DisplayName}} @{{.Handle}}">
+                  <input type="checkbox" name="friend_ids" value="{{.ID}}" data-friend-checkbox>
+                  <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+                  <span class="friend-name"><strong>{{.DisplayName}}</strong><span class="muted">@{{.Handle}}</span></span>
+                </label>
+              </li>
+            {{end}}
+          </ul>
+          <p class="hint friend-count" data-friend-count aria-live="polite"></p>
+        {{else}}
+          <p class="hint">No friends to tag yet. <a href="/friends">Find people</a> first.</p>
+        {{end}}
+      </fieldset>
 
       <label>Photo or short video <span class="hint">optional · JPEG, PNG, WebP, GIF, MP4, WebM</span>
-        <input type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+        <input type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" capture="environment" data-photo-input>
       </label>
+      <div class="photo-preview" data-photo-preview hidden>
+        <img alt="Preview of the photo you chose" data-photo-preview-img>
+        <button class="btn btn-small" type="button" data-photo-clear>Remove photo</button>
+      </div>
 
       <label>Note <span class="hint">optional</span>
         <textarea name="note" rows="3" maxlength="1000" placeholder="Sharp ginger, low sweetness, would buy again." data-ai-note></textarea>
@@ -72,6 +140,8 @@
       <p class="hint" id="page-gtin-hint">The number under the barcode. 8 to 14 digits.</p>
       <button class="btn" type="submit">Look up barcode</button>
     </form>
+
+    <p class="hint">Not in the catalog? <a href="/new">Add a soda manually</a>.</p>
   {{end}}
 </section>
 

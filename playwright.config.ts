@@ -26,7 +26,7 @@ export default defineConfig({
         'mkdir -p .e2e',
         `rm -f ${db} ${db}-wal ${db}-shm`,
         `DATABASE_PATH=${db} SEED_DEMO=1 SESSION_SECRET=e2e-secret-e2e-secret-e2e-secret go run ./cmd/seed`,
-        `DATABASE_PATH=${db} SESSION_SECRET=e2e-secret-e2e-secret-e2e-secret VERSION=${version} PORT=${port} BASE_URL=http://127.0.0.1:${port} ALLOW_PASSWORD_FALLBACK=true ENV=development go run ./cmd/server`,
+        `DATABASE_PATH=${db} SESSION_SECRET=e2e-secret-e2e-secret-e2e-secret VERSION=${version} PORT=${port} BASE_URL=http://127.0.0.1:${port} ALLOW_PASSWORD_FALLBACK=true DEMO_USER_ENABLED=1 ENV=development go run ./cmd/server`,
       ].join(' && '),
       url: `http://127.0.0.1:${port}/healthz`,
       reuseExistingServer: !process.env.CI,

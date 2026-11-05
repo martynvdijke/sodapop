@@ -7,6 +7,7 @@ import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
 import '../widgets/soda_ui.dart';
+import 'add_drink_screen.dart';
 import 'drink_detail_screen.dart';
 
 /// Opens the drink that a committed draft created. Injected by tests so they
@@ -222,6 +223,16 @@ class _AiDraftScreenState extends ConsumerState<AiDraftScreen> {
     });
   }
 
+  /// AI drafting can be switched off on a server. The manual form still works,
+  /// so hand the barcode over and drop this screen from the stack.
+  void _addManually() {
+    final navigator = Navigator.of(context);
+    final route = ModalRoute.of(context);
+    final wasCurrent = route?.isCurrent ?? false;
+    AddDrinkScreen.open(context, barcode: widget.barcode);
+    if (route != null && wasCurrent) navigator.removeRoute(route);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -387,11 +398,7 @@ class _AiDraftScreenState extends ConsumerState<AiDraftScreen> {
             ],
           ),
         ),
-        _Composer(
-          controller: _message,
-          busy: _busy,
-          onSend: _send,
-        ),
+        _Composer(controller: _message, busy: _busy, onSend: _send),
       ],
     );
   }
@@ -433,7 +440,7 @@ class _AiDraftScreenState extends ConsumerState<AiDraftScreen> {
         const SizedBox(height: 10),
         Text(
           'Everything else works as usual. You can still scan a barcode or '
-          'log a soda from the catalog.',
+          'add the soda yourself.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
@@ -441,6 +448,15 @@ class _AiDraftScreenState extends ConsumerState<AiDraftScreen> {
           ),
         ),
         const SizedBox(height: 26),
+        Center(
+          child: FilledButton.icon(
+            key: const Key('ai-add-manual'),
+            onPressed: _addManually,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Add it manually'),
+          ),
+        ),
+        const SizedBox(height: 10),
         Center(
           child: OutlinedButton(
             onPressed: () => Navigator.of(context).maybePop(),

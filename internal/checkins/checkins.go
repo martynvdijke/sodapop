@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"strings"
 	"time"
 
 	"sodapop/ent"
 	"sodapop/ent/checkin"
 	"sodapop/ent/drink"
+	"sodapop/ent/notification"
 	"sodapop/ent/user"
 	"sodapop/ent/userbadge"
 	"sodapop/ent/venuedrink"
@@ -24,7 +26,14 @@ var (
 	ErrInvalidRating  = errors.New("rating must be between 0 and 20 quarter-stars")
 	ErrInvalidInput   = errors.New("invalid check-in")
 	ErrIdempotencyUse = errors.New("idempotency key already used")
+	ErrInvalidCoords  = errors.New("lat and lng must be provided together and in range")
+	ErrInvalidFriend  = errors.New("tagged user is not an accepted friend")
+	ErrTooManyFriends = errors.New("too many tagged friends")
 )
+
+// maxTaggedFriends caps friend tags per check-in so one row cannot fan out an
+// unbounded number of notifications.
+const maxTaggedFriends = 10
 
 // maxNoteLength caps the free-text note on a check-in. Moderated edits share
 // the limit so they cannot store what create would reject.
@@ -50,6 +59,9 @@ type CreateInput struct {
 	Visibility     string
 	IdempotencyKey string
 	PhotoMediaID   string
+	Lat            *float64
+	Lng            *float64
+	FriendIDs      []string
 }
 
 // Create logs a check-in. The bool reports whether a new row was created; a
@@ -63,6 +75,13 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	}
 	if len(in.Note) > maxNoteLength {
 		return nil, false, errors.New("note is too long")
+	}
+	if err := validateCoords(in.Lat, in.Lng); err != nil {
+		return nil, false, err
+	}
+	friendIDs, err := s.normalizeFriendIDs(ctx, u, in.FriendIDs)
+	if err != nil {
+		return nil, false, err
 	}
 	if _, err := s.Client.Drink.Query().
 		Where(drink.ID(in.DrinkID), drink.StatusNEQ(drink.StatusMerged)).
@@ -121,10 +140,22 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	if in.IdempotencyKey != "" {
 		builder.SetIdempotencyKey(in.IdempotencyKey)
 	}
+	if in.Lat != nil && in.Lng != nil {
+		builder.SetLat(*in.Lat).SetLng(*in.Lng)
+	}
 	c, err := builder.Save(ctx)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, false, err
+	}
+	for _, friendID := range friendIDs {
+		if _, err := tx.CheckinTag.Create().
+			SetCheckinID(c.ID).
+			SetUserID(friendID).
+			Save(ctx); err != nil {
+			_ = tx.Rollback()
+			return nil, false, err
+		}
 	}
 	if in.VenueID != nil {
 		_ = upsertVenueDrink(ctx, tx, *in.VenueID, in.DrinkID)
@@ -136,7 +167,65 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	if err := tx.Commit(); err != nil {
 		return nil, false, err
 	}
+	// Notifications are best effort and happen only for a real create, so an
+	// idempotent replay cannot fan out duplicates.
+	if s.Social != nil {
+		for _, friendID := range friendIDs {
+			_ = s.Social.Notify(ctx, friendID, string(notification.KindMention), u.ID, c.ID, "tagged you in a check-in")
+		}
+	}
 	return c, true, nil
+}
+
+// validateCoords enforces the all-or-nothing GPS contract. Absent coordinates
+// are fine; one half or an out-of-range value is not.
+func validateCoords(lat, lng *float64) error {
+	if lat == nil && lng == nil {
+		return nil
+	}
+	if lat == nil || lng == nil {
+		return ErrInvalidCoords
+	}
+	if math.IsNaN(*lat) || math.IsInf(*lat, 0) || *lat < -90 || *lat > 90 {
+		return ErrInvalidCoords
+	}
+	if math.IsNaN(*lng) || math.IsInf(*lng, 0) || *lng < -180 || *lng > 180 {
+		return ErrInvalidCoords
+	}
+	return nil
+}
+
+// normalizeFriendIDs drops blanks and duplicates, ignores the author, enforces
+// the cap and requires every surviving id to be an accepted friend.
+func (s *Service) normalizeFriendIDs(ctx context.Context, u *ent.User, raw []string) ([]string, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	seen := make(map[string]bool, len(raw))
+	out := make([]string, 0, len(raw))
+	for _, id := range raw {
+		id = strings.TrimSpace(id)
+		if id == "" || id == u.ID || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	if len(out) > maxTaggedFriends {
+		return nil, ErrTooManyFriends
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	if s.Social == nil {
+		return nil, ErrInvalidFriend
+	}
+	for _, id := range out {
+		if !s.Social.AreFriends(ctx, u.ID, id) {
+			return nil, ErrInvalidFriend
+		}
+	}
+	return out, nil
 }
 
 func upsertVenueDrink(ctx context.Context, tx *ent.Tx, venueID, drinkID int) error {

@@ -23,6 +23,10 @@ func (Checkin) Fields() []ent.Field {
 		field.Enum("serving").Values("can", "bottle", "glass", "fountain", "other").Default("can"),
 		field.String("note").Default(""),
 		field.String("photo_media_id").Optional().Nillable(),
+		// Raw device coordinates are optional and always stored together. They
+		// stay on the row so a check-in can suggest the venue it happened at.
+		field.Float("lat").Optional().Nillable(),
+		field.Float("lng").Optional().Nillable(),
 		field.Enum("visibility").Values("public", "friends", "private").Default("public"),
 		field.String("idempotency_key").Optional().Nillable(),
 		field.String("created_at").DefaultFunc(now),
@@ -63,6 +67,28 @@ func (CheckinLike) Fields() []ent.Field {
 func (CheckinLike) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("checkin_id", "user_id").Unique(),
+	}
+}
+
+// CheckinTag is a friend tagged on a check-in. Tags are join rows like toasts:
+// they carry no content, and a reader only sees them through a check-in the
+// viewer is already allowed to read.
+type CheckinTag struct {
+	ent.Schema
+}
+
+func (CheckinTag) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("checkin_id").NotEmpty(),
+		field.String("user_id").NotEmpty(),
+		field.String("created_at").DefaultFunc(now),
+	}
+}
+
+func (CheckinTag) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("checkin_id", "user_id").Unique(),
+		index.Fields("user_id"),
 	}
 }
 

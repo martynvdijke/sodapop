@@ -604,7 +604,9 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                 ),
               ),
             ),
-            if (visibility.isNotEmpty || detail.venueName.isNotEmpty) ...[
+            if (visibility.isNotEmpty ||
+                detail.venueName.isNotEmpty ||
+                (detail.venueName.isEmpty && detail.hasLocation)) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -616,6 +618,38 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                       icon: Icons.place_outlined,
                       label: detail.venueName,
                     ),
+                  // No map SDK: the chip just says a place was attached.
+                  if (detail.venueName.isEmpty && detail.hasLocation)
+                    SodaPill(
+                      icon: Icons.my_location_rounded,
+                      label: 'Location shared',
+                    ),
+                ],
+              ),
+            ],
+            if (detail.taggedFriends.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                key: const Key('detail-tags'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.group_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'With ${detail.taggedFriends.map((friend) => friend.name).where((name) => name.isNotEmpty).join(', ')}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],

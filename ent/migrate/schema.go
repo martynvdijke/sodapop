@@ -208,6 +208,8 @@ var (
 		{Name: "serving", Type: field.TypeEnum, Enums: []string{"can", "bottle", "glass", "fountain", "other"}, Default: "can"},
 		{Name: "note", Type: field.TypeString, Default: ""},
 		{Name: "photo_media_id", Type: field.TypeString, Nullable: true},
+		{Name: "lat", Type: field.TypeFloat64, Nullable: true},
+		{Name: "lng", Type: field.TypeFloat64, Nullable: true},
 		{Name: "visibility", Type: field.TypeEnum, Enums: []string{"public", "friends", "private"}, Default: "public"},
 		{Name: "idempotency_key", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeString},
@@ -225,19 +227,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "checkins_drinks_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[10]},
+				Columns:    []*schema.Column{CheckinsColumns[12]},
 				RefColumns: []*schema.Column{DrinksColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "checkins_users_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[11]},
+				Columns:    []*schema.Column{CheckinsColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "checkins_venues_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[12]},
+				Columns:    []*schema.Column{CheckinsColumns[14]},
 				RefColumns: []*schema.Column{VenuesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -246,17 +248,17 @@ var (
 			{
 				Name:    "checkin_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinsColumns[11], CheckinsColumns[7]},
+				Columns: []*schema.Column{CheckinsColumns[13], CheckinsColumns[9]},
 			},
 			{
 				Name:    "checkin_drink_id",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinsColumns[10]},
+				Columns: []*schema.Column{CheckinsColumns[12]},
 			},
 			{
 				Name:    "checkin_idempotency_key",
 				Unique:  true,
-				Columns: []*schema.Column{CheckinsColumns[6]},
+				Columns: []*schema.Column{CheckinsColumns[8]},
 			},
 		},
 	}
@@ -302,6 +304,31 @@ var (
 				Name:    "checkinsave_user_id_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{CheckinSavesColumns[2], CheckinSavesColumns[3]},
+			},
+		},
+	}
+	// CheckinTagsColumns holds the columns for the "checkin_tags" table.
+	CheckinTagsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "checkin_id", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeString},
+	}
+	// CheckinTagsTable holds the schema information for the "checkin_tags" table.
+	CheckinTagsTable = &schema.Table{
+		Name:       "checkin_tags",
+		Columns:    CheckinTagsColumns,
+		PrimaryKey: []*schema.Column{CheckinTagsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "checkintag_checkin_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{CheckinTagsColumns[1], CheckinTagsColumns[2]},
+			},
+			{
+				Name:    "checkintag_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinTagsColumns[2]},
 			},
 		},
 	}
@@ -1158,6 +1185,7 @@ var (
 		CheckinsTable,
 		CheckinLikesTable,
 		CheckinSavesTable,
+		CheckinTagsTable,
 		CommentsTable,
 		DeliveryOutboxTable,
 		DrinksTable,
