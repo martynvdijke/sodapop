@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/martynvdijke/sodapop/compare/v1.18.0...v1.19.0) (2026-11-05)
+
+
+### Features
+
+* **mobile:** add friend request action to profiles ([9117175](https://github.com/martynvdijke/sodapop/commit/91171752929ac24d47d7f94067a85541aa7f5925))
+
 # [1.18.0](https://github.com/martynvdijke/sodapop/compare/v1.17.3...v1.18.0) (2026-11-05)
 
 
