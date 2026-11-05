@@ -248,6 +248,9 @@ func (s *Service) CreateProvisional(ctx context.Context, userID string, in Creat
 	if in.Container == "" {
 		in.Container = "can"
 	}
+	// Normalize before the soft-key lookup so an unsupported value that will be
+	// stored as "can" still dedupes against the existing row.
+	in.Container = string(containerEnum(in.Container))
 	if in.Barcode != "" {
 		gtin, err := NormalizeGTIN(in.Barcode)
 		if err != nil {
