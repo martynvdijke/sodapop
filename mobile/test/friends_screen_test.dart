@@ -67,11 +67,11 @@ class _FriendsApi extends ApiClient {
   Future<void> removeFriend(String id) async => removed = id;
 }
 
-Widget _app(ApiClient api) => ProviderScope(
+Widget _app(ApiClient api, {bool startOnAdd = false}) => ProviderScope(
   overrides: [apiProvider.overrideWithValue(api)],
   child: MaterialApp(
     theme: sodaTheme(Brightness.light),
-    home: const FriendsScreen(),
+    home: FriendsScreen(startOnAdd: startOnAdd),
   ),
 );
 
@@ -128,6 +128,19 @@ void main() {
       find.text('If that account exists, a request has been sent.'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('startOnAdd opens the add form directly', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(_FriendsApi(), startOnAdd: true));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add a friend'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

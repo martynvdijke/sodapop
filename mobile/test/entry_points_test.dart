@@ -10,6 +10,7 @@ import 'package:sodapop/src/api/models.dart';
 import 'package:sodapop/src/auth/auth_controller.dart';
 import 'package:sodapop/src/screens/discover_screen.dart';
 import 'package:sodapop/src/screens/drink_detail_screen.dart';
+import 'package:sodapop/src/screens/feed_screen.dart';
 import 'package:sodapop/src/screens/scanner_screen.dart';
 import 'package:sodapop/src/theme/soda_theme.dart';
 
@@ -24,6 +25,14 @@ const _cherry = Drink(
 );
 
 class _DiscoverApi extends ApiClient {}
+
+class _FeedApi extends ApiClient {
+  @override
+  Future<List<FeedItem>> feed({int limit = 30}) async => const [];
+
+  @override
+  Future<FriendsDirectory> friends() async => const FriendsDirectory();
+}
 
 class _DetailApi extends ApiClient {
   @override
@@ -266,6 +275,22 @@ void main() {
     expect(find.text('Draft it with AI'), findsNothing);
     expect(find.text('New to Sodapop'), findsNothing);
     expect(drafted, isEmpty);
+  });
+
+  testWidgets('friends feed offers an add-friend action', (tester) async {
+    _sizeTo(tester, const Size(420, 900));
+
+    await tester.pumpWidget(_app(_FeedApi(), const FeedScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Add friend'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Add friend'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add a friend'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('drink detail compares with the current soda preselected', (

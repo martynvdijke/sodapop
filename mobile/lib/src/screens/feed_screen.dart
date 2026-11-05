@@ -11,6 +11,7 @@ import '../theme/soda_theme.dart';
 import '../utils/url.dart';
 import '../widgets/soda_ui.dart';
 import 'checkin_detail_screen.dart';
+import 'friends_screen.dart';
 import 'notifications_screen.dart';
 import 'user_profile_screen.dart';
 
@@ -165,6 +166,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       appBar: AppBar(
         title: const Text('Sodapop'),
         actions: [
+          IconButton(
+            onPressed: () => FriendsScreen.open(context, startOnAdd: true),
+            tooltip: 'Add friend',
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+          ),
           IconButton(
             onPressed: () => NotificationsScreen.open(context),
             tooltip: 'Notifications',

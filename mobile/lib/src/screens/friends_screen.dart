@@ -13,11 +13,16 @@ import 'user_profile_screen.dart';
 /// The signed-in member's friend directory: accepted friends, pending requests
 /// in both directions, and a handle-first way to add someone.
 class FriendsScreen extends ConsumerStatefulWidget {
-  const FriendsScreen({super.key});
+  const FriendsScreen({super.key, this.startOnAdd = false});
 
-  static Future<void> open(BuildContext context) {
+  /// Opens straight to the Add tab when the caller's intent is "add a friend".
+  final bool startOnAdd;
+
+  static Future<void> open(BuildContext context, {bool startOnAdd = false}) {
     return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const FriendsScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => FriendsScreen(startOnAdd: startOnAdd),
+      ),
     );
   }
 
@@ -40,6 +45,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.startOnAdd) _tab = _FriendsTab.add;
     _load();
   }
 
