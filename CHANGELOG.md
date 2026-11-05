@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/martynvdijke/sodapop/compare/v1.19.0...v1.20.0) (2026-11-05)
+
+
+### Features
+
+* expand scan-to-check-in flow and public preview ([1123a33](https://github.com/martynvdijke/sodapop/commit/1123a3315d6b11e2703a29c7897c15dd97e018d0))
+
 # [1.19.0](https://github.com/martynvdijke/sodapop/compare/v1.18.0...v1.19.0) (2026-11-05)
 
 
