@@ -36,6 +36,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   bool _blocked = false;
   bool _followBusy = false;
   bool _blockBusy = false;
+  bool _friendBusy = false;
+  bool _friendRequested = false;
   String? _error;
 
   @override
@@ -104,6 +106,29 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _followBusy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiClient.describe(error).message)),
+      );
+    }
+  }
+
+  Future<void> _sendFriendRequest() async {
+    final profile = _profile;
+    if (profile == null || _friendBusy || _friendRequested) return;
+    setState(() => _friendBusy = true);
+    try {
+      await ref.read(apiProvider).sendFriendRequest(profile.handle);
+      if (!mounted) return;
+      setState(() {
+        _friendBusy = false;
+        _friendRequested = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Friend request sent.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _friendBusy = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(ApiClient.describe(error).message)),
       );
@@ -251,7 +276,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             _blockedPanel(profile),
           ] else ...[
             const SizedBox(height: 18),
-            _followButton(profile),
+            _actions(profile),
             const SizedBox(height: 24),
             _stats(profile),
             if (profile.badges.isNotEmpty) ...[
@@ -350,24 +375,48 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
   }
 
-  Widget _followButton(UserProfile profile) {
-    if (profile.isFollowing) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: FilledButton.tonalIcon(
-          onPressed: _followBusy ? null : _toggleFollow,
-          icon: const Icon(Icons.check_rounded, size: 18),
-          label: const Text('Following'),
-        ),
-      );
-    }
+  Widget _actions(UserProfile profile) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: FilledButton.icon(
-        onPressed: _followBusy ? null : _toggleFollow,
-        icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-        label: const Text('Follow'),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          // `canBlock` is false only for the signed-in member's own profile.
+          if (!profile.isFriend && profile.canBlock) _friendButton(),
+          _followButton(profile),
+        ],
       ),
+    );
+  }
+
+  Widget _friendButton() {
+    if (_friendRequested) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.hourglass_top_rounded, size: 18),
+        label: const Text('Request sent'),
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: _friendBusy ? null : _sendFriendRequest,
+      icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+      label: const Text('Add friend'),
+    );
+  }
+
+  Widget _followButton(UserProfile profile) {
+    if (profile.isFollowing) {
+      return FilledButton.tonalIcon(
+        onPressed: _followBusy ? null : _toggleFollow,
+        icon: const Icon(Icons.check_rounded, size: 18),
+        label: const Text('Following'),
+      );
+    }
+    return FilledButton.icon(
+      onPressed: _followBusy ? null : _toggleFollow,
+      icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+      label: const Text('Follow'),
     );
   }
 

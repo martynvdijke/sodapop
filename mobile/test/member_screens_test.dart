@@ -110,6 +110,11 @@ class _NotificationsApi extends ApiClient {
 }
 
 class _ProfileApi extends ApiClient {
+  String? requested;
+
+  @override
+  Future<void> sendFriendRequest(String handle) async => requested = handle;
+
   @override
   Future<UserProfile> userProfile(String handle) async => const UserProfile(
     id: 'u1',
@@ -230,6 +235,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a profile can send a friend request', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final api = _ProfileApi();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: sodaTheme(Brightness.light),
+          home: const UserProfileScreen(handle: 'ada'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add friend'), findsOneWidget);
+
+    await tester.tap(find.text('Add friend'));
+    await tester.pumpAndSettle();
+
+    expect(api.requested, 'ada');
+    expect(find.text('Request sent'), findsOneWidget);
+    expect(find.text('Friend request sent.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a profile renders on a narrow screen', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
@@ -248,8 +281,14 @@ void main() {
 
     expect(find.text('Ada Lovelace'), findsOneWidget);
     expect(find.text('Follow'), findsOneWidget);
+    expect(find.text('Add friend'), findsOneWidget);
     expect(find.text('Check-ins'), findsOneWidget);
     expect(find.text('Badges'), findsOneWidget);
+    await tester.dragUntilVisible(
+      find.text('Weekend fridge'),
+      find.byType(Scrollable).first,
+      const Offset(0, -200),
+    );
     expect(find.text('Weekend fridge'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
