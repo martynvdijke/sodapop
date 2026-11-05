@@ -1,3 +1,10 @@
+## [1.20.1](https://github.com/martynvdijke/sodapop/compare/v1.20.0...v1.20.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* normalize container before provisional drink dedupe ([85b9ee3](https://github.com/martynvdijke/sodapop/commit/85b9ee38c98d9f780de9511c49290ef6dcc72d53))
+
 # [1.20.0](https://github.com/martynvdijke/sodapop/compare/v1.19.0...v1.20.0) (2026-11-05)
 
 
