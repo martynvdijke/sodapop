@@ -1,3 +1,16 @@
+# [1.21.0](https://github.com/martynvdijke/sodapop/compare/v1.20.1...v1.21.0) (2026-11-06)
+
+
+### Bug Fixes
+
+* keep barcode lookup working when OFF changes its response shape ([c67c897](https://github.com/martynvdijke/sodapop/commit/c67c897ddb3696433d57abe50d0744c922ae6245))
+* **mobile:** start the scanner reliably and explain camera failures ([af1df06](https://github.com/martynvdijke/sodapop/commit/af1df06b4fe2af0bfbbb7f4c902939ad51b70627))
+
+
+### Features
+
+* **mobile:** show own and friends' posts in a Feed tab ([2bbfce2](https://github.com/martynvdijke/sodapop/commit/2bbfce2309fe7e8e38267cf9385df9216b85ab42))
+
 ## [1.20.1](https://github.com/martynvdijke/sodapop/compare/v1.20.0...v1.20.1) (2026-11-05)
 
 
