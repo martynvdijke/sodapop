@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -117,14 +118,17 @@ func (c *OFFClient) Get(ctx context.Context, gtin string) (*OFFProduct, error) {
 		return nil, fmt.Errorf("open food facts status %d", resp.StatusCode)
 	}
 
+	// The v3.6 API used to return a numeric status, then moved to strings such
+	// as "success_with_warnings". Keep the field raw so either shape decodes;
+	// the product payload is what actually tells us whether a match exists.
 	var envelope struct {
-		Status  int             `json:"status"`
+		Status  json.RawMessage `json:"status"`
 		Product json.RawMessage `json:"product"`
 	}
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return nil, err
 	}
-	if envelope.Status == 0 || len(envelope.Product) == 0 || string(envelope.Product) == "null" {
+	if len(envelope.Product) == 0 || string(envelope.Product) == "null" {
 		c.storeNegative(ctx, gtin)
 		return nil, ErrOFFNotFound
 	}
@@ -284,10 +288,15 @@ func (s *Service) ResolveBarcode(ctx context.Context, raw string) (*BarcodeResul
 			Attribution: "Product data from Open Food Facts (ODbL 1.0).",
 		}, nil
 	}
-	if errors.Is(err, ErrOFFNotFound) || errors.Is(err, ErrOFFRateLimited) || !s.Cfg.OFFEnabled {
-		return &BarcodeResult{Status: "unknown", GTIN: gtin}, nil
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-	return nil, err
+	if !errors.Is(err, ErrOFFNotFound) && !errors.Is(err, ErrOFFRateLimited) {
+		// An upstream outage or an Open Food Facts schema change must never
+		// break scanning. Log it and let the app fall back to manual entry.
+		slog.Warn("open food facts lookup failed", "gtin", gtin, "error", err)
+	}
+	return &BarcodeResult{Status: "unknown", GTIN: gtin}, nil
 }
 
 func firstBrand(brands string) string {
