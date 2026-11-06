@@ -23,7 +23,9 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
-  /// Cache bucket for the friends feed. A following tab would use `following`.
+  /// Cache bucket for the home feed: your check-ins plus friends' and the
+  /// people you follow. The key stays `friends` so existing offline snapshots
+  /// keep working.
   static const _scope = 'friends';
 
   List<FeedItem> _items = const [];
@@ -207,19 +209,15 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       );
     }
     if (_items.isEmpty) {
-      return ListView(
-        children: [
-          const SizedBox(height: 100),
-          const Icon(Icons.local_drink_outlined, size: 56, color: Soda.muted),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              'No fizz yet.\nScan a can or add a friend to fill this up.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ),
-        ],
+      // The feed is your check-ins plus the people you follow, so an empty
+      // list means nobody you know has poured yet — not that you have no
+      // friends.
+      return SodaStatusView(
+        icon: Icons.dynamic_feed_outlined,
+        title: 'Your feed is quiet.',
+        message: 'Scan a can or add a friend to see pours here.',
+        actionLabel: 'Find friends',
+        onAction: () => FriendsScreen.open(context, startOnAdd: true),
       );
     }
     final notice = _notice;

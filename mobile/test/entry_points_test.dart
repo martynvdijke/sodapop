@@ -342,7 +342,7 @@ void main() {
     expect(drafted, isEmpty);
   });
 
-  testWidgets('friends feed offers an add-friend action', (tester) async {
+  testWidgets('feed offers an add-friend action', (tester) async {
     _sizeTo(tester, const Size(420, 900));
 
     await tester.pumpWidget(_app(_FeedApi(), const FeedScreen()));
