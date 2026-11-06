@@ -30,11 +30,17 @@ class ScannerScreen extends ConsumerStatefulWidget {
 class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
+    // Android asks ML Kit for a zoom suggestion, which helps with small and
+    // curved EU cans held close to the lens.
+    autoZoom: true,
+    // UPC-E is deliberately absent: this app turns an 8 digit code into a
+    // GTIN-14 by zero padding, which does not describe the same product.
+    // EAN-13 covers Europe, UPC-A is still common on imported cans, and
+    // Code 128 shows up on multipacks.
     formats: const [
       BarcodeFormat.ean13,
       BarcodeFormat.ean8,
       BarcodeFormat.upcA,
-      BarcodeFormat.upcE,
       BarcodeFormat.code128,
     ],
   );
@@ -44,21 +50,68 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   String? _error;
   bool _looking = false;
 
+  /// Copied from the controller so the lime frame can step aside when the
+  /// camera fails. The controller notifies while `MobileScanner` is building,
+  /// so this is synced on the next frame rather than during build.
+  MobileScannerException? _cameraError;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_syncCameraError);
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_syncCameraError);
     _controller.dispose();
     _manual.dispose();
     super.dispose();
   }
 
+  void _syncCameraError() {
+    final error = _controller.value.error;
+    if (identical(error, _cameraError)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final next = _controller.value.error;
+      if (identical(next, _cameraError)) return;
+      setState(() => _cameraError = next);
+    });
+  }
+
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_looking || _result != null) return;
+    if (!mounted || _looking || _result != null) return;
     final raw = capture.barcodes
         .map((b) => b.rawValue)
         .whereType<String>()
         .firstOrNull;
     if (raw == null) return;
     await _lookup(raw);
+  }
+
+  /// Plain wording for a camera failure. A denied permission is the common
+  /// case on Android 13+, so it gets directions the user can act on.
+  String _cameraMessage(Object error, {bool starting = true}) {
+    if (error is MobileScannerException) {
+      switch (error.errorCode) {
+        case MobileScannerErrorCode.permissionDenied:
+          return 'Sodapop needs camera access to read cans. Allow the camera '
+              'in your system settings, then try again.';
+        case MobileScannerErrorCode.unsupported:
+          return 'This device cannot use a camera to scan. Enter the barcode '
+              'below instead.';
+        case MobileScannerErrorCode.controllerDisposed:
+          return 'The camera was closed. Open the scanner again to use it.';
+        default:
+          break;
+      }
+    }
+    return starting
+        ? 'The camera could not start. Tap Try again, or enter the barcode '
+              'below.'
+        : 'The camera stopped unexpectedly. Tap Try again, or enter the '
+              'barcode below.';
   }
 
   Future<void> _lookup(String raw) async {
@@ -73,31 +126,47 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       _result = null;
       _gtin = null;
     });
-    await _controller.stop();
+
+    // Stop the preview before the lookup so a code is only read once. A stop
+    // failure must never block the lookup or strand the spinner: CameraX can
+    // throw while the camera is being torn down on some devices.
+    var cameraError = '';
+    try {
+      await _controller.stop();
+    } catch (error) {
+      cameraError = _cameraMessage(error, starting: false);
+    }
+
     try {
       final result = await ref.read(apiProvider).barcode(gtin);
       if (!mounted) return;
       setState(() {
         _result = result;
         _gtin = gtin;
-        _looking = false;
+        if (cameraError.isNotEmpty) _error = cameraError;
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() {
-        _looking = false;
-        _error = ApiClient.describe(error).message;
-      });
+      setState(() => _error = ApiClient.describe(error).message);
+    } finally {
+      // Whatever happened above, the spinner has to come back off.
+      if (mounted) setState(() => _looking = false);
     }
   }
 
-  void _reset() {
+  Future<void> _reset() async {
+    if (!mounted) return;
     setState(() {
       _result = null;
       _gtin = null;
       _error = null;
     });
-    _controller.start();
+    try {
+      await _controller.start();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = _cameraMessage(error));
+    }
   }
 
   void _draftFromBarcode(String gtin) {
@@ -146,19 +215,37 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                MobileScanner(controller: _controller, onDetect: _onDetect),
-                IgnorePointer(
-                  child: Center(
-                    child: Container(
-                      width: 280,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Soda.lime, width: 3),
-                        borderRadius: BorderRadius.circular(16),
+                MobileScanner(
+                  controller: _controller,
+                  onDetect: _onDetect,
+                  placeholderBuilder: (context) => const _CameraStarting(),
+                  errorBuilder: (context, error) => _CameraFailure(
+                    message: _cameraMessage(error),
+                    icon:
+                        error.errorCode ==
+                            MobileScannerErrorCode.permissionDenied
+                        ? Icons.no_photography_outlined
+                        : Icons.videocam_off_outlined,
+                    onRetry: _reset,
+                  ),
+                ),
+                // The lime frame means "aim the camera at a can". When the
+                // camera failed there is nothing to aim, so the message gets
+                // the space instead of sitting under the frame.
+                if (_cameraError == null)
+                  IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        key: const Key('scanner-frame'),
+                        width: 280,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Soda.lime, width: 3),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
                   ),
-                ),
                 if (_looking)
                   const Center(
                     child: CircularProgressIndicator(color: Soda.lime),
@@ -178,13 +265,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     _error!,
                     style: const TextStyle(color: Color(0xFFFF7A6E)),
                   ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: _reset,
-                      child: const Text('Try again'),
+                  // A result card carries its own "Scan again", so the error
+                  // only needs a retry action when there is nothing else on
+                  // screen to restart the camera.
+                  if (_result == null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: _reset,
+                        child: const Text('Try again'),
+                      ),
                     ),
-                  ),
                 ],
                 if (_result != null)
                   _ResultCard(
@@ -227,6 +318,87 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shown while the camera starts. The lime frame sits around this, so the
+/// content stays compact and centred.
+class _CameraStarting extends StatelessWidget {
+  const _CameraStarting();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Soda.night,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(
+                color: Soda.lime,
+                strokeWidth: 3,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Starting camera…',
+              style: TextStyle(color: Soda.nightMuted, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the camera cannot start, with the one action that can help.
+class _CameraFailure extends StatelessWidget {
+  const _CameraFailure({
+    required this.message,
+    required this.icon,
+    required this.onRetry,
+  });
+
+  final String message;
+  final IconData icon;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Soda.night,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 34, color: Soda.nightMuted),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: const Key('scanner-camera-retry'),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
