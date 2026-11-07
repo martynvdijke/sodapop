@@ -1,3 +1,15 @@
+# [1.22.0](https://github.com/martynvdijke/sodapop/compare/v1.21.1...v1.22.0) (2026-11-07)
+
+
+### Bug Fixes
+
+* keep Android scanner preview alive after a scan ([98a9051](https://github.com/martynvdijke/sodapop/commit/98a90510c00d96d25671f15574e9a87b54c6d7bf))
+
+
+### Features
+
+* add profile photos, pinned drinks, and check-in filters ([0db5a7e](https://github.com/martynvdijke/sodapop/commit/0db5a7efb420725d381dc6998921ea59070cc8f6))
+
 ## [1.21.1](https://github.com/martynvdijke/sodapop/compare/v1.21.0...v1.21.1) (2026-11-06)
 
 # [1.21.0](https://github.com/martynvdijke/sodapop/compare/v1.20.1...v1.21.0) (2026-11-06)
