@@ -127,12 +127,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       _gtin = null;
     });
 
-    // Stop the preview before the lookup so a code is only read once. A stop
-    // failure must never block the lookup or strand the spinner: CameraX can
-    // throw while the camera is being torn down on some devices.
+    // Pause the preview before the lookup so a code is only read once. Pause
+    // keeps the CameraX surface producer alive, so the preview freezes on the
+    // last frame and start() can resume it. A real stop() releases the surface
+    // while isInitialized stays true, which leaves Flutter drawing a black
+    // texture. A pause failure must never block the lookup or strand the
+    // spinner: CameraX can throw while the camera is being torn down.
     var cameraError = '';
     try {
-      await _controller.stop();
+      await _controller.pause();
     } catch (error) {
       cameraError = _cameraMessage(error, starting: false);
     }

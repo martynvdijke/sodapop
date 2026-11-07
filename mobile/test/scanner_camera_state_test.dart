@@ -17,15 +17,17 @@ class _FakeScannerPlatform extends MobileScannerPlatform {
   final _zoom = StreamController<double>.broadcast();
 
   bool running = false;
+  bool paused = false;
   int starts = 0;
   int stops = 0;
+  int pauses = 0;
   StartOptions? options;
 
   /// Thrown once by the next [start], so a retry can succeed.
   MobileScannerException? startError;
 
-  /// Makes every [stop] fail, like a CameraX teardown error.
-  bool stopFails = false;
+  /// Makes every [pause] fail, like a CameraX teardown error.
+  bool pauseFails = false;
 
   /// Holds [start] open so the starting placeholder stays on screen.
   Completer<void>? startGate;
@@ -53,6 +55,7 @@ class _FakeScannerPlatform extends MobileScannerPlatform {
       throw error;
     }
     running = true;
+    paused = false;
     return const MobileScannerViewAttributes(
       cameraDirection: CameraFacing.back,
       currentTorchMode: TorchState.off,
@@ -64,12 +67,22 @@ class _FakeScannerPlatform extends MobileScannerPlatform {
   @override
   Future<void> stop() async {
     stops++;
-    if (stopFails) {
+    running = false;
+    paused = false;
+  }
+
+  /// Pausing keeps the surface/texture alive, like CameraX keeping its
+  /// surface producer so the preview freezes on the last frame.
+  @override
+  Future<void> pause() async {
+    pauses++;
+    if (pauseFails) {
       throw const MobileScannerException(
         errorCode: MobileScannerErrorCode.genericError,
       );
     }
     running = false;
+    paused = true;
   }
 
   @override
@@ -250,10 +263,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a scan pauses the preview instead of releasing the camera', (
+    tester,
+  ) async {
+    final api = await _pumpScanner(tester, platform);
+
+    expect(platform.starts, 1);
+    expect(platform.pauses, 0);
+    expect(platform.stops, 0);
+
+    platform.detect('5449000000996');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(api.calls, ['05449000000996']);
+    expect(find.text('Coca-Cola'), findsOneWidget);
+    // Pause keeps CameraX's surface producer, so the preview freezes instead
+    // of turning the released texture black.
+    expect(platform.pauses, 1);
+    expect(platform.stops, 0);
+    expect(platform.paused, isTrue);
+
+    // "Scan again" resumes the same paused session.
+    await tester.tap(find.text('Scan again'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(platform.starts, 2);
+    expect(platform.paused, isFalse);
+    expect(platform.running, isTrue);
+    expect(find.text('Coca-Cola'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a manual lookup also pauses rather than stopping the camera', (
+    tester,
+  ) async {
+    final api = await _pumpScanner(tester, platform);
+
+    await tester.enterText(find.byType(TextField), '5449000000996');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(api.calls, ['05449000000996']);
+    expect(find.text('Coca-Cola'), findsOneWidget);
+    expect(platform.pauses, 1);
+    expect(platform.stops, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
-    'a failing stop still resolves the lookup and clears the spinner',
+    'a failing pause still resolves the lookup and clears the spinner',
     (tester) async {
-      platform.stopFails = true;
+      platform.pauseFails = true;
       final api = await _pumpScanner(tester, platform);
 
       platform.detect('5449000000996');
@@ -262,7 +325,7 @@ void main() {
 
       expect(api.calls, ['05449000000996']);
       expect(find.text('Coca-Cola'), findsOneWidget);
-      // No spinner left behind by the failed stop.
+      // No spinner left behind by the failed pause.
       expect(find.byType(CircularProgressIndicator), findsNothing);
       // The camera error is reported without hiding the result.
       expect(

@@ -43,6 +43,13 @@ class _FakeScannerPlatform extends MobileScannerPlatform {
     running = false;
   }
 
+  /// Pause only stops frame delivery; the surface stays alive, so the preview
+  /// freezes instead of going black.
+  @override
+  Future<void> pause() async {
+    running = false;
+  }
+
   @override
   Future<void> toggleTorch() async {
     torchToggles++;
