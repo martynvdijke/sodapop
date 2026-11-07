@@ -23,6 +23,7 @@ func (User) Fields() []ent.Field {
 		field.String("display_name").Default(""),
 		field.String("bio").Default(""),
 		field.String("avatar_media_id").Optional().Nillable(),
+		field.Int("favourite_drink_id").Optional().Nillable(),
 		field.Enum("role").Values("user", "moderator", "admin").Default("user"),
 		field.Enum("status").Values("active", "suspended", "deleted").Default("active"),
 		field.Enum("default_visibility").Values("public", "friends", "private").Default("public"),

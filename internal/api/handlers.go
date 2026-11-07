@@ -32,7 +32,14 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) 
 	for sc := range tok.Scopes {
 		scopes = append(scopes, sc)
 	}
-	u := tok.User
+	u, err := s.Auth.Client.User.Get(r.Context(), tok.User.ID)
+	if err != nil {
+		return err
+	}
+	favourite, err := s.favouriteDrinkCard(r.Context(), u.FavouriteDrinkID)
+	if err != nil {
+		return err
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
 		"id":                 u.ID,
 		"handle":             u.Handle,
@@ -44,16 +51,25 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) 
 		"default_visibility": u.DefaultVisibility,
 		"scopes":             scopes,
 		"created_at":         u.CreatedAt,
+		"avatar_url":         avatarURL(u.AvatarMediaID),
+		"favourite_drink":    favourite,
 	}})
 	return nil
 }
 
 func (s *Server) myCheckins(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
-	items, err := s.Checkins.ListForUser(r.Context(), tok.User.ID, tok.User.ID, queryInt(r, "limit", 20, 50), r.URL.Query().Get("before"))
+	filter, err := parseCheckinFilters(r)
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items, "meta": map[string]any{"count": len(items)}})
+	filter.ViewerID = tok.User.ID
+	filter.TargetID = tok.User.ID
+	res, err := s.Checkins.ProfileCheckinsPage(r.Context(), filter)
+	if err != nil {
+		return err
+	}
+	items := profileItemsAsItems(res.Items)
+	writeJSON(w, http.StatusOK, map[string]any{"data": items, "meta": checkinPageMeta(res)})
 	return nil
 }
 
@@ -205,11 +221,22 @@ func (s *Server) userProfile(w http.ResponseWriter, r *http.Request, tok *auth.A
 		})
 	}
 
+	owner, err := s.Auth.Client.User.Get(ctx, p.ID)
+	if err != nil {
+		return err
+	}
+	favourite, err := s.favouriteDrinkCard(ctx, owner.FavouriteDrinkID)
+	if err != nil {
+		return err
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
-		"handle":       p.Handle,
-		"display_name": p.DisplayName,
-		"bio":          p.Bio,
-		"created_at":   p.CreatedAt,
+		"handle":          p.Handle,
+		"display_name":    p.DisplayName,
+		"bio":             p.Bio,
+		"created_at":      p.CreatedAt,
+		"avatar_url":      avatarURL(owner.AvatarMediaID),
+		"favourite_drink": favourite,
 		"stats": map[string]any{
 			"checkins":        stats.Pours,
 			"distinct_drinks": stats.UniqueDrinks,
@@ -243,11 +270,20 @@ func (s *Server) userCheckins(w http.ResponseWriter, r *http.Request, tok *auth.
 			return nil
 		}
 	}
-	items, err := s.Checkins.ListForUser(r.Context(), tok.User.ID, p.ID, queryInt(r, "limit", 20, 50), r.URL.Query().Get("before"))
+	filter, err := parseCheckinFilters(r)
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+	filter.ViewerID = tok.User.ID
+	filter.TargetID = p.ID
+	res, err := s.Checkins.ProfileCheckinsPage(r.Context(), filter)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": profileItemsAsItems(res.Items),
+		"meta": checkinPageMeta(res),
+	})
 	return nil
 }
 

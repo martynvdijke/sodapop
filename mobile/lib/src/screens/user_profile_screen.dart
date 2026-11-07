@@ -5,9 +5,11 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
+import '../widgets/pinned_drink_card.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
+import 'drink_detail_screen.dart';
 import 'list_detail_screen.dart';
 
 /// A profile as seen by the signed-in member. Private, missing and blocked
@@ -101,6 +103,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           badges: profile.badges,
           topStyles: profile.topStyles,
           lists: profile.lists,
+          avatarUrl: profile.avatarUrl,
+          favouriteDrink: profile.favouriteDrink,
         );
       });
     } catch (error) {
@@ -123,9 +127,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         _friendBusy = false;
         _friendRequested = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Friend request sent.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Friend request sent.')));
     } catch (error) {
       if (!mounted) return;
       setState(() => _friendBusy = false);
@@ -277,6 +281,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           ] else ...[
             const SizedBox(height: 18),
             _actions(profile),
+            if (profile.favouriteDrink != null) ...[
+              const SizedBox(height: 18),
+              PinnedDrinkCard(
+                drink: profile.favouriteDrink!,
+                imageHeaders: ref.read(apiProvider).imageHeaders,
+                baseUrl: ref.read(apiProvider).server,
+                onTap: () => DrinkDetailScreen.open(
+                  context,
+                  profile.favouriteDrink!.slug,
+                  name: profile.favouriteDrink!.name,
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             _stats(profile),
             if (profile.badges.isNotEmpty) ...[
@@ -319,6 +336,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               ? profile.handle
               : profile.displayName,
           size: 64,
+          imageUrl: profile.avatarUrl,
+          headers: ref.read(apiProvider).imageHeaders,
+          baseUrl: ref.read(apiProvider).server,
         ),
         const SizedBox(width: 16),
         Expanded(

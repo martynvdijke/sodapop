@@ -1086,6 +1086,22 @@
             "items": {
               "$ref": "#/components/schemas/ListSummary"
             }
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "favourite_drink": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FavouriteDrink"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1098,7 +1114,9 @@
           "can_block",
           "badges",
           "top_styles",
-          "lists"
+          "lists",
+          "avatar_url",
+          "favourite_drink"
         ]
       },
       "Notification": {
@@ -1746,6 +1764,12 @@
               "moderator",
               "admin"
             ]
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1754,7 +1778,8 @@
           "bio",
           "email",
           "email_verified",
-          "role"
+          "role",
+          "avatar_url"
         ]
       },
       "SettingsPrefs": {
@@ -2097,12 +2122,30 @@
                 "type": "integer"
               }
             }
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "favourite_drink": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FavouriteDrink"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "handle",
           "display_name",
-          "stats"
+          "stats",
+          "avatar_url",
+          "favourite_drink"
         ]
       },
       "PublicCheckin": {
@@ -2200,6 +2243,206 @@
           "id",
           "user",
           "drink",
+          "visibility",
+          "created_at"
+        ]
+      },
+      "FavouriteDrink": {
+        "type": "object",
+        "description": "A compact card for the drink pinned to a profile.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "average_rating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "brand",
+          "style",
+          "image_url",
+          "average_rating"
+        ]
+      },
+      "AvatarResponse": {
+        "type": "object",
+        "properties": {
+          "avatar_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatar_url"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string"
+          },
+          "default_visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "favourite_drink": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FavouriteDrink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "handle",
+          "display_name",
+          "bio",
+          "email",
+          "email_verified",
+          "role",
+          "scopes",
+          "created_at",
+          "avatar_url"
+        ]
+      },
+      "PersonalCheckin": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "drink_id": {
+            "type": "integer"
+          },
+          "drink_name": {
+            "type": "string"
+          },
+          "drink_slug": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 20
+          },
+          "serving": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "venue_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "venue_name": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "photo_id": {
+            "type": "string"
+          },
+          "photo_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "drink_id",
+          "drink_name",
+          "drink_slug",
+          "serving",
           "visibility",
           "created_at"
         ]
@@ -3047,7 +3290,22 @@
         "summary": "Current identity and token scopes",
         "responses": {
           "200": {
-            "description": "Profile"
+            "description": "Profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Me"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid token",
@@ -3534,12 +3792,145 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC3339 cursor"
+            "description": "RFC3339 cursor from the previous page. Ignored when a filter, sort or page>1 selects offset mode."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Inclusive start date or timestamp (YYYY-MM-DD or RFC3339)."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Exclusive end; a date-only value includes that whole day."
+          },
+          {
+            "name": "rating_min",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "rating_max",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "min_likes",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "has_photo",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ],
+              "default": 0
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "public",
+                "friends",
+                "private"
+              ]
+            },
+            "description": "Owner-only refinement; ignored for other viewers."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "newest",
+                "oldest",
+                "rating_high",
+                "rating_low",
+                "likes"
+              ],
+              "default": "newest"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Check-ins"
+            "description": "Your check-ins",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PersonalCheckin"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "has_next": {
+                          "type": "boolean"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "next_before": {
+                          "type": "string",
+                          "description": "Cursor for the next page on the default newest cursor mode."
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "has_next",
+                        "page"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4583,15 +4974,15 @@
     "/api/v1/users/{handle}/checkins": {
       "get": {
         "summary": "A friend's check-ins",
-        "description": "Only your own account or an accepted friend is readable; anything else returns 404.",
+        "description": "Only your own account or an accepted friend is readable; anything else returns 404. Supports date, rating, likes, photo, visibility, sort and page filters.",
         "parameters": [
           {
             "name": "handle",
             "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "required": true
           },
           {
             "name": "limit",
@@ -4601,11 +4992,152 @@
               "default": 20,
               "maximum": 50
             }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC3339 cursor from the previous page. Ignored when a filter, sort or page>1 selects offset mode."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Inclusive start date or timestamp (YYYY-MM-DD or RFC3339)."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Exclusive end; a date-only value includes that whole day."
+          },
+          {
+            "name": "rating_min",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "rating_max",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "min_likes",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "has_photo",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ],
+              "default": 0
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "public",
+                "friends",
+                "private"
+              ]
+            },
+            "description": "Owner-only refinement; ignored for other viewers."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "newest",
+                "oldest",
+                "rating_high",
+                "rating_low",
+                "likes"
+              ],
+              "default": "newest"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Check-ins"
+            "description": "Check-ins visible to you",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PersonalCheckin"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "has_next": {
+                          "type": "boolean"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "next_before": {
+                          "type": "string",
+                          "description": "Cursor for the next page on the default newest cursor mode."
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "has_next",
+                        "page"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
           },
           "404": {
             "description": "Not a friend or unknown user"
@@ -7875,6 +8407,155 @@
         },
         "tags": [
           "public"
+        ]
+      }
+    },
+    "/api/v1/me/avatar": {
+      "post": {
+        "summary": "Upload or replace your avatar",
+        "description": "multipart/form-data with an `avatar` file field. JPEG, PNG, WebP and GIF are accepted; the upload limit is 5 MiB. Requires the write scope and a verified email.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "avatar"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Avatar stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "413": {
+            "description": "The avatar exceeds 5 MiB"
+          },
+          "415": {
+            "description": "The file is not a supported image"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "summary": "Remove your avatar",
+        "responses": {
+          "204": {
+            "description": "Avatar removed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/favourite-drink": {
+      "put": {
+        "summary": "Pin a favourite drink",
+        "description": "The drink must be an active, limited, seasonal or discontinued catalog row. Merged and missing drinks return 404. Requires the write scope and a verified email.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "drink_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "drink_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pinned drink card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "favourite_drink": {
+                      "$ref": "#/components/schemas/FavouriteDrink"
+                    }
+                  },
+                  "required": [
+                    "favourite_drink"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "Unknown, merged or hidden drink"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "summary": "Unpin the favourite drink",
+        "responses": {
+          "204": {
+            "description": "Pin removed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          }
+        },
+        "tags": [
+          "me"
         ]
       }
     }

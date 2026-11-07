@@ -57,6 +57,7 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
   bool _galleryLoading = true;
   bool _uploading = false;
   bool _moderating = false;
+  bool _pinning = false;
   bool _offline = false;
   String? _error;
   String? _galleryError;
@@ -281,6 +282,41 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
     }
   }
 
+  Future<void> _togglePin(Drink drink) async {
+    if (_pinning) return;
+    final me = ref.read(authProvider).me;
+    if (me == null) return;
+    final pinned = me.favouriteDrink?.id == drink.id;
+    setState(() => _pinning = true);
+    try {
+      if (pinned) {
+        await ref.read(apiProvider).clearFavouriteDrink();
+      } else {
+        await ref.read(apiProvider).setFavouriteDrink(drink.id);
+      }
+      await ref.read(authProvider.notifier).refreshMe();
+      if (!mounted) return;
+      setState(() => _pinning = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              pinned
+                  ? 'Unpinned from your profile.'
+                  : 'Pinned to your profile.',
+            ),
+          ),
+        );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _pinning = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiClient.describe(error).message)),
+      );
+    }
+  }
+
   void _openCompare() {
     final drink = _drink;
     final slug = drink != null && drink.slug.isNotEmpty
@@ -297,10 +333,31 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final me = ref.watch(authProvider).me;
+    final drink = _drink;
+    final pinned = drink != null && me?.favouriteDrink?.id == drink.id;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Soda'),
         actions: [
+          if (drink != null && me != null)
+            IconButton(
+              key: const Key('drink-pin'),
+              onPressed: _pinning ? null : () => _togglePin(drink),
+              tooltip: pinned ? 'Unpin from profile' : 'Pin to profile',
+              icon: _pinning
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Soda.lime,
+                      ),
+                    )
+                  : Icon(
+                      pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                    ),
+            ),
           if (_drink != null)
             IconButton(
               key: const Key('drink-compare'),

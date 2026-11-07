@@ -54,16 +54,25 @@
 
     <div class="settings-sub">
       <h3>Profile photo</h3>
-      <form method="post" action="/settings/avatar" enctype="multipart/form-data" class="settings-form">
-        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
-        <label>Photo
-          <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" required>
-          <span class="hint">JPEG, PNG, WebP or GIF. Square images look best.</span>
-        </label>
-        <div class="form-actions">
-          <button class="btn" type="submit">Upload photo</button>
+      <div class="settings-avatar-row">
+        <div class="settings-avatar-preview">
+          {{if .Profile.AvatarID}}
+            <img class="profile-avatar profile-avatar-img" src="/media/{{.Profile.AvatarID}}" alt="Your current profile photo" width="72" height="72" loading="lazy" decoding="async">
+          {{else}}
+            <span class="profile-avatar" aria-hidden="true">{{initial .Profile.DisplayName}}</span>
+          {{end}}
         </div>
-      </form>
+        <form method="post" action="/settings/avatar" enctype="multipart/form-data" class="settings-form settings-avatar-form">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+          <label>Photo
+            <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" required>
+            <span class="hint">JPEG, PNG, WebP or GIF, up to 5 MB. Square images look best.</span>
+          </label>
+          <div class="form-actions">
+            <button class="btn" type="submit">Upload photo</button>
+          </div>
+        </form>
+      </div>
     </div>
   </section>
 

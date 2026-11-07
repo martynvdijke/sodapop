@@ -261,6 +261,20 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(preview: false, clearError: true);
   }
 
+  /// Re-reads `/me` after a profile change such as a new avatar or a pinned
+  /// favourite soda. Failures are ignored: the mutation itself already
+  /// succeeded, and the next restore will pick the change up.
+  Future<bool> refreshMe() async {
+    if (state.token.isEmpty) return false;
+    try {
+      final me = await ref.read(apiProvider).me();
+      state = state.copyWith(me: me);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     final api = ref.read(apiProvider);
     // Start the best-effort device removal while the bearer token is still

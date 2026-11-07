@@ -6,6 +6,7 @@ import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
 import '../widgets/public_preview.dart';
+import '../widgets/soda_ui.dart';
 import 'public_checkin_screen.dart';
 import 'public_shell.dart';
 
@@ -106,17 +107,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       children: [
         Row(
           children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.3),
-              child: Text(
-                profile.displayName.isEmpty
-                    ? profile.handle.characters.first.toUpperCase()
-                    : profile.displayName.characters.first.toUpperCase(),
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+            SodaAvatar(
+              initial: profile.displayName.isEmpty
+                  ? profile.handle
+                  : profile.displayName,
+              size: 60,
+              imageUrl: profile.avatarUrl,
+              headers: api.imageHeaders,
+              baseUrl: api.server,
             ),
             const SizedBox(width: 14),
             Expanded(

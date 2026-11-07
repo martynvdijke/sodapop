@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"sodapop/ent"
+	"sodapop/ent/drink"
 	"sodapop/ent/session"
 	"sodapop/internal/db"
 )
@@ -24,6 +25,9 @@ var (
 	// ErrInvalidMedia is returned when an avatar does not belong to the user or
 	// is not an avatar upload.
 	ErrInvalidMedia = errors.New("invalid avatar")
+	// ErrDrinkNotFound is returned when a favourite drink is missing, merged,
+	// or not in a status the catalog exposes.
+	ErrDrinkNotFound = errors.New("drink not found")
 )
 
 const (
@@ -68,6 +72,60 @@ func (s *Service) SetAvatar(ctx context.Context, userID, mediaID string) error {
 		SetAvatarMediaID(mediaID).
 		SetUpdatedAt(db.Now()).
 		Exec(ctx)
+}
+
+// ClearAvatar detaches the user's profile avatar. The media row is left in
+// place so it can be re-selected or garbage-collected later.
+func (s *Service) ClearAvatar(ctx context.Context, userID string) error {
+	return s.Client.User.UpdateOneID(userID).
+		ClearAvatarMediaID().
+		SetUpdatedAt(db.Now()).
+		Exec(ctx)
+}
+
+// SetFavouriteDrink pins a catalog drink to the user's profile. Merged,
+// provisional, and missing drinks are rejected so the pin always points at a
+// row the catalog is willing to show.
+func (s *Service) SetFavouriteDrink(ctx context.Context, userID string, drinkID int) error {
+	ok, err := s.Client.Drink.Query().
+		Where(
+			drink.ID(drinkID),
+			drink.MergedIntoIDIsNil(),
+			drink.StatusIn(
+				drink.StatusActive,
+				drink.StatusLimited,
+				drink.StatusSeasonal,
+				drink.StatusDiscontinued,
+			),
+		).
+		Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrDrinkNotFound
+	}
+	return s.Client.User.UpdateOneID(userID).
+		SetFavouriteDrinkID(drinkID).
+		SetUpdatedAt(db.Now()).
+		Exec(ctx)
+}
+
+// ClearFavouriteDrink removes the profile's pinned drink.
+func (s *Service) ClearFavouriteDrink(ctx context.Context, userID string) error {
+	return s.Client.User.UpdateOneID(userID).
+		ClearFavouriteDrinkID().
+		SetUpdatedAt(db.Now()).
+		Exec(ctx)
+}
+
+// FavouriteDrinkID returns the pinned drink ID, or nil when none is set.
+func (s *Service) FavouriteDrinkID(ctx context.Context, userID string) (*int, error) {
+	u, err := s.Client.User.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return u.FavouriteDrinkID, nil
 }
 
 // ChangePassword verifies the current password, stores a new one, and revokes

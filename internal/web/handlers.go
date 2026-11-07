@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -352,7 +353,7 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 	d, err := s.Catalog.GetBySlug(r.Context(), r.PathValue("slug"))
 	if err != nil {
-		s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That soda is not in the catalog yet."})
+		s.drinkNotFound(w, r)
 		return
 	}
 	lists, _ := s.Auth.Client.List.Query().
@@ -360,14 +361,68 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 		Order(ent.Asc(list.FieldName)).All(r.Context())
 	u := UserFromContext(r)
 	gallery := s.GalleryPageData(r.Context(), d.Drink.ID, u)
+	favouriteID := 0
+	isFavourite := false
+	if u != nil && u.FavouriteDrinkID != nil {
+		favouriteID = *u.FavouriteDrinkID
+		isFavourite = favouriteID == d.Drink.ID
+	}
 	s.render(w, r, http.StatusOK, "drink", map[string]any{
 		"Title": d.Drink.Name, "Drink": d, "Lists": lists,
-		"CanManage":    u != nil && (u.Role == "admin" || u.Role == "moderator"),
-		"Images":       gallery.Images,
-		"CanUpload":    gallery.CanUpload,
-		"CanModerate":  gallery.CanModerate,
-		"GalleryError": gallery.GalleryError,
+		"CanManage":        u != nil && (u.Role == "admin" || u.Role == "moderator"),
+		"Images":           gallery.Images,
+		"CanUpload":        gallery.CanUpload,
+		"CanModerate":      gallery.CanModerate,
+		"GalleryError":     gallery.GalleryError,
+		"IsFavourite":      isFavourite,
+		"FavouriteDrinkID": favouriteID,
 	})
+}
+
+// drinkFavourite pins the drink to the signed-in member's profile. It requires
+// auth and CSRF; an unknown drink is a 404, not a redirect to a broken page.
+func (s *Server) drinkFavourite(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	d, err := s.Catalog.GetBySlug(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		s.drinkNotFound(w, r)
+		return
+	}
+	if err := s.Auth.SetFavouriteDrink(r.Context(), u.ID, d.Drink.ID); err != nil {
+		if err == auth.ErrDrinkNotFound {
+			s.drinkNotFound(w, r)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/drinks/"+url.PathEscape(d.Drink.Slug), http.StatusFound)
+}
+
+// drinkUnfavourite clears the member's pinned drink. Unlike unfavouriting a
+// specific slug, it is idempotent: clearing an already-empty pin succeeds.
+func (s *Server) drinkUnfavourite(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	d, err := s.Catalog.GetBySlug(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		s.drinkNotFound(w, r)
+		return
+	}
+	if err := s.Auth.ClearFavouriteDrink(r.Context(), u.ID); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/drinks/"+url.PathEscape(d.Drink.Slug), http.StatusFound)
+}
+
+func (s *Server) drinkNotFound(w http.ResponseWriter, r *http.Request) {
+	s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That soda is not in the catalog yet."})
 }
 
 func (s *Server) checkinPage(w http.ResponseWriter, r *http.Request) {

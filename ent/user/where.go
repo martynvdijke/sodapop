@@ -99,6 +99,11 @@ func AvatarMediaID(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAvatarMediaID, v))
 }
 
+// FavouriteDrinkID applies equality check predicate on the "favourite_drink_id" field. It's identical to FavouriteDrinkIDEQ.
+func FavouriteDrinkID(v int) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldFavouriteDrinkID, v))
+}
+
 // AnalyticsOptOut applies equality check predicate on the "analytics_opt_out" field. It's identical to AnalyticsOptOutEQ.
 func AnalyticsOptOut(v bool) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAnalyticsOptOut, v))
@@ -607,6 +612,56 @@ func AvatarMediaIDEqualFold(v string) predicate.User {
 // AvatarMediaIDContainsFold applies the ContainsFold predicate on the "avatar_media_id" field.
 func AvatarMediaIDContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAvatarMediaID, v))
+}
+
+// FavouriteDrinkIDEQ applies the EQ predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDEQ(v int) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldFavouriteDrinkID, v))
+}
+
+// FavouriteDrinkIDNEQ applies the NEQ predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDNEQ(v int) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldFavouriteDrinkID, v))
+}
+
+// FavouriteDrinkIDIn applies the In predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDIn(vs ...int) predicate.User {
+	return predicate.User(sql.FieldIn(FieldFavouriteDrinkID, vs...))
+}
+
+// FavouriteDrinkIDNotIn applies the NotIn predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDNotIn(vs ...int) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldFavouriteDrinkID, vs...))
+}
+
+// FavouriteDrinkIDGT applies the GT predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDGT(v int) predicate.User {
+	return predicate.User(sql.FieldGT(FieldFavouriteDrinkID, v))
+}
+
+// FavouriteDrinkIDGTE applies the GTE predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDGTE(v int) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldFavouriteDrinkID, v))
+}
+
+// FavouriteDrinkIDLT applies the LT predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDLT(v int) predicate.User {
+	return predicate.User(sql.FieldLT(FieldFavouriteDrinkID, v))
+}
+
+// FavouriteDrinkIDLTE applies the LTE predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDLTE(v int) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldFavouriteDrinkID, v))
+}
+
+// FavouriteDrinkIDIsNil applies the IsNil predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldFavouriteDrinkID))
+}
+
+// FavouriteDrinkIDNotNil applies the NotNil predicate on the "favourite_drink_id" field.
+func FavouriteDrinkIDNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldFavouriteDrinkID))
 }
 
 // RoleEQ applies the EQ predicate on the "role" field.

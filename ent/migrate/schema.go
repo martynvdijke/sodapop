@@ -987,6 +987,7 @@ var (
 		{Name: "display_name", Type: field.TypeString, Default: ""},
 		{Name: "bio", Type: field.TypeString, Default: ""},
 		{Name: "avatar_media_id", Type: field.TypeString, Nullable: true},
+		{Name: "favourite_drink_id", Type: field.TypeInt, Nullable: true},
 		{Name: "role", Type: field.TypeEnum, Enums: []string{"user", "moderator", "admin"}, Default: "user"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "suspended", "deleted"}, Default: "active"},
 		{Name: "default_visibility", Type: field.TypeEnum, Enums: []string{"public", "friends", "private"}, Default: "public"},

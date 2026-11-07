@@ -2,9 +2,12 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
+
+	"sodapop/ent/drink"
 )
 
 func TestChangePasswordWrongCurrent(t *testing.T) {
@@ -122,5 +125,107 @@ func TestSetAvatarRejectsForeignMedia(t *testing.T) {
 	}
 	if refreshed.AvatarMediaID == nil || *refreshed.AvatarMediaID != row.ID {
 		t.Fatal("avatar was not stored")
+	}
+}
+
+func TestSetFavouriteDrinkStatuses(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	u := createUser(t, s, "favourite", "favourite@example.test", "originalpass")
+
+	cases := []struct {
+		name    string
+		status  drink.Status
+		wantErr error
+	}{
+		{"active", drink.StatusActive, nil},
+		{"limited", drink.StatusLimited, nil},
+		{"seasonal", drink.StatusSeasonal, nil},
+		{"discontinued", drink.StatusDiscontinued, nil},
+		{"merged", drink.StatusMerged, ErrDrinkNotFound},
+		{"provisional", drink.StatusProvisional, ErrDrinkNotFound},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			row, err := s.Client.Drink.Create().
+				SetName(tc.name).
+				SetSlug("favourite-" + tc.name + "-" + strconv.Itoa(i)).
+				SetStatus(tc.status).
+				Save(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.SetFavouriteDrink(ctx, u.ID, row.ID)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("SetFavouriteDrink(%s) err = %v, want %v", tc.name, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestFavouriteDrinkLifecycle(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	u := createUser(t, s, "pin", "pin@example.test", "originalpass")
+
+	if err := s.Client.User.UpdateOneID(u.ID).
+		SetUpdatedAt("2000-01-01T00:00:00Z").
+		Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	row, err := s.Client.Drink.Create().
+		SetName("Cola").
+		SetSlug("favourite-cola").
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SetFavouriteDrink(ctx, u.ID, row.ID); err != nil {
+		t.Fatalf("set favourite drink: %v", err)
+	}
+	refreshed, err := s.Client.User.Get(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refreshed.FavouriteDrinkID == nil || *refreshed.FavouriteDrinkID != row.ID {
+		t.Fatalf("favourite drink id = %v, want %d", refreshed.FavouriteDrinkID, row.ID)
+	}
+	if refreshed.UpdatedAt == "2000-01-01T00:00:00Z" {
+		t.Fatal("updated_at should be touched when the favourite drink is set")
+	}
+	got, err := s.FavouriteDrinkID(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || *got != row.ID {
+		t.Fatalf("FavouriteDrinkID = %v, want %d", got, row.ID)
+	}
+
+	// A missing drink must not overwrite the existing pin.
+	if err := s.SetFavouriteDrink(ctx, u.ID, row.ID+9999); !errors.Is(err, ErrDrinkNotFound) {
+		t.Fatalf("missing drink err = %v, want ErrDrinkNotFound", err)
+	}
+	if got, err := s.FavouriteDrinkID(ctx, u.ID); err != nil || got == nil || *got != row.ID {
+		t.Fatalf("favourite drink after failed set = %v (%v), want %d", got, err, row.ID)
+	}
+
+	if err := s.Client.User.UpdateOneID(u.ID).
+		SetUpdatedAt("2001-01-01T00:00:00Z").
+		Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ClearFavouriteDrink(ctx, u.ID); err != nil {
+		t.Fatalf("clear favourite drink: %v", err)
+	}
+	cleared, err := s.Client.User.Get(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared.FavouriteDrinkID != nil {
+		t.Fatalf("favourite drink id = %v, want nil", cleared.FavouriteDrinkID)
+	}
+	if cleared.UpdatedAt == "2001-01-01T00:00:00Z" {
+		t.Fatal("updated_at should be touched when the favourite drink is cleared")
 	}
 }

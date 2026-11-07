@@ -28,6 +28,8 @@ const (
 	FieldBio = "bio"
 	// FieldAvatarMediaID holds the string denoting the avatar_media_id field in the database.
 	FieldAvatarMediaID = "avatar_media_id"
+	// FieldFavouriteDrinkID holds the string denoting the favourite_drink_id field in the database.
+	FieldFavouriteDrinkID = "favourite_drink_id"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -103,6 +105,7 @@ var Columns = []string{
 	FieldDisplayName,
 	FieldBio,
 	FieldAvatarMediaID,
+	FieldFavouriteDrinkID,
 	FieldRole,
 	FieldStatus,
 	FieldDefaultVisibility,
@@ -264,6 +267,11 @@ func ByBio(opts ...sql.OrderTermOption) OrderOption {
 // ByAvatarMediaID orders the results by the avatar_media_id field.
 func ByAvatarMediaID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAvatarMediaID, opts...).ToFunc()
+}
+
+// ByFavouriteDrinkID orders the results by the favourite_drink_id field.
+func ByFavouriteDrinkID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFavouriteDrinkID, opts...).ToFunc()
 }
 
 // ByRole orders the results by the role field.

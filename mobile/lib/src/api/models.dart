@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 int? _int(Object? value) =>
     value is num ? value.toInt() : int.tryParse('${value ?? ''}');
 
@@ -51,12 +53,52 @@ List<dynamic> _firstList(List<Object?> values) {
   return const <dynamic>[];
 }
 
+/// A drink pinned to a profile as its favourite.
+class FavouriteDrink {
+  const FavouriteDrink({
+    required this.id,
+    this.name = '',
+    this.slug = '',
+    this.brand = '',
+    this.style = '',
+    this.imageUrl,
+    this.averageRating,
+  });
+
+  final int id;
+  final String name;
+  final String slug;
+  final String brand;
+  final String style;
+
+  /// Absolute URL for the drink's primary image, or null when it has none.
+  final String? imageUrl;
+
+  /// The hidden-below-three-raters average, or null when unshown.
+  final double? averageRating;
+
+  factory FavouriteDrink.fromJson(Map<String, dynamic> json) {
+    final image = _string(json['image_url']);
+    return FavouriteDrink(
+      id: _int(json['id']) ?? 0,
+      name: _string(json['name']),
+      slug: _string(json['slug']),
+      brand: _string(json['brand']),
+      style: _string(json['style']),
+      imageUrl: image.isEmpty ? null : image,
+      averageRating: _double(json['average_rating']),
+    );
+  }
+}
+
 class Me {
   const Me({
     required this.id,
     required this.handle,
     required this.displayName,
     required this.email,
+    this.avatarUrl,
+    this.favouriteDrink,
   });
 
   final String id;
@@ -64,12 +106,26 @@ class Me {
   final String displayName;
   final String email;
 
-  factory Me.fromJson(Map<String, dynamic> json) => Me(
-    id: '${json['id']}',
-    handle: '${json['handle']}',
-    displayName: '${json['display_name'] ?? json['handle']}',
-    email: '${json['email'] ?? ''}',
-  );
+  /// Absolute URL for the uploaded avatar, or null when none is set.
+  final String? avatarUrl;
+
+  /// The drink pinned as this member's favourite, or null when unpinned.
+  final FavouriteDrink? favouriteDrink;
+
+  factory Me.fromJson(Map<String, dynamic> json) {
+    final avatar = _string(json['avatar_url']);
+    final favourite = _map(json['favourite_drink']);
+    return Me(
+      id: '${json['id']}',
+      handle: '${json['handle']}',
+      displayName: '${json['display_name'] ?? json['handle']}',
+      email: '${json['email'] ?? ''}',
+      avatarUrl: avatar.isEmpty ? null : avatar,
+      favouriteDrink: favourite.isEmpty
+          ? null
+          : FavouriteDrink.fromJson(favourite),
+    );
+  }
 }
 
 /// One flavour note attached to a drink.
@@ -780,6 +836,64 @@ class CheckinSummary {
   }
 }
 
+/// One page of check-in history. It is a [List] of rows so existing callers
+/// that only iterate the page keep working; [hasNext] and [page] come from the
+/// optional `meta` block when the server sends one.
+class CheckinPage extends ListBase<CheckinSummary> {
+  CheckinPage({
+    List<CheckinSummary> items = const [],
+    this.hasNext = false,
+    this.page = 1,
+    this.count = 0,
+    this.nextBefore = '',
+  }) : _items = List<CheckinSummary>.of(items);
+
+  final List<CheckinSummary> _items;
+  final bool hasNext;
+  final int page;
+  final int count;
+  final String nextBefore;
+
+  @override
+  int get length => _items.length;
+
+  @override
+  set length(int newLength) => _items.length = newLength;
+
+  @override
+  CheckinSummary operator [](int index) => _items[index];
+
+  @override
+  void operator []=(int index, CheckinSummary value) => _items[index] = value;
+
+  /// Accepts the wrapped `{"data": [...], "meta": {...}}` page body. A bare
+  /// `{"data": {"items": [...]}}` collection is handled too.
+  factory CheckinPage.fromJson(Map<String, dynamic> json) {
+    final data = json['data'];
+    late final List<dynamic> rows;
+    if (data is List) {
+      rows = data;
+    } else if (data is Map) {
+      final items = data['items'] ?? data['results'];
+      rows = items is List ? items : const <dynamic>[];
+    } else {
+      rows = const <dynamic>[];
+    }
+    final items = rows
+        .whereType<Map>()
+        .map((row) => CheckinSummary.fromJson(row.cast<String, dynamic>()))
+        .toList();
+    final meta = _map(json['meta']);
+    return CheckinPage(
+      items: items,
+      hasNext: _bool(meta['has_next']),
+      page: _int(meta['page']) ?? 1,
+      count: _int(meta['count']) ?? items.length,
+      nextBefore: _string(meta['next_before']),
+    );
+  }
+}
+
 /// An accepted friend with the date the friendship started.
 class FriendUser {
   const FriendUser({
@@ -1025,6 +1139,8 @@ class UserProfile {
     this.badges = const [],
     this.topStyles = const [],
     this.lists = const [],
+    this.avatarUrl,
+    this.favouriteDrink,
   });
 
   final String id;
@@ -1042,6 +1158,12 @@ class UserProfile {
   final List<ProfileTopStyle> topStyles;
   final List<ListSummary> lists;
 
+  /// Absolute URL for the member's avatar, or null when none is set.
+  final String? avatarUrl;
+
+  /// The drink pinned as this member's favourite, or null when unpinned.
+  final FavouriteDrink? favouriteDrink;
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     final statsJson = _map(_firstValue([json['stats'], json['counts']]));
     final handle = _string(json['handle']);
@@ -1050,6 +1172,8 @@ class UserProfile {
       json['displayName'],
       handle,
     ]);
+    final avatar = _string(json['avatar_url']);
+    final favourite = _map(json['favourite_drink']);
     return UserProfile(
       id: _firstString([json['id'], json['user_id']]),
       handle: handle,
@@ -1091,6 +1215,10 @@ class UserProfile {
           .whereType<Map>()
           .map((row) => ListSummary.fromJson(row.cast<String, dynamic>()))
           .toList(),
+      avatarUrl: avatar.isEmpty ? null : avatar,
+      favouriteDrink: favourite.isEmpty
+          ? null
+          : FavouriteDrink.fromJson(favourite),
     );
   }
 }
@@ -1831,6 +1959,7 @@ class SettingsProfile {
     this.email = '',
     this.emailVerified = false,
     this.role = '',
+    this.avatarUrl,
   });
 
   final String handle;
@@ -1840,8 +1969,12 @@ class SettingsProfile {
   final bool emailVerified;
   final String role;
 
+  /// Absolute URL for the uploaded avatar, or null when none is set.
+  final String? avatarUrl;
+
   factory SettingsProfile.fromJson(Map<String, dynamic> json) {
     final handle = _string(json['handle']);
+    final avatar = _string(json['avatar_url']);
     return SettingsProfile(
       handle: handle,
       displayName: _firstString([json['display_name'], handle]),
@@ -1849,6 +1982,7 @@ class SettingsProfile {
       email: _string(json['email']),
       emailVerified: _bool(json['email_verified']),
       role: _firstString([json['role'], 'user']),
+      avatarUrl: avatar.isEmpty ? null : avatar,
     );
   }
 }
@@ -2051,6 +2185,7 @@ class PublicProfile {
     this.badges = 0,
     this.uniqueDrinks = 0,
     this.toasts = 0,
+    this.avatarUrl,
   });
 
   final String handle;
@@ -2064,8 +2199,12 @@ class PublicProfile {
   final int uniqueDrinks;
   final int toasts;
 
+  /// Absolute URL for the member's avatar, or null when none is set.
+  final String? avatarUrl;
+
   factory PublicProfile.fromJson(Map<String, dynamic> json) {
     final stats = _map(json['stats']);
+    final avatar = _string(json['avatar_url']);
     return PublicProfile(
       handle: _string(json['handle']),
       displayName: _string(json['display_name']),
@@ -2077,6 +2216,7 @@ class PublicProfile {
       badges: _int(stats['badges']) ?? 0,
       uniqueDrinks: _int(stats['unique_drinks']) ?? 0,
       toasts: _int(stats['toasts']) ?? 0,
+      avatarUrl: avatar.isEmpty ? null : avatar,
     );
   }
 }

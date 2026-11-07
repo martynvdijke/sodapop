@@ -205,6 +205,56 @@ class ApiClient {
     }
   }
 
+  /// Uploads a profile picture. The server caps the file size and accepts
+  /// JPEG, PNG, WebP or GIF bytes. Returns the new absolute avatar URL.
+  Future<String?> uploadAvatar({
+    required List<int> bytes,
+    required String filename,
+    String mimeType = 'image/jpeg',
+  }) => _guard(() async {
+    final form = FormData();
+    form.files.add(
+      MapEntry(
+        'avatar',
+        MultipartFile.fromBytes(
+          Uint8List.fromList(bytes),
+          filename: filename,
+          contentType: _mediaType(mimeType),
+        ),
+      ),
+    );
+    final response = await _dio.post<dynamic>(
+      'api/v1/me/avatar',
+      data: form,
+      options: _options(),
+    );
+    final data = (_data(response) as Map).cast<String, dynamic>();
+    final url = '${data['avatar_url'] ?? ''}';
+    return url.isEmpty ? null : url;
+  });
+
+  Future<void> deleteAvatar() => _guard(() async {
+    await _dio.delete<dynamic>('api/v1/me/avatar', options: _options());
+  });
+
+  /// Pins a drink as the viewer's favourite. Returns the pinned drink, or null
+  /// when the server answered without one.
+  Future<FavouriteDrink?> setFavouriteDrink(int drinkId) => _guard(() async {
+    final response = await _dio.put<dynamic>(
+      'api/v1/me/favourite-drink',
+      data: {'drink_id': drinkId},
+      options: _options(),
+    );
+    final data = (_data(response) as Map).cast<String, dynamic>();
+    final drink = data['favourite_drink'];
+    if (drink is! Map) return null;
+    return FavouriteDrink.fromJson(drink.cast<String, dynamic>());
+  });
+
+  Future<void> clearFavouriteDrink() => _guard(() async {
+    await _dio.delete<dynamic>('api/v1/me/favourite-drink', options: _options());
+  });
+
   Future<String> passwordToken(String login, String password) async {
     final response = await _dio.post<dynamic>(
       'api/v1/auth/token',
@@ -298,13 +348,31 @@ class ApiClient {
     String handle, {
     int limit = 20,
     String? before,
+    String? from,
+    String? to,
+    int? ratingMin,
+    int? ratingMax,
+    int? minLikes,
+    bool? hasPhoto,
+    String? visibility,
+    String? sort,
+    int? page,
   }) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/public/users/${Uri.encodeComponent(handle)}/checkins',
-      queryParameters: {
-        'limit': limit,
-        if (before != null && before.isNotEmpty) 'before': before,
-      },
+      queryParameters: _checkinQuery(
+        limit: limit,
+        before: before,
+        from: from,
+        to: to,
+        ratingMin: ratingMin,
+        ratingMax: ratingMax,
+        minLikes: minLikes,
+        hasPhoto: hasPhoto,
+        visibility: visibility,
+        sort: sort,
+        page: page,
+      ),
       options: _options(auth: false),
     );
     final rows = _data(response);
@@ -467,36 +535,115 @@ class ApiClient {
     await _dio.delete<dynamic>('api/v1/drinks/images/$id', options: _options());
   });
 
-  /// The signed-in user's own check-ins, newest first.
-  Future<List<CheckinSummary>> myCheckins({int limit = 20, String? before}) =>
-      _guard(() async {
-        final response = await _dio.get<dynamic>(
-          'api/v1/me/checkins',
-          queryParameters: _page(limit, before),
-          options: _options(),
-        );
-        return _checkinRows(response);
-      });
+  /// The signed-in user's own check-ins, newest first by default.
+  ///
+  /// Filter values that are null or blank are omitted. [hasPhoto] sends
+  /// `has_photo=1` only when true. [sort] is one of `newest`, `oldest`,
+  /// `rating_high`, `rating_low` or `likes`; the server rejects others.
+  Future<CheckinPage> myCheckins({
+    int limit = 20,
+    String? before,
+    String? from,
+    String? to,
+    int? ratingMin,
+    int? ratingMax,
+    int? minLikes,
+    bool? hasPhoto,
+    String? visibility,
+    String? sort,
+    int? page,
+  }) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/checkins',
+      queryParameters: _checkinQuery(
+        limit: limit,
+        before: before,
+        from: from,
+        to: to,
+        ratingMin: ratingMin,
+        ratingMax: ratingMax,
+        minLikes: minLikes,
+        hasPhoto: hasPhoto,
+        visibility: visibility,
+        sort: sort,
+        page: page,
+      ),
+      options: _options(),
+    );
+    return _checkinPage(response);
+  });
 
   /// A friend's check-ins. Non-friends return 404 by design.
-  Future<List<CheckinSummary>> userCheckins(
+  Future<CheckinPage> userCheckins(
     String handle, {
     int limit = 20,
     String? before,
+    String? from,
+    String? to,
+    int? ratingMin,
+    int? ratingMax,
+    int? minLikes,
+    bool? hasPhoto,
+    String? visibility,
+    String? sort,
+    int? page,
   }) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/users/${Uri.encodeComponent(handle)}/checkins',
-      queryParameters: _page(limit, before),
+      queryParameters: _checkinQuery(
+        limit: limit,
+        before: before,
+        from: from,
+        to: to,
+        ratingMin: ratingMin,
+        ratingMax: ratingMax,
+        minLikes: minLikes,
+        hasPhoto: hasPhoto,
+        visibility: visibility,
+        sort: sort,
+        page: page,
+      ),
       options: _options(),
     );
-    return _checkinRows(response);
+    return _checkinPage(response);
   });
 
-  List<CheckinSummary> _checkinRows(Response<dynamic> response) =>
-      _rows(_data(response))
-          .whereType<Map>()
-          .map((row) => CheckinSummary.fromJson(row.cast<String, dynamic>()))
-          .toList();
+  CheckinPage _checkinPage(Response<dynamic> response) {
+    final body = response.data;
+    if (body is! Map) {
+      throw ApiException(
+        'Unexpected response from the server',
+        statusCode: response.statusCode,
+      );
+    }
+    return CheckinPage.fromJson(body.cast<String, dynamic>());
+  }
+
+  static Map<String, dynamic> _checkinQuery({
+    int limit = 20,
+    String? before,
+    String? from,
+    String? to,
+    int? ratingMin,
+    int? ratingMax,
+    int? minLikes,
+    bool? hasPhoto,
+    String? visibility,
+    String? sort,
+    int? page,
+  }) => {
+    'limit': limit,
+    'before': ?_trimmed(before),
+    'from': ?_trimmed(from),
+    'to': ?_trimmed(to),
+    'rating_min': ?ratingMin,
+    'rating_max': ?ratingMax,
+    'min_likes': ?minLikes,
+    if (hasPhoto == true) 'has_photo': 1,
+    'visibility': ?_trimmed(visibility),
+    'sort': ?_trimmed(sort),
+    'page': ?page,
+  };
 
   static Map<String, dynamic> _page(int limit, String? before) => {
     'limit': limit,

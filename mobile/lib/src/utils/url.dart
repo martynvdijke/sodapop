@@ -37,3 +37,17 @@ String ratingLabel(int quarters) {
   final part = quarters % 4;
   return part == 0 ? '$whole' : '$whole.${part * 25}'.replaceFirst('.50', '.5');
 }
+
+/// Turns a media value from the API into a URL [Image.network] can fetch.
+/// Accepts an absolute URL, a server-relative path from `/api/v1/...`, or a
+/// bare media id, which older rows still send.
+String absoluteMediaUrl(String raw, {String? base}) {
+  final value = raw.trim();
+  if (value.isEmpty) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  final origin = (base ?? '').replaceFirst(RegExp(r'/+$'), '');
+  if (value.startsWith('/')) return '$origin$value';
+  return '$origin/api/v1/media/$value';
+}

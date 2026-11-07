@@ -148,6 +148,33 @@ func (_u *UserUpdate) ClearAvatarMediaID() *UserUpdate {
 	return _u
 }
 
+// SetFavouriteDrinkID sets the "favourite_drink_id" field.
+func (_u *UserUpdate) SetFavouriteDrinkID(v int) *UserUpdate {
+	_u.mutation.ResetFavouriteDrinkID()
+	_u.mutation.SetFavouriteDrinkID(v)
+	return _u
+}
+
+// SetNillableFavouriteDrinkID sets the "favourite_drink_id" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableFavouriteDrinkID(v *int) *UserUpdate {
+	if v != nil {
+		_u.SetFavouriteDrinkID(*v)
+	}
+	return _u
+}
+
+// AddFavouriteDrinkID adds value to the "favourite_drink_id" field.
+func (_u *UserUpdate) AddFavouriteDrinkID(v int) *UserUpdate {
+	_u.mutation.AddFavouriteDrinkID(v)
+	return _u
+}
+
+// ClearFavouriteDrinkID clears the value of the "favourite_drink_id" field.
+func (_u *UserUpdate) ClearFavouriteDrinkID() *UserUpdate {
+	_u.mutation.ClearFavouriteDrinkID()
+	return _u
+}
+
 // SetRole sets the "role" field.
 func (_u *UserUpdate) SetRole(v user.Role) *UserUpdate {
 	_u.mutation.SetRole(v)
@@ -556,6 +583,15 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.AvatarMediaIDCleared() {
 		_spec.ClearField(user.FieldAvatarMediaID, field.TypeString)
 	}
+	if value, ok := _u.mutation.FavouriteDrinkID(); ok {
+		_spec.SetField(user.FieldFavouriteDrinkID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedFavouriteDrinkID(); ok {
+		_spec.AddField(user.FieldFavouriteDrinkID, field.TypeInt, value)
+	}
+	if _u.mutation.FavouriteDrinkIDCleared() {
+		_spec.ClearField(user.FieldFavouriteDrinkID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)
 	}
@@ -944,6 +980,33 @@ func (_u *UserUpdateOne) SetNillableAvatarMediaID(v *string) *UserUpdateOne {
 // ClearAvatarMediaID clears the value of the "avatar_media_id" field.
 func (_u *UserUpdateOne) ClearAvatarMediaID() *UserUpdateOne {
 	_u.mutation.ClearAvatarMediaID()
+	return _u
+}
+
+// SetFavouriteDrinkID sets the "favourite_drink_id" field.
+func (_u *UserUpdateOne) SetFavouriteDrinkID(v int) *UserUpdateOne {
+	_u.mutation.ResetFavouriteDrinkID()
+	_u.mutation.SetFavouriteDrinkID(v)
+	return _u
+}
+
+// SetNillableFavouriteDrinkID sets the "favourite_drink_id" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableFavouriteDrinkID(v *int) *UserUpdateOne {
+	if v != nil {
+		_u.SetFavouriteDrinkID(*v)
+	}
+	return _u
+}
+
+// AddFavouriteDrinkID adds value to the "favourite_drink_id" field.
+func (_u *UserUpdateOne) AddFavouriteDrinkID(v int) *UserUpdateOne {
+	_u.mutation.AddFavouriteDrinkID(v)
+	return _u
+}
+
+// ClearFavouriteDrinkID clears the value of the "favourite_drink_id" field.
+func (_u *UserUpdateOne) ClearFavouriteDrinkID() *UserUpdateOne {
+	_u.mutation.ClearFavouriteDrinkID()
 	return _u
 }
 
@@ -1384,6 +1447,15 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if _u.mutation.AvatarMediaIDCleared() {
 		_spec.ClearField(user.FieldAvatarMediaID, field.TypeString)
+	}
+	if value, ok := _u.mutation.FavouriteDrinkID(); ok {
+		_spec.SetField(user.FieldFavouriteDrinkID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedFavouriteDrinkID(); ok {
+		_spec.AddField(user.FieldFavouriteDrinkID, field.TypeInt, value)
+	}
+	if _u.mutation.FavouriteDrinkIDCleared() {
+		_spec.ClearField(user.FieldFavouriteDrinkID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)

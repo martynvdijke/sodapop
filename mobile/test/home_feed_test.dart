@@ -46,10 +46,19 @@ class _FeedApi extends ApiClient {
       const MyStats(checkins: 0, uniqueDrinks: 0, badges: 0);
 
   @override
-  Future<List<CheckinSummary>> myCheckins({
+  Future<CheckinPage> myCheckins({
     int limit = 20,
     String? before,
-  }) async => const [];
+    String? from,
+    String? to,
+    int? ratingMin,
+    int? ratingMax,
+    int? minLikes,
+    bool? hasPhoto,
+    String? visibility,
+    String? sort,
+    int? page,
+  }) async => CheckinPage();
 
   @override
   Future<FriendsDirectory> friends() async => const FriendsDirectory();

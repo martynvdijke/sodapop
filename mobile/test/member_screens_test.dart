@@ -137,6 +137,13 @@ class _ProfileApi extends ApiClient {
     ],
     topStyles: [ProfileTopStyle(slug: 'cola', name: 'Cola', count: 9)],
     lists: [ListSummary(id: 'l1', name: 'Weekend fridge', itemCount: 3)],
+    favouriteDrink: FavouriteDrink(
+      id: 9,
+      name: 'Lemon Fizz',
+      slug: 'lemon-fizz',
+      brand: 'Soda Co',
+      style: 'Lemonade',
+    ),
   );
 }
 
@@ -253,6 +260,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Add friend'), findsOneWidget);
+    expect(find.text('PINNED FAVOURITE'), findsOneWidget);
+    expect(find.text('Lemon Fizz'), findsOneWidget);
+    expect(find.text('Soda Co · Lemonade'), findsOneWidget);
 
     await tester.tap(find.text('Add friend'));
     await tester.pumpAndSettle();

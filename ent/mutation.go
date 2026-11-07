@@ -29539,43 +29539,45 @@ func (m *StyleMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *string
-	handle             *string
-	email              *string
-	email_verified_at  *string
-	password_hash      *string
-	display_name       *string
-	bio                *string
-	avatar_media_id    *string
-	role               *user.Role
-	status             *user.Status
-	default_visibility *user.DefaultVisibility
-	analytics_opt_out  *bool
-	country            *string
-	created_at         *string
-	updated_at         *string
-	deleted_at         *string
-	clearedFields      map[string]struct{}
-	sessions           map[int]struct{}
-	removedsessions    map[int]struct{}
-	clearedsessions    bool
-	api_tokens         map[string]struct{}
-	removedapi_tokens  map[string]struct{}
-	clearedapi_tokens  bool
-	identities         map[int]struct{}
-	removedidentities  map[int]struct{}
-	clearedidentities  bool
-	checkins           map[string]struct{}
-	removedcheckins    map[string]struct{}
-	clearedcheckins    bool
-	lists              map[string]struct{}
-	removedlists       map[string]struct{}
-	clearedlists       bool
-	done               bool
-	oldValue           func(context.Context) (*User, error)
-	predicates         []predicate.User
+	op                    Op
+	typ                   string
+	id                    *string
+	handle                *string
+	email                 *string
+	email_verified_at     *string
+	password_hash         *string
+	display_name          *string
+	bio                   *string
+	avatar_media_id       *string
+	favourite_drink_id    *int
+	addfavourite_drink_id *int
+	role                  *user.Role
+	status                *user.Status
+	default_visibility    *user.DefaultVisibility
+	analytics_opt_out     *bool
+	country               *string
+	created_at            *string
+	updated_at            *string
+	deleted_at            *string
+	clearedFields         map[string]struct{}
+	sessions              map[int]struct{}
+	removedsessions       map[int]struct{}
+	clearedsessions       bool
+	api_tokens            map[string]struct{}
+	removedapi_tokens     map[string]struct{}
+	clearedapi_tokens     bool
+	identities            map[int]struct{}
+	removedidentities     map[int]struct{}
+	clearedidentities     bool
+	checkins              map[string]struct{}
+	removedcheckins       map[string]struct{}
+	clearedcheckins       bool
+	lists                 map[string]struct{}
+	removedlists          map[string]struct{}
+	clearedlists          bool
+	done                  bool
+	oldValue              func(context.Context) (*User, error)
+	predicates            []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -29971,6 +29973,76 @@ func (m *UserMutation) AvatarMediaIDCleared() bool {
 func (m *UserMutation) ResetAvatarMediaID() {
 	m.avatar_media_id = nil
 	delete(m.clearedFields, user.FieldAvatarMediaID)
+}
+
+// SetFavouriteDrinkID sets the "favourite_drink_id" field.
+func (m *UserMutation) SetFavouriteDrinkID(i int) {
+	m.favourite_drink_id = &i
+	m.addfavourite_drink_id = nil
+}
+
+// FavouriteDrinkID returns the value of the "favourite_drink_id" field in the mutation.
+func (m *UserMutation) FavouriteDrinkID() (r int, exists bool) {
+	v := m.favourite_drink_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFavouriteDrinkID returns the old "favourite_drink_id" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldFavouriteDrinkID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFavouriteDrinkID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFavouriteDrinkID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFavouriteDrinkID: %w", err)
+	}
+	return oldValue.FavouriteDrinkID, nil
+}
+
+// AddFavouriteDrinkID adds i to the "favourite_drink_id" field.
+func (m *UserMutation) AddFavouriteDrinkID(i int) {
+	if m.addfavourite_drink_id != nil {
+		*m.addfavourite_drink_id += i
+	} else {
+		m.addfavourite_drink_id = &i
+	}
+}
+
+// AddedFavouriteDrinkID returns the value that was added to the "favourite_drink_id" field in this mutation.
+func (m *UserMutation) AddedFavouriteDrinkID() (r int, exists bool) {
+	v := m.addfavourite_drink_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFavouriteDrinkID clears the value of the "favourite_drink_id" field.
+func (m *UserMutation) ClearFavouriteDrinkID() {
+	m.favourite_drink_id = nil
+	m.addfavourite_drink_id = nil
+	m.clearedFields[user.FieldFavouriteDrinkID] = struct{}{}
+}
+
+// FavouriteDrinkIDCleared returns if the "favourite_drink_id" field was cleared in this mutation.
+func (m *UserMutation) FavouriteDrinkIDCleared() bool {
+	_, ok := m.clearedFields[user.FieldFavouriteDrinkID]
+	return ok
+}
+
+// ResetFavouriteDrinkID resets all changes to the "favourite_drink_id" field.
+func (m *UserMutation) ResetFavouriteDrinkID() {
+	m.favourite_drink_id = nil
+	m.addfavourite_drink_id = nil
+	delete(m.clearedFields, user.FieldFavouriteDrinkID)
 }
 
 // SetRole sets the "role" field.
@@ -30591,7 +30663,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.handle != nil {
 		fields = append(fields, user.FieldHandle)
 	}
@@ -30612,6 +30684,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.avatar_media_id != nil {
 		fields = append(fields, user.FieldAvatarMediaID)
+	}
+	if m.favourite_drink_id != nil {
+		fields = append(fields, user.FieldFavouriteDrinkID)
 	}
 	if m.role != nil {
 		fields = append(fields, user.FieldRole)
@@ -30659,6 +30734,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Bio()
 	case user.FieldAvatarMediaID:
 		return m.AvatarMediaID()
+	case user.FieldFavouriteDrinkID:
+		return m.FavouriteDrinkID()
 	case user.FieldRole:
 		return m.Role()
 	case user.FieldStatus:
@@ -30698,6 +30775,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldBio(ctx)
 	case user.FieldAvatarMediaID:
 		return m.OldAvatarMediaID(ctx)
+	case user.FieldFavouriteDrinkID:
+		return m.OldFavouriteDrinkID(ctx)
 	case user.FieldRole:
 		return m.OldRole(ctx)
 	case user.FieldStatus:
@@ -30772,6 +30851,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAvatarMediaID(v)
 		return nil
+	case user.FieldFavouriteDrinkID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFavouriteDrinkID(v)
+		return nil
 	case user.FieldRole:
 		v, ok := value.(user.Role)
 		if !ok {
@@ -30835,13 +30921,21 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *UserMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addfavourite_drink_id != nil {
+		fields = append(fields, user.FieldFavouriteDrinkID)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case user.FieldFavouriteDrinkID:
+		return m.AddedFavouriteDrinkID()
+	}
 	return nil, false
 }
 
@@ -30850,6 +30944,13 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UserMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case user.FieldFavouriteDrinkID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFavouriteDrinkID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User numeric field %s", name)
 }
@@ -30866,6 +30967,9 @@ func (m *UserMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(user.FieldAvatarMediaID) {
 		fields = append(fields, user.FieldAvatarMediaID)
+	}
+	if m.FieldCleared(user.FieldFavouriteDrinkID) {
+		fields = append(fields, user.FieldFavouriteDrinkID)
 	}
 	if m.FieldCleared(user.FieldCountry) {
 		fields = append(fields, user.FieldCountry)
@@ -30895,6 +30999,9 @@ func (m *UserMutation) ClearField(name string) error {
 		return nil
 	case user.FieldAvatarMediaID:
 		m.ClearAvatarMediaID()
+		return nil
+	case user.FieldFavouriteDrinkID:
+		m.ClearFavouriteDrinkID()
 		return nil
 	case user.FieldCountry:
 		m.ClearCountry()
@@ -30930,6 +31037,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldAvatarMediaID:
 		m.ResetAvatarMediaID()
+		return nil
+	case user.FieldFavouriteDrinkID:
+		m.ResetFavouriteDrinkID()
 		return nil
 	case user.FieldRole:
 		m.ResetRole()

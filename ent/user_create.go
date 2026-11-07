@@ -106,6 +106,20 @@ func (_c *UserCreate) SetNillableAvatarMediaID(v *string) *UserCreate {
 	return _c
 }
 
+// SetFavouriteDrinkID sets the "favourite_drink_id" field.
+func (_c *UserCreate) SetFavouriteDrinkID(v int) *UserCreate {
+	_c.mutation.SetFavouriteDrinkID(v)
+	return _c
+}
+
+// SetNillableFavouriteDrinkID sets the "favourite_drink_id" field if the given value is not nil.
+func (_c *UserCreate) SetNillableFavouriteDrinkID(v *int) *UserCreate {
+	if v != nil {
+		_c.SetFavouriteDrinkID(*v)
+	}
+	return _c
+}
+
 // SetRole sets the "role" field.
 func (_c *UserCreate) SetRole(v user.Role) *UserCreate {
 	_c.mutation.SetRole(v)
@@ -499,6 +513,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AvatarMediaID(); ok {
 		_spec.SetField(user.FieldAvatarMediaID, field.TypeString, value)
 		_node.AvatarMediaID = &value
+	}
+	if value, ok := _c.mutation.FavouriteDrinkID(); ok {
+		_spec.SetField(user.FieldFavouriteDrinkID, field.TypeInt, value)
+		_node.FavouriteDrinkID = &value
 	}
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)

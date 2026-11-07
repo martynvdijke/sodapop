@@ -988,15 +988,15 @@ func init() {
 	// user.DefaultBio holds the default value on creation for the bio field.
 	user.DefaultBio = userDescBio.Default.(string)
 	// userDescAnalyticsOptOut is the schema descriptor for analytics_opt_out field.
-	userDescAnalyticsOptOut := userFields[11].Descriptor()
+	userDescAnalyticsOptOut := userFields[12].Descriptor()
 	// user.DefaultAnalyticsOptOut holds the default value on creation for the analytics_opt_out field.
 	user.DefaultAnalyticsOptOut = userDescAnalyticsOptOut.Default.(bool)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[13].Descriptor()
+	userDescCreatedAt := userFields[14].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() string)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[14].Descriptor()
+	userDescUpdatedAt := userFields[15].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() string)
 	// userDescID is the schema descriptor for id field.

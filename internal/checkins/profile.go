@@ -59,11 +59,51 @@ func DecideProfileAccess(public, userDeleted bool, viewerID, targetID string, ar
 
 // ProfileCheckinsFilter scopes a profile feed read. ViewerID is empty for
 // anonymous requests; Before is the created_at cursor from the previous page.
+//
+// From and To are RFC3339 UTC boundaries compared lexically against
+// c.created_at. From is inclusive and To is exclusive, so a caller filtering a
+// calendar day supplies that day's midnight as From and the next day's
+// midnight as To. Sort accepts "newest", "oldest", "rating_high", "rating_low",
+// or "likes"; any other value falls back to newest. Page and PageSize select
+// offset-based paging. Before is honoured only on the default unfiltered newest
+// cursor path: any filter, explicit sort, or Page > 1 switches the read to
+// offset mode and ignores Before.
 type ProfileCheckinsFilter struct {
-	ViewerID string
-	TargetID string
-	Limit    int
-	Before   string
+	ViewerID  string
+	TargetID  string
+	Limit     int
+	Before    string
+	From      string
+	To        string
+	RatingMin *int
+	RatingMax *int
+	MinLikes  *int
+	HasPhoto  bool
+	// Visibility is an owner-only filter. It is applied only when ViewerID is
+	// the target; for any other viewer it is ignored so the filter can never
+	// widen the visibility set computed from the relationship.
+	Visibility string
+	Sort       string
+	Page       int
+	PageSize   int
+}
+
+// Profile paging modes reported by ProfileCheckinsPage.
+const (
+	ProfileModeCursor = "cursor"
+	ProfileModeOffset = "offset"
+)
+
+// ProfileCheckinsResult is one profile page plus the paging metadata a handler
+// needs. Items holds at most PageSize rows and HasNext reports whether another
+// page follows. Filtered is true whenever offset paging was used.
+type ProfileCheckinsResult struct {
+	Items    []ProfileItem
+	Page     int
+	PageSize int
+	HasNext  bool
+	Filtered bool
+	Mode     string
 }
 
 // Cursor encodes a keyset position for created_at-ordered lists. Stored
@@ -90,8 +130,10 @@ type ProfileItem struct {
 	Brand       string `json:"brand,omitempty"`
 	Container   string `json:"container"`
 	VolumeML    int    `json:"volume_ml"`
+	VenueID     *int   `json:"venue_id,omitempty"`
 	VenueName   string `json:"venue_name,omitempty"`
 	Rating      *int   `json:"rating,omitempty"`
+	Serving     string `json:"serving"`
 	Note        string `json:"note,omitempty"`
 	Visibility  string `json:"visibility"`
 	CreatedAt   string `json:"created_at"`
@@ -166,16 +208,76 @@ func visibilityArgs(values []string) []any {
 	return args
 }
 
+// profileLikesExpr is the correlated toast counter. It is shared by the SELECT
+// projection, the MinLikes filter, and the likes sort so all three agree.
+const profileLikesExpr = `(SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id)`
+
+// profileSortClause maps a caller-supplied key to a whitelisted ORDER BY
+// fragment. Unknown keys fall back to newest; the input is never interpolated.
+func profileSortClause(sort string) string {
+	switch sort {
+	case "oldest":
+		return "c.created_at ASC, c.id ASC"
+	case "rating_high":
+		return "c.rating IS NULL, c.rating DESC, c.created_at DESC, c.id DESC"
+	case "rating_low":
+		return "c.rating IS NULL, c.rating ASC, c.created_at DESC, c.id DESC"
+	case "likes":
+		return profileLikesExpr + " DESC, c.created_at DESC, c.id DESC"
+	default:
+		return "c.created_at DESC, c.id DESC"
+	}
+}
+
 // ProfileCheckins returns one page of a profile's check-ins, already scoped to
 // what viewerID may see. Deleted check-ins and deleted accounts are excluded in
 // SQL. Non-visible rows are never loaded, so there is nothing to filter in Go.
 func (s *Service) ProfileCheckins(ctx context.Context, f ProfileCheckinsFilter) ([]ProfileItem, error) {
-	limit := f.Limit
-	if limit <= 0 || limit > 50 {
-		limit = 20
+	res, err := s.ProfileCheckinsPage(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	return res.Items, nil
+}
+
+// ProfileCheckinsPage is ProfileCheckins with paging metadata. It uses the
+// created_at cursor when no filter or explicit sort is requested, and offset
+// paging (LIMIT/OFFSET) otherwise. At most PageSize rows are returned; HasNext
+// is derived by fetching one extra row and trimming it.
+func (s *Service) ProfileCheckinsPage(ctx context.Context, f ProfileCheckinsFilter) (*ProfileCheckinsResult, error) {
+	pageSize := f.PageSize
+	if pageSize <= 0 {
+		pageSize = f.Limit
+	}
+	if pageSize <= 0 || pageSize > 50 {
+		pageSize = 20
+	}
+	page := f.Page
+	if page < 1 {
+		page = 1
+	}
+
+	from := strings.TrimSpace(f.From)
+	to := strings.TrimSpace(f.To)
+	visibility := strings.TrimSpace(f.Visibility)
+	sortKey := strings.TrimSpace(f.Sort)
+	filtered := sortKey != "" || from != "" || to != "" ||
+		f.RatingMin != nil || f.RatingMax != nil || f.MinLikes != nil ||
+		f.HasPhoto || visibility != "" || page > 1
+
+	mode := ProfileModeCursor
+	if filtered {
+		mode = ProfileModeOffset
+	}
+	res := &ProfileCheckinsResult{
+		Items:    []ProfileItem{},
+		Page:     page,
+		PageSize: pageSize,
+		Filtered: filtered,
+		Mode:     mode,
 	}
 	if f.TargetID == "" {
-		return []ProfileItem{}, nil
+		return res, nil
 	}
 	visit := s.ProfileVisitFor(ctx, f.ViewerID, f.TargetID)
 	vis := profileVisibilitySet(visit)
@@ -183,10 +285,10 @@ func (s *Service) ProfileCheckins(ctx context.Context, f ProfileCheckinsFilter) 
 	q := `
 		SELECT c.id, c.user_id, u.handle, COALESCE(u.display_name,''),
 		       c.drink_id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
-		       c.rating, COALESCE(c.note,''), COALESCE(v.name,''),
+		       c.rating, c.serving, c.venue_id, COALESCE(c.note,''), COALESCE(v.name,''),
 		       c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.poster_path,''),
-		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
+		       ` + profileLikesExpr + `,
 		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?)
 		FROM checkins c
 		JOIN users u ON u.id = c.user_id
@@ -199,17 +301,55 @@ func (s *Service) ProfileCheckins(ctx context.Context, f ProfileCheckinsFilter) 
 		  AND c.visibility IN (` + placeholders(len(vis)) + `)`
 	args := []any{f.ViewerID, f.TargetID}
 	args = append(args, visibilityArgs(vis)...)
-	if f.Before != "" {
-		if createdAt, id, ok := splitCursor(f.Before); ok {
-			q += ` AND (c.created_at < ? OR (c.created_at = ? AND c.id < ?))`
-			args = append(args, createdAt, createdAt, id)
-		} else {
-			q += ` AND c.created_at < ?`
-			args = append(args, f.Before)
+
+	if filtered {
+		// Visibility is an owner-only refinement; the relationship-based set
+		// above is never widened for another viewer.
+		if visit == ProfileOwner && (visibility == "public" || visibility == "friends" || visibility == "private") {
+			q += ` AND c.visibility = ?`
+			args = append(args, visibility)
 		}
+		if from != "" {
+			q += ` AND c.created_at >= ?`
+			args = append(args, from)
+		}
+		if to != "" {
+			q += ` AND c.created_at < ?`
+			args = append(args, to)
+		}
+		if f.RatingMin != nil || f.RatingMax != nil {
+			q += ` AND c.rating IS NOT NULL`
+			if f.RatingMin != nil {
+				q += ` AND c.rating >= ?`
+				args = append(args, *f.RatingMin)
+			}
+			if f.RatingMax != nil {
+				q += ` AND c.rating <= ?`
+				args = append(args, *f.RatingMax)
+			}
+		}
+		if f.MinLikes != nil {
+			q += ` AND ` + profileLikesExpr + ` >= ?`
+			args = append(args, *f.MinLikes)
+		}
+		if f.HasPhoto {
+			q += ` AND c.photo_media_id IS NOT NULL AND c.photo_media_id <> ''`
+		}
+		q += ` ORDER BY ` + profileSortClause(sortKey) + ` LIMIT ? OFFSET ?`
+		args = append(args, pageSize+1, (page-1)*pageSize)
+	} else {
+		if f.Before != "" {
+			if createdAt, id, ok := splitCursor(f.Before); ok {
+				q += ` AND (c.created_at < ? OR (c.created_at = ? AND c.id < ?))`
+				args = append(args, createdAt, createdAt, id)
+			} else {
+				q += ` AND c.created_at < ?`
+				args = append(args, f.Before)
+			}
+		}
+		q += ` ORDER BY c.created_at DESC, c.id DESC LIMIT ?`
+		args = append(args, pageSize+1)
 	}
-	q += ` ORDER BY c.created_at DESC, c.id DESC LIMIT ?`
-	args = append(args, limit)
 
 	rows, err := s.SQL.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -221,11 +361,12 @@ func (s *Service) ProfileCheckins(ctx context.Context, f ProfileCheckinsFilter) 
 		var (
 			it      ProfileItem
 			rating  sql.NullInt64
+			venueID sql.NullInt64
 			toasted int
 		)
 		if err := rows.Scan(&it.ID, &it.UserID, &it.Handle, &it.DisplayName,
 			&it.DrinkID, &it.DrinkName, &it.DrinkSlug, &it.Brand, &it.Container, &it.VolumeML,
-			&rating, &it.Note, &it.VenueName,
+			&rating, &it.Serving, &venueID, &it.Note, &it.VenueName,
 			&it.Visibility, &it.CreatedAt,
 			&it.PhotoID, &it.PhotoMime, &it.PosterPath,
 			&it.Toasts, &toasted); err != nil {
@@ -235,10 +376,22 @@ func (s *Service) ProfileCheckins(ctx context.Context, f ProfileCheckinsFilter) 
 			v := int(rating.Int64)
 			it.Rating = &v
 		}
+		if venueID.Valid {
+			v := int(venueID.Int64)
+			it.VenueID = &v
+		}
 		it.Toasted = toasted != 0
 		out = append(out, it)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) > pageSize {
+		out = out[:pageSize]
+		res.HasNext = true
+	}
+	res.Items = out
+	return res, nil
 }
 
 // ProfileStats counts what viewerID may see on targetID's profile. Styles are

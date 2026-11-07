@@ -80,6 +80,10 @@ class _FakeSettingsApi extends ApiClient {
   bool settingsFails = false;
   bool updateFails = false;
   ApiException? passwordError;
+  final List<List<int>> uploadedAvatars = [];
+  final List<String> uploadedNames = [];
+  int deletedAvatars = 0;
+  bool avatarUploadFails = false;
 
   @override
   Future<AccountSettings> settings() async {
@@ -148,6 +152,52 @@ class _FakeSettingsApi extends ApiClient {
   }
 
   @override
+  Future<String?> uploadAvatar({
+    required List<int> bytes,
+    required String filename,
+    String mimeType = 'image/jpeg',
+  }) async {
+    if (avatarUploadFails) throw ApiException('Upload failed.');
+    uploadedAvatars.add(List.of(bytes));
+    uploadedNames.add(filename);
+    current = AccountSettings(
+      profile: SettingsProfile(
+        handle: current.profile.handle,
+        displayName: current.profile.displayName,
+        bio: current.profile.bio,
+        email: current.profile.email,
+        emailVerified: current.profile.emailVerified,
+        role: current.profile.role,
+        avatarUrl: 'https://soda.example/avatar/new.png',
+      ),
+      prefs: current.prefs,
+      sessions: current.sessions,
+      tokenCount: current.tokenCount,
+      blockedCount: current.blockedCount,
+    );
+    return current.profile.avatarUrl;
+  }
+
+  @override
+  Future<void> deleteAvatar() async {
+    deletedAvatars++;
+    current = AccountSettings(
+      profile: SettingsProfile(
+        handle: current.profile.handle,
+        displayName: current.profile.displayName,
+        bio: current.profile.bio,
+        email: current.profile.email,
+        emailVerified: current.profile.emailVerified,
+        role: current.profile.role,
+      ),
+      prefs: current.prefs,
+      sessions: current.sessions,
+      tokenCount: current.tokenCount,
+      blockedCount: current.blockedCount,
+    );
+  }
+
+  @override
   Future<List<SettingsSession>> listSessions() async => List.of(sessionRows);
 
   @override
@@ -182,11 +232,11 @@ class _FakeSettingsApi extends ApiClient {
   }
 }
 
-Widget _app(ApiClient api) => ProviderScope(
+Widget _app(ApiClient api, {AvatarPicker? avatarPicker}) => ProviderScope(
   overrides: [apiProvider.overrideWithValue(api)],
   child: MaterialApp(
     theme: sodaTheme(Brightness.light),
-    home: const SettingsScreen(),
+    home: SettingsScreen(avatarPicker: avatarPicker),
   ),
 );
 
@@ -399,5 +449,70 @@ void main() {
     expect(find.text('Profile'), findsOneWidget);
     expect(_fieldText(tester, 'settings-display-name'), 'Ada Lovelace');
     expect(api.settingsCalls, 2);
+  });
+
+  testWidgets('changing the profile photo uploads and updates the card', (
+    tester,
+  ) async {
+    final api = _FakeSettingsApi();
+    await tester.pumpWidget(
+      _app(
+        api,
+        avatarPicker: () async =>
+            const AvatarPick(bytes: [1, 2, 3, 4], filename: 'me.png'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('settings-change-avatar')));
+    await tester.pumpAndSettle();
+
+    expect(api.uploadedAvatars, hasLength(1));
+    expect(api.uploadedAvatars.single, [1, 2, 3, 4]);
+    expect(api.uploadedNames.single, 'me.png');
+    expect(find.text('Profile photo updated.'), findsOneWidget);
+    expect(find.byKey(const Key('settings-remove-avatar')), findsOneWidget);
+  });
+
+  testWidgets('removing the profile photo deletes it', (tester) async {
+    final api = _FakeSettingsApi(
+      settings: const AccountSettings(
+        profile: SettingsProfile(
+          handle: 'ada',
+          displayName: 'Ada Lovelace',
+          email: 'ada@example.com',
+          avatarUrl: 'https://soda.example/avatar/old.png',
+        ),
+      ),
+    );
+    await tester.pumpWidget(_app(api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('settings-remove-avatar')));
+    await tester.pumpAndSettle();
+
+    expect(api.deletedAvatars, 1);
+    expect(find.text('Profile photo removed.'), findsOneWidget);
+    expect(find.byKey(const Key('settings-remove-avatar')), findsNothing);
+  });
+
+  testWidgets('a failed avatar upload keeps the old photo and reports it', (
+    tester,
+  ) async {
+    final api = _FakeSettingsApi()..avatarUploadFails = true;
+    await tester.pumpWidget(
+      _app(
+        api,
+        avatarPicker: () async =>
+            const AvatarPick(bytes: [9], filename: 'broken.jpg'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('settings-change-avatar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Upload failed.'), findsOneWidget);
+    expect(find.byKey(const Key('settings-remove-avatar')), findsNothing);
   });
 }

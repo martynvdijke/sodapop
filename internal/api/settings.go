@@ -18,12 +18,13 @@ var apiClockPattern = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
 
 // settingsProfileDTO is the private profile block of the mobile settings screen.
 type settingsProfileDTO struct {
-	Handle        string `json:"handle"`
-	DisplayName   string `json:"display_name"`
-	Bio           string `json:"bio"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	Role          string `json:"role"`
+	Handle        string  `json:"handle"`
+	DisplayName   string  `json:"display_name"`
+	Bio           string  `json:"bio"`
+	Email         string  `json:"email"`
+	EmailVerified bool    `json:"email_verified"`
+	Role          string  `json:"role"`
+	AvatarURL     *string `json:"avatar_url"`
 }
 
 // settingsPrefsDTO mirrors the editable preference fields plus the user-level
@@ -238,6 +239,7 @@ func (s *Server) settingsPayload(ctx context.Context, r *http.Request, userID st
 			Email:         u.Email,
 			EmailVerified: u.EmailVerifiedAt != nil,
 			Role:          string(u.Role),
+			AvatarURL:     avatarURL(u.AvatarMediaID),
 		},
 		Prefs: settingsPrefsDTO{
 			Theme:             string(prefs.Theme),

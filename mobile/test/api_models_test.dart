@@ -1103,4 +1103,134 @@ void main() {
       expect(result.verificationRequired, isFalse);
     });
   });
+
+  group('avatar and favourite drink', () {
+    test('Me reads avatar_url and the pinned favourite', () {
+      final me = Me.fromJson({
+        'id': 'u1',
+        'handle': 'ada',
+        'display_name': 'Ada',
+        'email': 'ada@soda.test',
+        'avatar_url': 'https://soda.test/media/a1',
+        'favourite_drink': {
+          'id': 5,
+          'name': 'Cola',
+          'slug': 'cola',
+          'brand': 'Soda Co',
+          'style': 'Cola',
+          'image_url': 'https://soda.test/media/m5',
+          'average_rating': 16.5,
+        },
+      });
+
+      expect(me.avatarUrl, 'https://soda.test/media/a1');
+      expect(me.favouriteDrink!.id, 5);
+      expect(me.favouriteDrink!.name, 'Cola');
+      expect(me.favouriteDrink!.slug, 'cola');
+      expect(me.favouriteDrink!.brand, 'Soda Co');
+      expect(me.favouriteDrink!.style, 'Cola');
+      expect(me.favouriteDrink!.imageUrl, 'https://soda.test/media/m5');
+      expect(me.favouriteDrink!.averageRating, 16.5);
+    });
+
+    test('Me treats an absent avatar or pinned drink as null', () {
+      final me = Me.fromJson({
+        'id': 'u1',
+        'handle': 'ada',
+        'avatar_url': '',
+        'favourite_drink': null,
+      });
+
+      expect(me.avatarUrl, isNull);
+      expect(me.favouriteDrink, isNull);
+    });
+
+    test('FavouriteDrink tolerates a sparse payload', () {
+      final drink = FavouriteDrink.fromJson({'id': '5'});
+
+      expect(drink.id, 5);
+      expect(drink.name, '');
+      expect(drink.imageUrl, isNull);
+      expect(drink.averageRating, isNull);
+    });
+
+    test('UserProfile reads avatar_url and favourite_drink', () {
+      final profile = UserProfile.fromJson({
+        'id': 'u1',
+        'handle': 'ada',
+        'avatar_url': 'https://soda.test/media/a1',
+        'favourite_drink': {'id': 7, 'name': 'Lime Soda'},
+      });
+
+      expect(profile.avatarUrl, 'https://soda.test/media/a1');
+      expect(profile.favouriteDrink!.id, 7);
+      expect(profile.favouriteDrink!.name, 'Lime Soda');
+    });
+
+    test('SettingsProfile and PublicProfile read avatar_url', () {
+      expect(
+        SettingsProfile.fromJson({
+          'handle': 'ada',
+          'avatar_url': 'https://soda.test/media/a1',
+        }).avatarUrl,
+        'https://soda.test/media/a1',
+      );
+      expect(
+        PublicProfile.fromJson({
+          'handle': 'ada',
+          'avatar_url': 'https://soda.test/media/a1',
+        }).avatarUrl,
+        'https://soda.test/media/a1',
+      );
+      expect(SettingsProfile.fromJson({'handle': 'ada'}).avatarUrl, isNull);
+      expect(PublicProfile.fromJson({'handle': 'ada'}).avatarUrl, isNull);
+    });
+  });
+
+  group('CheckinPage', () {
+    test('reads the wrapped rows and paging metadata', () {
+      final page = CheckinPage.fromJson({
+        'data': [
+          {'id': 'c1', 'drink_name': 'Cola', 'rating': 17},
+          {'id': 'c2', 'drink_name': 'Lime'},
+        ],
+        'meta': {'count': 2, 'has_next': true, 'page': 2},
+      });
+
+      expect(page, hasLength(2));
+      expect(page.first.id, 'c1');
+      expect(page.count, 2);
+      expect(page.hasNext, isTrue);
+      expect(page.page, 2);
+    });
+
+    test('defaults paging and tolerates a missing meta block', () {
+      final page = CheckinPage.fromJson({
+        'data': [
+          {'id': 'c1', 'drink_name': 'Cola'},
+        ],
+      });
+
+      expect(page.single.id, 'c1');
+      expect(page.hasNext, isFalse);
+      expect(page.page, 1);
+      expect(page.count, 1);
+      expect(page.nextBefore, '');
+    });
+
+    test('accepts an items collection and an absent data block', () {
+      final wrapped = CheckinPage.fromJson({
+        'data': {
+          'items': [
+            {'id': 'c1'},
+          ],
+        },
+      });
+      expect(wrapped.single.id, 'c1');
+
+      final empty = CheckinPage.fromJson({});
+      expect(empty, isEmpty);
+      expect(empty.page, 1);
+    });
+  });
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
@@ -14,10 +15,43 @@ import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'legal_screen.dart';
 
+/// One picked profile photo, already read into memory so the upload does not
+/// depend on the picker's temporary file staying alive.
+class AvatarPick {
+  const AvatarPick({required this.bytes, required this.filename});
+
+  final List<int> bytes;
+  final String filename;
+}
+
+typedef AvatarPicker = Future<AvatarPick?> Function();
+
+Future<AvatarPick?> _pickAvatarFromGallery() async {
+  final picked = await ImagePicker().pickImage(
+    source: ImageSource.gallery,
+    maxWidth: 1200,
+    maxHeight: 1200,
+    imageQuality: 90,
+  );
+  if (picked == null) return null;
+  return AvatarPick(bytes: await picked.readAsBytes(), filename: picked.name);
+}
+
+String _avatarMime(String filename) {
+  final lower = filename.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
 /// Account settings: the private profile, preferences, security, browser
 /// sessions and the people the member has blocked.
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.avatarPicker});
+
+  /// Test seam for the gallery picker; production uses [ImagePicker].
+  final AvatarPicker? avatarPicker;
 
   static Future<void> open(BuildContext context) {
     return Navigator.of(
@@ -43,6 +77,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _error;
 
   bool _savingProfile = false;
+  bool _uploadingAvatar = false;
   bool _savingAppearance = false;
   bool _savingNotifications = false;
   bool _savingPrivacy = false;
@@ -181,6 +216,92 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     setState(() => _savingProfile = false);
     if (saved) _notify('Profile saved.');
+  }
+
+  Future<void> _changeAvatar() async {
+    if (_uploadingAvatar) return;
+    AvatarPick? picked;
+    try {
+      picked = await (widget.avatarPicker ?? _pickAvatarFromGallery)();
+    } catch (_) {
+      _notify('Could not open the photo picker.');
+      return;
+    }
+    if (picked == null || !mounted) return;
+    if (picked.bytes.isEmpty) {
+      _notify('That photo could not be read.');
+      return;
+    }
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      final url = await ref
+          .read(apiProvider)
+          .uploadAvatar(
+            bytes: picked.bytes,
+            filename: picked.filename,
+            mimeType: _avatarMime(picked.filename),
+          );
+      // Refresh the cached Me so the profile header changes without a restart.
+      await ref.read(authProvider.notifier).refreshMe();
+      if (!mounted) return;
+      setState(() {
+        _uploadingAvatar = false;
+        final settings = _settings;
+        if (settings != null) _settings = _withAvatar(settings, url);
+      });
+      _notify('Profile photo updated.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+      _notify(ApiClient.describe(error).message);
+    }
+  }
+
+  Future<void> _removeAvatar() async {
+    final settings = _settings;
+    final profile = settings?.profile;
+    if (settings == null ||
+        profile == null ||
+        profile.avatarUrl == null ||
+        _uploadingAvatar) {
+      return;
+    }
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      await ref.read(apiProvider).deleteAvatar();
+      await ref.read(authProvider.notifier).refreshMe();
+      if (!mounted) return;
+      setState(() {
+        _uploadingAvatar = false;
+        _settings = _withAvatar(settings, null);
+      });
+      _notify('Profile photo removed.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+      _notify(ApiClient.describe(error).message);
+    }
+  }
+
+  AccountSettings _withAvatar(AccountSettings settings, String? avatarUrl) {
+    final profile = settings.profile;
+    return AccountSettings(
+      profile: SettingsProfile(
+        handle: profile.handle,
+        displayName: profile.displayName,
+        bio: profile.bio,
+        email: profile.email,
+        emailVerified: profile.emailVerified,
+        role: profile.role,
+        avatarUrl: avatarUrl,
+      ),
+      prefs: settings.prefs,
+      sessions: settings.sessions,
+      tokenCount: settings.tokenCount,
+      blockedCount: settings.blockedCount,
+    );
   }
 
   Future<void> _saveTheme(String value) async {
@@ -574,6 +695,89 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SodaAvatar(
+                      initial: profile.displayName.trim().isEmpty
+                          ? profile.handle
+                          : profile.displayName,
+                      size: 72,
+                      imageUrl: profile.avatarUrl,
+                      headers: ref.read(apiProvider).imageHeaders,
+                      baseUrl: ref.read(apiProvider).server,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Profile photo',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'A square photo works best. JPEG, PNG, WebP or GIF.',
+                            style: hint,
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              TextButton.icon(
+                                key: const Key('settings-change-avatar'),
+                                onPressed: _uploadingAvatar
+                                    ? null
+                                    : _changeAvatar,
+                                icon: _uploadingAvatar
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Soda.lime,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.photo_camera_outlined,
+                                        size: 18,
+                                      ),
+                                label: Text(
+                                  _uploadingAvatar
+                                      ? 'Uploading…'
+                                      : 'Change photo',
+                                ),
+                              ),
+                              if (profile.avatarUrl != null)
+                                TextButton.icon(
+                                  key: const Key('settings-remove-avatar'),
+                                  onPressed: _uploadingAvatar
+                                      ? null
+                                      : _removeAvatar,
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 18,
+                                  ),
+                                  label: const Text('Remove'),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Divider(
+                  height: 1,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+                const SizedBox(height: 16),
                 _identityBlock(theme, profile),
                 const SizedBox(height: 8),
                 Text(

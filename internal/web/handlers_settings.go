@@ -73,6 +73,10 @@ func (s *Server) settingsData(ctx context.Context, r *http.Request) (map[string]
 	if err != nil {
 		return nil, err
 	}
+	avatarID := ""
+	if u.AvatarMediaID != nil {
+		avatarID = *u.AvatarMediaID
+	}
 	return map[string]any{
 		"Title": "Settings",
 		"Profile": map[string]string{
@@ -80,6 +84,7 @@ func (s *Server) settingsData(ctx context.Context, r *http.Request) (map[string]
 			"DisplayName": u.DisplayName,
 			"Bio":         u.Bio,
 			"Email":       u.Email,
+			"AvatarID":    avatarID,
 		},
 		"Prefs": map[string]any{
 			"Theme":           prefs.Theme,

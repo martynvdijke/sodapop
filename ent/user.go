@@ -30,6 +30,8 @@ type User struct {
 	Bio string `json:"bio,omitempty"`
 	// AvatarMediaID holds the value of the "avatar_media_id" field.
 	AvatarMediaID *string `json:"avatar_media_id,omitempty"`
+	// FavouriteDrinkID holds the value of the "favourite_drink_id" field.
+	FavouriteDrinkID *int `json:"favourite_drink_id,omitempty"`
 	// Role holds the value of the "role" field.
 	Role user.Role `json:"role,omitempty"`
 	// Status holds the value of the "status" field.
@@ -121,6 +123,8 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldAnalyticsOptOut:
 			values[i] = new(sql.NullBool)
+		case user.FieldFavouriteDrinkID:
+			values[i] = new(sql.NullInt64)
 		case user.FieldID, user.FieldHandle, user.FieldEmail, user.FieldEmailVerifiedAt, user.FieldPasswordHash, user.FieldDisplayName, user.FieldBio, user.FieldAvatarMediaID, user.FieldRole, user.FieldStatus, user.FieldDefaultVisibility, user.FieldCountry, user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt:
 			values[i] = new(sql.NullString)
 		default:
@@ -188,6 +192,13 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AvatarMediaID = new(string)
 				*_m.AvatarMediaID = value.String
+			}
+		case user.FieldFavouriteDrinkID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field favourite_drink_id", values[i])
+			} else if value.Valid {
+				_m.FavouriteDrinkID = new(int)
+				*_m.FavouriteDrinkID = int(value.Int64)
 			}
 		case user.FieldRole:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -322,6 +333,11 @@ func (_m *User) String() string {
 	if v := _m.AvatarMediaID; v != nil {
 		builder.WriteString("avatar_media_id=")
 		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.FavouriteDrinkID; v != nil {
+		builder.WriteString("favourite_drink_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("role=")

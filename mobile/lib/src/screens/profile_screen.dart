@@ -6,9 +6,12 @@ import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
 import '../utils/url.dart';
+import '../widgets/checkin_filter_sheet.dart';
+import '../widgets/pinned_drink_card.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'checkin_detail_screen.dart';
+import 'drink_detail_screen.dart';
 import 'friends_screen.dart';
 import 'insights_screen.dart';
 import 'lists_screen.dart';
@@ -30,9 +33,15 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   MyStats? _stats;
-  List<CheckinSummary> _recent = const [];
+  List<CheckinSummary> _checkins = const [];
+  CheckinFilter _filter = const CheckinFilter();
   bool _loading = true;
+  bool _checkinsLoading = true;
+  bool _loadingMore = false;
+  bool _hasNext = false;
+  int _nextPage = 2;
   String? _error;
+  String? _checkinsError;
 
   @override
   void initState() {
@@ -40,33 +49,132 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _load();
   }
 
+  Future<CheckinPage> _fetchCheckins(int page) {
+    final api = ref.read(apiProvider);
+    return api.myCheckins(
+      limit: 10,
+      page: page,
+      from: _filter.from,
+      to: _filter.to,
+      ratingMin: _filter.ratingMin,
+      ratingMax: _filter.ratingMax,
+      minLikes: _filter.minLikes,
+      hasPhoto: _filter.hasPhoto ? true : null,
+      visibility: _filter.visibility,
+      sort: _filter.sort,
+    );
+  }
+
   Future<void> _load({bool showSpinner = true}) async {
     if (showSpinner) {
       setState(() {
         _loading = true;
+        _checkinsLoading = true;
         _error = null;
+        _checkinsError = null;
       });
     }
     try {
-      final api = ref.read(apiProvider);
       final results = await Future.wait<Object>([
-        api.myStats(),
-        api.myCheckins(limit: 5),
+        ref.read(apiProvider).myStats(),
+        _fetchCheckins(1),
       ]);
       if (!mounted) return;
+      final page = results[1] as CheckinPage;
       setState(() {
         _stats = results[0] as MyStats;
-        _recent = results[1] as List<CheckinSummary>;
+        _checkins = List.of(page);
+        _hasNext = page.hasNext;
+        _nextPage = page.page + 1;
         _loading = false;
+        _checkinsLoading = false;
         _error = null;
+        _checkinsError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      final message = ApiClient.describe(error).message;
+      setState(() {
+        _loading = false;
+        _checkinsLoading = false;
+        _error = message;
+        _checkinsError = message;
+      });
+    }
+  }
+
+  /// Filter changes only reload the check-in list; the stats card stays put.
+  Future<void> _loadCheckins() async {
+    setState(() {
+      _checkinsLoading = true;
+      _checkinsError = null;
+    });
+    try {
+      final page = await _fetchCheckins(1);
+      if (!mounted) return;
+      setState(() {
+        _checkins = List.of(page);
+        _hasNext = page.hasNext;
+        _nextPage = page.page + 1;
+        _checkinsLoading = false;
+        _checkinsError = null;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _loading = false;
-        _error = ApiClient.describe(error).message;
+        _checkinsLoading = false;
+        _checkinsError = ApiClient.describe(error).message;
       });
     }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasNext) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await _fetchCheckins(_nextPage);
+      if (!mounted) return;
+      setState(() {
+        _checkins = [..._checkins, ...page];
+        _hasNext = page.hasNext;
+        _nextPage = page.page + 1;
+        _loadingMore = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiClient.describe(error).message)),
+      );
+    }
+  }
+
+  Future<void> _openFilters() async {
+    final result = await showCheckinFilterSheet(context, initial: _filter);
+    if (result == null || !mounted) return;
+    setState(() => _filter = result);
+    await _loadCheckins();
+  }
+
+  Future<void> _clearFilters() async {
+    if (!_filter.isActive) return;
+    setState(() => _filter = const CheckinFilter());
+    await _loadCheckins();
+  }
+
+  List<(String, CheckinFilter)> _activeChips() {
+    if (!_filter.isActive) return const [];
+    return [
+      if (_filter.range != 'all') (_filter.rangeLabel, _filter.withoutRange()),
+      if (_filter.ratingMin != null || _filter.ratingMax != null)
+        (_filter.ratingChip, _filter.withoutRating()),
+      if (_filter.minLikes != null)
+        (_filter.likesChip, _filter.withoutMinLikes()),
+      if (_filter.hasPhoto) (_filter.photoChip, _filter.withoutPhoto()),
+      if (_filter.visibility != null)
+        (_filter.visibilityChip, _filter.withoutVisibility()),
+      if (_filter.sort != 'newest') (_filter.sortChip, _filter.withoutSort()),
+    ];
   }
 
   @override
@@ -74,6 +182,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final auth = ref.watch(authProvider);
     final me = auth.me;
     final theme = Theme.of(context);
+    final api = ref.read(apiProvider);
+    final favourite = me?.favouriteDrink;
     return Scaffold(
       appBar: AppBar(title: const Text('You')),
       body: RefreshIndicator(
@@ -84,10 +194,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
           children: [
             _header(theme, me),
+            const SizedBox(height: 18),
+            if (favourite != null)
+              PinnedDrinkCard(
+                drink: favourite,
+                imageHeaders: api.imageHeaders,
+                baseUrl: api.server,
+                onTap: () => DrinkDetailScreen.open(
+                  context,
+                  favourite.slug,
+                  name: favourite.name,
+                ),
+              )
+            else
+              const PinnedDrinkEmpty(
+                message: 'Pin a soda from its page to show it here.',
+              ),
             const SizedBox(height: 20),
             _statsSection(theme),
             const SizedBox(height: 26),
-            _recentSection(theme),
+            _checkinsSection(theme),
             const SizedBox(height: 28),
             Text(
               'Activity',
@@ -131,17 +257,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         : (me?.handle ?? '');
     return Row(
       children: [
-        CircleAvatar(
-          radius: 34,
-          backgroundColor: theme.colorScheme.primary,
-          child: Text(
-            source.isEmpty ? '?' : source.characters.first.toUpperCase(),
-            style: const TextStyle(
-              color: Soda.forest,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+        SodaAvatar(
+          initial: source,
+          size: 68,
+          imageUrl: me?.avatarUrl,
+          headers: ref.read(apiProvider).imageHeaders,
+          baseUrl: ref.read(apiProvider).server,
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -258,41 +379,103 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _recentSection(ThemeData theme) {
-    final count = _recent.length;
+  Widget _checkinsSection(ThemeData theme) {
+    final count = _checkins.length;
+    final chips = _activeChips();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SodaSectionTitle(
-          title: 'Recent check-ins',
-          trailing: _loading || _error != null || count == 0
-              ? null
-              : sodaCount(count, 'check-in'),
+        Row(
+          children: [
+            Expanded(
+              child: SodaSectionTitle(
+                title: 'Check-ins',
+                trailing: _checkinsLoading || _checkinsError != null
+                    ? null
+                    : '${sodaCount(count, 'check-in')}${_hasNext ? '+' : ''}',
+              ),
+            ),
+            IconButton(
+              key: const Key('profile-checkin-filter'),
+              tooltip: 'Filter check-ins',
+              onPressed: _openFilters,
+              icon: Badge.count(
+                count: _filter.activeCount,
+                isLabelVisible: _filter.isActive,
+                backgroundColor: Soda.tangerine,
+                child: const Icon(Icons.tune_rounded),
+              ),
+            ),
+          ],
         ),
+        if (chips.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final (label, next) in chips)
+                InputChip(
+                  label: Text(label),
+                  onDeleted: () async {
+                    setState(() => _filter = next);
+                    await _loadCheckins();
+                  },
+                  deleteIconColor: theme.colorScheme.onSurfaceVariant,
+                ),
+              TextButton(
+                key: const Key('profile-clear-filters'),
+                onPressed: _clearFilters,
+                child: const Text('Clear all'),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 10),
-        if (_loading)
+        if (_checkinsLoading)
           const SodaLoadingView(dense: true, label: 'Loading check-ins…')
-        else if (_error != null)
+        else if (_checkinsError != null)
           SodaStatusView(
             dense: true,
             icon: Icons.cloud_off_rounded,
             title: 'Check-ins did not load',
-            message: _error,
+            message: _checkinsError,
             actionLabel: 'Try again',
-            onAction: _load,
+            onAction: _loadCheckins,
           )
-        else if (_recent.isEmpty)
+        else if (_checkins.isEmpty && _filter.isActive)
+          SodaStatusView(
+            dense: true,
+            icon: Icons.filter_alt_off_outlined,
+            title: 'No check-ins match these filters',
+            message: 'Try wider dates or clear a filter.',
+            actionLabel: 'Clear filters',
+            onAction: _clearFilters,
+          )
+        else if (_checkins.isEmpty)
           const SodaStatusView(
             dense: true,
             icon: Icons.local_drink_outlined,
             title: 'No check-ins yet',
             message: 'Scan a soda to start your log.',
           )
-        else
-          for (var index = 0; index < _recent.length; index++) ...[
+        else ...[
+          for (var index = 0; index < _checkins.length; index++) ...[
             if (index > 0) const SizedBox(height: 10),
-            _recentCard(theme, _recent[index]),
+            _recentCard(theme, _checkins[index]),
           ],
+          if (_hasNext) ...[
+            const SizedBox(height: 12),
+            Center(
+              child: OutlinedButton(
+                key: const Key('profile-load-more'),
+                onPressed: _loadingMore ? null : _loadMore,
+                child: Text(_loadingMore ? 'Loading…' : 'Load more'),
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }
@@ -333,9 +516,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: rated
-                                ? ratingLabel(quarters)
-                                : 'Not rated',
+                            text: rated ? ratingLabel(quarters) : 'Not rated',
                             style: rated
                                 ? const TextStyle(
                                     color: Soda.tangerine,
@@ -344,9 +525,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 : null,
                           ),
                           if (checkin.venueName.isNotEmpty)
-                            TextSpan(
-                              text: ' · ${checkin.venueName}',
-                            ),
+                            TextSpan(text: ' · ${checkin.venueName}'),
                         ],
                       ),
                       maxLines: 1,
@@ -454,11 +633,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 'Lists',
                 () => ListsScreen.open(context),
               ),
-              (
-                Icons.science_outlined,
-                'Mix',
-                () => MixScreen.open(context),
-              ),
+              (Icons.science_outlined, 'Mix', () => MixScreen.open(context)),
               (
                 Icons.place_outlined,
                 'Venues',

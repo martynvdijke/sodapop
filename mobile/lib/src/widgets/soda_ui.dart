@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/soda_theme.dart';
+import '../utils/url.dart';
 
 /// A small, round initial avatar. When [onTap] is set the whole 44px target is
 /// tappable and labelled for screen readers.
+///
+/// Pass [imageUrl] to show an uploaded photo instead of the initial. The
+/// initial stays visible while the photo loads and whenever the request fails,
+/// so the avatar never collapses to an empty circle.
 class SodaAvatar extends StatelessWidget {
   const SodaAvatar({
     super.key,
@@ -11,6 +16,9 @@ class SodaAvatar extends StatelessWidget {
     this.size = 40,
     this.onTap,
     this.semanticLabel,
+    this.imageUrl,
+    this.headers = const {},
+    this.baseUrl,
   });
 
   final String initial;
@@ -18,28 +26,52 @@ class SodaAvatar extends StatelessWidget {
   final VoidCallback? onTap;
   final String? semanticLabel;
 
+  /// Absolute URL for an authenticated profile photo, or null for the initial.
+  final String? imageUrl;
+
+  /// Extra request headers, usually [ApiClient.imageHeaders].
+  final Map<String, String> headers;
+
+  /// Server origin used to resolve a relative avatar path from the API.
+  final String? baseUrl;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final label = initial.trim().isEmpty
         ? '?'
         : initial.trim().characters.first.toUpperCase();
+    final fallback = Text(
+      label,
+      style: TextStyle(
+        color: theme.colorScheme.onSurface,
+        fontSize: size * 0.42,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+    final url = absoluteMediaUrl(imageUrl ?? '', base: baseUrl);
     final circle = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.3),
         shape: BoxShape.circle,
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: theme.colorScheme.onSurface,
-          fontSize: size * 0.42,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: url.isEmpty
+          ? fallback
+          : Image.network(
+              url,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              headers: headers,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => fallback,
+              loadingBuilder: (context, child, progress) =>
+                  progress == null ? child : fallback,
+            ),
     );
     if (onTap == null) return circle;
 

@@ -528,6 +528,213 @@ void main() {
     });
   });
 
+  group('avatar', () {
+    test('uploads the avatar bytes as multipart and returns the URL', () async {
+      final h = _Harness(
+        body: jsonEncode({
+          'data': {'avatar_url': 'https://soda.test/media/a1'},
+        }),
+        status: 200,
+      );
+
+      final url = await h.api.uploadAvatar(
+        bytes: const [1, 2, 3, 4],
+        filename: 'me.png',
+        mimeType: 'image/png',
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, 'api/v1/me/avatar');
+      expect(request.headers['Authorization'], 'Bearer sd_test');
+      expect(
+        request.headers['content-type'],
+        startsWith('multipart/form-data; boundary='),
+      );
+      final form = h.captured!;
+      expect(form.files, hasLength(1));
+      final file = form.files.single;
+      expect(file.key, 'avatar');
+      expect(file.value.filename, 'me.png');
+      expect(file.value.length, 4);
+      expect(file.value.contentType?.mimeType, 'image/png');
+      expect(
+        h.adapter.bodies.single,
+        contains('name="avatar"; filename="me.png"'),
+      );
+      expect(url, 'https://soda.test/media/a1');
+    });
+
+    test('returns null when the server omits avatar_url', () async {
+      final h = _Harness(body: '{"data":{}}', status: 200);
+
+      final url = await h.api.uploadAvatar(
+        bytes: const [1],
+        filename: 'me.jpg',
+      );
+
+      expect(url, isNull);
+    });
+
+    test('deletes the avatar', () async {
+      final h = _Harness(body: '', status: 204);
+
+      await h.api.deleteAvatar();
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'DELETE');
+      expect(request.path, 'api/v1/me/avatar');
+      expect(request.headers['Authorization'], 'Bearer sd_test');
+    });
+  });
+
+  group('favourite drink', () {
+    test('PUTs the drink id and parses the pinned drink', () async {
+      final h = _Harness(
+        body: jsonEncode({
+          'data': {
+            'favourite_drink': {
+              'id': 5,
+              'name': 'Cola',
+              'slug': 'cola',
+              'brand': 'Soda Co',
+              'style': 'Cola',
+              'image_url': 'https://soda.test/media/m5',
+              'average_rating': 16.5,
+            },
+          },
+        }),
+        status: 200,
+      );
+
+      final drink = await h.api.setFavouriteDrink(5);
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'PUT');
+      expect(request.path, 'api/v1/me/favourite-drink');
+      expect(request.data, {'drink_id': 5});
+      expect(request.headers['Authorization'], 'Bearer sd_test');
+      expect(drink!.id, 5);
+      expect(drink.name, 'Cola');
+      expect(drink.slug, 'cola');
+      expect(drink.brand, 'Soda Co');
+      expect(drink.style, 'Cola');
+      expect(drink.imageUrl, 'https://soda.test/media/m5');
+      expect(drink.averageRating, 16.5);
+    });
+
+    test('returns null when no drink is echoed back', () async {
+      final h = _Harness(body: '{"data":{}}', status: 200);
+
+      final drink = await h.api.setFavouriteDrink(5);
+
+      expect(drink, isNull);
+    });
+
+    test('clears the pinned drink', () async {
+      final h = _Harness(body: '', status: 204);
+
+      await h.api.clearFavouriteDrink();
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'DELETE');
+      expect(request.path, 'api/v1/me/favourite-drink');
+    });
+  });
+
+  group('check-in filters', () {
+    test('myCheckins sends every filter and parses the page metadata', () async {
+      final h = _Harness(
+        body: jsonEncode({
+          'data': [
+            {'id': 'c1', 'drink_name': 'Cola', 'rating': 17},
+          ],
+          'meta': {'count': 1, 'has_next': true, 'page': 3},
+        }),
+        status: 200,
+      );
+
+      final page = await h.api.myCheckins(
+        limit: 5,
+        before: ' 2026-10-01T00:00:00Z ',
+        from: '2026-09-01',
+        to: '2026-10-01',
+        ratingMin: 8,
+        ratingMax: 20,
+        minLikes: 2,
+        hasPhoto: true,
+        visibility: 'friends',
+        sort: 'likes',
+        page: 3,
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.path, 'api/v1/me/checkins');
+      expect(request.queryParameters, {
+        'limit': 5,
+        'before': '2026-10-01T00:00:00Z',
+        'from': '2026-09-01',
+        'to': '2026-10-01',
+        'rating_min': 8,
+        'rating_max': 20,
+        'min_likes': 2,
+        'has_photo': 1,
+        'visibility': 'friends',
+        'sort': 'likes',
+        'page': 3,
+      });
+      expect(page.single.id, 'c1');
+      expect(page.hasNext, isTrue);
+      expect(page.page, 3);
+      expect(page.count, 1);
+    });
+
+    test('omits blank filters and a false has_photo', () async {
+      final h = _Harness(body: '{"data":[]}', status: 200);
+
+      await h.api.userCheckins(
+        'ada',
+        from: '  ',
+        hasPhoto: false,
+        visibility: '',
+        page: 1,
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.path, 'api/v1/users/ada/checkins');
+      expect(request.queryParameters, {'limit': 20, 'page': 1});
+    });
+
+    test('publicUserCheckins accepts the same filters', () async {
+      final h = _Harness(
+        body: jsonEncode({
+          'data': [
+            {'id': 'c1', 'drink_name': 'Cola'},
+          ],
+        }),
+        status: 200,
+      );
+
+      await h.api.publicUserCheckins(
+        'ada',
+        limit: 10,
+        ratingMin: 4,
+        hasPhoto: true,
+        sort: 'oldest',
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.path, 'api/v1/public/users/ada/checkins');
+      expect(request.queryParameters, {
+        'limit': 10,
+        'rating_min': 4,
+        'has_photo': 1,
+        'sort': 'oldest',
+      });
+      expect(request.headers['Authorization'], isNull);
+    });
+  });
+
   group('friends', () {
     test('reads the capitalised directory', () async {
       final h = _Harness(

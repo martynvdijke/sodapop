@@ -103,12 +103,24 @@ func (s *Server) publicPreviewUser(w http.ResponseWriter, r *http.Request) {
 		s.mapError(w, err)
 		return
 	}
+	owner, err := s.Auth.Client.User.Get(r.Context(), profile.ID)
+	if err != nil {
+		s.mapError(w, err)
+		return
+	}
+	favourite, err := s.favouriteDrinkCard(r.Context(), owner.FavouriteDrinkID)
+	if err != nil {
+		s.mapError(w, err)
+		return
+	}
 	setPreviewCache(w)
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
-		"handle":       profile.Handle,
-		"display_name": profile.DisplayName,
-		"bio":          profile.Bio,
-		"joined_at":    profile.CreatedAt,
+		"handle":          profile.Handle,
+		"display_name":    profile.DisplayName,
+		"bio":             profile.Bio,
+		"joined_at":       profile.CreatedAt,
+		"avatar_url":      publicAvatarURL(owner.AvatarMediaID),
+		"favourite_drink": favourite,
 		"stats": map[string]any{
 			"pours":         stats.Pours,
 			"styles":        stats.Styles,
@@ -118,6 +130,7 @@ func (s *Server) publicPreviewUser(w http.ResponseWriter, r *http.Request) {
 			"toasts":        stats.Toasts,
 		},
 	}})
+	return
 }
 
 // publicPreviewUserCheckins handles GET /api/v1/public/users/{handle}/checkins.

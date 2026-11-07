@@ -103,6 +103,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /search", s.requireUser(s.searchPage))
 	mux.HandleFunc("GET /drinks/{slug}", s.requireUser(s.drinkPage))
+	mux.HandleFunc("POST /drinks/{slug}/favourite", s.requireUser(s.drinkFavourite))
+	mux.HandleFunc("POST /drinks/{slug}/unfavourite", s.requireUser(s.drinkUnfavourite))
 	mux.HandleFunc("GET /scan", s.requireVerified(s.scanPage))
 	mux.HandleFunc("GET /checkins/new", s.requireVerified(s.checkinPage))
 	mux.HandleFunc("GET /checkins/venues", s.requireVerified(s.checkinVenueOptionsJSON))

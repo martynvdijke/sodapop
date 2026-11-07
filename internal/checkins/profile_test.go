@@ -61,6 +61,23 @@ func TestProfileCheckinsAnonymous(t *testing.T) {
 	}
 }
 
+func TestProfileCheckinsCarriesServing(t *testing.T) {
+	e := newTestEnv(t)
+	if _, _, err := e.svc.Create(e.ctx, e.alice, checkins.CreateInput{
+		DrinkID: e.drink.ID, Visibility: "public", Serving: "bottle",
+	}); err != nil {
+		t.Fatalf("checkin: %v", err)
+	}
+
+	items, err := e.svc.ProfileCheckins(e.ctx, checkins.ProfileCheckinsFilter{TargetID: e.alice.ID})
+	if err != nil {
+		t.Fatalf("profile checkins: %v", err)
+	}
+	if len(items) != 1 || items[0].Serving != "bottle" {
+		t.Fatalf("items = %+v, want one row with serving=bottle", items)
+	}
+}
+
 func TestProfileCheckinsPrivateProfileGate(t *testing.T) {
 	// The query layer does not know about the public_profile toggle; it returns
 	// public rows when called. The handler gate is the access rule below.
@@ -246,6 +263,288 @@ func TestProfileCheckinsCursor(t *testing.T) {
 			t.Fatalf("duplicate row %s across pages", it.ID)
 		}
 	}
+}
+
+// profileFilterFixture builds four public check-ins on alice's profile:
+//
+//	a newest-poor: 2026-01-01, rating 5,  0 toasts, no photo
+//	b             2026-01-02, rating 10, 2 toasts, photo
+//	c             2026-01-03, rating 20, 1 toast,  no photo
+//	d newest-best:2026-01-04, no rating, 3 toasts, photo
+func profileFilterFixture(t *testing.T) (*testEnv, map[string]string) {
+	t.Helper()
+	e := newTestEnv(t)
+	ids := map[string]string{}
+	type spec struct {
+		name   string
+		at     string
+		rating *int
+		photo  bool
+		likes  []string
+	}
+	r5, r10, r20 := 5, 10, 20
+	specs := []spec{
+		{"a", "2026-01-01T00:00:00Z", &r5, false, nil},
+		{"b", "2026-01-02T00:00:00Z", &r10, true, []string{e.bob.ID, e.carol.ID}},
+		{"c", "2026-01-03T00:00:00Z", &r20, false, []string{e.bob.ID}},
+		{"d", "2026-01-04T00:00:00Z", nil, true, []string{e.alice.ID, e.bob.ID, e.carol.ID}},
+	}
+	for _, sp := range specs {
+		c := e.createCheckin(t, e.alice, "public")
+		upd := e.db.Client.Checkin.UpdateOneID(c.ID).SetCreatedAt(sp.at)
+		if sp.rating != nil {
+			upd = upd.SetRating(*sp.rating)
+		}
+		if sp.photo {
+			upd = upd.SetPhotoMediaID("photo-" + sp.name)
+		}
+		if err := upd.Exec(e.ctx); err != nil {
+			t.Fatalf("update check-in %s: %v", sp.name, err)
+		}
+		for _, uid := range sp.likes {
+			if _, err := e.db.Client.CheckinLike.Create().
+				SetCheckinID(c.ID).SetUserID(uid).Save(e.ctx); err != nil {
+				t.Fatalf("toast %s: %v", sp.name, err)
+			}
+		}
+		ids[sp.name] = c.ID
+	}
+	return e, ids
+}
+
+func assertNames(t *testing.T, items []checkins.ProfileItem, ids map[string]string, want ...string) {
+	t.Helper()
+	if len(items) != len(want) {
+		t.Fatalf("got %d items, want %d (%v)", len(items), len(want), want)
+	}
+	for i, name := range want {
+		if items[i].ID != ids[name] {
+			t.Fatalf("item %d = %s, want %s", i, items[i].ID, name)
+		}
+	}
+}
+
+func TestProfileCheckinsFilters(t *testing.T) {
+	e, ids := profileFilterFixture(t)
+	min5, min10, max10, minLikes := 5, 10, 10, 2
+
+	cases := []struct {
+		name string
+		f    checkins.ProfileCheckinsFilter
+		want []string
+	}{
+		{
+			name: "from is inclusive",
+			f:    checkins.ProfileCheckinsFilter{TargetID: e.alice.ID, From: "2026-01-02T00:00:00Z"},
+			want: []string{"d", "c", "b"},
+		},
+		{
+			name: "to is exclusive",
+			f:    checkins.ProfileCheckinsFilter{TargetID: e.alice.ID, To: "2026-01-03T00:00:00Z"},
+			want: []string{"b", "a"},
+		},
+		{
+			name: "from and to window",
+			f: checkins.ProfileCheckinsFilter{
+				TargetID: e.alice.ID,
+				From:     "2026-01-02T00:00:00Z",
+				To:       "2026-01-04T00:00:00Z",
+			},
+			want: []string{"c", "b"},
+		},
+		{
+			name: "rating min excludes null ratings",
+			f:    checkins.ProfileCheckinsFilter{TargetID: e.alice.ID, RatingMin: &min10},
+			want: []string{"c", "b"},
+		},
+		{
+			name: "rating max",
+			f:    checkins.ProfileCheckinsFilter{TargetID: e.alice.ID, RatingMax: &max10},
+			want: []string{"b", "a"},
+		},
+		{
+			name: "rating range",
+			f:    checkins.ProfileCheckinsFilter{TargetID: e.alice.ID, RatingMin: &min5, RatingMax: &max10},
+			want: []string{"b", "a"},
+		},
+		{
+			name: "minimum toasts",
+			f:    checkins.ProfileCheckinsFilter{TargetID: e.alice.ID, MinLikes: &minLikes},
+			want: []string{"d", "b"},
+		},
+		{
+			name: "has photo",
+			f:    checkins.ProfileCheckinsFilter{TargetID: e.alice.ID, HasPhoto: true},
+			want: []string{"d", "b"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := e.svc.ProfileCheckinsPage(e.ctx, tc.f)
+			if err != nil {
+				t.Fatalf("profile checkins page: %v", err)
+			}
+			assertNames(t, res.Items, ids, tc.want...)
+			if !res.Filtered || res.Mode != checkins.ProfileModeOffset {
+				t.Fatalf("mode = %q filtered=%v, want offset/true", res.Mode, res.Filtered)
+			}
+			if res.HasNext {
+				t.Fatalf("unexpected HasNext for a short page")
+			}
+		})
+	}
+}
+
+func TestProfileCheckinsSorts(t *testing.T) {
+	e, ids := profileFilterFixture(t)
+
+	cases := []struct {
+		name string
+		sort string
+		want []string
+	}{
+		{"default newest", "", []string{"d", "c", "b", "a"}},
+		{"explicit newest", "newest", []string{"d", "c", "b", "a"}},
+		{"oldest", "oldest", []string{"a", "b", "c", "d"}},
+		{"rating high puts nulls last", "rating_high", []string{"c", "b", "a", "d"}},
+		{"rating low puts nulls last", "rating_low", []string{"a", "b", "c", "d"}},
+		{"likes", "likes", []string{"d", "b", "c", "a"}},
+		{"unknown falls back to newest", "bogus", []string{"d", "c", "b", "a"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+				TargetID: e.alice.ID, Sort: tc.sort,
+			})
+			if err != nil {
+				t.Fatalf("profile checkins page: %v", err)
+			}
+			assertNames(t, res.Items, ids, tc.want...)
+		})
+	}
+}
+
+func TestProfileCheckinsPagination(t *testing.T) {
+	e, ids := profileFilterFixture(t)
+
+	t.Run("offset pages", func(t *testing.T) {
+		first, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			TargetID: e.alice.ID, Sort: "newest", Page: 1, PageSize: 2,
+		})
+		if err != nil {
+			t.Fatalf("page 1: %v", err)
+		}
+		assertNames(t, first.Items, ids, "d", "c")
+		if !first.Filtered || first.Mode != checkins.ProfileModeOffset || first.Page != 1 || first.PageSize != 2 {
+			t.Fatalf("page 1 metadata = %+v", first)
+		}
+		if !first.HasNext {
+			t.Fatalf("page 1 should have a next page")
+		}
+
+		second, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			TargetID: e.alice.ID, Sort: "newest", Page: 2, PageSize: 2,
+		})
+		if err != nil {
+			t.Fatalf("page 2: %v", err)
+		}
+		assertNames(t, second.Items, ids, "b", "a")
+		if second.HasNext {
+			t.Fatalf("page 2 should be the last page")
+		}
+
+		empty, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			TargetID: e.alice.ID, Sort: "newest", Page: 3, PageSize: 2,
+		})
+		if err != nil {
+			t.Fatalf("page 3: %v", err)
+		}
+		if len(empty.Items) != 0 || empty.HasNext {
+			t.Fatalf("page 3 = %+v, want empty with no next", empty)
+		}
+	})
+
+	t.Run("cursor path unchanged", func(t *testing.T) {
+		first, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			TargetID: e.alice.ID, Limit: 2,
+		})
+		if err != nil {
+			t.Fatalf("cursor page 1: %v", err)
+		}
+		assertNames(t, first.Items, ids, "d", "c")
+		if first.Filtered || first.Mode != checkins.ProfileModeCursor {
+			t.Fatalf("cursor metadata = %+v, want cursor/unfiltered", first)
+		}
+		if !first.HasNext {
+			t.Fatalf("cursor page 1 should have a next page")
+		}
+
+		second, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			TargetID: e.alice.ID, Limit: 2, Before: first.Items[len(first.Items)-1].CreatedAt,
+		})
+		if err != nil {
+			t.Fatalf("cursor page 2: %v", err)
+		}
+		assertNames(t, second.Items, ids, "b", "a")
+		if second.HasNext {
+			t.Fatalf("cursor page 2 should be the last page")
+		}
+	})
+}
+
+func TestProfileCheckinsVisibilityFilter(t *testing.T) {
+	e := newTestEnv(t)
+	e.befriend(t, e.alice, e.bob)
+	pub := e.createCheckin(t, e.alice, "public")
+	friends := e.createCheckin(t, e.alice, "friends")
+	private := e.createCheckin(t, e.alice, "private")
+
+	t.Run("owner may narrow by visibility", func(t *testing.T) {
+		res, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			ViewerID: e.alice.ID, TargetID: e.alice.ID, Visibility: "private",
+		})
+		if err != nil {
+			t.Fatalf("owner filter: %v", err)
+		}
+		if len(res.Items) != 1 || res.Items[0].ID != private.ID {
+			t.Fatalf("owner private filter = %+v, want only private", res.Items)
+		}
+	})
+
+	t.Run("invalid visibility ignored for owner", func(t *testing.T) {
+		res, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			ViewerID: e.alice.ID, TargetID: e.alice.ID, Visibility: "secret",
+		})
+		if err != nil {
+			t.Fatalf("owner invalid filter: %v", err)
+		}
+		if len(res.Items) != 3 {
+			t.Fatalf("owner invalid filter returned %d rows, want all 3", len(res.Items))
+		}
+	})
+
+	t.Run("non-owner filter is ignored and cannot widen", func(t *testing.T) {
+		res, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			ViewerID: e.bob.ID, TargetID: e.alice.ID, Visibility: "private",
+		})
+		if err != nil {
+			t.Fatalf("friend filter: %v", err)
+		}
+		got := ids(res.Items)
+		if len(res.Items) != 2 || !got[pub.ID] || !got[friends.ID] || got[private.ID] {
+			t.Fatalf("friend filter = %+v, want public+friends only", res.Items)
+		}
+
+		stranger, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{
+			ViewerID: e.carol.ID, TargetID: e.alice.ID, Visibility: "friends",
+		})
+		if err != nil {
+			t.Fatalf("stranger filter: %v", err)
+		}
+		if len(stranger.Items) != 1 || stranger.Items[0].ID != pub.ID {
+			t.Fatalf("stranger filter = %+v, want only public", stranger.Items)
+		}
+	})
 }
 
 func TestProfileStatsAndLists(t *testing.T) {
