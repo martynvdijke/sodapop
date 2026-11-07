@@ -130,6 +130,7 @@ flutter build apk --release \
 - Sign-in and session restore never prompt: the registrar registers a token only if `hasPermission()` is already true. Turning the push switch on in Settings calls `requestPermission()` first, and a refusal leaves the preference off with an explanation. Once granted, `POST /api/v1/me/push/devices` stores `{"token": "...", "platform": "android"}` and token refreshes re-register.
 - Sign-out calls `DELETE /api/v1/me/push/devices` with the last token in the body, best effort, while the Bearer token is still valid, then invalidates the registration at Firebase (`unregister()`) even if the request failed, so a lost request cannot leave the device receiving another account's notifications.
 - The server sends `notification.title/body`, `data.url`, high Android priority, `collapse_key=sodapop-notification`, and channel `sodapop_default`. Foreground messages refresh the notifications screen; the background handler is registered so data messages are delivered.
+- Deliverability limit: define-based initialisation covers the app while its process is alive. A push that cold-starts a force-stopped app reaches the native FCM service before Dart creates the default app, so guaranteed cold-start delivery needs a build-time `google-services.json` (gitignored, generated from CI secrets) and the Google Services plugin applied when that file exists. Until the app creates a high-importance channel, Android falls back to the low-importance FCM channel, so notifications arrive without heads-up display.
 
 ## 8. CI & Release Pipeline
 
