@@ -1,3 +1,10 @@
+## [1.22.1](https://github.com/martynvdijke/sodapop/compare/v1.22.0...v1.22.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **deps:** update module modernc.org/sqlite to v1.62.0 ([#16](https://github.com/martynvdijke/sodapop/issues/16)) ([f7585a3](https://github.com/martynvdijke/sodapop/commit/f7585a31e0a18fe6f5d427871271e2a4974c5c1f))
+
 # [1.22.0](https://github.com/martynvdijke/sodapop/compare/v1.21.1...v1.22.0) (2026-11-07)
 
 
