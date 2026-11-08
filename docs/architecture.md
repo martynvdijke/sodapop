@@ -53,6 +53,7 @@ sodapop/
 │   ├── setup/             # first-run token, atomic first-admin creation
 │   ├── secretbox/         # AES-GCM for runtime secrets
 │   ├── social/            # friends, follows, blocks, activity feed, notifications
+│   ├── overview/          # admin activity timeline: merged read-only event stream
 │   ├── taste/             # taste twins and recommendations
 │   ├── venues/            # venues, venue check-ins, menus, venue media, geocoding
 │   ├── users/             # profiles, settings, privacy
@@ -162,6 +163,7 @@ GET  /auth/oidc/login           start OIDC Authorization Code + PKCE S256
 GET  /auth/oidc/callback        verify state/nonce/PKCE + JWKS ID token
 POST /auth/oidc/logout          clear session + redirect to OIDC end-session
 GET  /admin                     moderation overview (admin or moderator)
+GET  /admin/activity            merged activity timeline, kind filter, cursor paging (admin or moderator)
 GET  /admin/settings            runtime settings panel (admin only)
 POST /admin/settings/{general,email,email/test,analytics,access,ai,observability}
 POST /admin/ai                  save an AI endpoint (admin or moderator)
@@ -228,6 +230,8 @@ GET  /api/v1/drinks/{slug}/images     one drink's gallery
 POST /api/v1/drinks/{slug}/images     upload a gallery image
 POST /api/v1/drinks/images/{id}/primary  set primary (admin)
 DELETE /api/v1/drinks/images/{id}     delete image (admin)
+GET  /api/v1/admin/overview             merged activity timeline, `before`/`kind`/`limit` (admin or moderator; 404 otherwise)
+GET  /api/v1/admin/overview/counts      timeline header counters (admin or moderator; 404 otherwise)
 GET  /api/v1/admin/reports/{id}/notes   internal report notes (admin)
 POST /api/v1/admin/reports/{id}/notes   add an internal note (admin)
 DELETE /api/v1/admin/notes/{id}         delete an internal note (admin)

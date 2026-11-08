@@ -156,36 +156,51 @@ class SodaRating extends StatelessWidget {
 }
 
 /// A compact rounded label for visibility, venue names and other metadata.
+///
+/// [background] and [foreground] are optional overrides for the neutral look;
+/// pass theme colours to mark a positive or flagged row without introducing a
+/// second palette.
 class SodaPill extends StatelessWidget {
-  const SodaPill({super.key, required this.label, this.icon});
+  const SodaPill({
+    super.key,
+    required this.label,
+    this.icon,
+    this.background,
+    this.foreground,
+  });
 
   final String label;
   final IconData? icon;
+  final Color? background;
+  final Color? foreground;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ink = foreground ?? theme.colorScheme.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+        color: background ?? theme.colorScheme.onSurface.withValues(alpha: 0.05),
         border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+          color: foreground != null
+              ? foreground!.withValues(alpha: 0.22)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.12),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
+            Icon(icon, size: 14, color: ink),
             const SizedBox(width: 5),
           ],
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurfaceVariant,
+              color: ink,
             ),
           ),
         ],

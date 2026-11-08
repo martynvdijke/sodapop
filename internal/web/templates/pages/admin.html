@@ -25,6 +25,7 @@
   <div><strong>{{.Users}}</strong><span>accounts</span></div>
   {{if .Suspended}}<div><strong>{{.Suspended}}</strong><span>suspended</span></div>{{end}}
 </section>
+<p class="admin-activity-link"><a class="btn btn-small" href="/admin/activity">Open the activity feed</a></p>
 
 <h2>Moderation queue</h2>
 {{range .Reports}}

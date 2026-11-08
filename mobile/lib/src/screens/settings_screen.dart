@@ -13,6 +13,7 @@ import '../theme/soda_theme.dart';
 import '../theme/theme_mode.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
+import 'admin_overview_screen.dart';
 import 'legal_screen.dart';
 
 /// One picked profile photo, already read into memory so the upload does not
@@ -673,6 +674,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 24),
         _blockedSection(theme),
         const SizedBox(height: 24),
+        if (_isStaff(settings.profile)) ...[
+          _adminSection(theme),
+          const SizedBox(height: 24),
+        ],
         _accountSection(theme, settings),
       ],
     );
@@ -1147,6 +1152,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  /// Moderation entry point. Visible only for staff roles; the server still
+  /// answers 404 for anyone else, so this is a doorway, not a permission.
+  Widget _adminSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SodaSectionTitle(title: 'Admin tools'),
+        const SizedBox(height: 10),
+        Card(
+          child: ListTile(
+            key: const Key('settings-admin-overview'),
+            contentPadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+            leading: Icon(
+              Icons.shield_outlined,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            title: const Text('Activity overview'),
+            subtitle: const Text(
+              'Check-ins, sodas and reports as they happen.',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => AdminOverviewScreen.open(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static bool _isStaff(SettingsProfile profile) {
+    final role = profile.role.toLowerCase();
+    return role == 'admin' || role == 'moderator';
+  }
+
   Widget _securitySection(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1554,7 +1592,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   static String _roleLabel(String role) {
-    return role.toLowerCase() == 'admin' ? 'Admin' : 'Member';
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'Admin';
+      case 'moderator':
+        return 'Moderator';
+      default:
+        return 'Member';
+    }
   }
 
   static String _deviceName(String agent) {

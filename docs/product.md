@@ -220,6 +220,7 @@ Personal stats: total check-ins, unique drinks, average rating, toasts received,
 
 Access is role-gated: the moderation overview and report actions accept `moderator` or `admin`; the operational pages marked below require `admin`.
 
+- **Activity overview** (`/admin/activity`): one reverse-chronological list merging the newest events — check-ins, new sodas with lifecycle status, new members, new venues, reports, comments and toasts — with a kind filter and an opaque `(created_at, id)` cursor, 50 per page. Five counters summarise check-ins and new sodas in the last 24 hours, new members in 7 days, open reports and provisional sodas. It is read-only: actions stay on the moderation and catalog pages. The Android app shows the same list read-only, with a copy-link action instead of admin writes.
 - **Catalog**: search, edit, verify, merge duplicates (reassigns check-ins, lists, barcodes; keeps a redirect), delete (soft), and publish or unpublish a drink for the public fact sheet at `POST /admin/drinks/{id}/publish` (CSRF-protected, admin role). The drink page explains that published catalog facts are public while user data is not.
 - **Reports**: queue for duplicate/wrong data/spam/abuse, resolve with reason, notify reporter.
 - **Venues**: `/admin/venues` searches venues by name, city or known alias, shows the source venue's aliases, and merges a source into a target. Cycle, missing-venue and invalid-id attempts return a clear error instead of a partial merge.
@@ -235,7 +236,7 @@ Access is role-gated: the moderation overview and report actions accept `moderat
 
 #### v1.7 admin surfaces and backups
 
-The admin nav links Overview, Settings, Badges, Venues, Digest and System. Moderators keep the `/admin` moderation overview; the Settings, Badges, Venues, Digest and System pages require the `admin` role, and the More menu only shows Admin to admins.
+The admin nav links Overview, Activity, Settings, Badges, Venues, Digest and System. Moderators keep the `/admin` moderation overview; the Settings, Badges, Venues, Digest and System pages require the `admin` role, and the More menu only shows Admin to admins.
 
 Backups are automatic and file-based: a consistent SQLite snapshot is written to `${DATA_DIR}/backups` (default `data/backups`) at startup and then hourly, with a 24-hour gate and a single-instance lease. Each snapshot is owner-only, integrity-checked read-only, and the newest 14 are retained. Operators can also create one immediately from `/admin/system`. Restoring is intentionally offline — stop the server, then run `go run ./cmd/restore -from <backup> -db <database> -yes`; there is no HTTP restore endpoint.
 

@@ -553,6 +553,90 @@
           }
         }
       },
+      "OverviewEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "created_at",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "checkin",
+              "drink",
+              "user",
+              "venue",
+              "report",
+              "comment",
+              "toast"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "actor_handle": {
+            "type": "string"
+          },
+          "actor_name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "subject_id": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string"
+          }
+        }
+      },
+      "OverviewCounts": {
+        "type": "object",
+        "required": [
+          "checkins_24h",
+          "drinks_24h",
+          "users_7d",
+          "open_reports",
+          "pending_drinks"
+        ],
+        "properties": {
+          "checkins_24h": {
+            "type": "integer"
+          },
+          "drinks_24h": {
+            "type": "integer"
+          },
+          "users_7d": {
+            "type": "integer"
+          },
+          "open_reports": {
+            "type": "integer"
+          },
+          "pending_drinks": {
+            "type": "integer"
+          }
+        }
+      },
       "AdminNote": {
         "type": "object",
         "required": [
@@ -6253,6 +6337,137 @@
         },
         "tags": [
           "drinks"
+        ]
+      }
+    },
+    "/api/v1/admin/overview": {
+      "get": {
+        "summary": "Admin activity overview",
+        "description": "Newest-first union of check-ins, drinks, users, venues, reports, comments and toasts. Admin only; non-admins receive 404. Uses an opaque composite cursor in `next_before`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "description": "Comma-separated whitelist of kinds. Unknown values are ignored; an empty or all-unknown list returns an empty page only when at least one value was supplied.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Opaque cursor from `meta.next_before`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size, default 50, clamped to 100.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One activity page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OverviewEvent"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "count",
+                        "next_before"
+                      ],
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "next_before": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Caller is not an admin"
+          }
+        },
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/admin/overview/counts": {
+      "get": {
+        "summary": "Admin activity counters",
+        "description": "At-a-glance activity counters. Admin only; non-admins receive 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity counters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OverviewCounts"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Caller is not an admin"
+          }
+        },
+        "tags": [
+          "system"
         ]
       }
     },

@@ -3187,6 +3187,84 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
   color: var(--warning);
 }
 
+/* Admin activity feed ------------------------------------------------ */
+.admin-activity-link { margin: -.25rem 0 1.25rem; }
+
+.stat-grid > .activity-counter {
+  display: block;
+  padding: .8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.stat-grid > .activity-counter:hover { border-color: var(--border-strong); }
+.stat-grid > .activity-counter:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 2px;
+}
+
+.activity-filter { margin: 0 0 1rem; }
+
+.activity-feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.activity-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .35rem .9rem;
+  padding: .8rem .95rem;
+  border-bottom: 1px solid var(--border);
+}
+.activity-item:last-child { border-bottom: 0; }
+.activity-body { min-width: 0; }
+.activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .15rem .45rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+.activity-kind {
+  color: var(--text-muted);
+  font-weight: 650;
+}
+.activity-title {
+  margin: .3rem 0 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.activity-title a { color: inherit; }
+.activity-title a:hover { color: var(--accent-ink); }
+.activity-detail {
+  margin: .15rem 0 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+  overflow-wrap: anywhere;
+}
+.activity-pill {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  justify-self: end;
+}
+.activity-empty { margin: 0; padding: 1.1rem .95rem; }
+.activity-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: 1rem 0 0;
+}
+
 .admin-note {
   margin: 1rem 0 0;
   padding: .9rem 1rem;
@@ -3382,6 +3460,15 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
   .admin-panel { padding: 1rem; }
   .admin-nav { border-radius: 14px; }
   .admin-venue-actions { flex: 1 1 100%; }
+}
+
+@media (max-width: 480px) {
+  .activity-item { grid-template-columns: minmax(0, 1fr); }
+  .activity-pill {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
 }
 
 /* Nearby: a location-scoped feed. Coordinates live only in the form's hidden

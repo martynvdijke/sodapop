@@ -1111,6 +1111,45 @@ class ApiClient {
     await _dio.post<dynamic>('api/v1/notifications/read', options: _options());
   });
 
+  /// The admin activity feed, newest first. [kinds] narrows it to one or more
+  /// event kinds; an empty list asks for everything. Accounts without a staff
+  /// role answer 404, which the screen shows as "Admin access required".
+  Future<AdminOverviewPage> adminOverview({
+    String? before,
+    int limit = 50,
+    List<String> kinds = const [],
+  }) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/admin/overview',
+      queryParameters: {
+        'limit': limit,
+        if (_trimmed(before) != null) 'before': _trimmed(before),
+        if (kinds.isNotEmpty) 'kind': kinds.join(','),
+      },
+      options: _options(),
+    );
+    final body = response.data;
+    if (body is! Map) {
+      throw ApiException(
+        'Unexpected response from the server',
+        statusCode: response.statusCode,
+      );
+    }
+    // The page body carries `meta`, so it cannot go through [_data].
+    return AdminOverviewPage.fromJson(body.cast<String, dynamic>());
+  });
+
+  /// The counters that sit above the admin activity feed.
+  Future<AdminOverviewCounts> adminOverviewCounts() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/admin/overview/counts',
+      options: _options(),
+    );
+    return AdminOverviewCounts.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
   /// Registers this device's FCM token so the server can wake it with push.
   Future<void> registerPushDevice(
     String token, {

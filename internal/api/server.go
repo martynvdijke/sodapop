@@ -196,6 +196,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "DELETE /api/v1/venues/{venueID}/{target}", s.protect("write", true, s.venueDelete))
 	s.route(mux, "GET /api/v1/venues/{id}/media", s.protect("read", false, s.listVenueMedia))
 	s.route(mux, "POST /api/v1/venues/{id}/media", s.protect("write", true, s.uploadVenueMedia))
+	s.route(mux, "GET /api/v1/admin/overview", s.protect("read", false, s.adminOverview))
+	s.route(mux, "GET /api/v1/admin/overview/counts", s.protect("read", false, s.adminOverviewCounts))
 	s.route(mux, "GET /api/v1/admin/reports/{id}/notes", s.protect("read", false, s.listReportNotes))
 	s.route(mux, "POST /api/v1/admin/reports/{id}/notes", s.protect("write", true, s.createReportNote))
 	s.route(mux, "DELETE /api/v1/admin/notes/{id}", s.protect("write", true, s.deleteAdminNote))

@@ -215,6 +215,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /hooks/ha/{token}", s.haInbound)
 
 	mux.HandleFunc("GET /admin", s.requireAdmin(s.adminPage))
+	mux.HandleFunc("GET /admin/activity", s.requireAdmin(s.adminActivityPage))
 	mux.HandleFunc("GET /admin/settings", s.requireAdminStrict(s.adminSettingsPage))
 	mux.HandleFunc("POST /admin/settings/general", s.requireAdminStrict(s.adminSettingsGeneral))
 	mux.HandleFunc("POST /admin/settings/email", s.requireAdminStrict(s.adminSettingsEmail))

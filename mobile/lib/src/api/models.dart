@@ -2299,3 +2299,112 @@ class DrinkCreation {
     created: created,
   );
 }
+
+/// One row of the admin activity feed returned by
+/// `GET /api/v1/admin/overview`.
+///
+/// [kind] is one of `checkin`, `drink`, `user`, `venue`, `report`, `comment`
+/// or `toast`. Unknown kinds are kept as they arrive so a newer server never
+/// breaks the app; the screen falls back to a neutral label.
+class AdminOverviewEvent {
+  const AdminOverviewEvent({
+    this.id = '',
+    this.kind = '',
+    this.createdAt = '',
+    this.actorId = '',
+    this.actorHandle = '',
+    this.actorName = '',
+    this.title = '',
+    this.detail = '',
+    this.status = '',
+    this.visibility = '',
+    this.subjectId = '',
+    this.href = '',
+  });
+
+  final String id;
+  final String kind;
+
+  /// RFC 3339 UTC timestamp.
+  final String createdAt;
+  final String actorId;
+
+  /// Empty for system events, which the screen words as "system".
+  final String actorHandle;
+  final String actorName;
+  final String title;
+  final String detail;
+  final String status;
+  final String visibility;
+  final String subjectId;
+
+  /// Server-relative web path such as `/checkins/<id>`, empty when the event
+  /// has no page to open.
+  final String href;
+
+  factory AdminOverviewEvent.fromJson(Map<String, dynamic> json) =>
+      AdminOverviewEvent(
+        id: _string(json['id']),
+        kind: _string(json['kind']).toLowerCase(),
+        createdAt: _string(json['created_at']),
+        actorId: _string(json['actor_id']),
+        actorHandle: _string(json['actor_handle']),
+        actorName: _string(json['actor_name']),
+        title: _string(json['title']),
+        detail: _string(json['detail']),
+        status: _string(json['status']),
+        visibility: _string(json['visibility']),
+        subjectId: _string(json['subject_id']),
+        href: _string(json['href']),
+      );
+}
+
+/// One page of the admin activity feed. [nextBefore] is empty on the last
+/// page, which is how the screen knows to stop asking for more.
+class AdminOverviewPage {
+  const AdminOverviewPage({this.items = const [], this.nextBefore = ''});
+
+  final List<AdminOverviewEvent> items;
+  final String nextBefore;
+
+  bool get hasMore => nextBefore.isNotEmpty;
+
+  /// Accepts the wrapped `{"data": [...], "meta": {"next_before": ...}}` body.
+  factory AdminOverviewPage.fromJson(Map<String, dynamic> json) {
+    final data = json['data'];
+    final rows = data is List ? data : const <dynamic>[];
+    return AdminOverviewPage(
+      items: rows
+          .whereType<Map>()
+          .map((row) => AdminOverviewEvent.fromJson(row.cast<String, dynamic>()))
+          .toList(),
+      nextBefore: _string(_map(json['meta'])['next_before']),
+    );
+  }
+}
+
+/// The five counters shown above the admin activity feed.
+class AdminOverviewCounts {
+  const AdminOverviewCounts({
+    this.checkins24h = 0,
+    this.drinks24h = 0,
+    this.users7d = 0,
+    this.openReports = 0,
+    this.pendingDrinks = 0,
+  });
+
+  final int checkins24h;
+  final int drinks24h;
+  final int users7d;
+  final int openReports;
+  final int pendingDrinks;
+
+  factory AdminOverviewCounts.fromJson(Map<String, dynamic> json) =>
+      AdminOverviewCounts(
+        checkins24h: _int(json['checkins_24h']) ?? 0,
+        drinks24h: _int(json['drinks_24h']) ?? 0,
+        users7d: _int(json['users_7d']) ?? 0,
+        openReports: _int(json['open_reports']) ?? 0,
+        pendingDrinks: _int(json['pending_drinks']) ?? 0,
+      );
+}

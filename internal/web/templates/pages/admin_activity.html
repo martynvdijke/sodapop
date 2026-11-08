@@ -1,0 +1,70 @@
+{{define "content"}}
+<div class="admin-head">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>Activity</h1>
+    <p class="lede">The newest check-ins, sodas, members, venues, reports, comments and toasts across the instance.</p>
+  </div>
+</div>
+{{template "adminnav" "activity"}}
+
+{{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+<section class="admin-section" aria-labelledby="activity-counters-title">
+  <h2 id="activity-counters-title" class="sr-only">At a glance</h2>
+  <div class="stat-grid activity-counters">
+    <div><strong>{{.Counts.Checkins24h}}</strong><span class="stat-label">check-ins · 24 h</span></div>
+    <div><strong>{{.Counts.Drinks24h}}</strong><span class="stat-label">new sodas · 24 h</span></div>
+    <div><strong>{{.Counts.Users7d}}</strong><span class="stat-label">new members · 7 d</span></div>
+    <a class="activity-counter" href="/admin"><strong>{{.Counts.OpenReports}}</strong><span class="stat-label">open reports</span></a>
+    <a class="activity-counter" href="/admin"><strong>{{.Counts.PendingDrinks}}</strong><span class="stat-label">pending sodas</span></a>
+  </div>
+</section>
+
+<section class="admin-section" aria-labelledby="activity-feed-title">
+  <div class="admin-section-head">
+    <div>
+      <h2 id="activity-feed-title">Latest</h2>
+      <p class="muted">Newest first, 50 per page.</p>
+    </div>
+  </div>
+
+  <nav aria-label="Filter activity by kind" class="activity-filter">
+    <ul class="pill-row">
+      {{range .Kinds}}
+      <li>
+        <a class="pill{{if .Active}} pill-current{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a>
+      </li>
+      {{end}}
+    </ul>
+  </nav>
+
+  {{if .Empty}}
+  <p class="muted activity-empty">Nothing has happened in this window yet.</p>
+  {{else}}
+  <ul class="activity-feed">
+    {{range .Events}}
+    <li class="activity-item">
+      <div class="activity-body">
+        <p class="activity-meta">
+          <span class="pill activity-kind">{{.KindLabel}}</span>
+          <span>{{.When}}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{.Actor}}</span>
+        </p>
+        <p class="activity-title">{{if .Href}}<a href="{{.Href}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</p>
+        {{if .Detail}}<p class="activity-detail">{{.Detail}}</p>{{end}}
+      </div>
+      {{if .Pill}}<span class="pill activity-pill{{if .PillWarn}} pill-warn{{end}}">{{.Pill}}</span>{{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+
+  <nav aria-label="Activity pages" class="activity-pager">
+    {{if .HasCursor}}<a class="btn btn-small" href="/admin/activity">Latest</a>{{end}}
+    {{if .OlderHref}}<a class="btn btn-small" href="{{.OlderHref}}" rel="next">Older</a>{{end}}
+  </nav>
+</section>
+{{end}}
