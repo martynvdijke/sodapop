@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/martynvdijke/sodapop/compare/v1.22.1...v1.23.0) (2026-11-08)
+
+
+### Features
+
+* **mobile:** add OpenTelemetry tracing with runtime endpoint from API ([047491c](https://github.com/martynvdijke/sodapop/commit/047491c8dda4ee9b3a89462d4e925076ac5e332e))
+
 ## [1.22.1](https://github.com/martynvdijke/sodapop/compare/v1.22.0...v1.22.1) (2026-11-07)
 
 
