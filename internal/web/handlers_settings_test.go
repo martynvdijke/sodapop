@@ -9,10 +9,54 @@ import (
 
 	"sodapop/ent/apitoken"
 	"sodapop/ent/inboundtoken"
+	"sodapop/ent/media"
 	"sodapop/ent/session"
 	"sodapop/ent/user"
 	"sodapop/internal/account"
 )
+
+func TestSettingsAvatarDeleteRequiresCSRFAndClearsAvatar(t *testing.T) {
+	h := newV12Harness(t)
+	ctx := context.Background()
+	u := h.verifiedUser(t, "avatar-deleter", user.RoleUser)
+	row, err := h.db.Client.Media.Create().
+		SetUserID(u.ID).SetKind(media.KindAvatar).
+		SetPath("2026/01/avatar.png").SetMime("image/png").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.srv.Auth.SetAvatar(ctx, u.ID, row.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// A signed-in request without the CSRF token is refused and changes nothing.
+	rec := httptest.NewRecorder()
+	h.srv.settingsAvatarDelete(rec, h.request(http.MethodPost, "/settings/avatar/delete", u, url.Values{}))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF = %d, want 403", rec.Code)
+	}
+	still, err := h.db.Client.User.Get(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if still.AvatarMediaID == nil || *still.AvatarMediaID != row.ID {
+		t.Fatalf("avatar changed without CSRF: %v", still.AvatarMediaID)
+	}
+
+	// With the token the avatar is detached and the browser returns to settings.
+	rec = httptest.NewRecorder()
+	h.srv.settingsAvatarDelete(rec, h.request(http.MethodPost, "/settings/avatar/delete", u, h.form()))
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/settings" {
+		t.Fatalf("delete = %d %q, want 302 /settings", rec.Code, rec.Header().Get("Location"))
+	}
+	cleared, err := h.db.Client.User.Get(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared.AvatarMediaID != nil {
+		t.Fatalf("AvatarMediaID = %v, want nil", cleared.AvatarMediaID)
+	}
+}
 
 func wireAccount(h *v12Harness) {
 	h.srv.Account = account.New(h.db.Client, nil)

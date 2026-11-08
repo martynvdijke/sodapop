@@ -1,6 +1,13 @@
 {{define "content"}}
 <p class="eyebrow">You</p>
-<h1>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}@{{.User.Handle}}{{end}}</h1>
+<div class="you-header">
+  {{if .User.AvatarMediaID}}
+    <img class="profile-avatar profile-avatar-img" src="/media/{{.User.AvatarMediaID}}" alt="Your profile photo" width="72" height="72" loading="lazy" decoding="async">
+  {{else}}
+    <span class="profile-avatar" aria-hidden="true">{{if .User.DisplayName}}{{initial .User.DisplayName}}{{else}}{{initial .User.Handle}}{{end}}</span>
+  {{end}}
+  <h1>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}@{{.User.Handle}}{{end}}</h1>
+</div>
 <p class="muted">@{{.User.Handle}} · joined {{.User.CreatedAt}}{{if .User.Country}} · {{.User.Country}}{{end}}</p>
 
 <section class="stat-grid">

@@ -73,6 +73,12 @@
           </div>
         </form>
       </div>
+      {{if .Profile.AvatarID}}
+        <form method="post" action="/settings/avatar/delete" class="settings-avatar-remove">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+          <button class="btn btn-small" type="submit">Remove photo</button>
+        </form>
+      {{end}}
     </div>
   </section>
 

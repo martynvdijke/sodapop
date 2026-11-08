@@ -137,6 +137,15 @@ p { margin: .5rem 0; }
   font-variant-numeric: tabular-nums;
 }
 .nav-badge[hidden] { display: none; }
+.nav-avatar {
+  display: inline-flex; flex: 0 0 30px; align-items: center; justify-content: center;
+  width: 30px; height: 30px; overflow: hidden; border: 1px solid var(--border-strong);
+  border-radius: 50%; background: var(--primary-tint); color: var(--text);
+  font-size: .8rem; font-weight: 800; line-height: 1;
+}
+.nav-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.site-header nav a.nav-avatar:hover { text-decoration: none; border-color: var(--text); }
+.site-header nav a.nav-avatar:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .nav-more { position: relative; }
 .nav-more > summary {
   display: inline-flex; align-items: center; gap: .35rem; min-height: 44px;
@@ -437,6 +446,7 @@ label { display: grid; gap: .3rem; font-weight: 600; }
 }
 .settings-avatar-preview { flex: 0 0 auto; }
 .settings-avatar-form { flex: 1 1 240px; min-width: 0; }
+.settings-avatar-remove { margin-top: .75rem; }
 .settings-section input[type="file"] {
   width: 100%; padding: .75rem; background: var(--surface-sunken);
   border: 1px dashed var(--border-strong);
@@ -683,6 +693,15 @@ label { display: grid; gap: .3rem; font-weight: 600; }
 
 /* 2. Profile page ---------------------------------------------------------
    Shared list furniture here is also used by Insights and Integrations. */
+.you-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0;
+}
+.you-header h1 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
 .profile-page { padding-bottom: 1rem; }
 
 .profile-header {

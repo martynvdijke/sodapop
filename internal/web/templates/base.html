@@ -67,6 +67,13 @@
             </form>
           </div>
         </details>
+        <a class="nav-avatar" href="/you" aria-label="Your profile">
+          {{if .User.AvatarMediaID}}
+            <img src="/media/{{.User.AvatarMediaID}}" alt="Your profile" width="30" height="30" loading="lazy" decoding="async">
+          {{else}}
+            <span aria-hidden="true">{{if .User.DisplayName}}{{initial .User.DisplayName}}{{else}}{{initial .User.Handle}}{{end}}</span>
+          {{end}}
+        </a>
       {{else}}
         {{if .SetupRequired}}
           <a class="nav-setup" href="/setup">Finish setup</a>

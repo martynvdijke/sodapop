@@ -177,6 +177,20 @@ func (s *Server) settingsAvatar(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings", http.StatusFound)
 }
 
+// settingsAvatarDelete detaches the signed-in user's avatar. The media row is
+// kept so it can be re-selected or garbage-collected later.
+func (s *Server) settingsAvatarDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	if err := s.Auth.ClearAvatar(r.Context(), u.ID); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/settings", http.StatusFound)
+}
+
 func (s *Server) settingsPreferences(w http.ResponseWriter, r *http.Request) {
 	if !s.csrfOK(w, r) {
 		return
