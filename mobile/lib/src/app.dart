@@ -9,6 +9,7 @@ import 'offline/checkin_outbox.dart';
 import 'screens/home_shell.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/public_shell.dart';
+import 'telemetry/telemetry_bootstrap.dart';
 import 'theme/soda_theme.dart';
 import 'theme/theme_mode.dart';
 
@@ -95,21 +96,23 @@ class _SodapopAppState extends ConsumerState<SodapopApp>
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final themeMode = ref.watch(themeModeProvider);
-    return MaterialApp(
-      title: 'Sodapop',
-      debugShowCheckedModeBanner: false,
-      theme: sodaTheme(Brightness.light),
-      darkTheme: sodaTheme(Brightness.dark),
-      themeMode: themeMode,
-      home: auth.loading
-          ? const Scaffold(
-              body: Center(child: CircularProgressIndicator(color: Soda.lime)),
-            )
-          : auth.signedIn
-          ? const HomeShell()
-          : auth.preview
-          ? const PublicShell()
-          : const OnboardingScreen(),
+    return TelemetryBootstrap(
+      child: MaterialApp(
+        title: 'Sodapop',
+        debugShowCheckedModeBanner: false,
+        theme: sodaTheme(Brightness.light),
+        darkTheme: sodaTheme(Brightness.dark),
+        themeMode: themeMode,
+        home: auth.loading
+            ? const Scaffold(
+                body: Center(child: CircularProgressIndicator(color: Soda.lime)),
+              )
+            : auth.signedIn
+            ? const HomeShell()
+            : auth.preview
+            ? const PublicShell()
+            : const OnboardingScreen(),
+      ),
     );
   }
 }

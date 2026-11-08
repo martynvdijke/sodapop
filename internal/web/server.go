@@ -97,6 +97,10 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /terms", s.termsPage)
 	mux.HandleFunc("GET /account/delete", s.accountDeletePage)
 
+	// Public observability settings: the mobile app learns where to send traces
+	// before the user has signed in, so this cannot require a session.
+	mux.HandleFunc("GET /api/otel-settings", s.otelSettingsJSON)
+
 	mux.HandleFunc("GET /auth/oidc/login", s.Auth.BeginLogin)
 	mux.HandleFunc("GET /auth/oidc/callback", s.oidcCallback)
 	mux.HandleFunc("POST /auth/oidc/logout", s.logout)
