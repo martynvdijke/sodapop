@@ -26,6 +26,7 @@ import (
 
 	"sodapop/ent"
 	"sodapop/ent/aiendpoint"
+	"sodapop/internal/telemetry"
 )
 
 const (
@@ -213,7 +214,7 @@ func (s *Service) version() string {
 // caller's context deadline is still the authority for shorter operations.
 func (s *Service) clientFor(timeout time.Duration) *http.Client {
 	if s == nil || s.HTTP == nil {
-		return &http.Client{Timeout: timeout}
+		return telemetry.HTTPClient(&http.Client{Timeout: timeout}, "ai")
 	}
 	client := *s.HTTP
 	if client.Timeout == 0 || client.Timeout < timeout {

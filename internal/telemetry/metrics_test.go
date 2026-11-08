@@ -65,14 +65,14 @@ func TestSetupMetricsNoop(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			shutdown, err := SetupMetrics(context.Background(), tt.cfg)
+			setup, err := SetupMetrics(context.Background(), tt.cfg)
 			if err != nil {
 				t.Fatalf("SetupMetrics: %v", err)
 			}
-			if shutdown == nil {
+			if setup == nil || setup.Shutdown == nil {
 				t.Fatal("shutdown is nil")
 			}
-			if err := shutdown(context.Background()); err != nil {
+			if err := setup.Shutdown(context.Background()); err != nil {
 				t.Fatalf("shutdown: %v", err)
 			}
 			if defaultMetrics.Load() != nil {
@@ -172,5 +172,27 @@ func TestOutboxDepthCallback(t *testing.T) {
 	}
 	if len(data.DataPoints) != 1 || data.DataPoints[0].Value != 7 {
 		t.Fatalf("outbox depth points = %+v, want one point with value 7", data.DataPoints)
+	}
+}
+
+func TestSetupMetricsServePrometheus(t *testing.T) {
+	setup, err := SetupMetrics(context.Background(), Config{Prometheus: true})
+	if err != nil {
+		t.Fatalf("SetupMetrics: %v", err)
+	}
+	t.Cleanup(func() { _ = setup.Shutdown(context.Background()) })
+	if setup.Prometheus == nil {
+		t.Fatal("prometheus handler is nil")
+	}
+	rec := httptest.NewRecorder()
+	setup.Prometheus.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"go_goroutines", "target_info"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("scrape is missing %q", want)
+		}
 	}
 }

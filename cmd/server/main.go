@@ -59,19 +59,18 @@ func run() error {
 		cfg.Version = Version
 	}
 	level, levelErr := config.ParseLogLevel(cfg.LogLevel)
-	var handler slog.Handler
+	var baseHandler slog.Handler
 	opts := &slog.HandlerOptions{Level: level}
 	if cfg.Env == "development" {
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		baseHandler = slog.NewTextHandler(os.Stdout, opts)
 	} else {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		baseHandler = slog.NewJSONHandler(os.Stdout, opts)
 	}
-	log := slog.New(handler)
+	log := slog.New(baseHandler)
 	slog.SetDefault(log)
 	if levelErr != nil {
 		log.Warn("unrecognised LOG_LEVEL; using info", "value", cfg.LogLevel)
 	}
-
 	database, err := db.Init(cfg.DBPath)
 	if err != nil {
 		return err
@@ -93,7 +92,10 @@ func run() error {
 	telCfg := telemetry.FromEnv(cfg.Version)
 	telCfg.Endpoint = snap.OTELEndpoint()
 	if os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") == "" {
-		telCfg.MetricsEndpoint = metricsEndpoint(telCfg.Endpoint)
+		telCfg.MetricsEndpoint = signalEndpoint(telCfg.Endpoint, "metrics")
+	}
+	if os.Getenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT") == "" {
+		telCfg.LogsEndpoint = signalEndpoint(telCfg.Endpoint, "logs")
 	}
 	if name := snap.OTELServiceName(); name != "" {
 		telCfg.ServiceName = name
@@ -107,17 +109,36 @@ func run() error {
 		log.Warn("telemetry disabled", "err", err)
 		shutdownTelemetry = func(context.Context) error { return nil }
 	}
-	shutdownMetrics, err := telemetry.SetupMetrics(context.Background(), telCfg)
+	metricsSetup, err := telemetry.SetupMetrics(context.Background(), telCfg)
 	if err != nil {
 		log.Warn("metrics disabled", "err", err)
-		shutdownMetrics = func(context.Context) error { return nil }
+		metricsSetup = &telemetry.MetricsSetup{Shutdown: func(context.Context) error { return nil }}
 	}
+	shutdownMetrics := metricsSetup.Shutdown
+
+	// Keep JSON/console output and fan the same records out over OTLP. The
+	// handler is rebuilt only when log export is actually configured.
+	shutdownLogs := func(context.Context) error { return nil }
+	if otelLogs, shutdown, err := telemetry.SetupLogs(context.Background(), telCfg); err != nil {
+		log.Warn("log export disabled", "err", err)
+	} else if otelLogs != nil {
+		log = slog.New(telemetry.Fanout(baseHandler, otelLogs))
+		slog.SetDefault(log)
+		shutdownLogs = shutdown
+	}
+
 	if telCfg.Enabled {
 		log.Info("telemetry enabled", "endpoint", telCfg.Endpoint, "sampler", telCfg.Sampler)
+	}
+	if telCfg.LogsEndpoint != "" && !telCfg.Disabled {
+		log.Info("log export enabled", "endpoint", telCfg.LogsEndpoint)
 	}
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		if err := shutdownLogs(ctx); err != nil {
+			log.Warn("logs shutdown", "err", err)
+		}
 		if err := shutdownMetrics(ctx); err != nil {
 			log.Warn("metrics shutdown", "err", err)
 		}
@@ -230,6 +251,9 @@ func run() error {
 	})
 	apiSrv.Register(mux)
 	webSrv.Register(mux)
+	if metricsSetup.Prometheus != nil {
+		mux.Handle("GET /metrics", metricsSetup.Prometheus)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -289,12 +313,15 @@ func run() error {
 	return httpServer.Shutdown(shutdownCtx)
 }
 
-// metricsEndpoint keeps a single editable OTLP endpoint usable for both
-// signals. A trace-specific path is translated to the metrics path; a base
-// URL is passed through and the exporter appends the standard suffix.
-func metricsEndpoint(endpoint string) string {
-	if strings.HasSuffix(endpoint, "/v1/traces") {
-		return strings.TrimSuffix(endpoint, "/v1/traces") + "/v1/metrics"
+// signalEndpoint keeps a single editable OTLP endpoint usable for every
+// signal. A signal-specific path is translated; a base URL is passed through
+// and the exporter appends the standard suffix.
+func signalEndpoint(endpoint, signal string) string {
+	for _, current := range []string{"traces", "metrics", "logs"} {
+		suffix := "/v1/" + current
+		if strings.HasSuffix(endpoint, suffix) {
+			return strings.TrimSuffix(endpoint, suffix) + "/v1/" + signal
+		}
 	}
 	return endpoint
 }

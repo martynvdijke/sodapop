@@ -18,6 +18,7 @@ import (
 	"sodapop/ent/drinkbarcode"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/telemetry"
 )
 
 // ErrOFFNotFound means the product is not in Open Food Facts.
@@ -58,7 +59,7 @@ func NewOFFClient(cfg *config.Config, database *db.DB) *OFFClient {
 		base:      cfg.OFFBaseURL,
 		userAgent: cfg.OFFUserAgent,
 		enabled:   cfg.OFFEnabled,
-		client:    &http.Client{Timeout: 15 * time.Second},
+		client:    telemetry.HTTPClient(&http.Client{Timeout: 15 * time.Second}, "off"),
 		sql:       database.SQL,
 	}
 }

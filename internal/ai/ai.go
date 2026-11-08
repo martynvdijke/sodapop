@@ -18,6 +18,7 @@ import (
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/settings"
+	"sodapop/internal/telemetry"
 )
 
 // Service owns AI endpoint configuration and outbound provider calls.
@@ -39,7 +40,7 @@ type Service struct {
 func New(database *db.DB, cfg *config.Config, version string, log *slog.Logger, runtime ...*settings.Service) *Service {
 	s := &Service{
 		Cfg:     cfg,
-		HTTP:    &http.Client{Timeout: TextTimeout},
+		HTTP:    telemetry.HTTPClient(&http.Client{Timeout: TextTimeout}, "ai"),
 		Version: version,
 		Log:     log,
 	}

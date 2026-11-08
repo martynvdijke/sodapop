@@ -18,6 +18,7 @@ import (
 	"sodapop/ent/user"
 	"sodapop/ent/useridentity"
 	"sodapop/internal/db"
+	"sodapop/internal/telemetry"
 )
 
 const oidcStateCookie = "sd_oidc_state"
@@ -53,6 +54,9 @@ func (s *Service) InitOIDC(ctx context.Context) error {
 		s.OIDC = &OIDC{Enabled: false}
 		return nil
 	}
+	// Discovery goes through an instrumented client. Exchange and key
+	// verification inherit it in CompleteLogin via oidc.ClientContext.
+	ctx = oidc.ClientContext(ctx, telemetry.HTTPClient(http.DefaultClient, "oidc"))
 	provider, err := oidc.NewProvider(ctx, s.Cfg.OIDCIssuer)
 	if err != nil {
 		return fmt.Errorf("oidc discovery: %w", err)
@@ -113,6 +117,9 @@ func (s *Service) CompleteLogin(ctx context.Context, w http.ResponseWriter, r *h
 	if s.OIDC == nil || !s.OIDC.Enabled {
 		return errors.New("oidc is not enabled")
 	}
+	// oauth2.Exchange and the verifier's key fetch both read the HTTP client
+	// from the context, so one injection covers the whole callback.
+	ctx = oidc.ClientContext(ctx, telemetry.HTTPClient(http.DefaultClient, "oidc"))
 	cookie, err := r.Cookie(oidcStateCookie)
 	if err != nil {
 		return errors.New("missing oidc state cookie")

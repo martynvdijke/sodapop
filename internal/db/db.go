@@ -46,7 +46,7 @@ func Init(path string) (*DB, error) {
 	}
 
 	drv := entsql.OpenDB(dialect.SQLite, sqlDB)
-	client := ent.NewClient(ent.Driver(drv))
+	client := ent.NewClient(ent.Driver(&tracingDriver{Driver: drv}))
 	if err := client.Schema.Create(ctx); err != nil {
 		_ = client.Close()
 		return nil, fmt.Errorf("create schema: %w", err)

@@ -364,13 +364,13 @@ Drink galleries are stored in `drink_images` plus `media`; any verified member m
 
 Dependencies: `go.opentelemetry.io/otel` v1.47.0 (`sdk`, `sdk/metric`, `sdk/log`, `otlptracehttp`, `otlpmetrichttp`, `otlploghttp`), `contrib/.../otelhttp` v0.72.0, `contrib/bridges/otelslog` v0.21.0, plus the Prometheus exporter. Core v1.47 requires Go ≥ 1.26; we are on 1.27.
 
-- **Config is env-only in v1, but the Go SDK does not read most `OTEL_*` for you.** Only exporter endpoint/headers/timeout/compression/insecure are read by the exporter constructors. `OTEL_SDK_DISABLED`, `OTEL_TRACES_SAMPLER(_ARG)`, `OTEL_PROPAGATORS`, and `OTEL_BSP_*` must be parsed explicitly in `internal/config` and applied via `WithSampler`, `SetTextMapPropagator`, and batch options. A test asserts each one.
-- Endpoints are full URLs (`http://otel-collector:4318`) set via `WithEndpointURL`; protocol is `http/protobuf`; local collector needs `OTEL_EXPORTER_OTLP_INSECURE=true` or TLS fails against localhost. Sampling defaults to `parentbased_traceidratio` 0.2 in production, 1.0 in dev.
-- HTTP: `otelhttp.NewHandler` around the mux with a low-cardinality operation name per route (never raw paths, never `r.URL.Path`), `WithFilter` skipping `/healthz`, `/readyz`, `/metrics`. A middleware returns `X-Trace-ID` and logs `request_id`/`trace_id`.
-- DB: manual `db.*` spans via `WithTx` plus a query-duration histogram and slow-query logging. There is no `otelsql` in contrib; `XSAM/otelsql` v0.44 exists but is out of scope for v1.
-- Outbound: `otelhttp.NewTransport` on the Open Food Facts client, Nominatim proxy, and SMTP probe. Response bodies are always closed so client spans end.
+- **Config is env-only in v1, but the Go SDK does not read most `OTEL_*` for you.** Only exporter endpoint/headers/timeout/compression/insecure are read by the exporter constructors. `OTEL_SDK_DISABLED`, `OTEL_TRACES_SAMPLER(_ARG)`, `OTEL_PROPAGATORS`, and `OTEL_BSP_*` are parsed explicitly in `internal/telemetry` and applied via `WithSampler`, `SetTextMapPropagator`, and batch options. A test asserts each one.
+- Endpoints accept either a base URL (`http://otel-collector:4318`) or a signal-specific URL; bare base URLs are normalized to `/v1/traces`, `/v1/metrics`, and `/v1/logs`. Protocol is `http/protobuf`; local collectors need `OTEL_EXPORTER_OTLP_INSECURE=true` or TLS fails against localhost. Sampling defaults to `parentbased_traceidratio` 0.2 in production and full sampling in development.
+- HTTP: `otelhttp.NewHandler` around the mux with a low-cardinality operation name, `WithFilter` skipping `/healthz`, `/readyz`, `/metrics`, and `/share/*` (capability tokens). Responses carry `X-Trace-ID`.
+- DB: the Ent driver is wrapped so every `Exec`, `Query`, and transaction emits a `db.exec`, `db.query`, or `db.tx` client span through `TraceQueryEx`. `db.statement` is truncated to 512 bytes and contains placeholders only.
+- Outbound: `otelhttp` transports on the Open Food Facts client, the OpenCode AI client, and OIDC discovery/token/key calls. Integration webhook, Matrix, TRMNL, and FCM calls are deliberately not traced because those URLs carry bearer tokens that `url.full` would copy into spans.
 - Logs: JSON `slog` to stdout **and** an OTel fanout handler, not a replacement. `otelslog` only attaches `trace_id`/`span_id` when handlers call `slog.InfoContext`/`ErrorContext`; a lint rule (or review checklist) enforces `*Context` inside request paths.
-- Metrics: HTTP duration/count by route+status, check-in counter, barcode lookup outcomes (`local|off|miss|error`), feed query latency, email queue depth, catalog moderation backlog, plus `runtime` metrics. Prometheus at `/metrics`, OTLP metrics when configured.
+- Metrics: HTTP duration/count by route+status, integration deliveries, and outbox depth are collected through OTel instruments. `/metrics` serves them through the Prometheus reader together with Go runtime and process metrics; OTLP metrics export is added when an endpoint is configured. `METRICS_ENABLED=false` removes the scrape endpoint.
 - Compose: optional `observability` profile with `otel/opentelemetry-collector-contrib:0.163.0`, `memory_limiter` before `batch`, debug exporter by default and an optional `otlphttp` exporter for an external backend. No Grafana/Tempo bundled; app runs with no collector. Jaeger's native exporter is gone — export OTLP.
 - Kill switch: `OTEL_SDK_DISABLED=true` short-circuits provider construction before any exporter is created; verified by a test that asserts no outbound connection attempt.
 
@@ -426,8 +426,8 @@ OIDC_ENABLED OIDC_ISSUER_URL OIDC_CLIENT_ID OIDC_CLIENT_SECRET OIDC_CLIENT_SECRE
 AI_DEFAULT_BASE_URL=https://opencode.ai/zen/go/v1
 OFF_ENABLED=true  OFF_USER_AGENT="Sodapop/1.0 (contact@example.com)"
 UMAMI_URL UMAMI_WEBSITE_ID
-OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_PROTOCOL OTEL_SERVICE_NAME=sodapop
-TRUSTED_PROXIES METRICS_ENABLED LOG_LEVEL VERSION
+OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_ENDPOINT OTEL_EXPORTER_OTLP_INSECURE OTEL_SERVICE_NAME=sodapop OTEL_TRACES_SAMPLER OTEL_TRACES_SAMPLER_ARG OTEL_PROPAGATORS OTEL_BSP_MAX_QUEUE_SIZE OTEL_BSP_MAX_EXPORT_BATCH_SIZE OTEL_BSP_EXPORT_TIMEOUT OTEL_BSP_SCHEDULE_DELAY METRICS_ENABLED
+TRUSTED_PROXIES LOG_LEVEL VERSION
 ```
 
 Set `TRUSTED_PROXIES` to the reverse proxy's exact IPs or CIDRs when the app is behind a proxy. Without it, `/setup` treats every client as the proxy address, so one stranger can exhaust a shared bucket; configure it alongside proxy-aware limits so clients are distinguished consistently. With it, forwarded hops are walked from the right and trusted hops are skipped.

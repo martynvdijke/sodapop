@@ -9,9 +9,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	otelprometheus "go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
@@ -95,30 +99,67 @@ func NewMetrics(provider metric.MeterProvider) (*Metrics, error) {
 	return m, nil
 }
 
-// SetupMetrics installs a periodic OTLP metric provider and returns a shutdown
-// function. With the SDK disabled or no metrics endpoint it is a no-op.
-func SetupMetrics(ctx context.Context, cfg Config) (func(context.Context) error, error) {
+// MetricsSetup bundles provider shutdown with the optional Prometheus scrape
+// handler. Prometheus is nil when METRICS_ENABLED is false or the SDK is
+// disabled.
+type MetricsSetup struct {
+	Shutdown   func(context.Context) error
+	Prometheus http.Handler
+}
+
+// SetupMetrics installs an OTLP metric provider (when configured) and, by
+// default, a Prometheus reader served at /metrics. With the SDK disabled it is
+// a no-op.
+func SetupMetrics(ctx context.Context, cfg Config) (*MetricsSetup, error) {
 	noop := func(context.Context) error { return nil }
-	if cfg.Disabled || cfg.MetricsEndpoint == "" {
+	if cfg.Disabled || (cfg.MetricsEndpoint == "" && !cfg.Prometheus) {
 		defaultMetrics.Store(nil)
-		return noop, nil
+		return &MetricsSetup{Shutdown: noop}, nil
 	}
 	res, err := resourceFor(cfg)
 	if err != nil {
 		return nil, err
 	}
-	exporter, err := otlpmetrichttp.New(ctx,
-		otlpmetrichttp.WithEndpointURL(cfg.MetricsEndpoint),
-		otlpmetrichttp.WithTimeout(10*time.Second),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("metrics exporter: %w", err)
+
+	options := []sdkmetric.Option{sdkmetric.WithResource(res)}
+	var promHandler http.Handler
+
+	if cfg.MetricsEndpoint != "" {
+		exporterOptions := []otlpmetrichttp.Option{
+			otlpmetrichttp.WithEndpointURL(signalURL(cfg.MetricsEndpoint, "metrics")),
+			otlpmetrichttp.WithTimeout(10 * time.Second),
+		}
+		if cfg.Insecure {
+			exporterOptions = append(exporterOptions, otlpmetrichttp.WithInsecure())
+		}
+		exporter, err := otlpmetrichttp.New(ctx, exporterOptions...)
+		if err != nil {
+			return nil, fmt.Errorf("metrics exporter: %w", err)
+		}
+		interval := cfg.MetricsInterval
+		if interval <= 0 {
+			interval = 30 * time.Second
+		}
+		options = append(options, sdkmetric.WithReader(
+			sdkmetric.NewPeriodicReader(exporter, sdkmetric.WithInterval(interval)),
+		))
 	}
-	provider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(res),
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter,
-			sdkmetric.WithInterval(30*time.Second))),
-	)
+
+	if cfg.Prometheus {
+		registry := prometheus.NewRegistry()
+		registry.MustRegister(
+			collectors.NewGoCollector(),
+			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		)
+		exporter, err := otelprometheus.New(otelprometheus.WithRegisterer(registry))
+		if err != nil {
+			return nil, fmt.Errorf("prometheus exporter: %w", err)
+		}
+		options = append(options, sdkmetric.WithReader(exporter))
+		promHandler = promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	}
+
+	provider := sdkmetric.NewMeterProvider(options...)
 	m, err := NewMetrics(provider)
 	if err != nil {
 		_ = provider.Shutdown(ctx)
@@ -126,9 +167,12 @@ func SetupMetrics(ctx context.Context, cfg Config) (func(context.Context) error,
 	}
 	otel.SetMeterProvider(provider)
 	defaultMetrics.Store(m)
-	return func(shutdownCtx context.Context) error {
-		defaultMetrics.Store(nil)
-		return provider.Shutdown(shutdownCtx)
+	return &MetricsSetup{
+		Shutdown: func(shutdownCtx context.Context) error {
+			defaultMetrics.Store(nil)
+			return provider.Shutdown(shutdownCtx)
+		},
+		Prometheus: promHandler,
 	}, nil
 }
 
