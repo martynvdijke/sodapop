@@ -1,3 +1,11 @@
+# [1.24.0](https://github.com/martynvdijke/sodapop/compare/v1.23.0...v1.24.0) (2026-11-08)
+
+
+### Features
+
+* **telemetry:** export logs, trace DB queries, and add Prometheus metrics ([f539400](https://github.com/martynvdijke/sodapop/commit/f539400a8c8ac4d29410d9a5fb19a2bf27b3af8d))
+* **web:** show avatars in nav and profile, allow removing a photo ([3df718b](https://github.com/martynvdijke/sodapop/commit/3df718b01002c2091ac3b3963ebe4ebf5ca87b58))
+
 # [1.23.0](https://github.com/martynvdijke/sodapop/compare/v1.22.1...v1.23.0) (2026-11-08)
 
 
