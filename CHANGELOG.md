@@ -1,3 +1,15 @@
+# [1.25.0](https://github.com/martynvdijke/sodapop/compare/v1.24.0...v1.25.0) (2026-11-08)
+
+
+### Bug Fixes
+
+* let accepted friends read private check-ins ([2acfcf7](https://github.com/martynvdijke/sodapop/commit/2acfcf73f5172433a1a02f75d6f642ba7417c66f))
+
+
+### Features
+
+* add an admin activity overview on web and Android ([33da8a1](https://github.com/martynvdijke/sodapop/commit/33da8a13ad9214e4ce56ab96a26e8525771fae2a))
+
 # [1.24.0](https://github.com/martynvdijke/sodapop/compare/v1.23.0...v1.24.0) (2026-11-08)
 
 
