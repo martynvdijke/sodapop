@@ -204,7 +204,7 @@ func TestCommentVisibilityMatrix(t *testing.T) {
 		{"friends", alice, http.StatusOK, http.StatusCreated},
 		{"friends", carol, http.StatusNotFound, http.StatusNotFound},
 		{"private", bob, http.StatusOK, http.StatusCreated},
-		{"private", alice, http.StatusNotFound, http.StatusNotFound},
+		{"private", alice, http.StatusOK, http.StatusCreated},
 		{"private", carol, http.StatusNotFound, http.StatusNotFound},
 	}
 

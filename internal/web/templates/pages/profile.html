@@ -270,7 +270,7 @@
                     <option value=""{{if not .Filters.Visibility}} selected{{end}}>Any visibility</option>
                     <option value="public"{{if eq .Filters.Visibility "public"}} selected{{end}}>Anyone</option>
                     <option value="friends"{{if eq .Filters.Visibility "friends"}} selected{{end}}>Friends</option>
-                    <option value="private"{{if eq .Filters.Visibility "private"}} selected{{end}}>Only you</option>
+                    <option value="private"{{if eq .Filters.Visibility "private"}} selected{{end}}>Private</option>
                   </select>
                 </label>
               {{end}}
@@ -319,7 +319,7 @@
           <a class="profile-filter-chip" href="{{printf "/u/%s?photo=&%s" .Profile.Handle .FilterQuery}}" aria-label="Remove filter: only check-ins with a photo">Has a photo <span class="profile-filter-chip-x" aria-hidden="true">×</span></a>
         {{end}}
         {{if .Filters.Visibility}}
-          <a class="profile-filter-chip" href="{{printf "/u/%s?visibility=&%s" .Profile.Handle .FilterQuery}}" aria-label="Remove filter: visibility">Visibility: {{if eq .Filters.Visibility "public"}}Anyone{{else if eq .Filters.Visibility "friends"}}Friends{{else if eq .Filters.Visibility "private"}}Only you{{else}}{{.Filters.Visibility}}{{end}} <span class="profile-filter-chip-x" aria-hidden="true">×</span></a>
+          <a class="profile-filter-chip" href="{{printf "/u/%s?visibility=&%s" .Profile.Handle .FilterQuery}}" aria-label="Remove filter: visibility">Visibility: {{if eq .Filters.Visibility "public"}}Anyone{{else if eq .Filters.Visibility "friends"}}Friends{{else if eq .Filters.Visibility "private"}}Private{{else}}{{.Filters.Visibility}}{{end}} <span class="profile-filter-chip-x" aria-hidden="true">×</span></a>
         {{end}}
         {{if .Filters.Sort}}
           <a class="profile-filter-chip" href="{{printf "/u/%s?sort=&%s" .Profile.Handle .FilterQuery}}" aria-label="Remove filter: sort order">Sort: {{if eq .Filters.Sort "oldest"}}Oldest{{else if eq .Filters.Sort "rating_high"}}Highest rated{{else if eq .Filters.Sort "rating_low"}}Lowest rated{{else if eq .Filters.Sort "likes"}}Most liked{{else}}Newest{{end}} <span class="profile-filter-chip-x" aria-hidden="true">×</span></a>

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"sodapop/ent/checkin"
+	"sodapop/ent/user"
 )
 
 func doAvatarUpload(t *testing.T, h *harness, field, filename string, data []byte) *httptest.ResponseRecorder {
@@ -392,12 +393,29 @@ func TestFriendCheckinsFiltersNeverWidenVisibility(t *testing.T) {
 	}
 	bobToken := h.tokenFor(t, h.bob)
 
+	// The visibility filter is an owner-only refinement. For a friend it is
+	// ignored, and private rows are now part of the readable set.
 	rec := h.doWith(t, bobToken, http.MethodGet, "/api/v1/users/alice/checkins?visibility=private&sort=rating_high", "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("friend filter = %d: %s", rec.Code, rec.Body.String())
 	}
 	rows := dataList(t, rec)
-	if len(rows) != 1 || rows[0].(map[string]any)["id"] != public.ID {
-		t.Fatalf("friend visibility filter = %+v, want only %s (private %s must stay hidden)", rows, public.ID, private.ID)
+	ids := map[string]bool{}
+	for _, raw := range rows {
+		ids[raw.(map[string]any)["id"].(string)] = true
+	}
+	if len(rows) != 2 || !ids[public.ID] || !ids[private.ID] {
+		t.Fatalf("friend visibility filter = %+v, want %s and %s", rows, public.ID, private.ID)
+	}
+	if rows[0].(map[string]any)["id"] != private.ID {
+		t.Fatalf("friend filter order = %+v, want private first (rating 20)", rows)
+	}
+
+	// A non-friend cannot list another user's check-ins at all.
+	stranger := newUser(t, h, "filter-stranger", true, user.RoleUser)
+	strangerTok := h.tokenFor(t, stranger.ID)
+	rec = h.doWith(t, strangerTok, http.MethodGet, "/api/v1/users/alice/checkins", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("stranger list = %d, want 404: %s", rec.Code, rec.Body.String())
 	}
 }

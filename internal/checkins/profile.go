@@ -180,14 +180,28 @@ func (s *Service) ProfileVisitFor(ctx context.Context, viewerID, targetID string
 	}
 }
 
-// profileVisibilitySet returns the check-in/list visibility values a visitor
-// may read. The set is applied inside SQL, never after loading rows.
+// profileVisibilitySet returns the list visibility values a visitor may read.
+// The set is applied inside SQL, never after loading rows. It is deliberately
+// NOT used for check-ins: private lists stay owner-only, while private
+// check-ins are readable by accepted friends.
 func profileVisibilitySet(visit ProfileVisit) []string {
 	switch visit {
 	case ProfileOwner:
 		return []string{"public", "friends", "private"}
 	case ProfileFriend:
 		return []string{"public", "friends"}
+	default:
+		return []string{"public"}
+	}
+}
+
+// profileCheckinVisibilitySet returns the check-in visibility values a visitor
+// may read. Private check-ins are readable by accepted friends, so a friend
+// sees every visibility value that the owner does.
+func profileCheckinVisibilitySet(visit ProfileVisit) []string {
+	switch visit {
+	case ProfileOwner, ProfileFriend:
+		return []string{"public", "friends", "private"}
 	default:
 		return []string{"public"}
 	}
@@ -280,7 +294,7 @@ func (s *Service) ProfileCheckinsPage(ctx context.Context, f ProfileCheckinsFilt
 		return res, nil
 	}
 	visit := s.ProfileVisitFor(ctx, f.ViewerID, f.TargetID)
-	vis := profileVisibilitySet(visit)
+	vis := profileCheckinVisibilitySet(visit)
 
 	q := `
 		SELECT c.id, c.user_id, u.handle, COALESCE(u.display_name,''),
@@ -304,7 +318,7 @@ func (s *Service) ProfileCheckinsPage(ctx context.Context, f ProfileCheckinsFilt
 
 	if filtered {
 		// Visibility is an owner-only refinement; the relationship-based set
-		// above is never widened for another viewer.
+		// above already scopes what another viewer may see.
 		if visit == ProfileOwner && (visibility == "public" || visibility == "friends" || visibility == "private") {
 			q += ` AND c.visibility = ?`
 			args = append(args, visibility)
@@ -403,7 +417,7 @@ func (s *Service) ProfileStats(ctx context.Context, viewerID, targetID string) (
 		return out, nil
 	}
 	visit := s.ProfileVisitFor(ctx, viewerID, targetID)
-	vis := profileVisibilitySet(visit)
+	vis := profileCheckinVisibilitySet(visit)
 	q := `
 		SELECT COUNT(*), COUNT(DISTINCT d.style_id), COUNT(DISTINCT c.venue_id),
 		       COUNT(DISTINCT c.drink_id)

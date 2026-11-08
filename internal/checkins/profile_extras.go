@@ -27,7 +27,7 @@ func (s *Service) ProfileTopStyles(ctx context.Context, viewerID, targetID strin
 		return out, nil
 	}
 	visit := s.ProfileVisitFor(ctx, viewerID, targetID)
-	vis := profileVisibilitySet(visit)
+	vis := profileCheckinVisibilitySet(visit)
 
 	q := `
 		SELECT st.name, st.slug, COUNT(*)

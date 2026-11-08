@@ -220,12 +220,14 @@ func (s *Service) visible(ctx context.Context, viewerID string, d *Detail) bool 
 	switch d.Visibility {
 	case "public":
 		return true
-	case "friends":
+	case "friends", "private":
+		// Private means "accepted friends only": it differs from friends only
+		// as a label, not in who may read the row.
 		if viewerID == "" {
 			return false
 		}
 		return s.Social != nil && s.Social.AreFriends(ctx, viewerID, d.UserID)
-	default: // private, or any unknown value
+	default: // any unknown value
 		return false
 	}
 }

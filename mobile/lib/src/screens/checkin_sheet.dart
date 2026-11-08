@@ -91,7 +91,7 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
   ];
 
   static const _visibilities = <(String, String)>[
-    ('private', 'Only you'),
+    ('private', 'Private'),
     ('friends', 'Friends'),
     ('public', 'Anyone'),
   ];
@@ -140,7 +140,7 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
       case 'public':
         return 'Anyone can see this on the drink page.';
       default:
-        return 'Only you can see this check-in.';
+        return 'Only your friends can see this check-in.';
     }
   }
 

@@ -302,6 +302,20 @@ func TestCanView(t *testing.T) {
 		t.Fatalf("friend CanView = %v, %v; want true, nil", ok, err)
 	}
 
+	// Private check-ins are readable by accepted friends too.
+	if _, err := check.Update().SetVisibility(checkin.VisibilityPrivate).Save(ctx); err != nil {
+		t.Fatalf("make private: %v", err)
+	}
+	if ok, err := svc.CanView(ctx, friend.ID, row.ID); err != nil || !ok {
+		t.Fatalf("friend private CanView = %v, %v; want true, nil", ok, err)
+	}
+	if ok, err := svc.CanView(ctx, viewer.ID, row.ID); err != nil || ok {
+		t.Fatalf("stranger private CanView = %v, %v; want false, nil", ok, err)
+	}
+	if ok, err := svc.CanView(ctx, "", row.ID); err != nil || ok {
+		t.Fatalf("anonymous private CanView = %v, %v; want false, nil", ok, err)
+	}
+
 	// Soft-deleted check-ins stop granting visibility.
 	if _, err := check.Update().SetDeletedAt(db.Now()).Save(ctx); err != nil {
 		t.Fatalf("soft delete: %v", err)

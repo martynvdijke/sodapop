@@ -107,11 +107,11 @@ func (s *Service) Nearby(ctx context.Context, viewerID string, lat, lng float64,
 			c.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)
 			AND (
 				c.visibility = 'public'
-				OR (c.visibility = 'friends' AND ` + friendOfViewer + `)
+				OR (c.visibility IN ('friends', 'private') AND ` + friendOfViewer + `)
 			)
 		)
 		OR (
-			c.visibility IN ('public', 'friends')
+			c.visibility IN ('public', 'friends', 'private')
 			AND ` + friendOfViewer + `
 		)`
 

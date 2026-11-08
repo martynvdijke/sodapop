@@ -194,7 +194,7 @@ func TestFeedVisibilityForFriendsAndFollows(t *testing.T) {
 	bobOwn := mustCheckin(t, ctx, database, bob, drink, "private")
 	alicePublic := mustCheckin(t, ctx, database, alice, drink, "public")
 	aliceFriends := mustCheckin(t, ctx, database, alice, drink, "friends")
-	mustCheckin(t, ctx, database, alice, drink, "private")
+	alicePrivate := mustCheckin(t, ctx, database, alice, drink, "private")
 	carolPublic := mustCheckin(t, ctx, database, carol, drink, "public")
 	mustCheckin(t, ctx, database, carol, drink, "friends")
 
@@ -214,13 +214,13 @@ func TestFeedVisibilityForFriendsAndFollows(t *testing.T) {
 		t.Fatalf("feed: %v", err)
 	}
 	got := ids(feed)
-	for _, want := range []string{bobOwn.ID, alicePublic.ID, aliceFriends.ID, carolPublic.ID} {
+	for _, want := range []string{bobOwn.ID, alicePublic.ID, aliceFriends.ID, alicePrivate.ID, carolPublic.ID} {
 		if !got[want] {
 			t.Errorf("feed missing %s", want)
 		}
 	}
-	if len(got) != 4 {
-		t.Errorf("feed has %d items, want 4", len(got))
+	if len(got) != 5 {
+		t.Errorf("feed has %d items, want 5", len(got))
 	}
 
 	following, err := svc.FeedFollowing(ctx, bob.ID, 20, "")

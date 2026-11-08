@@ -39,7 +39,7 @@
 
   <div class="detail-meta">
     {{if $c.Visibility}}
-      <span class="pill">{{if eq $c.Visibility "friends"}}Friends{{else if eq $c.Visibility "private"}}Only you{{else if eq $c.Visibility "public"}}Anyone{{end}}</span>
+      <span class="pill">{{if eq $c.Visibility "friends"}}Friends{{else if eq $c.Visibility "private"}}Private{{else if eq $c.Visibility "public"}}Anyone{{end}}</span>
     {{end}}
     {{if $c.VenueName}}
       {{if $c.VenueID}}<a class="pill" href="/venues/{{$c.VenueID}}">{{$c.VenueName}}</a>{{else}}<span class="pill">{{$c.VenueName}}</span>{{end}}

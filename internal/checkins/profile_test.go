@@ -120,12 +120,12 @@ func TestProfileCheckinsPrivateProfileGate(t *testing.T) {
 }
 
 func TestProfileCheckinsFriendAndOwner(t *testing.T) {
-	t.Run("friend sees public and friends", func(t *testing.T) {
+	t.Run("friend sees public, friends and private", func(t *testing.T) {
 		e := newTestEnv(t)
 		e.befriend(t, e.alice, e.bob)
 		pub := e.createCheckin(t, e.alice, "public")
 		friends := e.createCheckin(t, e.alice, "friends")
-		e.createCheckin(t, e.alice, "private")
+		private := e.createCheckin(t, e.alice, "private")
 
 		items, err := e.svc.ProfileCheckins(e.ctx, checkins.ProfileCheckinsFilter{
 			ViewerID: e.bob.ID, TargetID: e.alice.ID,
@@ -134,8 +134,8 @@ func TestProfileCheckinsFriendAndOwner(t *testing.T) {
 			t.Fatalf("friend profile checkins: %v", err)
 		}
 		got := ids(items)
-		if len(items) != 2 || !got[pub.ID] || !got[friends.ID] {
-			t.Fatalf("friend items = %+v, want public+friends", items)
+		if len(items) != 3 || !got[pub.ID] || !got[friends.ID] || !got[private.ID] {
+			t.Fatalf("friend items = %+v, want public+friends+private", items)
 		}
 	})
 
@@ -531,8 +531,10 @@ func TestProfileCheckinsVisibilityFilter(t *testing.T) {
 			t.Fatalf("friend filter: %v", err)
 		}
 		got := ids(res.Items)
-		if len(res.Items) != 2 || !got[pub.ID] || !got[friends.ID] || got[private.ID] {
-			t.Fatalf("friend filter = %+v, want public+friends only", res.Items)
+		// A friend already reads every visibility, so ignoring the filter still
+		// yields all three rows.
+		if len(res.Items) != 3 || !got[pub.ID] || !got[friends.ID] || !got[private.ID] {
+			t.Fatalf("friend filter = %+v, want public+friends+private", res.Items)
 		}
 
 		stranger, err := e.svc.ProfileCheckinsPage(e.ctx, checkins.ProfileCheckinsFilter{

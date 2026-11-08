@@ -158,7 +158,7 @@
         <select name="default_visibility" required>
           <option value="public"{{if or (eq .DefaultVisibility "public") (eq .DefaultVisibility "")}} selected{{end}}>Anyone</option>
           <option value="friends"{{if eq .DefaultVisibility "friends"}} selected{{end}}>Friends</option>
-          <option value="private"{{if eq .DefaultVisibility "private"}} selected{{end}}>Only you</option>
+          <option value="private"{{if eq .DefaultVisibility "private"}} selected{{end}}>Private</option>
         </select>
         <span class="hint">You can change this on each check-in.</span>
       </label>

@@ -277,6 +277,7 @@ func TestQueuePrivacy(t *testing.T) {
 	viewer := createUser(t, database, "privacy-viewer")
 	twin := createUser(t, database, "privacy-twin")
 	privateOnly := createUser(t, database, "privacy-only")
+	outsider := createUser(t, database, "privacy-outsider")
 	friend(t, database, viewer, twin)
 	friend(t, database, viewer, privateOnly)
 
@@ -298,20 +299,24 @@ func TestQueuePrivacy(t *testing.T) {
 		addCheckin(t, database, twin.ID, drinkID, []int{19, 17, 15}[i])
 	}
 
-	// A fourth shared drink rated privately must not extend the twin overlap.
-	hiddenCommon := makeDrink("p4")
-	addCheckinWithVisibility(t, database, twin.ID, hiddenCommon, 1, checkin.VisibilityPrivate)
+	// A fourth drink rated privately by the twin (the viewer has no rating for
+	// it) is visible to friends but cannot add to the shared-drink overlap.
+	addCheckinWithVisibility(t, database, twin.ID, makeDrink("p4"), 1, checkin.VisibilityPrivate)
 
-	// A private check-in on a brand-new drink must never become a suggestion.
+	// A private check-in on a brand-new drink by a friend is visible and may
+	// become a suggestion.
 	secret := makeDrink("secret")
 	addCheckinWithVisibility(t, database, twin.ID, secret, 20, checkin.VisibilityPrivate)
 
-	// A friend whose shared ratings are entirely private has no taste twin.
+	// A friend whose shared ratings are all private still counts as a twin.
 	for i, drinkID := range shared {
 		addCheckinWithVisibility(t, database, privateOnly.ID, drinkID, []int{20, 18, 16}[i], checkin.VisibilityPrivate)
 	}
-	privateOnlyDrink := makeDrink("private-only")
-	addCheckinWithVisibility(t, database, privateOnly.ID, privateOnlyDrink, 20, checkin.VisibilityPrivate)
+	addCheckinWithVisibility(t, database, privateOnly.ID, makeDrink("private-only"), 20, checkin.VisibilityPrivate)
+
+	// A non-friend's private check-ins stay invisible and can never surface.
+	outsiderPrivate := makeDrink("outsider-private")
+	addCheckinWithVisibility(t, database, outsider.ID, outsiderPrivate, 20, checkin.VisibilityPrivate)
 
 	service := New(database)
 
@@ -319,33 +324,57 @@ func TestQueuePrivacy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("twins: %v", err)
 	}
+	var sawTwin, sawPrivateOnly bool
 	for _, tw := range twins {
-		if tw.UserID == privateOnly.ID {
-			t.Fatalf("private check-ins produced a twin: %+v", tw)
+		switch tw.UserID {
+		case twin.ID:
+			sawTwin = true
+			if tw.Common != 3 {
+				t.Errorf("twin common = %d, want 3 (only shared ratings count)", tw.Common)
+			}
+		case privateOnly.ID:
+			sawPrivateOnly = true
+			if tw.Common != 3 {
+				t.Errorf("private-only twin common = %d, want 3", tw.Common)
+			}
 		}
-		if tw.UserID == twin.ID && tw.Common != 3 {
-			t.Errorf("twin common = %d, want 3 (private check-in ignored)", tw.Common)
-		}
+	}
+	if !sawTwin || !sawPrivateOnly {
+		t.Fatalf("twins = %+v, want both friends including the private-only one", twins)
 	}
 
 	recs, err := service.Recommendations(ctx, viewer.ID, 0)
 	if err != nil {
 		t.Fatalf("recommendations: %v", err)
 	}
+	sawSecret := false
 	for _, rec := range recs {
-		if rec.DrinkID == secret || rec.DrinkID == privateOnlyDrink || rec.DrinkID == hiddenCommon {
-			t.Errorf("private check-in leaked into recommendations: %+v", rec)
+		if rec.DrinkID == outsiderPrivate {
+			t.Errorf("non-friend private check-in leaked into recommendations: %+v", rec)
 		}
+		if rec.DrinkID == secret {
+			sawSecret = true
+		}
+	}
+	if !sawSecret {
+		t.Errorf("friend private check-in never became a recommendation: %+v", recs)
 	}
 
 	queue, err := service.Queue(ctx, viewer.ID, 0)
 	if err != nil {
 		t.Fatalf("queue: %v", err)
 	}
+	sawSecret = false
 	for _, item := range queue {
-		if item.DrinkID == secret || item.DrinkID == privateOnlyDrink || item.DrinkID == hiddenCommon {
-			t.Errorf("private check-in leaked into queue: %+v", item)
+		if item.DrinkID == outsiderPrivate {
+			t.Errorf("non-friend private check-in leaked into queue: %+v", item)
 		}
+		if item.DrinkID == secret {
+			sawSecret = true
+		}
+	}
+	if !sawSecret {
+		t.Errorf("friend private check-in never reached the queue: %+v", queue)
 	}
 }
 

@@ -113,11 +113,13 @@ func TestGetVisibility(t *testing.T) {
 		}
 	})
 
-	t.Run("friend sees friends-only", func(t *testing.T) {
+	t.Run("friend sees friends-only and private", func(t *testing.T) {
 		e.befriend(t, e.alice, e.bob)
-		c := e.createCheckin(t, e.alice, "friends")
-		if _, err := e.svc.Get(e.ctx, e.bob.ID, c.ID); err != nil {
-			t.Fatalf("friend: %v", err)
+		for _, visibility := range []string{"friends", "private"} {
+			c := e.createCheckin(t, e.alice, visibility)
+			if _, err := e.svc.Get(e.ctx, e.bob.ID, c.ID); err != nil {
+				t.Fatalf("friend %s: %v", visibility, err)
+			}
 		}
 	})
 

@@ -250,7 +250,7 @@ func (s *Service) candidateDrinks(ctx context.Context, userID string, friends []
 		WHERE c.user_id IN (%s)
 		  AND c.deleted_at IS NULL
 		  AND c.rating IS NOT NULL
-		  AND c.visibility IN ('public', 'friends')
+		  AND c.visibility IN ('public', 'friends', 'private')
 		  AND d.status <> 'merged'
 		  AND d.merged_into_id IS NULL
 		  AND NOT EXISTS (
@@ -513,7 +513,8 @@ func (s *Service) computeTwins(ctx context.Context, userID string) ([]Twin, erro
 
 // ratingVector returns the mean rating per drink for one user. Multiple
 // check-ins for the same drink are averaged so each drink counts once. When
-// includePrivate is false (reading another user), only visible check-ins count.
+// includePrivate is false (reading an accepted friend), private rows are
+// visible too: private means friends-only for reading.
 func (s *Service) ratingVector(ctx context.Context, userID string, includePrivate bool) (map[int]float64, error) {
 	query := `
 		SELECT drink_id, AVG(rating)
@@ -523,7 +524,7 @@ func (s *Service) ratingVector(ctx context.Context, userID string, includePrivat
 		  AND rating IS NOT NULL`
 	if !includePrivate {
 		query += `
-		  AND visibility IN ('public', 'friends')`
+		  AND visibility IN ('public', 'friends', 'private')`
 	}
 	query += `
 		GROUP BY drink_id`

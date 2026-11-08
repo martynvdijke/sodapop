@@ -71,7 +71,7 @@ func (s *Service) sendTRMNL(ctx context.Context, row *ent.Integration) error {
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
 		WHERE c.user_id = ? AND c.deleted_at IS NULL
-		  AND c.visibility IN ('public', 'friends')
+		  AND c.visibility IN ('public', 'friends', 'private')
 		ORDER BY c.created_at DESC
 		LIMIT 1`, row.UserID).
 		Scan(&id, &createdAt, &drinkName, &drinkSlug, &rating, &note)

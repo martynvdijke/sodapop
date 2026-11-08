@@ -71,7 +71,7 @@ String sodaVisibility(String visibility) {
     case 'friends':
       return 'Friends';
     case 'private':
-      return 'Only you';
+      return 'Private';
     default:
       return '';
   }

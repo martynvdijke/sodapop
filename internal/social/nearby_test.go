@@ -137,7 +137,7 @@ func TestNearbyVisibilityIsFriendScoped(t *testing.T) {
 	ownPrivate := newVenueCheckin(t, ctx, database, alice, drink, venue, "private", "")
 	bobPublic := newVenueCheckin(t, ctx, database, bob, drink, venue, "public", "")
 	bobFriends := newVenueCheckin(t, ctx, database, bob, drink, venue, "friends", "")
-	newVenueCheckin(t, ctx, database, bob, drink, venue, "private", "")
+	bobPrivate := newVenueCheckin(t, ctx, database, bob, drink, venue, "private", "")
 	carolPublic := newVenueCheckin(t, ctx, database, carol, drink, venue, "public", "")
 	newVenueCheckin(t, ctx, database, carol, drink, venue, "friends", "")
 	newVenueCheckin(t, ctx, database, dave, drink, venue, "public", "")
@@ -171,7 +171,7 @@ func TestNearbyVisibilityIsFriendScoped(t *testing.T) {
 		t.Fatalf("hasMore=%v next=%q, want no more", hasMore, next)
 	}
 	got := nearbyIDs(items)
-	for _, want := range []string{ownPublic.ID, ownPrivate.ID, bobPublic.ID, bobFriends.ID, carolPublic.ID} {
+	for _, want := range []string{ownPublic.ID, ownPrivate.ID, bobPublic.ID, bobFriends.ID, bobPrivate.ID, carolPublic.ID} {
 		if _, ok := got[want]; !ok {
 			t.Errorf("nearby missing %s", want)
 		}
@@ -185,8 +185,8 @@ func TestNearbyVisibilityIsFriendScoped(t *testing.T) {
 			t.Errorf("nearby leaked %s (%s)", name, id)
 		}
 	}
-	if len(got) != 5 {
-		t.Errorf("nearby has %d items, want 5", len(got))
+	if len(got) != 6 {
+		t.Errorf("nearby has %d items, want 6", len(got))
 	}
 	if item, ok := got[ownPublic.ID]; ok && item.VenueID != venue.ID {
 		t.Errorf("nearby venue id = %d, want %d", item.VenueID, venue.ID)

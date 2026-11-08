@@ -205,7 +205,7 @@ SELECT EXISTS (
 	  AND (
 		c.visibility = 'public'
 		OR (
-			c.visibility = 'friends'
+			c.visibility IN ('friends', 'private')
 			AND ? <> ''
 			AND EXISTS (
 				SELECT 1 FROM friendships f

@@ -79,7 +79,7 @@ func TestProfileTopStylesAccess(t *testing.T) {
 		want   map[string]int
 	}{
 		{"owner", e.alice.ID, map[string]int{"cola": 2, "lemonade": 1, "root-beer": 1}},
-		{"friend", e.bob.ID, map[string]int{"cola": 2, "lemonade": 1}},
+		{"friend", e.bob.ID, map[string]int{"cola": 2, "lemonade": 1, "root-beer": 1}},
 		{"stranger", e.carol.ID, map[string]int{"cola": 2}},
 		{"anonymous", "", map[string]int{"cola": 2}},
 	}

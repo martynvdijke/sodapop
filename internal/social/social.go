@@ -491,7 +491,7 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 				c.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)
 				AND (
 					c.visibility = 'public'
-					OR (c.visibility = 'friends' AND ` + friendOfViewer + `)
+					OR (c.visibility IN ('friends', 'private') AND ` + friendOfViewer + `)
 				)
 			)`
 	args = append(args, userID, userID, userID, userID)
@@ -499,7 +499,7 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 		// The main feed also includes accepted friends who are not followed.
 		query += `
 			OR (
-				c.visibility IN ('public', 'friends')
+				c.visibility IN ('public', 'friends', 'private')
 				AND ` + friendOfViewer + `
 			)`
 		args = append(args, userID, userID)
@@ -747,7 +747,7 @@ func (s *Service) visibleCheckinOwner(ctx context.Context, userID, checkinID str
 			c.visibility = 'public'
 			OR c.user_id = ?
 			OR (
-				c.visibility = 'friends'
+				c.visibility IN ('friends', 'private')
 				AND ? <> ''
 				AND EXISTS (
 					SELECT 1 FROM friendships f

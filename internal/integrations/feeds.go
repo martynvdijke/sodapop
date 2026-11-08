@@ -92,7 +92,7 @@ func (s *Service) RSS(ctx context.Context, token string) ([]byte, error) {
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
 		WHERE c.user_id = ? AND c.deleted_at IS NULL
-		  AND c.visibility IN ('public', 'friends')
+		  AND c.visibility IN ('public', 'friends', 'private')
 		ORDER BY c.created_at DESC
 		LIMIT 40`, row.UserID)
 	if err != nil {

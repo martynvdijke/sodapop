@@ -262,8 +262,8 @@ type Item struct {
 	PhotoURL   string `json:"photo_url,omitempty"`
 }
 
-// ListForUser returns a user's check-ins. Friends may read public and
-// friends-only rows; everyone else is refused. There is no global list.
+// ListForUser returns a user's check-ins. Friends may read public, friends-only
+// and private rows; everyone else is refused. There is no global list.
 func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, limit int, before string) ([]Item, error) {
 	if viewerID != targetID && !s.Social.AreFriends(ctx, viewerID, targetID) {
 		return nil, ErrForbidden
@@ -283,7 +283,8 @@ func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, li
 		WHERE c.user_id = ? AND c.deleted_at IS NULL`
 	args := []any{targetID}
 	if viewerID != targetID {
-		q += ` AND c.visibility IN ('public','friends')`
+		// The caller already refused unless viewer is owner or accepted friend.
+		q += ` AND c.visibility IN ('public','friends','private')`
 	}
 	if before != "" {
 		q += ` AND c.created_at < ?`

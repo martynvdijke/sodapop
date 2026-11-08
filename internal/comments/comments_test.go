@@ -119,7 +119,7 @@ func TestVisibilityMatrix(t *testing.T) {
 		{"friends stranger", "friends", "stranger", false},
 		{"friends anonymous", "friends", "anonymous", false},
 		{"private owner", "private", "owner", true},
-		{"private friend", "private", "friend", false},
+		{"private friend", "private", "friend", true},
 		{"private stranger", "private", "stranger", false},
 		{"private anonymous", "private", "anonymous", false},
 	}

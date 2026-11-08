@@ -193,19 +193,19 @@ func TestUserProfileV12(t *testing.T) {
 		t.Fatalf("follower_count = %v", profile["follower_count"])
 	}
 
-	// Friend sees friends-only rows too.
+	// Friend sees friends-only and private rows too.
 	befriend(t, h, alice.ID, bob)
 	rec = h.doWith(t, bobToken, http.MethodGet, "/api/v1/users/alice", "")
 	profile = dataMap(t, rec)
 	stats = profile["stats"].(map[string]any)
-	if stats["checkins"].(float64) != 2 || stats["distinct_drinks"].(float64) != 2 {
+	if stats["checkins"].(float64) != 3 || stats["distinct_drinks"].(float64) != 3 {
 		t.Fatalf("friend stats = %+v", stats)
 	}
 	if profile["is_friend"] != true {
 		t.Fatalf("is_friend = %v", profile["is_friend"])
 	}
 	styles, _ := profile["top_styles"].([]any)
-	if len(styles) != 1 || styles[0].(map[string]any)["slug"] != "cola" || styles[0].(map[string]any)["count"].(float64) != 2 {
+	if len(styles) != 1 || styles[0].(map[string]any)["slug"] != "cola" || styles[0].(map[string]any)["count"].(float64) != 3 {
 		t.Fatalf("top_styles = %+v", styles)
 	}
 

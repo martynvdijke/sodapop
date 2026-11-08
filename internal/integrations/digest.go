@@ -106,7 +106,7 @@ func (s *Service) weeklyItems(ctx context.Context, userID, cutoff string) ([]dig
 		JOIN drinks d ON d.id = c.drink_id
 		WHERE c.user_id IN (` + placeholders + `)
 		  AND c.deleted_at IS NULL
-		  AND c.visibility IN ('public', 'friends')
+		  AND c.visibility IN ('public', 'friends', 'private')
 		  AND c.created_at >= ?
 		ORDER BY (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id) DESC,
 		         c.created_at DESC

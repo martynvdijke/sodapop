@@ -71,10 +71,14 @@ func TestTaggedFriendVisibilityOnCheckinAndFeed(t *testing.T) {
 		}
 	})
 
-	t.Run("friend cannot see private detail", func(t *testing.T) {
+	t.Run("friend sees private detail", func(t *testing.T) {
 		rec := h.doWith(t, friendToken, http.MethodGet, "/api/v1/checkins/"+private.ID, "")
-		if rec.Code != http.StatusNotFound {
+		if rec.Code != http.StatusOK {
 			t.Fatalf("friend private detail: %d %s", rec.Code, rec.Body.String())
+		}
+		tags, _ := dataMap(t, rec)["tagged_friends"].([]any)
+		if len(tags) != 1 || tags[0].(map[string]any)["id"] != friend.ID {
+			t.Fatalf("friend tagged_friends on private = %v", tags)
 		}
 	})
 
@@ -102,8 +106,14 @@ func TestTaggedFriendVisibilityOnCheckinAndFeed(t *testing.T) {
 		if tags, _ := item["tagged_friends"].([]any); len(tags) != 1 {
 			t.Fatalf("friend feed tagged_friends = %v", item["tagged_friends"])
 		}
-		if _, leaked := feedContainsID(t, rec.Body.Bytes(), private.ID); leaked {
-			t.Fatalf("friend feed leaked private check-in")
+		// Private is readable by accepted friends, so it appears in their feed
+		// with tags scoped to that viewer.
+		privateItem, ok := feedContainsID(t, rec.Body.Bytes(), private.ID)
+		if !ok {
+			t.Fatalf("friend feed missing private check-in")
+		}
+		if tags, _ := privateItem["tagged_friends"].([]any); len(tags) != 1 {
+			t.Fatalf("friend feed private tagged_friends = %v", privateItem["tagged_friends"])
 		}
 
 		rec = h.doWith(t, strangerToken, http.MethodGet, "/api/v1/feed", "")

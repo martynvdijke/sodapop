@@ -386,11 +386,12 @@ func TestWeeklyDigestQueuesEmail(t *testing.T) {
 		t.Fatalf("create settings: %v", err)
 	}
 	d := createDrink(t, database, "Fizzy Cola", "fizzy-cola")
+	// A friend's private check-in is readable, so it belongs in the digest.
 	if _, err := database.Client.Checkin.Create().
 		SetUserID(friend.ID).
 		SetDrinkID(d.ID).
 		SetRating(16).
-		SetVisibility(checkin.VisibilityPublic).
+		SetVisibility(checkin.VisibilityPrivate).
 		SetCreatedAt(time.Now().UTC().Format(time.RFC3339)).
 		Save(ctx); err != nil {
 		t.Fatalf("create friend checkin: %v", err)

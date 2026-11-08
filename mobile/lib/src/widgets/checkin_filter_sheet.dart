@@ -199,7 +199,7 @@ class CheckinFilter {
       case 'friends':
         return 'Friends';
       case 'private':
-        return 'Only you';
+        return 'Private';
       default:
         return value;
     }
@@ -538,7 +538,7 @@ class _CheckinFilterSheetState extends State<_CheckinFilterSheet> {
                               (null, 'Any'),
                               ('public', 'Anyone'),
                               ('friends', 'Friends'),
-                              ('private', 'Only you'),
+                              ('private', 'Private'),
                             ])
                               ChoiceChip(
                                 key: Key(
