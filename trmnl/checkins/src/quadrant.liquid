@@ -1,0 +1,35 @@
+{% comment %}Sodapop · Recent Pours — quadrant 400x240. Three pours, no photos.{% endcomment %}
+<div class="layout layout--col layout--stretch gap">
+  {% if error != blank %}
+  <div class="item">
+    <span class="value value--small">{{ error }}</span>
+  </div>
+  {% else %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--medium">{{ heading | default: "Recent Pours" }}</span>
+      <span class="label">{{ item_count }}</span>
+    </div>
+  </div>
+
+  {% if items.size > 0 %}
+  {% for it in items limit: 3 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">{{ it.drink }}</span>
+      <span class="label">{{ it.rating_display }} · {{ it.when }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="item">
+    <span class="value value--small">No pours yet</span>
+    <span class="label">{% if scope == 'handle' %}nothing checked in yet{% else %}the feed is quiet{% endif %}</span>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="title_bar">
+    <img width="40" src="{{ trmnl.plugin_settings.custom_fields_values.url | default: 'https://sodapop.vandijke.xyz' }}/static/icon-192.png">
+    <span class="title">Sodapop · {% if scope == 'handle' %}Pours{% else %}Feed{% endif %}</span>
+  </div>
+</div>

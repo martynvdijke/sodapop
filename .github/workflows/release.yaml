@@ -105,6 +105,15 @@ jobs:
             docker push martynvandijke/sodapop:"$VERSION"
           fi
 
+  trml:
+    name: TRMNL plugins
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true' && needs.release.result == 'success'
+    uses: ./.github/workflows/trml.yaml
+    secrets: inherit
+    permissions:
+      contents: read
+
   android:
     name: Build Android APK and App Bundle
     needs: release
@@ -212,7 +221,7 @@ jobs:
           gh release upload "v${VERSION}" "sodapop-${VERSION}-android.apk" --clobber
 
   notify:
-    needs: [ci, release, android]
+    needs: [ci, release, android, trml]
     if: ${{ always() }}
     name: Gotify Notification
     runs-on: ubuntu-latest
@@ -238,7 +247,7 @@ jobs:
           notification_message: 'Workflow passed but no new release was published.'
 
       - name: Failure Notification
-        if: env.GOTIFY_APP_TOKEN != '' && (needs.ci.result == 'failure' || needs.release.result == 'failure' || needs.android.result == 'failure')
+        if: env.GOTIFY_APP_TOKEN != '' && (needs.ci.result == 'failure' || needs.release.result == 'failure' || needs.android.result == 'failure' || needs.trml.result == 'failure')
         uses: eikendev/gotify-action@cb63800546f25c393ab96f09d12a094138c514f4 # master
         with:
           gotify_api_base: ${{ secrets.GOTIFY_API_BASE }}

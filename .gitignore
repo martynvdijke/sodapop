@@ -91,5 +91,9 @@ tmp/
 openspec/
 internal/web/static/sw.js
 
+# --- TRMNL plugins ------------------------------------------------------------
+trmnl/**/__pycache__/
+trmnl/**/_build/
+
 # Deepwork local progress state
 .slim/deepwork/

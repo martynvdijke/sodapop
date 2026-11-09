@@ -1,0 +1,82 @@
+{% comment %}Sodapop · Recent Pours — full 800x480. Fields: heading, scope, item_count, latest, total_toasts_label, best_rating, items[]{drink brand handle rating_display rating_pct note toasts_label venue when photo_url}{% endcomment %}
+<div class="layout layout--col layout--stretch gap--xsmall">
+  {% if error != blank %}
+  <div class="item">
+    <div class="content text--center">
+      <span class="value value--medium">{{ error }}</span>
+      <span class="label">could not load pours</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <div class="flex flex--col">
+        <span class="value value--medium">{{ heading | default: "Recent Pours" }}</span>
+        <span class="label">{{ item_count }} pours · {{ total_toasts_label }} · best {{ best_rating | default: "—" }}</span>
+      </div>
+      <span class="label">{{ latest }}</span>
+    </div>
+  </div>
+
+  {% if items.size > 0 %}
+  <div class="hr"></div>
+  {% assign lead = items[0] %}
+  <div class="item">
+    <div class="columns">
+      {% if lead.photo_url != blank %}
+      <div class="column" style="width: 128px; height: 128px">
+        <img class="image image-cover image-dither rounded" src="{{ lead.photo_url }}" />
+      </div>
+      {% endif %}
+      <div class="column w--full">
+        <div class="flex flex--row flex--between w--full">
+          <span class="value value--medium">{{ lead.drink }}</span>
+          <span class="value value--small">{{ lead.rating_display }} · {{ lead.toasts_label }}</span>
+        </div>
+        <div class="meta">
+          <span class="label">{{ lead.brand }}</span>
+          <span class="label">@{{ lead.handle }}</span>
+          {% if lead.venue != blank %}<span class="label">{{ lead.venue }}</span>{% endif %}
+          <span class="label">{{ lead.when }}</span>
+        </div>
+        {% if lead.rating_pct > 0 %}
+        <div style="width: 100%; height: 4px; margin-top: 6px;">
+          <div style="width: {{ lead.rating_pct }}%; height: 4px; background: currentColor;"></div>
+        </div>
+        {% endif %}
+        {% if lead.note != blank %}
+        <span class="label">{{ lead.note }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if items.size > 1 %}
+  <div class="hr"></div>
+  {% for it in items offset: 1 limit: 4 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">{{ it.drink }}</span>
+      <span class="label">{{ it.rating_display }} · {{ it.toasts_label }}</span>
+    </div>
+    <div class="flex flex--row flex--between w--full">
+      <span class="label">{{ it.brand }} · @{{ it.handle }}{% if it.venue != blank %} · {{ it.venue }}{% endif %}</span>
+      <span class="label">{{ it.when }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+  {% else %}
+  <div class="item">
+    <div class="content text--center">
+      <span class="value value--medium">No pours yet</span>
+      <span class="label">{% if scope == 'handle' %}nothing checked in here yet{% else %}the feed is quiet — scan a can to start it{% endif %}</span>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="title_bar">
+    <img width="40" src="{{ trmnl.plugin_settings.custom_fields_values.url | default: 'https://sodapop.vandijke.xyz' }}/static/icon-192.png">
+    <span class="title">Sodapop · {% if scope == 'handle' %}Pours{% else %}Feed{% endif %}</span>
+  </div>
+</div>

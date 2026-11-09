@@ -124,6 +124,33 @@ Shipped on top of v1.1. See [docs/product.md](docs/product.md) for the product s
 - **Observability & privacy-first analytics:** OpenTelemetry (`v1.47.0`) traces, metrics (`/metrics`), and correlated JSON logs via OTLP, plus optional self-hosted Umami analytics with an event allowlist and per-user opt-out.
 - **Store-ready legal pages:** `/privacy`, `/terms` and `/account/delete` are public, render only the processors the instance actually runs, and are configured with `LEGAL_CONTROLLER_NAME`, `LEGAL_CONTACT_EMAIL`, `LEGAL_CONTACT_ADDRESS` and `LEGAL_HOSTING_REGION`. Deleting an account anonymises the user, revokes every credential and keeps shared content as a deleted user (see `docs/legal.md` and `docs/play-store.md`).
 
+## TRMNL plugins
+
+Four polling plugins for a [TRMNL](https://usetrmnl.com) e-ink display live in `trmnl/`. They hold no transform code: each one polls a ready-to-render JSON endpoint under `/api/v1/trmnl/`, so the Liquid views render exactly what the server returns.
+
+| Plugin | Shows | Auth needed |
+| --- | --- | --- |
+| `trmnl/checkins` | Latest public pours, or one member's pours | None (public feed) |
+| `trmnl/new-drinks` | New drinks, venues and members | `read` API token on an admin or moderator account |
+| `trmnl/admin` | Moderation queue and site activity | `read` API token on an admin or moderator account |
+| `trmnl/me` | Your stats, streaks, recent pours and notifications | `read` API token |
+
+Three plugins need a Bearer token: create one at `/settings/tokens` with the `read` scope and paste it into the plugin's `api_token` password field. The `admin` and `new-drinks` endpoints additionally require the token owner to have the admin or moderator role; a member token gets a 404 there. `trmnl/checkins` is public, and its optional `handle` field narrows the feed to one public profile (leave it blank for the community feed).
+
+CI lints every plugin in `.github/workflows/trml.yaml`, and the release workflow calls it to push. Pushing needs the `TRML_TOKEN` repository secret (a TRMNL plugin API key). The first push of a plugin without an `id:` creates it, then the job prints the new ID and fails; pin it as `id: <n>` in that plugin's `src/settings.yml` and commit, so later pushes update the existing plugin instead of creating a duplicate. `trmnl/README.md` covers local preview, lint, push and each plugin's custom fields.
+
+### TRMNL API
+
+Each response is always HTTP 200 with a complete object (empty arrays and zero counters included), absolute URLs based on `BASE_URL`, and integer ratings formatted as stars. The check-ins route is public and shares the preview IP rate limit; the other three require a `read` bearer token, with the admin and new-drinks routes restricted to admin or moderator accounts.
+
+| Endpoint | Returns | Auth |
+| --- | --- | --- |
+| `GET /api/v1/trmnl/checkins` | Recent public pours, optional `?handle=` and `?limit=` (max 20) | None |
+| `GET /api/v1/trmnl/new-drinks` | Recent drinks, venues or members, `?scope=drinks\|venues\|users\|all` | `read` + admin/moderator |
+| `GET /api/v1/trmnl/admin` | Counters, open reports, activity and an attention banner | `read` + admin/moderator |
+| `GET /api/v1/trmnl/me` | Your stats, streaks, notifications and recent pours | `read` token |
+
+
 ## Stack
 
 - **Backend:** Go 1.27, stdlib `net/http`, `html/template`, pure-Go SQLite (`modernc.org/sqlite`, WAL, FTS5), **Ent ORM (`entgo.io/ent v0.14.6`)** + versioned migration registry (`internal/db/migrations`)

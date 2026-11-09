@@ -1,0 +1,59 @@
+{% comment %}Sodapop · Recent Pours — half_vertical 400x480. Lead row carries a 64px photo.{% endcomment %}
+<div class="layout layout--col layout--stretch gap--small">
+  {% if error != blank %}
+  <div class="item">
+    <span class="value value--small">{{ error }}</span>
+  </div>
+  {% else %}
+  <div class="item">
+    <span class="value value--small">{{ heading | default: "Recent Pours" }}</span>
+    <span class="label">{{ item_count }} pours · {{ latest }}</span>
+  </div>
+  <div class="hr"></div>
+
+  {% if items.size > 0 %}
+  {% assign lead = items[0] %}
+  <div class="item">
+    <div class="columns">
+      {% if lead.photo_url != blank %}
+      <div class="column" style="width: 64px; height: 64px">
+        <img class="image image-cover image-dither rounded" src="{{ lead.photo_url }}" />
+      </div>
+      {% endif %}
+      <div class="column w--full">
+        <div class="flex flex--row flex--between w--full">
+          <span class="value value--medium">{{ lead.drink }}</span>
+          <span class="value value--small">{{ lead.rating_display }}</span>
+        </div>
+        <span class="label">{{ lead.brand }} · @{{ lead.handle }}</span>
+        <span class="label">{{ lead.toasts_label }} · {{ lead.when }}</span>
+      </div>
+    </div>
+  </div>
+
+  {% for it in items offset: 1 limit: 3 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">{{ it.drink }}</span>
+      <span class="label">{{ it.rating_display }}</span>
+    </div>
+    <div class="flex flex--row flex--between w--full">
+      <span class="label">{{ it.brand }} · @{{ it.handle }}</span>
+      <span class="label">{{ it.when }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="item">
+    <div class="content text--center">
+      <span class="value value--medium">No pours yet</span>
+      <span class="label">{% if scope == 'handle' %}nothing checked in here yet{% else %}the feed is quiet{% endif %}</span>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="title_bar">
+    <img width="40" src="{{ trmnl.plugin_settings.custom_fields_values.url | default: 'https://sodapop.vandijke.xyz' }}/static/icon-192.png">
+    <span class="title">Sodapop · {% if scope == 'handle' %}Pours{% else %}Feed{% endif %}</span>
+  </div>
+</div>

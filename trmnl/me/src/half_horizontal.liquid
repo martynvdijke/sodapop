@@ -1,0 +1,54 @@
+{% comment %}Sodapop · My Sodapop — half_horizontal 800x240. Four stats inline, two recent pours.{% endcomment %}
+<div class="layout layout--col layout--stretch gap--small">
+  {% if error != blank %}
+  <div class="item">
+    <span class="value value--small">{{ error }}</span>
+  </div>
+  {% else %}
+  <div class="item">
+    <div class="columns">
+      <div class="column">
+        <span class="value value--medium">{{ pours }}</span>
+        <span class="label label--small">Pours</span>
+      </div>
+      <div class="column">
+        <span class="value value--medium">{{ unique_drinks }}</span>
+        <span class="label label--small">Unique</span>
+      </div>
+      <div class="column">
+        <span class="value value--medium">{{ current_streak }}</span>
+        <span class="label label--small">Streak</span>
+      </div>
+      <div class="column">
+        <span class="value value--medium">{{ badges }}</span>
+        <span class="label label--small">Badges</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  {% if recent.size > 0 %}
+  {% for r in recent limit: 2 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">{{ r.drink_name }}</span>
+      <span class="label">{{ r.rating_display }} · {{ r.when }}</span>
+    </div>
+    <div class="flex flex--row flex--between w--full">
+      <span class="label">{{ r.brand }}{% if r.venue_name != blank %} · {{ r.venue_name }}{% endif %}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="item">
+    <span class="value value--small">No pours yet</span>
+    <span class="label">scan a can to start your card</span>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="title_bar">
+    <img width="40" src="{{ trmnl.plugin_settings.custom_fields_values.url | default: 'https://sodapop.vandijke.xyz' }}/static/icon-192.png">
+    <span class="title">Sodapop{% if handle != blank %} · @{{ handle }}{% endif %}</span>
+  </div>
+</div>

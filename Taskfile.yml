@@ -65,6 +65,15 @@ tasks:
     cmds:
       - npx playwright test
 
+  trmnl-lint:
+    desc: Lint the TRMNL plugins (needs the trmnlp gem)
+    cmds:
+      - |
+        for d in trmnl/*/; do
+          echo "Linting $d"
+          trmnlp lint --dir "$d"
+        done
+
   ci:
     desc: Everything CI runs
     cmds:

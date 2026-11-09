@@ -1,0 +1,46 @@
+{% comment %}Sodapop · My Sodapop — quadrant 400x240. Pours and streak as the two heroes.{% endcomment %}
+<div class="layout layout--col layout--stretch gap">
+  {% if error != blank %}
+  <div class="item">
+    <span class="value value--small">{{ error }}</span>
+  </div>
+  {% else %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <div class="flex flex--col">
+        <span class="value value--large">{{ pours }}</span>
+        <span class="label label--small">Pours · {{ unique_drinks }} unique</span>
+      </div>
+      <div class="flex flex--col">
+        <span class="value value--large">{{ current_streak }}</span>
+        <span class="label label--small">Streak · best {{ longest_streak }}</span>
+      </div>
+    </div>
+  </div>
+
+  {% if recent.size > 0 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">{{ recent[0].drink_name }}</span>
+      <span class="label">{{ recent[0].rating_display }} · {{ recent[0].when }}</span>
+    </div>
+    <div class="flex flex--row flex--between w--full">
+      <span class="label">{{ recent[0].brand }}</span>
+      <span class="label">{{ badges }} badges · avg {{ avg_rating_display }}</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">No pours yet</span>
+      <span class="label">{{ badges }} badges</span>
+    </div>
+    <span class="label">scan a can to start your card</span>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="title_bar">
+    <img width="40" src="{{ trmnl.plugin_settings.custom_fields_values.url | default: 'https://sodapop.vandijke.xyz' }}/static/icon-192.png">
+    <span class="title">Sodapop{% if handle != blank %} · @{{ handle }}{% endif %}{% if unread > 0 %} · {{ unread }} unread{% endif %}</span>
+  </div>
+</div>

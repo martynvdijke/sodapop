@@ -1,0 +1,95 @@
+{% comment %}Sodapop · Mod Desk — full 800x480. Fields: counts{checkins_24h drinks_24h users_7d open_reports pending_drinks}, reports[], report_count, events[], needs_attention, banner{% endcomment %}
+<div class="layout layout--col layout--stretch gap--xsmall">
+  {% if error != blank %}
+  <div class="item">
+    <div class="content text--center">
+      <span class="value value--medium">{{ error }}</span>
+      <span class="label">could not load the mod desk</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="item{% if needs_attention %} inverse{% endif %}">
+    <div class="flex flex--row flex--between w--full">
+      <span class="label label--small">Mod Desk</span>
+      <span class="value value--small">{{ banner | default: "All clear" }}</span>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="columns">
+      <div class="column">
+        <span class="value value--medium">{{ counts.checkins_24h }}</span>
+        <span class="label label--small">Check-ins</span>
+      </div>
+      <div class="column">
+        <span class="value value--medium">{{ counts.drinks_24h }}</span>
+        <span class="label label--small">Drinks</span>
+      </div>
+      <div class="column">
+        <span class="value value--medium">{{ counts.users_7d }}</span>
+        <span class="label label--small">New users</span>
+      </div>
+      <div class="column">
+        <span class="value value--medium">{{ counts.open_reports }}</span>
+        <span class="label label--small">Open reports</span>
+      </div>
+      <div class="column">
+        <span class="value value--medium">{{ counts.pending_drinks }}</span>
+        <span class="label label--small">Pending drinks</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="item">
+    <span class="label label--small">Needs attention{% if report_count > 0 %} · {{ report_count }}{% endif %}</span>
+  </div>
+  {% if reports.size > 0 %}
+  {% for r in reports limit: 3 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">{{ r.title }}</span>
+      <span class="label">{{ r.status }}</span>
+    </div>
+    <div class="flex flex--row flex--between w--full">
+      <span class="label">{{ r.detail }}</span>
+      <span class="label">{% if r.actor_handle != blank %}@{{ r.actor_handle }} · {% endif %}{{ r.when }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="item">
+    <span class="value value--small">Nothing pending</span>
+    <span class="label">no reports waiting</span>
+  </div>
+  {% endif %}
+
+  <div class="hr"></div>
+
+  <div class="item">
+    <span class="label label--small">Latest activity{% if event_count > 0 %} · {{ event_count }}{% endif %}</span>
+  </div>
+  {% if events.size > 0 %}
+  {% for e in events limit: 3 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <div class="flex flex--row">
+        <span class="label">{{ e.kind }}</span>
+        <span class="value value--small">{{ e.title }}</span>
+      </div>
+      <span class="label">{% if e.actor_handle != blank %}@{{ e.actor_handle }} · {% endif %}{{ e.when }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="item">
+    <span class="label label--small">No activity yet</span>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="title_bar">
+    <img width="40" src="{{ trmnl.plugin_settings.custom_fields_values.url | default: 'https://sodapop.vandijke.xyz' }}/static/icon-192.png">
+    <span class="title">Sodapop · Mod Desk</span>
+  </div>
+</div>

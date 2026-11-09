@@ -98,6 +98,13 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "GET /api/v1/public/media/{id}", s.publicMediaFull)
 	s.route(mux, "GET /api/v1/public/media/{id}/thumb", s.publicMediaThumb)
 
+	// TRMNL e-ink views. The check-ins view is a public read; the others are
+	// member-scoped and, for new-drinks and admin, moderator-scoped.
+	s.route(mux, "GET /api/v1/trmnl/checkins", s.trmnlCheckins)
+	s.route(mux, "GET /api/v1/trmnl/new-drinks", s.protect("read", false, s.trmnlNewDrinks))
+	s.route(mux, "GET /api/v1/trmnl/admin", s.protect("read", false, s.trmnlAdmin))
+	s.route(mux, "GET /api/v1/trmnl/me", s.protect("read", false, s.trmnlMe))
+
 	s.route(mux, "GET /api/v1/auth/oidc/status", s.oidcStatus)
 	s.route(mux, "GET /api/v1/auth/config", s.authConfig)
 	s.route(mux, "POST /api/v1/auth/register", s.authRegister)

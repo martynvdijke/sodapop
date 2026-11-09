@@ -1,0 +1,91 @@
+{% comment %}Sodapop · My Sodapop — full 800x480. Fields: handle, display_name, pours, unique_drinks, badges, toasts_received, avg_rating_display, current_streak, longest_streak, unread, has_notifications, notifications[], recent[]{% endcomment %}
+<div class="layout layout--col layout--stretch gap--xsmall">
+  {% if error != blank %}
+  <div class="item">
+    <div class="content text--center">
+      <span class="value value--medium">{{ error }}</span>
+      <span class="label">could not load your card</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <div class="flex flex--col">
+        <span class="value value--medium">{% if handle != blank %}@{{ handle }}{% else %}My Sodapop{% endif %}</span>
+        <span class="label">{{ display_name }}</span>
+      </div>
+      <span class="label">{{ toasts_received }} toasts received</span>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="columns">
+      <div class="column">
+        <span class="value value--large">{{ pours }}</span>
+        <span class="label label--small">Pours · avg {{ avg_rating_display }}</span>
+      </div>
+      <div class="column">
+        <span class="value value--large">{{ unique_drinks }}</span>
+        <span class="label label--small">Unique drinks</span>
+      </div>
+      <div class="column">
+        <span class="value value--large">{{ current_streak }}</span>
+        <span class="label label--small">Streak · best {{ longest_streak }}</span>
+      </div>
+      <div class="column">
+        <span class="value value--large">{{ badges }}</span>
+        <span class="label label--small">Badges earned</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="item">
+    <span class="label label--small">Recent</span>
+  </div>
+  {% if recent.size > 0 %}
+  {% for r in recent limit: 3 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="value value--small">{{ r.drink_name }}</span>
+      <span class="label">{{ r.rating_display }} · {{ r.when }}</span>
+    </div>
+    <div class="flex flex--row flex--between w--full">
+      <span class="label">{{ r.brand }}{% if r.venue_name != blank %} · {{ r.venue_name }}{% endif %}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="item">
+    <span class="value value--small">No pours yet</span>
+    <span class="label">scan a can to start your card</span>
+  </div>
+  {% endif %}
+
+  <div class="hr"></div>
+
+  <div class="item">
+    <span class="label label--small">Notifications{% if unread > 0 %} · {{ unread }} unread{% endif %}</span>
+  </div>
+  {% if has_notifications and notifications.size > 0 %}
+  {% for n in notifications limit: 3 %}
+  <div class="item">
+    <div class="flex flex--row flex--between w--full">
+      <span class="label">{{ n.text }}</span>
+      <span class="label">{{ n.when }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="item">
+    <span class="value value--small">All clear</span>
+    <span class="label">nothing new since your last pour</span>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="title_bar">
+    <img width="40" src="{{ trmnl.plugin_settings.custom_fields_values.url | default: 'https://sodapop.vandijke.xyz' }}/static/icon-192.png">
+    <span class="title">Sodapop{% if handle != blank %} · @{{ handle }}{% endif %}</span>
+  </div>
+</div>
