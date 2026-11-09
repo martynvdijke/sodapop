@@ -1,3 +1,10 @@
+## [1.26.2](https://github.com/martynvdijke/sodapop/compare/v1.26.1...v1.26.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **trmnl:** pin minted plugin ids ([b59a726](https://github.com/martynvdijke/sodapop/commit/b59a7260acb834c3727da8b3d0dbe1e8b10dcce0))
+
 ## [1.26.1](https://github.com/martynvdijke/sodapop/compare/v1.26.0...v1.26.1) (2026-11-09)
 
 
