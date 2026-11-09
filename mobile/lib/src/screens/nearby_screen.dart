@@ -887,6 +887,19 @@ class _NearbyCard extends StatelessWidget {
                       style: theme.textTheme.bodyMedium,
                     ),
                   ],
+                  if (sodaPrepMethod(checkin.prepMethod).isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      checkin.prepNote.isEmpty
+                          ? sodaPrepMethod(checkin.prepMethod)
+                          : '${sodaPrepMethod(checkin.prepMethod)} · ${checkin.prepNote}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 14,

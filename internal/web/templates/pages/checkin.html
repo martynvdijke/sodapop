@@ -40,6 +40,33 @@
         </select>
       </label>
 
+      <fieldset class="checkin-prep">
+        <legend>Preparation <span class="hint">optional · for tea and coffee</span></legend>
+        <label>Method
+          <select name="prep_method">
+            <option value="none">Not specified</option>
+            <optgroup label="Tea">
+              <option value="tea_bag">Tea bag</option>
+              <option value="loose_leaf">Loose leaf</option>
+              <option value="cold_brew">Cold brew</option>
+              <option value="matcha">Matcha</option>
+            </optgroup>
+            <optgroup label="Coffee">
+              <option value="espresso">Espresso</option>
+              <option value="pour_over">Pour-over</option>
+              <option value="french_press">French press</option>
+              <option value="aeropress">AeroPress</option>
+              <option value="moka">Moka pot</option>
+              <option value="drip">Drip</option>
+            </optgroup>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>Details <span class="hint">optional · grind, dose, steep time</span>
+          <input name="prep_note" maxlength="280" placeholder="18g / 300ml, 3 min steep">
+        </label>
+      </fieldset>
+
       <fieldset class="checkin-venue" data-venue-picker>
         <legend>Where? <span class="hint">optional</span></legend>
 

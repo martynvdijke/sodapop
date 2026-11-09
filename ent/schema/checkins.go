@@ -21,6 +21,8 @@ func (Checkin) Fields() []ent.Field {
 		field.Int("venue_id").Optional().Nillable(),
 		field.Int("rating").Optional().Nillable().Range(0, 20),
 		field.Enum("serving").Values("can", "bottle", "glass", "fountain", "other").Default("can"),
+		field.Enum("prep_method").Values("none", "tea_bag", "loose_leaf", "cold_brew", "matcha", "espresso", "pour_over", "french_press", "aeropress", "moka", "drip", "other").Default("none"),
+		field.String("prep_note").Default(""),
 		field.String("note").Default(""),
 		field.String("photo_media_id").Optional().Nillable(),
 		// Raw device coordinates are optional and always stored together. They

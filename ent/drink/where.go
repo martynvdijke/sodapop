@@ -84,6 +84,11 @@ func ImageURL(v string) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldImageURL, v))
 }
 
+// AbvPercent applies equality check predicate on the "abv_percent" field. It's identical to AbvPercentEQ.
+func AbvPercent(v float64) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldAbvPercent, v))
+}
+
 // VolumeMl applies equality check predicate on the "volume_ml" field. It's identical to VolumeMlEQ.
 func VolumeMl(v int) predicate.Drink {
 	return predicate.Drink(sql.FieldEQ(FieldVolumeMl, v))
@@ -472,6 +477,66 @@ func ImageURLEqualFold(v string) predicate.Drink {
 // ImageURLContainsFold applies the ContainsFold predicate on the "image_url" field.
 func ImageURLContainsFold(v string) predicate.Drink {
 	return predicate.Drink(sql.FieldContainsFold(FieldImageURL, v))
+}
+
+// BeverageTypeEQ applies the EQ predicate on the "beverage_type" field.
+func BeverageTypeEQ(v BeverageType) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldBeverageType, v))
+}
+
+// BeverageTypeNEQ applies the NEQ predicate on the "beverage_type" field.
+func BeverageTypeNEQ(v BeverageType) predicate.Drink {
+	return predicate.Drink(sql.FieldNEQ(FieldBeverageType, v))
+}
+
+// BeverageTypeIn applies the In predicate on the "beverage_type" field.
+func BeverageTypeIn(vs ...BeverageType) predicate.Drink {
+	return predicate.Drink(sql.FieldIn(FieldBeverageType, vs...))
+}
+
+// BeverageTypeNotIn applies the NotIn predicate on the "beverage_type" field.
+func BeverageTypeNotIn(vs ...BeverageType) predicate.Drink {
+	return predicate.Drink(sql.FieldNotIn(FieldBeverageType, vs...))
+}
+
+// AbvPercentEQ applies the EQ predicate on the "abv_percent" field.
+func AbvPercentEQ(v float64) predicate.Drink {
+	return predicate.Drink(sql.FieldEQ(FieldAbvPercent, v))
+}
+
+// AbvPercentNEQ applies the NEQ predicate on the "abv_percent" field.
+func AbvPercentNEQ(v float64) predicate.Drink {
+	return predicate.Drink(sql.FieldNEQ(FieldAbvPercent, v))
+}
+
+// AbvPercentIn applies the In predicate on the "abv_percent" field.
+func AbvPercentIn(vs ...float64) predicate.Drink {
+	return predicate.Drink(sql.FieldIn(FieldAbvPercent, vs...))
+}
+
+// AbvPercentNotIn applies the NotIn predicate on the "abv_percent" field.
+func AbvPercentNotIn(vs ...float64) predicate.Drink {
+	return predicate.Drink(sql.FieldNotIn(FieldAbvPercent, vs...))
+}
+
+// AbvPercentGT applies the GT predicate on the "abv_percent" field.
+func AbvPercentGT(v float64) predicate.Drink {
+	return predicate.Drink(sql.FieldGT(FieldAbvPercent, v))
+}
+
+// AbvPercentGTE applies the GTE predicate on the "abv_percent" field.
+func AbvPercentGTE(v float64) predicate.Drink {
+	return predicate.Drink(sql.FieldGTE(FieldAbvPercent, v))
+}
+
+// AbvPercentLT applies the LT predicate on the "abv_percent" field.
+func AbvPercentLT(v float64) predicate.Drink {
+	return predicate.Drink(sql.FieldLT(FieldAbvPercent, v))
+}
+
+// AbvPercentLTE applies the LTE predicate on the "abv_percent" field.
+func AbvPercentLTE(v float64) predicate.Drink {
+	return predicate.Drink(sql.FieldLTE(FieldAbvPercent, v))
 }
 
 // ContainerEQ applies the EQ predicate on the "container" field.

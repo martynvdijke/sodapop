@@ -40,6 +40,134 @@
       }
     },
     "schemas": {
+      "TrmnlCheckinItem": {
+        "type": "object",
+        "properties": {
+          "handle": {"type": "string"},
+          "display_name": {"type": "string"},
+          "drink": {"type": "string"},
+          "brand": {"type": "string"},
+          "rating_display": {"type": "string", "description": "Quarter-star rating as stars with up to two decimals, or an em dash when unrated."},
+          "rating_pct": {"type": "integer", "minimum": 0, "maximum": 100},
+          "note": {"type": "string", "description": "Whitespace-collapsed, truncated to 140 runes."},
+          "toasts": {"type": "integer"},
+          "venue": {"type": "string"},
+          "when": {"type": "string", "description": "Short relative label, e.g. 2h ago, 3d ago or Nov 8."},
+          "time": {"type": "string", "description": "HH:MM UTC."},
+          "photo_url": {"type": ["string", "null"]},
+          "href": {"type": "string"}
+        },
+        "required": ["handle", "display_name", "drink", "brand", "rating_display", "rating_pct", "note", "toasts", "venue", "when", "time", "photo_url", "href"]
+      },
+      "TrmnlEvent": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "detail": {"type": "string", "description": "Whitespace-collapsed, truncated to 120 runes."},
+          "status": {"type": "string"},
+          "actor_handle": {"type": "string"},
+          "when": {"type": "string"},
+          "href": {"type": "string"},
+          "kind": {"type": "string"}
+        },
+        "required": ["title", "detail", "status", "actor_handle", "when", "href"]
+      },
+      "TrmnlCheckinsResponse": {
+        "type": "object",
+        "properties": {
+          "error": {"type": "string"},
+          "scope": {"type": "string", "enum": ["feed", "handle"]},
+          "heading": {"type": "string"},
+          "items": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlCheckinItem"}},
+          "item_count": {"type": "integer"},
+          "latest": {"type": "string"},
+          "total_toasts": {"type": "integer"},
+          "best_rating": {"type": "string"}
+        },
+        "required": ["scope", "heading", "items", "item_count", "latest", "total_toasts", "best_rating"]
+      },
+      "TrmnlNewDrinksResponse": {
+        "type": "object",
+        "properties": {
+          "error": {"type": "string"},
+          "scope": {"type": "string", "enum": ["drinks", "venues", "users", "all"]},
+          "scope_label": {"type": "string", "enum": ["Drinks", "Venues", "Members", "Everything"]},
+          "added_24h": {"type": "integer"},
+          "pending": {"type": "integer"},
+          "items": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlEvent"}},
+          "item_count": {"type": "integer"},
+          "latest": {"type": "string"}
+        },
+        "required": ["scope", "scope_label", "added_24h", "pending", "items", "item_count", "latest"]
+      },
+      "TrmnlAdminCounts": {
+        "type": "object",
+        "properties": {
+          "checkins_24h": {"type": "integer"},
+          "drinks_24h": {"type": "integer"},
+          "users_7d": {"type": "integer"},
+          "open_reports": {"type": "integer"},
+          "pending_drinks": {"type": "integer"}
+        },
+        "required": ["checkins_24h", "drinks_24h", "users_7d", "open_reports", "pending_drinks"]
+      },
+      "TrmnlAdminResponse": {
+        "type": "object",
+        "properties": {
+          "error": {"type": "string"},
+          "counts": {"$ref": "#/components/schemas/TrmnlAdminCounts"},
+          "reports": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlEvent"}},
+          "report_count": {"type": "integer"},
+          "events": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlEvent"}},
+          "event_count": {"type": "integer"},
+          "needs_attention": {"type": "boolean"},
+          "banner": {"type": "string"}
+        },
+        "required": ["counts", "reports", "report_count", "events", "event_count", "needs_attention", "banner"]
+      },
+      "TrmnlNotification": {
+        "type": "object",
+        "properties": {
+          "kind": {"type": "string"},
+          "text": {"type": "string"},
+          "when": {"type": "string"},
+          "actor_handle": {"type": "string"}
+        },
+        "required": ["kind", "text", "when", "actor_handle"]
+      },
+      "TrmnlRecentPour": {
+        "type": "object",
+        "properties": {
+          "drink_name": {"type": "string"},
+          "brand": {"type": "string"},
+          "rating_display": {"type": "string"},
+          "when": {"type": "string"},
+          "venue_name": {"type": "string"},
+          "photo_url": {"type": ["string", "null"]},
+          "href": {"type": "string"}
+        },
+        "required": ["drink_name", "brand", "rating_display", "when", "venue_name", "photo_url", "href"]
+      },
+      "TrmnlMeResponse": {
+        "type": "object",
+        "properties": {
+          "error": {"type": "string"},
+          "handle": {"type": "string"},
+          "display_name": {"type": "string"},
+          "pours": {"type": "integer"},
+          "unique_drinks": {"type": "integer"},
+          "badges": {"type": "integer"},
+          "toasts_received": {"type": "integer"},
+          "avg_rating_display": {"type": "string"},
+          "current_streak": {"type": "integer"},
+          "longest_streak": {"type": "integer"},
+          "unread": {"type": "integer"},
+          "has_notifications": {"type": "boolean"},
+          "notifications": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlNotification"}},
+          "recent": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlRecentPour"}}
+        },
+        "required": ["handle", "display_name", "pours", "unique_drinks", "badges", "toasts_received", "avg_rating_display", "current_streak", "longest_streak", "unread", "has_notifications", "notifications", "recent"]
+      },
       "FeedItem": {
         "type": "object",
         "properties": {
@@ -283,6 +411,24 @@
               "other"
             ]
           },
+          "beverage_type": {
+            "type": "string",
+            "enum": [
+              "soda",
+              "water",
+              "tea",
+              "coffee",
+              "na_beer",
+              "na_wine",
+              "na_spirit",
+              "other"
+            ]
+          },
+          "abv_percent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
           "volume_ml": {
             "type": "integer"
           },
@@ -347,6 +493,27 @@
               "fountain",
               "other"
             ]
+          },
+          "prep_method": {
+            "type": "string",
+            "enum": [
+              "none",
+              "tea_bag",
+              "loose_leaf",
+              "cold_brew",
+              "matcha",
+              "espresso",
+              "pour_over",
+              "french_press",
+              "aeropress",
+              "moka",
+              "drip",
+              "other"
+            ]
+          },
+          "prep_note": {
+            "type": "string",
+            "maxLength": 280
           },
           "note": {
             "type": "string",
@@ -818,6 +985,27 @@
             "minimum": 0,
             "maximum": 20,
             "description": "Quarter-star rating, 0..20."
+          },
+          "prep_method": {
+            "type": "string",
+            "enum": [
+              "none",
+              "tea_bag",
+              "loose_leaf",
+              "cold_brew",
+              "matcha",
+              "espresso",
+              "pour_over",
+              "french_press",
+              "aeropress",
+              "moka",
+              "drip",
+              "other"
+            ]
+          },
+          "prep_note": {
+            "type": "string",
+            "maxLength": 280
           },
           "note": {
             "type": "string"
@@ -2489,6 +2677,26 @@
           "serving": {
             "type": "string"
           },
+          "prep_method": {
+            "type": "string",
+            "enum": [
+              "none",
+              "tea_bag",
+              "loose_leaf",
+              "cold_brew",
+              "matcha",
+              "espresso",
+              "pour_over",
+              "french_press",
+              "aeropress",
+              "moka",
+              "drip",
+              "other"
+            ]
+          },
+          "prep_note": {
+            "type": "string"
+          },
           "note": {
             "type": "string"
           },
@@ -3248,6 +3456,24 @@
                         },
                         "container": {
                           "type": "string"
+                        },
+                        "beverage_type": {
+                          "type": "string",
+                          "enum": [
+                            "soda",
+                            "water",
+                            "tea",
+                            "coffee",
+                            "na_beer",
+                            "na_wine",
+                            "na_spirit",
+                            "other"
+                          ]
+                        },
+                        "abv_percent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
                         },
                         "volume_ml": {
                           "type": "integer"
@@ -5380,6 +5606,24 @@
                       "carton",
                       "other"
                     ]
+                  },
+                  "beverage_type": {
+                    "type": "string",
+                    "enum": [
+                      "soda",
+                      "water",
+                      "tea",
+                      "coffee",
+                      "na_beer",
+                      "na_wine",
+                      "na_spirit",
+                      "other"
+                    ]
+                  },
+                  "abv_percent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
                   },
                   "volume_ml": {
                     "type": "integer"
@@ -8772,6 +9016,134 @@
         "tags": [
           "me"
         ]
+      }
+    },
+    "/api/v1/trmnl/checkins": {
+      "get": {
+        "summary": "TRMNL recent check-ins",
+        "description": "Ready-to-render payload for the TRMNL check-ins e-ink view. Public and unauthenticated; it shares the public preview IP rate limit. Optional `handle` narrows the feed to one opted-in public profile and degrades to a 200 object with `error` when that profile is unavailable.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "query",
+            "description": "Optional public profile handle.",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {"type": "integer", "default": 10, "minimum": 1, "maximum": 20}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent pours in the screen's exact shape",
+            "headers": {
+              "Cache-Control": {
+                "description": "public, max-age=60",
+                "schema": {"type": "string"}
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/TrmnlCheckinsResponse"}
+              }
+            }
+          },
+          "429": {"$ref": "#/components/responses/TooManyRequests"}
+        },
+        "tags": ["public"]
+      }
+    },
+    "/api/v1/trmnl/new-drinks": {
+      "get": {
+        "summary": "TRMNL new on the shelf",
+        "description": "Ready-to-render payload for the TRMNL new-drinks e-ink view. Admin or moderator only; non-admins receive 404. `scope` filters the activity to drinks, venues, members or everything except toasts.",
+        "security": [
+          {"bearerAuth": []}
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {"type": "string", "enum": ["drinks", "venues", "users", "all"], "default": "drinks"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "New activity in the screen's exact shape",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store",
+                "schema": {"type": "string"}
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/TrmnlNewDrinksResponse"}
+              }
+            }
+          },
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "404": {"description": "Caller is not an admin or moderator"}
+        },
+        "tags": ["system"]
+      }
+    },
+    "/api/v1/trmnl/admin": {
+      "get": {
+        "summary": "TRMNL moderation desk",
+        "description": "Ready-to-render payload for the TRMNL admin e-ink view: counters, open reports, latest activity and an attention banner. Admin or moderator only; non-admins receive 404.",
+        "security": [
+          {"bearerAuth": []}
+        ],
+        "responses": {
+          "200": {
+            "description": "Moderation snapshot in the screen's exact shape",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store",
+                "schema": {"type": "string"}
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/TrmnlAdminResponse"}
+              }
+            }
+          },
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "404": {"description": "Caller is not an admin or moderator"}
+        },
+        "tags": ["system"]
+      }
+    },
+    "/api/v1/trmnl/me": {
+      "get": {
+        "summary": "TRMNL my stats",
+        "description": "Ready-to-render payload for the TRMNL me e-ink view: totals, streaks, unread notifications and recent pours. Member photo URLs are always null because an e-ink screen cannot send the bearer token.",
+        "security": [
+          {"bearerAuth": []}
+        ],
+        "responses": {
+          "200": {
+            "description": "Personal stats in the screen's exact shape",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store",
+                "schema": {"type": "string"}
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/TrmnlMeResponse"}
+              }
+            }
+          },
+          "401": {"$ref": "#/components/responses/Unauthorized"}
+        },
+        "tags": ["me"]
       }
     }
   }

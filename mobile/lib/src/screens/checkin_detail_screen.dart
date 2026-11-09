@@ -680,6 +680,30 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
               const SizedBox(height: 14),
               Text(detail.note, style: theme.textTheme.bodyLarge),
             ],
+            if (sodaPrepMethod(detail.prepMethod).isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                key: const Key('checkin-prep'),
+                children: [
+                  Icon(
+                    Icons.local_cafe_outlined,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      detail.prepNote.isEmpty
+                          ? sodaPrepMethod(detail.prepMethod)
+                          : '${sodaPrepMethod(detail.prepMethod)} · ${detail.prepNote}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             Divider(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.1),

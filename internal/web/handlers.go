@@ -512,6 +512,8 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		VenueID:        venueID,
 		Rating:         rating,
 		Serving:        r.FormValue("serving"),
+		PrepMethod:     r.FormValue("prep_method"),
+		PrepNote:       strings.TrimSpace(r.FormValue("prep_note")),
 		Note:           strings.TrimSpace(r.FormValue("note")),
 		Visibility:     r.FormValue("visibility"),
 		IdempotencyKey: r.FormValue("idempotency_key"),
@@ -735,17 +737,20 @@ func (s *Server) newDrinkSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	u := UserFromContext(r)
 	volume, _ := strconv.Atoi(r.FormValue("volume_ml"))
+	abv, _ := strconv.ParseFloat(strings.TrimSpace(r.FormValue("abv_percent")), 64)
 	d, created, err := s.Catalog.CreateProvisional(r.Context(), u.ID, catalog.CreateInput{
-		Name:        r.FormValue("name"),
-		Brand:       r.FormValue("brand"),
-		StyleSlug:   r.FormValue("style"),
-		Container:   r.FormValue("container"),
-		VolumeML:    volume,
-		Sweetener:   r.FormValue("sweetener"),
-		Carbonation: r.FormValue("carbonation"),
-		Acid:        r.FormValue("acid"),
-		Barcode:     r.FormValue("barcode"),
-		Description: r.FormValue("description"),
+		Name:         r.FormValue("name"),
+		Brand:        r.FormValue("brand"),
+		StyleSlug:    r.FormValue("style"),
+		Container:    r.FormValue("container"),
+		BeverageType: r.FormValue("beverage_type"),
+		ABVPercent:   abv,
+		VolumeML:     volume,
+		Sweetener:    r.FormValue("sweetener"),
+		Carbonation:  r.FormValue("carbonation"),
+		Acid:         r.FormValue("acid"),
+		Barcode:      r.FormValue("barcode"),
+		Description:  r.FormValue("description"),
 	})
 	if err != nil {
 		s.render(w, r, http.StatusBadRequest, "newdrink", map[string]any{

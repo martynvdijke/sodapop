@@ -46,6 +46,8 @@ func checkinDTO(detail *checkins.Detail, tok *auth.APIToken) map[string]any {
 			"style": detail.Style,
 		},
 		"rating":         detail.Rating,
+		"prep_method":    detail.PrepMethod,
+		"prep_note":      detail.PrepNote,
 		"note":           detail.Note,
 		"visibility":     detail.Visibility,
 		"lat":            detail.Lat,

@@ -536,6 +536,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       const SizedBox(height: 2),
                       Text(date, style: metaStyle),
                     ],
+                    if (sodaPrepMethod(checkin.prepMethod).isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        checkin.prepNote.isEmpty
+                            ? sodaPrepMethod(checkin.prepMethod)
+                            : '${sodaPrepMethod(checkin.prepMethod)} · ${checkin.prepNote}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: metaStyle,
+                      ),
+                    ],
                   ],
                 ),
               ),

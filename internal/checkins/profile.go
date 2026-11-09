@@ -134,6 +134,8 @@ type ProfileItem struct {
 	VenueName   string `json:"venue_name,omitempty"`
 	Rating      *int   `json:"rating,omitempty"`
 	Serving     string `json:"serving"`
+	PrepMethod  string `json:"prep_method,omitempty"`
+	PrepNote    string `json:"prep_note,omitempty"`
 	Note        string `json:"note,omitempty"`
 	Visibility  string `json:"visibility"`
 	CreatedAt   string `json:"created_at"`
@@ -299,7 +301,8 @@ func (s *Service) ProfileCheckinsPage(ctx context.Context, f ProfileCheckinsFilt
 	q := `
 		SELECT c.id, c.user_id, u.handle, COALESCE(u.display_name,''),
 		       c.drink_id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
-		       c.rating, c.serving, c.venue_id, COALESCE(c.note,''), COALESCE(v.name,''),
+		       c.rating, c.serving, COALESCE(c.prep_method,''), COALESCE(c.prep_note,''),
+		       c.venue_id, COALESCE(c.note,''), COALESCE(v.name,''),
 		       c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.poster_path,''),
 		       ` + profileLikesExpr + `,
@@ -380,7 +383,7 @@ func (s *Service) ProfileCheckinsPage(ctx context.Context, f ProfileCheckinsFilt
 		)
 		if err := rows.Scan(&it.ID, &it.UserID, &it.Handle, &it.DisplayName,
 			&it.DrinkID, &it.DrinkName, &it.DrinkSlug, &it.Brand, &it.Container, &it.VolumeML,
-			&rating, &it.Serving, &venueID, &it.Note, &it.VenueName,
+			&rating, &it.Serving, &it.PrepMethod, &it.PrepNote, &venueID, &it.Note, &it.VenueName,
 			&it.Visibility, &it.CreatedAt,
 			&it.PhotoID, &it.PhotoMime, &it.PosterPath,
 			&it.Toasts, &toasted); err != nil {

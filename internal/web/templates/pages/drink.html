@@ -53,6 +53,8 @@
   {{if $d.Drink.Description}}<p class="note">{{$d.Drink.Description}}</p>{{end}}
 
   <dl class="facts">
+    <div><dt>Type</dt><dd>{{beverageType $d.Drink.BeverageType}}</dd></div>
+    {{if gt $d.Drink.AbvPercent 0.0}}<div><dt>ABV</dt><dd>{{printf "%g%%" $d.Drink.AbvPercent}}</dd></div>{{end}}
     <div><dt>Sweetener</dt><dd>{{$d.Drink.Sweetener}}</dd></div>
     <div><dt>Carbonation</dt><dd>{{$d.Drink.Carbonation}}</dd></div>
     <div><dt>Acid</dt><dd>{{$d.Drink.Acid}}</dd></div>

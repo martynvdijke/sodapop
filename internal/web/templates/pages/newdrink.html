@@ -33,6 +33,23 @@
       </select>
     </label>
     <div class="row">
+      <label>Type
+        <select name="beverage_type">
+          <option value="soda">Soda</option>
+          <option value="water">Water</option>
+          <option value="tea">Tea</option>
+          <option value="coffee">Coffee</option>
+          <option value="na_beer">NA beer</option>
+          <option value="na_wine">NA wine</option>
+          <option value="na_spirit">NA spirits</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>ABV % <span class="hint">0 for alcohol-free</span>
+        <input name="abv_percent" type="number" min="0" max="100" step="0.1" value="0">
+      </label>
+    </div>
+    <div class="row">
       <label>Container
         <select name="container">
           <option value="can">Can</option>

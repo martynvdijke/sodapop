@@ -342,16 +342,18 @@ func (s *Server) barcode(w http.ResponseWriter, r *http.Request, tok *auth.APITo
 
 func (s *Server) createDrink(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
 	var in struct {
-		Name        string `json:"name"`
-		Brand       string `json:"brand"`
-		StyleSlug   string `json:"style_slug"`
-		Container   string `json:"container"`
-		VolumeML    int    `json:"volume_ml"`
-		Sweetener   string `json:"sweetener"`
-		Carbonation string `json:"carbonation"`
-		Acid        string `json:"acid"`
-		Barcode     string `json:"barcode"`
-		Description string `json:"description"`
+		Name         string  `json:"name"`
+		Brand        string  `json:"brand"`
+		StyleSlug    string  `json:"style_slug"`
+		Container    string  `json:"container"`
+		BeverageType string  `json:"beverage_type"`
+		ABVPercent   float64 `json:"abv_percent"`
+		VolumeML     int     `json:"volume_ml"`
+		Sweetener    string  `json:"sweetener"`
+		Carbonation  string  `json:"carbonation"`
+		Acid         string  `json:"acid"`
+		Barcode      string  `json:"barcode"`
+		Description  string  `json:"description"`
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
@@ -362,6 +364,7 @@ func (s *Server) createDrink(w http.ResponseWriter, r *http.Request, tok *auth.A
 	}
 	d, created, err := s.Catalog.CreateProvisional(r.Context(), tok.User.ID, catalog.CreateInput{
 		Name: in.Name, Brand: in.Brand, StyleSlug: in.StyleSlug, Container: in.Container,
+		BeverageType: in.BeverageType, ABVPercent: in.ABVPercent,
 		VolumeML: in.VolumeML, Sweetener: in.Sweetener, Carbonation: in.Carbonation,
 		Acid: in.Acid, Barcode: in.Barcode, Description: in.Description,
 	})
@@ -375,7 +378,8 @@ func (s *Server) createDrink(w http.ResponseWriter, r *http.Request, tok *auth.A
 		msg = "provisional drink created"
 	}
 	writeJSON(w, status, map[string]any{"data": map[string]any{
-		"id": d.ID, "slug": d.Slug, "name": d.Name, "status": d.Status, "message": msg,
+		"id": d.ID, "slug": d.Slug, "name": d.Name, "status": d.Status,
+		"beverage_type": d.BeverageType, "abv_percent": d.AbvPercent, "message": msg,
 	}})
 	return nil
 }
@@ -390,6 +394,8 @@ type checkinRequest struct {
 	VenueID        *int
 	Rating         *float64
 	Serving        string
+	PrepMethod     string
+	PrepNote       string
 	Note           string
 	Visibility     string
 	IdempotencyKey string
@@ -410,6 +416,8 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 		VenueID        *int     `json:"venue_id"`
 		Rating         *float64 `json:"rating"`
 		Serving        string   `json:"serving"`
+		PrepMethod     string   `json:"prep_method"`
+		PrepNote       string   `json:"prep_note"`
 		Note           string   `json:"note"`
 		Visibility     string   `json:"visibility"`
 		IdempotencyKey string   `json:"idempotency_key"`
@@ -422,6 +430,7 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 	}
 	return s.saveCheckin(w, r, tok, checkinRequest{
 		DrinkID: in.DrinkID, VenueID: in.VenueID, Rating: in.Rating, Serving: in.Serving,
+		PrepMethod: in.PrepMethod, PrepNote: in.PrepNote,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
 		Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs,
 	}, nil)
@@ -445,6 +454,8 @@ func (s *Server) createCheckinMultipart(w http.ResponseWriter, r *http.Request, 
 
 	in := checkinRequest{
 		Serving:        strings.TrimSpace(r.FormValue("serving")),
+		PrepMethod:     strings.TrimSpace(r.FormValue("prep_method")),
+		PrepNote:       r.FormValue("prep_note"),
 		Note:           r.FormValue("note"),
 		Visibility:     strings.TrimSpace(r.FormValue("visibility")),
 		IdempotencyKey: strings.TrimSpace(r.FormValue("idempotency_key")),
@@ -531,6 +542,7 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 	}
 	c, created, err := s.Checkins.Create(r.Context(), tok.User, checkins.CreateInput{
 		DrinkID: in.DrinkID, VenueID: in.VenueID, Rating: rating, Serving: in.Serving,
+		PrepMethod: in.PrepMethod, PrepNote: in.PrepNote,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
 		PhotoMediaID: photoMediaID, Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs,
 	})
@@ -564,6 +576,7 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 	}
 	data := map[string]any{
 		"id": c.ID, "drink_id": c.DrinkID, "rating": c.Rating, "visibility": c.Visibility,
+		"serving": c.Serving, "prep_method": c.PrepMethod, "prep_note": c.PrepNote,
 		"created_at": c.CreatedAt, "created": created,
 		"lat": c.Lat, "lng": c.Lng, "tagged_friends": tags,
 	}
@@ -795,6 +808,7 @@ func drinkDTO(d *catalog.DrinkDetail) map[string]any {
 	return map[string]any{
 		"id": dr.ID, "slug": dr.Slug, "name": dr.Name, "description": dr.Description,
 		"brand": d.BrandName, "style": d.StyleName, "container": dr.Container, "volume_ml": dr.VolumeMl,
+		"beverage_type": dr.BeverageType, "abv_percent": dr.AbvPercent,
 		"caffeine_mg_per_100ml": dr.CaffeineMgPer100ml, "sugar_g_per_100ml": dr.SugarGPer100ml,
 		"calories_kcal_per_100ml": dr.CaloriesKcalPer100ml, "sweetener": dr.Sweetener,
 		"carbonation": dr.Carbonation, "acid": dr.Acid, "status": dr.Status,

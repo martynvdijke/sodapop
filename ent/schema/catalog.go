@@ -90,6 +90,8 @@ func (Drink) Fields() []ent.Field {
 		field.String("slug").NotEmpty().Unique(),
 		field.String("description").Default(""),
 		field.String("image_url").Optional().Nillable(),
+		field.Enum("beverage_type").Values("soda", "water", "tea", "coffee", "na_beer", "na_wine", "na_spirit", "other").Default("soda"),
+		field.Float("abv_percent").Default(0).Min(0).Max(100),
 		field.Enum("container").Values("can", "glass", "pet", "fountain", "carton", "other").Default("can"),
 		field.Int("volume_ml").Default(355),
 		field.Int("caffeine_mg_per_100ml").Default(0),

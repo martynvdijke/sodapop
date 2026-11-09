@@ -56,18 +56,20 @@ func NewRenderer() (*Renderer, error) {
 
 func metricFuncs() template.FuncMap {
 	return template.FuncMap{
-		"rating":    ratingLabel,
-		"stars":     starsValue,
-		"deref":     deref,
-		"initial":   initial,
-		"percent":   percent,
-		"container": func(v any) string { return titleCase(fmt.Sprint(v)) },
-		"hasPrefix": strings.HasPrefix,
-		"volume":    templateVolume,
-		"per100":    templatePer100,
-		"truncate":  truncateText,
-		"isLast":    func(i, n int) bool { return i == n-1 },
-		"coord":     coordValue,
+		"rating":       ratingLabel,
+		"stars":        starsValue,
+		"deref":        deref,
+		"initial":      initial,
+		"percent":      percent,
+		"container":    func(v any) string { return titleCase(fmt.Sprint(v)) },
+		"hasPrefix":    strings.HasPrefix,
+		"volume":       templateVolume,
+		"per100":       templatePer100,
+		"beverageType": BeverageTypeLabel,
+		"prepMethod":   PrepMethodLabel,
+		"truncate":     truncateText,
+		"isLast":       func(i, n int) bool { return i == n-1 },
+		"coord":        coordValue,
 	}
 }
 

@@ -125,6 +125,8 @@ func profileItemsAsItems(items []checkins.ProfileItem) []checkins.Item {
 			Brand:      it.Brand,
 			Rating:     it.Rating,
 			Serving:    it.Serving,
+			PrepMethod: it.PrepMethod,
+			PrepNote:   it.PrepNote,
 			Note:       it.Note,
 			VenueID:    it.VenueID,
 			VenueName:  it.VenueName,

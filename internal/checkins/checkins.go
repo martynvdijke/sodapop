@@ -39,6 +39,10 @@ const maxTaggedFriends = 10
 // the limit so they cannot store what create would reject.
 const maxNoteLength = 1000
 
+// maxPrepNoteLength caps the preparation note. It is deliberately short: it is
+// a grinder setting or steep time, not a second free-form review.
+const maxPrepNoteLength = 280
+
 // Service owns check-in writes and personal reads.
 type Service struct {
 	Client *ent.Client
@@ -55,6 +59,8 @@ type CreateInput struct {
 	VenueID        *int
 	Rating         *int
 	Serving        string
+	PrepMethod     string
+	PrepNote       string
 	Note           string
 	Visibility     string
 	IdempotencyKey string
@@ -118,6 +124,7 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	if visibility == "" {
 		visibility = string(u.DefaultVisibility)
 	}
+	in.PrepNote = truncateRunes(strings.TrimSpace(in.PrepNote), maxPrepNoteLength)
 	tx, err := s.Client.Tx(ctx)
 	if err != nil {
 		return nil, false, err
@@ -126,6 +133,8 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 		SetUserID(u.ID).
 		SetDrinkID(in.DrinkID).
 		SetServing(servingEnum(in.Serving)).
+		SetPrepMethod(prepMethodEnum(in.PrepMethod)).
+		SetPrepNote(in.PrepNote).
 		SetNote(in.Note).
 		SetVisibility(visibilityEnum(visibility))
 	if in.Rating != nil {
@@ -253,6 +262,8 @@ type Item struct {
 	Brand      string `json:"brand,omitempty"`
 	Rating     *int   `json:"rating,omitempty"`
 	Serving    string `json:"serving"`
+	PrepMethod string `json:"prep_method,omitempty"`
+	PrepNote   string `json:"prep_note,omitempty"`
 	Note       string `json:"note,omitempty"`
 	VenueID    *int   `json:"venue_id,omitempty"`
 	VenueName  string `json:"venue_name,omitempty"`
@@ -273,7 +284,8 @@ func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, li
 	}
 	q := `
 		SELECT c.id, c.user_id, c.drink_id, d.name, d.slug, COALESCE(b.name,''),
-		       c.rating, c.serving, c.note, c.venue_id, COALESCE(v.name,''),
+		       c.rating, c.serving, COALESCE(c.prep_method,''), COALESCE(c.prep_note,''),
+		       c.note, c.venue_id, COALESCE(v.name,''),
 		       c.visibility, c.created_at, COALESCE(m.id,''), COALESCE(m.mime,'')
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
@@ -303,7 +315,8 @@ func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, li
 		var rating, venueID sql.NullInt64
 		var note, photoMime string
 		if err := rows.Scan(&it.ID, &it.UserID, &it.DrinkID, &it.DrinkName, &it.DrinkSlug, &it.Brand,
-			&rating, &it.Serving, &note, &venueID, &it.VenueName, &it.Visibility, &it.CreatedAt, &it.PhotoID, &photoMime); err != nil {
+			&rating, &it.Serving, &it.PrepMethod, &it.PrepNote, &note, &venueID, &it.VenueName,
+			&it.Visibility, &it.CreatedAt, &it.PhotoID, &photoMime); err != nil {
 			return nil, err
 		}
 		// The API media route is the only authenticated way to fetch a photo.
@@ -443,6 +456,48 @@ func servingEnum(v string) checkin.Serving {
 	default:
 		return checkin.ServingCan
 	}
+}
+
+func prepMethodEnum(v string) checkin.PrepMethod {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "tea_bag":
+		return checkin.PrepMethodTeaBag
+	case "loose_leaf":
+		return checkin.PrepMethodLooseLeaf
+	case "cold_brew":
+		return checkin.PrepMethodColdBrew
+	case "matcha":
+		return checkin.PrepMethodMatcha
+	case "espresso":
+		return checkin.PrepMethodEspresso
+	case "pour_over":
+		return checkin.PrepMethodPourOver
+	case "french_press":
+		return checkin.PrepMethodFrenchPress
+	case "aeropress":
+		return checkin.PrepMethodAeropress
+	case "moka":
+		return checkin.PrepMethodMoka
+	case "drip":
+		return checkin.PrepMethodDrip
+	case "other":
+		return checkin.PrepMethodOther
+	default:
+		return checkin.PrepMethodNone
+	}
+}
+
+// truncateRunes caps a free-text field at n runes without splitting a
+// multibyte character.
+func truncateRunes(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
 
 func visibilityEnum(v string) checkin.Visibility {

@@ -84,6 +84,11 @@ func Rating(v int) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldRating, v))
 }
 
+// PrepNote applies equality check predicate on the "prep_note" field. It's identical to PrepNoteEQ.
+func PrepNote(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldPrepNote, v))
+}
+
 // Note applies equality check predicate on the "note" field. It's identical to NoteEQ.
 func Note(v string) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldNote, v))
@@ -307,6 +312,91 @@ func ServingIn(vs ...Serving) predicate.Checkin {
 // ServingNotIn applies the NotIn predicate on the "serving" field.
 func ServingNotIn(vs ...Serving) predicate.Checkin {
 	return predicate.Checkin(sql.FieldNotIn(FieldServing, vs...))
+}
+
+// PrepMethodEQ applies the EQ predicate on the "prep_method" field.
+func PrepMethodEQ(v PrepMethod) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldPrepMethod, v))
+}
+
+// PrepMethodNEQ applies the NEQ predicate on the "prep_method" field.
+func PrepMethodNEQ(v PrepMethod) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldPrepMethod, v))
+}
+
+// PrepMethodIn applies the In predicate on the "prep_method" field.
+func PrepMethodIn(vs ...PrepMethod) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldPrepMethod, vs...))
+}
+
+// PrepMethodNotIn applies the NotIn predicate on the "prep_method" field.
+func PrepMethodNotIn(vs ...PrepMethod) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldPrepMethod, vs...))
+}
+
+// PrepNoteEQ applies the EQ predicate on the "prep_note" field.
+func PrepNoteEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldPrepNote, v))
+}
+
+// PrepNoteNEQ applies the NEQ predicate on the "prep_note" field.
+func PrepNoteNEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldPrepNote, v))
+}
+
+// PrepNoteIn applies the In predicate on the "prep_note" field.
+func PrepNoteIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldPrepNote, vs...))
+}
+
+// PrepNoteNotIn applies the NotIn predicate on the "prep_note" field.
+func PrepNoteNotIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldPrepNote, vs...))
+}
+
+// PrepNoteGT applies the GT predicate on the "prep_note" field.
+func PrepNoteGT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldPrepNote, v))
+}
+
+// PrepNoteGTE applies the GTE predicate on the "prep_note" field.
+func PrepNoteGTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldPrepNote, v))
+}
+
+// PrepNoteLT applies the LT predicate on the "prep_note" field.
+func PrepNoteLT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldPrepNote, v))
+}
+
+// PrepNoteLTE applies the LTE predicate on the "prep_note" field.
+func PrepNoteLTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldPrepNote, v))
+}
+
+// PrepNoteContains applies the Contains predicate on the "prep_note" field.
+func PrepNoteContains(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContains(FieldPrepNote, v))
+}
+
+// PrepNoteHasPrefix applies the HasPrefix predicate on the "prep_note" field.
+func PrepNoteHasPrefix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasPrefix(FieldPrepNote, v))
+}
+
+// PrepNoteHasSuffix applies the HasSuffix predicate on the "prep_note" field.
+func PrepNoteHasSuffix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasSuffix(FieldPrepNote, v))
+}
+
+// PrepNoteEqualFold applies the EqualFold predicate on the "prep_note" field.
+func PrepNoteEqualFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEqualFold(FieldPrepNote, v))
+}
+
+// PrepNoteContainsFold applies the ContainsFold predicate on the "prep_note" field.
+func PrepNoteContainsFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContainsFold(FieldPrepNote, v))
 }
 
 // NoteEQ applies the EQ predicate on the "note" field.

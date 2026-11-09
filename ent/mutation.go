@@ -6886,6 +6886,8 @@ type CheckinMutation struct {
 	rating          *int
 	addrating       *int
 	serving         *checkin.Serving
+	prep_method     *checkin.PrepMethod
+	prep_note       *string
 	note            *string
 	photo_media_id  *string
 	lat             *float64
@@ -7238,6 +7240,78 @@ func (m *CheckinMutation) OldServing(ctx context.Context) (v checkin.Serving, er
 // ResetServing resets all changes to the "serving" field.
 func (m *CheckinMutation) ResetServing() {
 	m.serving = nil
+}
+
+// SetPrepMethod sets the "prep_method" field.
+func (m *CheckinMutation) SetPrepMethod(cm checkin.PrepMethod) {
+	m.prep_method = &cm
+}
+
+// PrepMethod returns the value of the "prep_method" field in the mutation.
+func (m *CheckinMutation) PrepMethod() (r checkin.PrepMethod, exists bool) {
+	v := m.prep_method
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrepMethod returns the old "prep_method" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldPrepMethod(ctx context.Context) (v checkin.PrepMethod, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrepMethod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrepMethod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrepMethod: %w", err)
+	}
+	return oldValue.PrepMethod, nil
+}
+
+// ResetPrepMethod resets all changes to the "prep_method" field.
+func (m *CheckinMutation) ResetPrepMethod() {
+	m.prep_method = nil
+}
+
+// SetPrepNote sets the "prep_note" field.
+func (m *CheckinMutation) SetPrepNote(s string) {
+	m.prep_note = &s
+}
+
+// PrepNote returns the value of the "prep_note" field in the mutation.
+func (m *CheckinMutation) PrepNote() (r string, exists bool) {
+	v := m.prep_note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrepNote returns the old "prep_note" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldPrepNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrepNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrepNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrepNote: %w", err)
+	}
+	return oldValue.PrepNote, nil
+}
+
+// ResetPrepNote resets all changes to the "prep_note" field.
+func (m *CheckinMutation) ResetPrepNote() {
+	m.prep_note = nil
 }
 
 // SetNote sets the "note" field.
@@ -7786,7 +7860,7 @@ func (m *CheckinMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CheckinMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.user != nil {
 		fields = append(fields, checkin.FieldUserID)
 	}
@@ -7801,6 +7875,12 @@ func (m *CheckinMutation) Fields() []string {
 	}
 	if m.serving != nil {
 		fields = append(fields, checkin.FieldServing)
+	}
+	if m.prep_method != nil {
+		fields = append(fields, checkin.FieldPrepMethod)
+	}
+	if m.prep_note != nil {
+		fields = append(fields, checkin.FieldPrepNote)
 	}
 	if m.note != nil {
 		fields = append(fields, checkin.FieldNote)
@@ -7847,6 +7927,10 @@ func (m *CheckinMutation) Field(name string) (ent.Value, bool) {
 		return m.Rating()
 	case checkin.FieldServing:
 		return m.Serving()
+	case checkin.FieldPrepMethod:
+		return m.PrepMethod()
+	case checkin.FieldPrepNote:
+		return m.PrepNote()
 	case checkin.FieldNote:
 		return m.Note()
 	case checkin.FieldPhotoMediaID:
@@ -7884,6 +7968,10 @@ func (m *CheckinMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldRating(ctx)
 	case checkin.FieldServing:
 		return m.OldServing(ctx)
+	case checkin.FieldPrepMethod:
+		return m.OldPrepMethod(ctx)
+	case checkin.FieldPrepNote:
+		return m.OldPrepNote(ctx)
 	case checkin.FieldNote:
 		return m.OldNote(ctx)
 	case checkin.FieldPhotoMediaID:
@@ -7945,6 +8033,20 @@ func (m *CheckinMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetServing(v)
+		return nil
+	case checkin.FieldPrepMethod:
+		v, ok := value.(checkin.PrepMethod)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrepMethod(v)
+		return nil
+	case checkin.FieldPrepNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrepNote(v)
 		return nil
 	case checkin.FieldNote:
 		v, ok := value.(string)
@@ -8156,6 +8258,12 @@ func (m *CheckinMutation) ResetField(name string) error {
 		return nil
 	case checkin.FieldServing:
 		m.ResetServing()
+		return nil
+	case checkin.FieldPrepMethod:
+		m.ResetPrepMethod()
+		return nil
+	case checkin.FieldPrepNote:
+		m.ResetPrepNote()
 		return nil
 	case checkin.FieldNote:
 		m.ResetNote()
@@ -11008,6 +11116,9 @@ type DrinkMutation struct {
 	slug                       *string
 	description                *string
 	image_url                  *string
+	beverage_type              *drink.BeverageType
+	abv_percent                *float64
+	addabv_percent             *float64
 	container                  *drink.Container
 	volume_ml                  *int
 	addvolume_ml               *int
@@ -11414,6 +11525,98 @@ func (m *DrinkMutation) ImageURLCleared() bool {
 func (m *DrinkMutation) ResetImageURL() {
 	m.image_url = nil
 	delete(m.clearedFields, drink.FieldImageURL)
+}
+
+// SetBeverageType sets the "beverage_type" field.
+func (m *DrinkMutation) SetBeverageType(dt drink.BeverageType) {
+	m.beverage_type = &dt
+}
+
+// BeverageType returns the value of the "beverage_type" field in the mutation.
+func (m *DrinkMutation) BeverageType() (r drink.BeverageType, exists bool) {
+	v := m.beverage_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBeverageType returns the old "beverage_type" field's value of the Drink entity.
+// If the Drink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DrinkMutation) OldBeverageType(ctx context.Context) (v drink.BeverageType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBeverageType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBeverageType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBeverageType: %w", err)
+	}
+	return oldValue.BeverageType, nil
+}
+
+// ResetBeverageType resets all changes to the "beverage_type" field.
+func (m *DrinkMutation) ResetBeverageType() {
+	m.beverage_type = nil
+}
+
+// SetAbvPercent sets the "abv_percent" field.
+func (m *DrinkMutation) SetAbvPercent(f float64) {
+	m.abv_percent = &f
+	m.addabv_percent = nil
+}
+
+// AbvPercent returns the value of the "abv_percent" field in the mutation.
+func (m *DrinkMutation) AbvPercent() (r float64, exists bool) {
+	v := m.abv_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAbvPercent returns the old "abv_percent" field's value of the Drink entity.
+// If the Drink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DrinkMutation) OldAbvPercent(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAbvPercent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAbvPercent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAbvPercent: %w", err)
+	}
+	return oldValue.AbvPercent, nil
+}
+
+// AddAbvPercent adds f to the "abv_percent" field.
+func (m *DrinkMutation) AddAbvPercent(f float64) {
+	if m.addabv_percent != nil {
+		*m.addabv_percent += f
+	} else {
+		m.addabv_percent = &f
+	}
+}
+
+// AddedAbvPercent returns the value that was added to the "abv_percent" field in this mutation.
+func (m *DrinkMutation) AddedAbvPercent() (r float64, exists bool) {
+	v := m.addabv_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAbvPercent resets all changes to the "abv_percent" field.
+func (m *DrinkMutation) ResetAbvPercent() {
+	m.abv_percent = nil
+	m.addabv_percent = nil
 }
 
 // SetContainer sets the "container" field.
@@ -12611,7 +12814,7 @@ func (m *DrinkMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DrinkMutation) Fields() []string {
-	fields := make([]string, 0, 25)
+	fields := make([]string, 0, 27)
 	if m.brand != nil {
 		fields = append(fields, drink.FieldBrandID)
 	}
@@ -12629,6 +12832,12 @@ func (m *DrinkMutation) Fields() []string {
 	}
 	if m.image_url != nil {
 		fields = append(fields, drink.FieldImageURL)
+	}
+	if m.beverage_type != nil {
+		fields = append(fields, drink.FieldBeverageType)
+	}
+	if m.abv_percent != nil {
+		fields = append(fields, drink.FieldAbvPercent)
 	}
 	if m.container != nil {
 		fields = append(fields, drink.FieldContainer)
@@ -12707,6 +12916,10 @@ func (m *DrinkMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case drink.FieldImageURL:
 		return m.ImageURL()
+	case drink.FieldBeverageType:
+		return m.BeverageType()
+	case drink.FieldAbvPercent:
+		return m.AbvPercent()
 	case drink.FieldContainer:
 		return m.Container()
 	case drink.FieldVolumeMl:
@@ -12766,6 +12979,10 @@ func (m *DrinkMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldDescription(ctx)
 	case drink.FieldImageURL:
 		return m.OldImageURL(ctx)
+	case drink.FieldBeverageType:
+		return m.OldBeverageType(ctx)
+	case drink.FieldAbvPercent:
+		return m.OldAbvPercent(ctx)
 	case drink.FieldContainer:
 		return m.OldContainer(ctx)
 	case drink.FieldVolumeMl:
@@ -12854,6 +13071,20 @@ func (m *DrinkMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetImageURL(v)
+		return nil
+	case drink.FieldBeverageType:
+		v, ok := value.(drink.BeverageType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBeverageType(v)
+		return nil
+	case drink.FieldAbvPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAbvPercent(v)
 		return nil
 	case drink.FieldContainer:
 		v, ok := value.(drink.Container)
@@ -12996,6 +13227,9 @@ func (m *DrinkMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *DrinkMutation) AddedFields() []string {
 	var fields []string
+	if m.addabv_percent != nil {
+		fields = append(fields, drink.FieldAbvPercent)
+	}
 	if m.addvolume_ml != nil {
 		fields = append(fields, drink.FieldVolumeMl)
 	}
@@ -13019,6 +13253,8 @@ func (m *DrinkMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *DrinkMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case drink.FieldAbvPercent:
+		return m.AddedAbvPercent()
 	case drink.FieldVolumeMl:
 		return m.AddedVolumeMl()
 	case drink.FieldCaffeineMgPer100ml:
@@ -13038,6 +13274,13 @@ func (m *DrinkMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *DrinkMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case drink.FieldAbvPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAbvPercent(v)
+		return nil
 	case drink.FieldVolumeMl:
 		v, ok := value.(int)
 		if !ok {
@@ -13162,6 +13405,12 @@ func (m *DrinkMutation) ResetField(name string) error {
 		return nil
 	case drink.FieldImageURL:
 		m.ResetImageURL()
+		return nil
+	case drink.FieldBeverageType:
+		m.ResetBeverageType()
+		return nil
+	case drink.FieldAbvPercent:
+		m.ResetAbvPercent()
 		return nil
 	case drink.FieldContainer:
 		m.ResetContainer()

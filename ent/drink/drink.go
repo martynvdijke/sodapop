@@ -26,6 +26,10 @@ const (
 	FieldDescription = "description"
 	// FieldImageURL holds the string denoting the image_url field in the database.
 	FieldImageURL = "image_url"
+	// FieldBeverageType holds the string denoting the beverage_type field in the database.
+	FieldBeverageType = "beverage_type"
+	// FieldAbvPercent holds the string denoting the abv_percent field in the database.
+	FieldAbvPercent = "abv_percent"
 	// FieldContainer holds the string denoting the container field in the database.
 	FieldContainer = "container"
 	// FieldVolumeMl holds the string denoting the volume_ml field in the database.
@@ -140,6 +144,8 @@ var Columns = []string{
 	FieldSlug,
 	FieldDescription,
 	FieldImageURL,
+	FieldBeverageType,
+	FieldAbvPercent,
 	FieldContainer,
 	FieldVolumeMl,
 	FieldCaffeineMgPer100ml,
@@ -178,6 +184,10 @@ var (
 	SlugValidator func(string) error
 	// DefaultDescription holds the default value on creation for the "description" field.
 	DefaultDescription string
+	// DefaultAbvPercent holds the default value on creation for the "abv_percent" field.
+	DefaultAbvPercent float64
+	// AbvPercentValidator is a validator for the "abv_percent" field. It is called by the builders before save.
+	AbvPercentValidator func(float64) error
 	// DefaultVolumeMl holds the default value on creation for the "volume_ml" field.
 	DefaultVolumeMl int
 	// DefaultCaffeineMgPer100ml holds the default value on creation for the "caffeine_mg_per_100ml" field.
@@ -195,6 +205,38 @@ var (
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() string
 )
+
+// BeverageType defines the type for the "beverage_type" enum field.
+type BeverageType string
+
+// BeverageTypeSoda is the default value of the BeverageType enum.
+const DefaultBeverageType = BeverageTypeSoda
+
+// BeverageType values.
+const (
+	BeverageTypeSoda     BeverageType = "soda"
+	BeverageTypeWater    BeverageType = "water"
+	BeverageTypeTea      BeverageType = "tea"
+	BeverageTypeCoffee   BeverageType = "coffee"
+	BeverageTypeNaBeer   BeverageType = "na_beer"
+	BeverageTypeNaWine   BeverageType = "na_wine"
+	BeverageTypeNaSpirit BeverageType = "na_spirit"
+	BeverageTypeOther    BeverageType = "other"
+)
+
+func (bt BeverageType) String() string {
+	return string(bt)
+}
+
+// BeverageTypeValidator is a validator for the "beverage_type" field enum values. It is called by the builders before save.
+func BeverageTypeValidator(bt BeverageType) error {
+	switch bt {
+	case BeverageTypeSoda, BeverageTypeWater, BeverageTypeTea, BeverageTypeCoffee, BeverageTypeNaBeer, BeverageTypeNaWine, BeverageTypeNaSpirit, BeverageTypeOther:
+		return nil
+	default:
+		return fmt.Errorf("drink: invalid enum value for beverage_type field: %q", bt)
+	}
+}
 
 // Container defines the type for the "container" enum field.
 type Container string
@@ -441,6 +483,16 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByImageURL orders the results by the image_url field.
 func ByImageURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldImageURL, opts...).ToFunc()
+}
+
+// ByBeverageType orders the results by the beverage_type field.
+func ByBeverageType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBeverageType, opts...).ToFunc()
+}
+
+// ByAbvPercent orders the results by the abv_percent field.
+func ByAbvPercent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAbvPercent, opts...).ToFunc()
 }
 
 // ByContainer orders the results by the container field.

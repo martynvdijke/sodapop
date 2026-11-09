@@ -119,6 +119,34 @@ func (_u *CheckinUpdate) SetNillableServing(v *checkin.Serving) *CheckinUpdate {
 	return _u
 }
 
+// SetPrepMethod sets the "prep_method" field.
+func (_u *CheckinUpdate) SetPrepMethod(v checkin.PrepMethod) *CheckinUpdate {
+	_u.mutation.SetPrepMethod(v)
+	return _u
+}
+
+// SetNillablePrepMethod sets the "prep_method" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillablePrepMethod(v *checkin.PrepMethod) *CheckinUpdate {
+	if v != nil {
+		_u.SetPrepMethod(*v)
+	}
+	return _u
+}
+
+// SetPrepNote sets the "prep_note" field.
+func (_u *CheckinUpdate) SetPrepNote(v string) *CheckinUpdate {
+	_u.mutation.SetPrepNote(v)
+	return _u
+}
+
+// SetNillablePrepNote sets the "prep_note" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillablePrepNote(v *string) *CheckinUpdate {
+	if v != nil {
+		_u.SetPrepNote(*v)
+	}
+	return _u
+}
+
 // SetNote sets the "note" field.
 func (_u *CheckinUpdate) SetNote(v string) *CheckinUpdate {
 	_u.mutation.SetNote(v)
@@ -371,6 +399,11 @@ func (_u *CheckinUpdate) check() error {
 			return &ValidationError{Name: "serving", err: fmt.Errorf(`ent: validator failed for field "Checkin.serving": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PrepMethod(); ok {
+		if err := checkin.PrepMethodValidator(v); err != nil {
+			return &ValidationError{Name: "prep_method", err: fmt.Errorf(`ent: validator failed for field "Checkin.prep_method": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Visibility(); ok {
 		if err := checkin.VisibilityValidator(v); err != nil {
 			return &ValidationError{Name: "visibility", err: fmt.Errorf(`ent: validator failed for field "Checkin.visibility": %w`, err)}
@@ -408,6 +441,12 @@ func (_u *CheckinUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Serving(); ok {
 		_spec.SetField(checkin.FieldServing, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PrepMethod(); ok {
+		_spec.SetField(checkin.FieldPrepMethod, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PrepNote(); ok {
+		_spec.SetField(checkin.FieldPrepNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(checkin.FieldNote, field.TypeString, value)
@@ -649,6 +688,34 @@ func (_u *CheckinUpdateOne) SetServing(v checkin.Serving) *CheckinUpdateOne {
 func (_u *CheckinUpdateOne) SetNillableServing(v *checkin.Serving) *CheckinUpdateOne {
 	if v != nil {
 		_u.SetServing(*v)
+	}
+	return _u
+}
+
+// SetPrepMethod sets the "prep_method" field.
+func (_u *CheckinUpdateOne) SetPrepMethod(v checkin.PrepMethod) *CheckinUpdateOne {
+	_u.mutation.SetPrepMethod(v)
+	return _u
+}
+
+// SetNillablePrepMethod sets the "prep_method" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillablePrepMethod(v *checkin.PrepMethod) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetPrepMethod(*v)
+	}
+	return _u
+}
+
+// SetPrepNote sets the "prep_note" field.
+func (_u *CheckinUpdateOne) SetPrepNote(v string) *CheckinUpdateOne {
+	_u.mutation.SetPrepNote(v)
+	return _u
+}
+
+// SetNillablePrepNote sets the "prep_note" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillablePrepNote(v *string) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetPrepNote(*v)
 	}
 	return _u
 }
@@ -918,6 +985,11 @@ func (_u *CheckinUpdateOne) check() error {
 			return &ValidationError{Name: "serving", err: fmt.Errorf(`ent: validator failed for field "Checkin.serving": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PrepMethod(); ok {
+		if err := checkin.PrepMethodValidator(v); err != nil {
+			return &ValidationError{Name: "prep_method", err: fmt.Errorf(`ent: validator failed for field "Checkin.prep_method": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Visibility(); ok {
 		if err := checkin.VisibilityValidator(v); err != nil {
 			return &ValidationError{Name: "visibility", err: fmt.Errorf(`ent: validator failed for field "Checkin.visibility": %w`, err)}
@@ -972,6 +1044,12 @@ func (_u *CheckinUpdateOne) sqlSave(ctx context.Context) (_node *Checkin, err er
 	}
 	if value, ok := _u.mutation.Serving(); ok {
 		_spec.SetField(checkin.FieldServing, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PrepMethod(); ok {
+		_spec.SetField(checkin.FieldPrepMethod, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PrepNote(); ok {
+		_spec.SetField(checkin.FieldPrepNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(checkin.FieldNote, field.TypeString, value)

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -52,18 +53,20 @@ func New(cfg *config.Config, database *db.DB) *Service {
 // SearchResult is a compact catalog card. It deliberately carries no
 // exhaustive totals, so a client cannot enumerate the catalog through search.
 type SearchResult struct {
-	ID          int      `json:"id"`
-	Slug        string   `json:"slug"`
-	Name        string   `json:"name"`
-	Brand       string   `json:"brand,omitempty"`
-	Style       string   `json:"style,omitempty"`
-	Container   string   `json:"container"`
-	VolumeML    int      `json:"volume_ml"`
-	ImageURL    string   `json:"image_url,omitempty"`
-	Status      string   `json:"status"`
-	AvgRating   *float64 `json:"avg_rating,omitempty"`
-	RaterCount  int      `json:"rater_count"`
-	RatingShown bool     `json:"rating_shown"`
+	ID           int      `json:"id"`
+	Slug         string   `json:"slug"`
+	Name         string   `json:"name"`
+	Brand        string   `json:"brand,omitempty"`
+	Style        string   `json:"style,omitempty"`
+	Container    string   `json:"container"`
+	BeverageType string   `json:"beverage_type"`
+	ABVPercent   float64  `json:"abv_percent"`
+	VolumeML     int      `json:"volume_ml"`
+	ImageURL     string   `json:"image_url,omitempty"`
+	Status       string   `json:"status"`
+	AvgRating    *float64 `json:"avg_rating,omitempty"`
+	RaterCount   int      `json:"rater_count"`
+	RatingShown  bool     `json:"rating_shown"`
 }
 
 // DrinkDetail is a single-drink payload.
@@ -102,7 +105,8 @@ func (s *Service) Search(ctx context.Context, q, styleSlug string, limit int) ([
 	sqlText := `
 		SELECT d.id, d.slug, d.name,
 		       COALESCE(b.name, ''), COALESCE(st.name, ''),
-		       d.container, d.volume_ml, COALESCE(d.image_url, ''), d.status,
+		       d.container, d.beverage_type, d.abv_percent, d.volume_ml,
+		       COALESCE(d.image_url, ''), d.status,
 		       r.avg_rating, COALESCE(r.rater_count, 0)
 		FROM drinks_fts f
 		JOIN drinks d ON d.id = f.rowid
@@ -128,7 +132,8 @@ func (s *Service) Search(ctx context.Context, q, styleSlug string, limit int) ([
 		var r SearchResult
 		var avg sql.NullFloat64
 		if err := rows.Scan(&r.ID, &r.Slug, &r.Name, &r.Brand, &r.Style,
-			&r.Container, &r.VolumeML, &r.ImageURL, &r.Status, &avg, &r.RaterCount); err != nil {
+			&r.Container, &r.BeverageType, &r.ABVPercent, &r.VolumeML,
+			&r.ImageURL, &r.Status, &avg, &r.RaterCount); err != nil {
 			return nil, err
 		}
 		if avg.Valid && r.RaterCount >= MinRaters {
@@ -222,16 +227,18 @@ func (s *Service) rating(ctx context.Context, drinkID int) Rating {
 
 // CreateInput is the minimum information needed for a provisional soda.
 type CreateInput struct {
-	Name        string
-	Brand       string
-	StyleSlug   string
-	Container   string
-	VolumeML    int
-	Sweetener   string
-	Carbonation string
-	Acid        string
-	Barcode     string
-	Description string
+	Name         string
+	Brand        string
+	StyleSlug    string
+	Container    string
+	BeverageType string
+	ABVPercent   float64
+	VolumeML     int
+	Sweetener    string
+	Carbonation  string
+	Acid         string
+	Barcode      string
+	Description  string
 }
 
 // CreateProvisional creates an unverified community entry unless an equivalent
@@ -251,6 +258,8 @@ func (s *Service) CreateProvisional(ctx context.Context, userID string, in Creat
 	// Normalize before the soft-key lookup so an unsupported value that will be
 	// stored as "can" still dedupes against the existing row.
 	in.Container = string(containerEnum(in.Container))
+	in.BeverageType = string(beverageTypeEnum(in.BeverageType))
+	in.ABVPercent = clampABV(in.ABVPercent)
 	if in.Barcode != "" {
 		gtin, err := NormalizeGTIN(in.Barcode)
 		if err != nil {
@@ -304,6 +313,8 @@ func (s *Service) CreateProvisional(ctx context.Context, userID string, in Creat
 		SetSlug(s.uniqueSlug(ctx, in.Name, in.Brand)).
 		SetDescription(in.Description).
 		SetContainer(containerEnum(in.Container)).
+		SetBeverageType(beverageTypeEnum(in.BeverageType)).
+		SetAbvPercent(in.ABVPercent).
 		SetVolumeMl(in.VolumeML).
 		SetSweetener(sweetenerEnum(in.Sweetener)).
 		SetCarbonation(carbonationEnum(in.Carbonation)).
@@ -331,15 +342,17 @@ func (s *Service) CreateProvisional(ctx context.Context, userID string, in Creat
 		}
 	}
 	after := map[string]any{
-		"name":       d.Name,
-		"slug":       d.Slug,
-		"brand_id":   brandID,
-		"style_id":   styleID,
-		"container":  string(d.Container),
-		"volume_ml":  d.VolumeMl,
-		"status":     string(d.Status),
-		"source":     string(d.Source),
-		"created_by": d.CreatedBy,
+		"name":          d.Name,
+		"slug":          d.Slug,
+		"brand_id":      brandID,
+		"style_id":      styleID,
+		"container":     string(d.Container),
+		"beverage_type": string(d.BeverageType),
+		"abv_percent":   d.AbvPercent,
+		"volume_ml":     d.VolumeMl,
+		"status":        string(d.Status),
+		"source":        string(d.Source),
+		"created_by":    d.CreatedBy,
 	}
 	if in.Barcode != "" {
 		after["barcode"] = in.Barcode
@@ -525,6 +538,43 @@ func containerEnum(v string) drink.Container {
 	default:
 		return drink.ContainerCan
 	}
+}
+
+func beverageTypeEnum(v string) drink.BeverageType {
+	switch normalizeEnum(v, "") {
+	case "water":
+		return drink.BeverageTypeWater
+	case "tea":
+		return drink.BeverageTypeTea
+	case "coffee":
+		return drink.BeverageTypeCoffee
+	case "na_beer":
+		return drink.BeverageTypeNaBeer
+	case "na_wine":
+		return drink.BeverageTypeNaWine
+	case "na_spirit":
+		return drink.BeverageTypeNaSpirit
+	case "other":
+		return drink.BeverageTypeOther
+	default:
+		return drink.BeverageTypeSoda
+	}
+}
+
+// clampABV keeps the stored percentage inside 0-100 and collapses NaN/Inf to
+// zero. An out-of-range value is clamped rather than rejected: ABV is advisory
+// metadata and should never block a catalog write.
+func clampABV(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
 }
 
 func sweetenerEnum(v string) drink.Sweetener {

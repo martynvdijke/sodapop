@@ -96,13 +96,32 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
     ('public', 'Anyone'),
   ];
 
+  /// Preparation methods, grouped Tea then Coffee. `none` is the default and
+  /// the server's own default for an omitted field.
+  static const _prepMethods = <(String, String)>[
+    ('none', 'None'),
+    ('tea_bag', 'Tea · Tea bag'),
+    ('loose_leaf', 'Tea · Loose leaf'),
+    ('cold_brew', 'Tea · Cold brew'),
+    ('matcha', 'Tea · Matcha'),
+    ('espresso', 'Coffee · Espresso'),
+    ('pour_over', 'Coffee · Pour over'),
+    ('french_press', 'Coffee · French press'),
+    ('aeropress', 'Coffee · AeroPress'),
+    ('moka', 'Coffee · Moka'),
+    ('drip', 'Coffee · Drip'),
+    ('other', 'Other'),
+  ];
+
   final _note = TextEditingController();
+  final _prepNote = TextEditingController();
   int _quarters = 0;
   bool _notRated = true;
   bool _saving = false;
   bool _picking = false;
   String _serving = 'can';
   String _visibility = 'private';
+  String _prepMethod = 'none';
   Venue? _venue;
   String? _error;
 
@@ -128,7 +147,17 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
   @override
   void dispose() {
     _note.dispose();
+    _prepNote.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant CheckinSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.drink.id != widget.drink.id) {
+      _prepNote.clear();
+      _prepMethod = 'none';
+    }
   }
 
   String get _ratingText => _notRated ? 'Not rated' : ratingLabel(_quarters);
@@ -425,6 +454,8 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
         note: _note.text,
         venueId: _venue?.id,
         serving: _serving,
+        prepMethod: _prepMethod,
+        prepNote: _prepNote.text,
         visibility: _visibility,
         idempotencyKey: key,
         lat: _lat,
@@ -468,6 +499,8 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
           'note': _note.text,
           'venue_id': _venue?.id,
           'serving': _serving,
+          'prep_method': _prepMethod,
+          'prep_note': _prepNote.text,
           'visibility': _visibility,
           'idempotency_key': key,
           if (_lat != null && _lng != null) 'lat': _lat,
@@ -560,6 +593,8 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
                   _ratingSection(theme),
                   const SizedBox(height: 22),
                   _servingSection(theme),
+                  const SizedBox(height: 22),
+                  _preparationSection(theme),
                   const SizedBox(height: 22),
                   _friendsSection(theme),
                   const SizedBox(height: 22),
@@ -672,6 +707,45 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
             setState(() => _serving = value);
           },
         ),
+      ],
+    );
+  }
+
+  Widget _preparationSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(theme, 'Preparation', trailing: 'Optional'),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          key: const Key('checkin-prep-method'),
+          initialValue: _prepMethod,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Method'),
+          items: [
+            for (final (value, label) in _prepMethods)
+              DropdownMenuItem(value: value, child: Text(label)),
+          ],
+          onChanged: (value) {
+            if (value == null || _saving) return;
+            setState(() => _prepMethod = value);
+          },
+        ),
+        if (_prepMethod != 'none') ...[
+          const SizedBox(height: 10),
+          TextField(
+            key: const Key('checkin-prep-note'),
+            controller: _prepNote,
+            maxLength: 280,
+            minLines: 1,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Preparation note',
+              hintText: 'Steeped four minutes, no milk.',
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -42,6 +42,8 @@ class _RecordingApi extends ApiClient {
     String note = '',
     int? venueId,
     String? serving,
+    String prepMethod = 'none',
+    String prepNote = '',
     String? visibility,
     String? idempotencyKey,
     Uint8List? photo,

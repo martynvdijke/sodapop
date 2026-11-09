@@ -50,6 +50,63 @@ func templatePer100(v any, label string) string {
 	return formatPer100Label(numericValue(v), label, "metric")
 }
 
+// BeverageTypeLabel humanises the catalog beverage_type enum for display.
+func BeverageTypeLabel(v any) string {
+	switch fmt.Sprint(v) {
+	case "soda":
+		return "Soda"
+	case "water":
+		return "Water"
+	case "tea":
+		return "Tea"
+	case "coffee":
+		return "Coffee"
+	case "na_beer":
+		return "NA beer"
+	case "na_wine":
+		return "NA wine"
+	case "na_spirit":
+		return "NA spirits"
+	case "other":
+		return "Other"
+	default:
+		return "Soda"
+	}
+}
+
+// PrepMethodLabel humanises the check-in prep_method enum. "none" renders as
+// an empty string so templates can treat an unset method as absent.
+func PrepMethodLabel(v any) string {
+	switch fmt.Sprint(v) {
+	case "tea_bag":
+		return "Tea bag"
+	case "loose_leaf":
+		return "Loose leaf"
+	case "cold_brew":
+		return "Cold brew"
+	case "matcha":
+		return "Matcha"
+	case "espresso":
+		return "Espresso"
+	case "pour_over":
+		return "Pour-over"
+	case "french_press":
+		return "French press"
+	case "aeropress":
+		return "AeroPress"
+	case "moka":
+		return "Moka pot"
+	case "drip":
+		return "Drip"
+	case "other":
+		return "Other"
+	case "none", "":
+		return ""
+	default:
+		return ""
+	}
+}
+
 func formatPer100Label(v float64, label, units string) string {
 	if units == "imperial" {
 		if label == "" {

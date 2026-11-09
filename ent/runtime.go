@@ -287,16 +287,20 @@ func init() {
 	checkinDescRating := checkinFields[4].Descriptor()
 	// checkin.RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	checkin.RatingValidator = checkinDescRating.Validators[0].(func(int) error)
+	// checkinDescPrepNote is the schema descriptor for prep_note field.
+	checkinDescPrepNote := checkinFields[7].Descriptor()
+	// checkin.DefaultPrepNote holds the default value on creation for the prep_note field.
+	checkin.DefaultPrepNote = checkinDescPrepNote.Default.(string)
 	// checkinDescNote is the schema descriptor for note field.
-	checkinDescNote := checkinFields[6].Descriptor()
+	checkinDescNote := checkinFields[8].Descriptor()
 	// checkin.DefaultNote holds the default value on creation for the note field.
 	checkin.DefaultNote = checkinDescNote.Default.(string)
 	// checkinDescCreatedAt is the schema descriptor for created_at field.
-	checkinDescCreatedAt := checkinFields[12].Descriptor()
+	checkinDescCreatedAt := checkinFields[14].Descriptor()
 	// checkin.DefaultCreatedAt holds the default value on creation for the created_at field.
 	checkin.DefaultCreatedAt = checkinDescCreatedAt.Default.(func() string)
 	// checkinDescUpdatedAt is the schema descriptor for updated_at field.
-	checkinDescUpdatedAt := checkinFields[13].Descriptor()
+	checkinDescUpdatedAt := checkinFields[15].Descriptor()
 	// checkin.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	checkin.DefaultUpdatedAt = checkinDescUpdatedAt.Default.(func() string)
 	// checkinDescID is the schema descriptor for id field.
@@ -429,36 +433,56 @@ func init() {
 	drinkDescDescription := drinkFields[5].Descriptor()
 	// drink.DefaultDescription holds the default value on creation for the description field.
 	drink.DefaultDescription = drinkDescDescription.Default.(string)
+	// drinkDescAbvPercent is the schema descriptor for abv_percent field.
+	drinkDescAbvPercent := drinkFields[8].Descriptor()
+	// drink.DefaultAbvPercent holds the default value on creation for the abv_percent field.
+	drink.DefaultAbvPercent = drinkDescAbvPercent.Default.(float64)
+	// drink.AbvPercentValidator is a validator for the "abv_percent" field. It is called by the builders before save.
+	drink.AbvPercentValidator = func() func(float64) error {
+		validators := drinkDescAbvPercent.Validators
+		fns := [...]func(float64) error{
+			validators[0].(func(float64) error),
+			validators[1].(func(float64) error),
+		}
+		return func(abv_percent float64) error {
+			for _, fn := range fns {
+				if err := fn(abv_percent); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// drinkDescVolumeMl is the schema descriptor for volume_ml field.
-	drinkDescVolumeMl := drinkFields[8].Descriptor()
+	drinkDescVolumeMl := drinkFields[10].Descriptor()
 	// drink.DefaultVolumeMl holds the default value on creation for the volume_ml field.
 	drink.DefaultVolumeMl = drinkDescVolumeMl.Default.(int)
 	// drinkDescCaffeineMgPer100ml is the schema descriptor for caffeine_mg_per_100ml field.
-	drinkDescCaffeineMgPer100ml := drinkFields[9].Descriptor()
+	drinkDescCaffeineMgPer100ml := drinkFields[11].Descriptor()
 	// drink.DefaultCaffeineMgPer100ml holds the default value on creation for the caffeine_mg_per_100ml field.
 	drink.DefaultCaffeineMgPer100ml = drinkDescCaffeineMgPer100ml.Default.(int)
 	// drinkDescSugarGPer100ml is the schema descriptor for sugar_g_per_100ml field.
-	drinkDescSugarGPer100ml := drinkFields[10].Descriptor()
+	drinkDescSugarGPer100ml := drinkFields[12].Descriptor()
 	// drink.DefaultSugarGPer100ml holds the default value on creation for the sugar_g_per_100ml field.
 	drink.DefaultSugarGPer100ml = drinkDescSugarGPer100ml.Default.(float64)
 	// drinkDescCaloriesKcalPer100ml is the schema descriptor for calories_kcal_per_100ml field.
-	drinkDescCaloriesKcalPer100ml := drinkFields[11].Descriptor()
+	drinkDescCaloriesKcalPer100ml := drinkFields[13].Descriptor()
 	// drink.DefaultCaloriesKcalPer100ml holds the default value on creation for the calories_kcal_per_100ml field.
 	drink.DefaultCaloriesKcalPer100ml = drinkDescCaloriesKcalPer100ml.Default.(int)
 	// drinkDescRecipeJSON is the schema descriptor for recipe_json field.
-	drinkDescRecipeJSON := drinkFields[16].Descriptor()
+	drinkDescRecipeJSON := drinkFields[18].Descriptor()
 	// drink.DefaultRecipeJSON holds the default value on creation for the recipe_json field.
 	drink.DefaultRecipeJSON = drinkDescRecipeJSON.Default.(string)
 	// drinkDescPublished is the schema descriptor for published field.
-	drinkDescPublished := drinkFields[19].Descriptor()
+	drinkDescPublished := drinkFields[21].Descriptor()
 	// drink.DefaultPublished holds the default value on creation for the published field.
 	drink.DefaultPublished = drinkDescPublished.Default.(bool)
 	// drinkDescCreatedAt is the schema descriptor for created_at field.
-	drinkDescCreatedAt := drinkFields[24].Descriptor()
+	drinkDescCreatedAt := drinkFields[26].Descriptor()
 	// drink.DefaultCreatedAt holds the default value on creation for the created_at field.
 	drink.DefaultCreatedAt = drinkDescCreatedAt.Default.(func() string)
 	// drinkDescUpdatedAt is the schema descriptor for updated_at field.
-	drinkDescUpdatedAt := drinkFields[25].Descriptor()
+	drinkDescUpdatedAt := drinkFields[27].Descriptor()
 	// drink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	drink.DefaultUpdatedAt = drinkDescUpdatedAt.Default.(func() string)
 	drinkaliasFields := schema.DrinkAlias{}.Fields()

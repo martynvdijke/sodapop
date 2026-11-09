@@ -20,18 +20,20 @@ type BrowseFilter struct {
 
 // BrowseDrink is one card in a browse/brand/style listing.
 type BrowseDrink struct {
-	ID          int
-	Slug        string
-	Name        string
-	Brand       string
-	Style       string
-	Container   string
-	VolumeML    int
-	ImageURL    string
-	AvgRating   *float64
-	RaterCount  int
-	RatingShown bool
-	Status      string
+	ID           int
+	Slug         string
+	Name         string
+	Brand        string
+	Style        string
+	Container    string
+	BeverageType string
+	ABVPercent   float64
+	VolumeML     int
+	ImageURL     string
+	AvgRating    *float64
+	RaterCount   int
+	RatingShown  bool
+	Status       string
 }
 
 // BrowseResult is one page of drinks plus the cursor hint.
@@ -115,7 +117,8 @@ const browsableStatusesSQL = `d.status IN ('active','limited','seasonal')`
 
 const browseSelect = `
 	SELECT d.id, d.slug, d.name, COALESCE(b.name, ''), COALESCE(st.name, ''),
-	       d.container, d.volume_ml, COALESCE(d.image_url, ''), d.status,
+	       d.container, d.beverage_type, d.abv_percent, d.volume_ml,
+	       COALESCE(d.image_url, ''), d.status,
 	       r.avg_rating, COALESCE(r.rater_count, 0)
 	FROM drinks d
 	LEFT JOIN brands b ON b.id = d.brand_id
@@ -209,8 +212,8 @@ func (s *Service) queryBrowseDrinks(ctx context.Context, where []string, args []
 		var d BrowseDrink
 		var avg sql.NullFloat64
 		if err := rows.Scan(&d.ID, &d.Slug, &d.Name, &d.Brand, &d.Style,
-			&d.Container, &d.VolumeML, &d.ImageURL, &d.Status,
-			&avg, &d.RaterCount); err != nil {
+			&d.Container, &d.BeverageType, &d.ABVPercent, &d.VolumeML,
+			&d.ImageURL, &d.Status, &avg, &d.RaterCount); err != nil {
 			return nil, err
 		}
 		if avg.Valid && d.RaterCount >= MinRaters {

@@ -119,3 +119,37 @@ String sodaVenueKind(String kind) {
 
 String sodaCount(int count, String singular, [String? plural]) =>
     '$count ${count == 1 ? singular : (plural ?? '${singular}s')}';
+
+/// A readable preparation method. `none` and blank have no label, so callers
+/// can hide the row entirely.
+String sodaPrepMethod(String method) {
+  switch (method) {
+    case 'tea_bag':
+      return 'Tea bag';
+    case 'loose_leaf':
+      return 'Loose leaf';
+    case 'cold_brew':
+      return 'Cold brew';
+    case 'matcha':
+      return 'Matcha';
+    case 'espresso':
+      return 'Espresso';
+    case 'pour_over':
+      return 'Pour over';
+    case 'french_press':
+      return 'French press';
+    case 'aeropress':
+      return 'AeroPress';
+    case 'moka':
+      return 'Moka';
+    case 'drip':
+      return 'Drip';
+    case 'other':
+      return 'Other';
+    case 'none':
+    case '':
+      return '';
+    default:
+      return method[0].toUpperCase() + method.substring(1);
+  }
+}

@@ -8,6 +8,19 @@ double? _double(Object? value) =>
 
 String _string(Object? value) => value == null ? '' : '$value';
 
+/// The drink's beverage type, defaulting to `soda` when the server omits it.
+/// The nested Ent projection uses a Go field name, so accept both spellings.
+String _beverageType(Map<String, dynamic> json) {
+  final value = _firstString([json['beverage_type'], json['BeverageType']]);
+  return value.isEmpty ? 'soda' : value;
+}
+
+/// The check-in preparation method, defaulting to `none`.
+String _prepMethod(Map<String, dynamic> json) {
+  final value = _firstString([json['prep_method'], json['PrepMethod']]);
+  return value.isEmpty ? 'none' : value;
+}
+
 bool _bool(Object? value) {
   if (value is bool) return value;
   if (value is num) return value != 0;
@@ -150,6 +163,8 @@ class Drink {
     required this.name,
     this.brand = '',
     this.style = '',
+    this.beverageType = 'soda',
+    this.abvPercent = 0,
     this.volumeMl = 0,
     this.container = '',
     this.rating,
@@ -173,6 +188,14 @@ class Drink {
   final String name;
   final String brand;
   final String style;
+
+  /// One of `soda`, `water`, `tea`, `coffee`, `na_beer`, `na_wine`,
+  /// `na_spirit` or `other`. Older servers omit the field, so it defaults to
+  /// `soda`.
+  final String beverageType;
+
+  /// Alcohol by volume 0–100. Zero for every non-alcoholic drink.
+  final double abvPercent;
   final int volumeMl;
   final String container;
   final double? rating;
@@ -227,6 +250,8 @@ class Drink {
       name: _firstString([json['name'], 'Unknown soda']),
       brand: brand ?? _string(json['brand']),
       style: style ?? _string(json['style']),
+      beverageType: _beverageType(json),
+      abvPercent: _double(_firstValue([json['abv_percent'], json['abv']])) ?? 0,
       volumeMl: _int(json['volume_ml']) ?? 0,
       container: _string(json['container']),
       rating: _double(
@@ -336,6 +361,8 @@ class FeedItem {
     this.brand = '',
     this.rating,
     this.note = '',
+    this.prepMethod = 'none',
+    this.prepNote = '',
     this.venueName = '',
     this.photoId = '',
     this.photoMime = '',
@@ -357,6 +384,8 @@ class FeedItem {
   final String brand;
   final double? rating;
   final String note;
+  final String prepMethod;
+  final String prepNote;
   final String venueName;
   final String photoId;
 
@@ -405,6 +434,8 @@ class FeedItem {
       brand: _firstString([drink['brand'], json['brand'], json['drink_brand']]),
       rating: _double(_firstValue([json['rating'], json['avg_rating']])),
       note: _string(json['note']),
+      prepMethod: _prepMethod(json),
+      prepNote: _string(json['prep_note']),
       venueName: _firstString([json['venue_name'], venue['name']]),
       photoId: _firstString([photo['id'], json['photo_id']]),
       photoMime: _firstString([photo['mime'], json['photo_mime']]),
@@ -663,6 +694,8 @@ class CheckinDetail {
     this.style = '',
     this.rating,
     this.note = '',
+    this.prepMethod = 'none',
+    this.prepNote = '',
     this.visibility = '',
     this.toasts = 0,
     this.toasted = false,
@@ -691,6 +724,10 @@ class CheckinDetail {
   final String style;
   final double? rating;
   final String note;
+
+  /// How the drink was prepared (`none` when the server omits it).
+  final String prepMethod;
+  final String prepNote;
   final String visibility;
   final int toasts;
   final bool toasted;
@@ -751,6 +788,8 @@ class CheckinDetail {
       style: style,
       rating: _double(json['rating']),
       note: _string(json['note']),
+      prepMethod: _prepMethod(json),
+      prepNote: _string(json['prep_note']),
       visibility: _string(json['visibility']),
       toasts: _int(_firstValue([json['toasts'], json['toast_count']])) ?? 0,
       toasted: _bool(json['toasted']),
@@ -788,6 +827,8 @@ class CheckinSummary {
     this.rating,
     this.serving = '',
     this.note = '',
+    this.prepMethod = 'none',
+    this.prepNote = '',
     this.venueId,
     this.venueName = '',
     this.visibility = '',
@@ -806,6 +847,8 @@ class CheckinSummary {
   final int? rating;
   final String serving;
   final String note;
+  final String prepMethod;
+  final String prepNote;
   final int? venueId;
   final String venueName;
   final String visibility;
@@ -827,6 +870,8 @@ class CheckinSummary {
       rating: _int(json['rating']),
       serving: _string(json['serving']),
       note: _string(json['note']),
+      prepMethod: _prepMethod(json),
+      prepNote: _string(json['prep_note']),
       venueId: _int(_firstValue([json['venue_id'], venue['id']])),
       venueName: _firstString([json['venue_name'], venue['name']]),
       visibility: _string(json['visibility']),

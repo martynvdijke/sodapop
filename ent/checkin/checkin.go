@@ -24,6 +24,10 @@ const (
 	FieldRating = "rating"
 	// FieldServing holds the string denoting the serving field in the database.
 	FieldServing = "serving"
+	// FieldPrepMethod holds the string denoting the prep_method field in the database.
+	FieldPrepMethod = "prep_method"
+	// FieldPrepNote holds the string denoting the prep_note field in the database.
+	FieldPrepNote = "prep_note"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
 	// FieldPhotoMediaID holds the string denoting the photo_media_id field in the database.
@@ -81,6 +85,8 @@ var Columns = []string{
 	FieldVenueID,
 	FieldRating,
 	FieldServing,
+	FieldPrepMethod,
+	FieldPrepNote,
 	FieldNote,
 	FieldPhotoMediaID,
 	FieldLat,
@@ -107,6 +113,8 @@ var (
 	UserIDValidator func(string) error
 	// RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	RatingValidator func(int) error
+	// DefaultPrepNote holds the default value on creation for the "prep_note" field.
+	DefaultPrepNote string
 	// DefaultNote holds the default value on creation for the "note" field.
 	DefaultNote string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -143,6 +151,42 @@ func ServingValidator(s Serving) error {
 		return nil
 	default:
 		return fmt.Errorf("checkin: invalid enum value for serving field: %q", s)
+	}
+}
+
+// PrepMethod defines the type for the "prep_method" enum field.
+type PrepMethod string
+
+// PrepMethodNone is the default value of the PrepMethod enum.
+const DefaultPrepMethod = PrepMethodNone
+
+// PrepMethod values.
+const (
+	PrepMethodNone        PrepMethod = "none"
+	PrepMethodTeaBag      PrepMethod = "tea_bag"
+	PrepMethodLooseLeaf   PrepMethod = "loose_leaf"
+	PrepMethodColdBrew    PrepMethod = "cold_brew"
+	PrepMethodMatcha      PrepMethod = "matcha"
+	PrepMethodEspresso    PrepMethod = "espresso"
+	PrepMethodPourOver    PrepMethod = "pour_over"
+	PrepMethodFrenchPress PrepMethod = "french_press"
+	PrepMethodAeropress   PrepMethod = "aeropress"
+	PrepMethodMoka        PrepMethod = "moka"
+	PrepMethodDrip        PrepMethod = "drip"
+	PrepMethodOther       PrepMethod = "other"
+)
+
+func (pm PrepMethod) String() string {
+	return string(pm)
+}
+
+// PrepMethodValidator is a validator for the "prep_method" field enum values. It is called by the builders before save.
+func PrepMethodValidator(pm PrepMethod) error {
+	switch pm {
+	case PrepMethodNone, PrepMethodTeaBag, PrepMethodLooseLeaf, PrepMethodColdBrew, PrepMethodMatcha, PrepMethodEspresso, PrepMethodPourOver, PrepMethodFrenchPress, PrepMethodAeropress, PrepMethodMoka, PrepMethodDrip, PrepMethodOther:
+		return nil
+	default:
+		return fmt.Errorf("checkin: invalid enum value for prep_method field: %q", pm)
 	}
 }
 
@@ -204,6 +248,16 @@ func ByRating(opts ...sql.OrderTermOption) OrderOption {
 // ByServing orders the results by the serving field.
 func ByServing(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldServing, opts...).ToFunc()
+}
+
+// ByPrepMethod orders the results by the prep_method field.
+func ByPrepMethod(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrepMethod, opts...).ToFunc()
+}
+
+// ByPrepNote orders the results by the prep_note field.
+func ByPrepNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrepNote, opts...).ToFunc()
 }
 
 // ByNote orders the results by the note field.

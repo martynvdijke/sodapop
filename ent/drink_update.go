@@ -136,6 +136,41 @@ func (_u *DrinkUpdate) ClearImageURL() *DrinkUpdate {
 	return _u
 }
 
+// SetBeverageType sets the "beverage_type" field.
+func (_u *DrinkUpdate) SetBeverageType(v drink.BeverageType) *DrinkUpdate {
+	_u.mutation.SetBeverageType(v)
+	return _u
+}
+
+// SetNillableBeverageType sets the "beverage_type" field if the given value is not nil.
+func (_u *DrinkUpdate) SetNillableBeverageType(v *drink.BeverageType) *DrinkUpdate {
+	if v != nil {
+		_u.SetBeverageType(*v)
+	}
+	return _u
+}
+
+// SetAbvPercent sets the "abv_percent" field.
+func (_u *DrinkUpdate) SetAbvPercent(v float64) *DrinkUpdate {
+	_u.mutation.ResetAbvPercent()
+	_u.mutation.SetAbvPercent(v)
+	return _u
+}
+
+// SetNillableAbvPercent sets the "abv_percent" field if the given value is not nil.
+func (_u *DrinkUpdate) SetNillableAbvPercent(v *float64) *DrinkUpdate {
+	if v != nil {
+		_u.SetAbvPercent(*v)
+	}
+	return _u
+}
+
+// AddAbvPercent adds value to the "abv_percent" field.
+func (_u *DrinkUpdate) AddAbvPercent(v float64) *DrinkUpdate {
+	_u.mutation.AddAbvPercent(v)
+	return _u
+}
+
 // SetContainer sets the "container" field.
 func (_u *DrinkUpdate) SetContainer(v drink.Container) *DrinkUpdate {
 	_u.mutation.SetContainer(v)
@@ -707,6 +742,16 @@ func (_u *DrinkUpdate) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "Drink.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BeverageType(); ok {
+		if err := drink.BeverageTypeValidator(v); err != nil {
+			return &ValidationError{Name: "beverage_type", err: fmt.Errorf(`ent: validator failed for field "Drink.beverage_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AbvPercent(); ok {
+		if err := drink.AbvPercentValidator(v); err != nil {
+			return &ValidationError{Name: "abv_percent", err: fmt.Errorf(`ent: validator failed for field "Drink.abv_percent": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Container(); ok {
 		if err := drink.ContainerValidator(v); err != nil {
 			return &ValidationError{Name: "container", err: fmt.Errorf(`ent: validator failed for field "Drink.container": %w`, err)}
@@ -771,6 +816,15 @@ func (_u *DrinkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ImageURLCleared() {
 		_spec.ClearField(drink.FieldImageURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.BeverageType(); ok {
+		_spec.SetField(drink.FieldBeverageType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.AbvPercent(); ok {
+		_spec.SetField(drink.FieldAbvPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAbvPercent(); ok {
+		_spec.AddField(drink.FieldAbvPercent, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Container(); ok {
 		_spec.SetField(drink.FieldContainer, field.TypeEnum, value)
@@ -1258,6 +1312,41 @@ func (_u *DrinkUpdateOne) SetNillableImageURL(v *string) *DrinkUpdateOne {
 // ClearImageURL clears the value of the "image_url" field.
 func (_u *DrinkUpdateOne) ClearImageURL() *DrinkUpdateOne {
 	_u.mutation.ClearImageURL()
+	return _u
+}
+
+// SetBeverageType sets the "beverage_type" field.
+func (_u *DrinkUpdateOne) SetBeverageType(v drink.BeverageType) *DrinkUpdateOne {
+	_u.mutation.SetBeverageType(v)
+	return _u
+}
+
+// SetNillableBeverageType sets the "beverage_type" field if the given value is not nil.
+func (_u *DrinkUpdateOne) SetNillableBeverageType(v *drink.BeverageType) *DrinkUpdateOne {
+	if v != nil {
+		_u.SetBeverageType(*v)
+	}
+	return _u
+}
+
+// SetAbvPercent sets the "abv_percent" field.
+func (_u *DrinkUpdateOne) SetAbvPercent(v float64) *DrinkUpdateOne {
+	_u.mutation.ResetAbvPercent()
+	_u.mutation.SetAbvPercent(v)
+	return _u
+}
+
+// SetNillableAbvPercent sets the "abv_percent" field if the given value is not nil.
+func (_u *DrinkUpdateOne) SetNillableAbvPercent(v *float64) *DrinkUpdateOne {
+	if v != nil {
+		_u.SetAbvPercent(*v)
+	}
+	return _u
+}
+
+// AddAbvPercent adds value to the "abv_percent" field.
+func (_u *DrinkUpdateOne) AddAbvPercent(v float64) *DrinkUpdateOne {
+	_u.mutation.AddAbvPercent(v)
 	return _u
 }
 
@@ -1845,6 +1934,16 @@ func (_u *DrinkUpdateOne) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "Drink.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BeverageType(); ok {
+		if err := drink.BeverageTypeValidator(v); err != nil {
+			return &ValidationError{Name: "beverage_type", err: fmt.Errorf(`ent: validator failed for field "Drink.beverage_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AbvPercent(); ok {
+		if err := drink.AbvPercentValidator(v); err != nil {
+			return &ValidationError{Name: "abv_percent", err: fmt.Errorf(`ent: validator failed for field "Drink.abv_percent": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Container(); ok {
 		if err := drink.ContainerValidator(v); err != nil {
 			return &ValidationError{Name: "container", err: fmt.Errorf(`ent: validator failed for field "Drink.container": %w`, err)}
@@ -1926,6 +2025,15 @@ func (_u *DrinkUpdateOne) sqlSave(ctx context.Context) (_node *Drink, err error)
 	}
 	if _u.mutation.ImageURLCleared() {
 		_spec.ClearField(drink.FieldImageURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.BeverageType(); ok {
+		_spec.SetField(drink.FieldBeverageType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.AbvPercent(); ok {
+		_spec.SetField(drink.FieldAbvPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAbvPercent(); ok {
+		_spec.AddField(drink.FieldAbvPercent, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Container(); ok {
 		_spec.SetField(drink.FieldContainer, field.TypeEnum, value)

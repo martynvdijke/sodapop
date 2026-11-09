@@ -66,6 +66,8 @@ class CheckinOutbox {
           note: '${item['note'] ?? ''}',
           venueId: (item['venue_id'] as num?)?.toInt(),
           serving: item['serving'] as String?,
+          prepMethod: '${item['prep_method'] ?? 'none'}',
+          prepNote: '${item['prep_note'] ?? ''}',
           visibility: item['visibility'] as String?,
           idempotencyKey: '${item['idempotency_key']}',
           lat: (item['lat'] as num?)?.toDouble(),

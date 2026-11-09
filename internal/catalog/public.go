@@ -49,6 +49,8 @@ type PublicDrink struct {
 	Brand                *PublicBrand    `json:"brand"`
 	Style                *PublicStyle    `json:"style"`
 	Container            string          `json:"container"`
+	BeverageType         string          `json:"beverage_type"`
+	ABVPercent           float64         `json:"abv_percent"`
 	VolumeML             int             `json:"volume_ml"`
 	CaffeineMgPer100ml   int             `json:"caffeine_mg_per_100ml"`
 	SugarGPer100ml       float64         `json:"sugar_g_per_100ml"`
@@ -91,6 +93,8 @@ func (s *Service) PublicBySlug(ctx context.Context, slug string) (*PublicDrink, 
 		Name:                 d.Name,
 		Description:          d.Description,
 		Container:            string(d.Container),
+		BeverageType:         string(d.BeverageType),
+		ABVPercent:           d.AbvPercent,
 		VolumeML:             d.VolumeMl,
 		CaffeineMgPer100ml:   d.CaffeineMgPer100ml,
 		SugarGPer100ml:       d.SugarGPer100ml,

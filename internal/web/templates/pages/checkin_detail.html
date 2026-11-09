@@ -30,6 +30,13 @@
     <strong>{{stars $c.Rating}}</strong>
   </div>
 
+  {{if $c.PrepMethod}}
+    <p class="detail-prep">
+      <span class="pill">{{prepMethod $c.PrepMethod}}</span>
+      {{if $c.PrepNote}}<span class="detail-prep-note">{{$c.PrepNote}}</span>{{end}}
+    </p>
+  {{end}}
+
   {{if $c.Note}}<p class="detail-note">{{$c.Note}}</p>{{end}}
 
   {{if $c.TaggedFriends}}

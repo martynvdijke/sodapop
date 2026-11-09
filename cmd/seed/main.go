@@ -45,6 +45,9 @@ var families = []family{
 	{"Still drinks", "still", []string{"Iced Tea", "Lemonade", "Juice Drink"}},
 	{"Functional", "functional", []string{"Energy Drink", "Sports Drink", "Enhanced Water"}},
 	{"Fermented", "fermented", []string{"Kombucha", "Water Kefir"}},
+	{"Tea", "tea", []string{"Green Tea", "Black Tea", "Herbal Tea", "Matcha"}},
+	{"Coffee", "coffee", []string{"Espresso", "Filter Coffee", "Cold Brew"}},
+	{"Non-alcoholic", "non-alcoholic", []string{"NA Beer", "NA Wine", "NA Spirits"}},
 }
 
 var flavours = []struct{ Name, Slug, Category string }{

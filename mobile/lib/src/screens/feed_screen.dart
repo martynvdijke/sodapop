@@ -9,6 +9,7 @@ import '../offline/checkin_outbox.dart';
 import '../offline/read_cache.dart';
 import '../theme/soda_theme.dart';
 import '../utils/url.dart';
+import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'checkin_detail_screen.dart';
 import 'friends_screen.dart';
@@ -438,6 +439,29 @@ class _FeedCard extends ConsumerWidget {
               if (item.note.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(item.note, style: theme.textTheme.bodyMedium),
+              ],
+              if (sodaPrepMethod(item.prepMethod).isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.local_cafe_outlined,
+                      size: 15,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        item.prepNote.isEmpty
+                            ? sodaPrepMethod(item.prepMethod)
+                            : '${sodaPrepMethod(item.prepMethod)} · ${item.prepNote}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
               if (item.photoId.isNotEmpty) ...[
                 const SizedBox(height: 12),

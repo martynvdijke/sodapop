@@ -21,6 +21,8 @@ type Detail struct {
 	Brand         string
 	Style         string
 	Rating        *int
+	PrepMethod    string
+	PrepNote      string
 	Note          string
 	CreatedAt     string
 	Visibility    string
@@ -102,7 +104,8 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 	err := s.SQL.QueryRowContext(ctx, `
 		SELECT c.id, c.user_id, u.handle, COALESCE(u.display_name,''),
 		       d.id, d.slug, d.name, COALESCE(b.name,''), COALESCE(st.name,''),
-		       c.rating, COALESCE(c.note,''), c.created_at, c.visibility,
+		       c.rating, COALESCE(c.prep_method,''), COALESCE(c.prep_note,''),
+		       COALESCE(c.note,''), c.created_at, c.visibility,
 		       c.venue_id, COALESCE(v.name,''),
 		       c.lat, c.lng,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''),
@@ -123,7 +126,7 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		  AND u.deleted_at IS NULL AND u.status <> 'deleted'`, viewerID, id).Scan(
 		&d.ID, &d.UserID, &d.UserHandle, &d.UserName,
 		&d.DrinkID, &d.DrinkSlug, &d.DrinkName, &d.Brand, &d.Style,
-		&rating, &d.Note, &d.CreatedAt, &d.Visibility,
+		&rating, &d.PrepMethod, &d.PrepNote, &d.Note, &d.CreatedAt, &d.Visibility,
 		&venueID, &d.VenueName,
 		&lat, &lng,
 		&d.MediaID, &d.MediaMime,

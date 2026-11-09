@@ -6,11 +6,66 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// addColumnStmt matches one `ALTER TABLE <table> ADD COLUMN <column> ...;`
+// statement. Ent's Schema.Create runs before the registry and already adds
+// columns declared on an Ent schema, so an ALTER for a column that exists (a
+// fresh database, or an upgrade Ent already migrated) would otherwise abort the
+// migration with "duplicate column name".
+var addColumnStmt = regexp.MustCompile(`(?is)ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)[^;]*;`)
+
+// stripExistingAddColumns removes ADD COLUMN statements whose target column is
+// already present. Other statements are left untouched.
+func stripExistingAddColumns(sqlDB *sql.DB, body string) (string, error) {
+	var firstErr error
+	out := addColumnStmt.ReplaceAllStringFunc(body, func(stmt string) string {
+		if firstErr != nil {
+			return stmt
+		}
+		m := addColumnStmt.FindStringSubmatch(stmt)
+		exists, err := columnExists(sqlDB, m[1], m[2])
+		if err != nil {
+			firstErr = err
+			return stmt
+		}
+		if exists {
+			return ""
+		}
+		return stmt
+	})
+	return out, firstErr
+}
+
+func columnExists(sqlDB *sql.DB, table, column string) (bool, error) {
+	rows, err := sqlDB.Query(`PRAGMA table_info("` + table + `")`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			typ       string
+			notNull   int
+			dfltValue sql.NullString
+			pk        int
+		)
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dfltValue, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
+}
 
 //go:embed migrations/*.sql
 var migrationFS embed.FS
@@ -55,11 +110,15 @@ func Migrate(sqlDB *sql.DB) error {
 		if applied[m.version] {
 			continue
 		}
+		body, err := stripExistingAddColumns(sqlDB, m.body)
+		if err != nil {
+			return fmt.Errorf("migration %04d %s: inspect columns: %w", m.version, m.name, err)
+		}
 		tx, err := sqlDB.Begin()
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(m.body); err != nil {
+		if _, err := tx.Exec(body); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("migration %04d %s: %w", m.version, m.name, err)
 		}

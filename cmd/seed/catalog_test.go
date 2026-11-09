@@ -39,8 +39,8 @@ func TestSeedStarterCatalogIsIdempotentAndComplete(t *testing.T) {
 	if len(drinks) != len(starterDrinks) {
 		t.Fatalf("drinks = %d, want %d", len(drinks), len(starterDrinks))
 	}
-	if len(drinks) < 24 || len(drinks) > 30 {
-		t.Fatalf("starter catalog has %d drinks, want 24-30", len(drinks))
+	if len(drinks) < 30 || len(drinks) > 40 {
+		t.Fatalf("starter catalog has %d drinks, want 30-40", len(drinks))
 	}
 
 	barcodeCount, err := database.Client.DrinkBarcode.Query().Count(ctx)

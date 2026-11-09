@@ -463,6 +463,8 @@ class ApiClient {
     String styleSlug = '',
     String container = 'can',
     int volumeMl = 355,
+    String beverageType = 'soda',
+    double abvPercent = 0,
     String sweetener = '',
     String carbonation = '',
     String acid = '',
@@ -478,6 +480,8 @@ class ApiClient {
         'style_slug': styleSlug.trim(),
         'container': container,
         'volume_ml': volumeMl,
+        'beverage_type': beverageType,
+        'abv_percent': abvPercent,
         'sweetener': sweetener,
         'carbonation': carbonation,
         'acid': acid,
@@ -730,6 +734,8 @@ class ApiClient {
     String note = '',
     int? venueId,
     String? serving,
+    String prepMethod = 'none',
+    String prepNote = '',
     String? visibility,
     String? idempotencyKey,
     Uint8List? photo,
@@ -743,6 +749,10 @@ class ApiClient {
     final ratingValue = rating == null ? null : rating / 4;
     final noteText = note.trim();
     final servingText = _trimmed(serving);
+    final prepMethodText = _trimmed(prepMethod);
+    final prepNoteText = _trimmed(prepNote);
+    final hasPrep =
+        prepMethodText != null && prepMethodText.toLowerCase() != 'none';
     final visibilityText = _trimmed(visibility);
     // The server rejects one coordinate without the other, so send neither.
     final hasLocation = lat != null && lng != null;
@@ -764,6 +774,8 @@ class ApiClient {
       }
       if (ratingValue != null) payload['rating'] = ratingValue;
       if (noteText.isNotEmpty) payload['note'] = noteText;
+      if (hasPrep) payload['prep_method'] = prepMethodText;
+      if (prepNoteText != null) payload['prep_note'] = prepNoteText;
       if (tagged.isNotEmpty) payload['friend_ids'] = tagged;
       final response = await _dio.post<dynamic>(
         'api/v1/checkins',
@@ -782,6 +794,13 @@ class ApiClient {
       form.fields.add(MapEntry('rating', '$ratingValue'));
     }
     if (noteText.isNotEmpty) form.fields.add(MapEntry('note', noteText));
+    if (prepMethodText != null &&
+        prepMethodText.toLowerCase() != 'none') {
+      form.fields.add(MapEntry('prep_method', prepMethodText));
+    }
+    if (prepNoteText != null) {
+      form.fields.add(MapEntry('prep_note', prepNoteText));
+    }
     if (servingText != null) form.fields.add(MapEntry('serving', servingText));
     if (visibilityText != null) {
       form.fields.add(MapEntry('visibility', visibilityText));

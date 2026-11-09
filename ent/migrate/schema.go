@@ -206,6 +206,8 @@ var (
 		{Name: "id", Type: field.TypeString},
 		{Name: "rating", Type: field.TypeInt, Nullable: true},
 		{Name: "serving", Type: field.TypeEnum, Enums: []string{"can", "bottle", "glass", "fountain", "other"}, Default: "can"},
+		{Name: "prep_method", Type: field.TypeEnum, Enums: []string{"none", "tea_bag", "loose_leaf", "cold_brew", "matcha", "espresso", "pour_over", "french_press", "aeropress", "moka", "drip", "other"}, Default: "none"},
+		{Name: "prep_note", Type: field.TypeString, Default: ""},
 		{Name: "note", Type: field.TypeString, Default: ""},
 		{Name: "photo_media_id", Type: field.TypeString, Nullable: true},
 		{Name: "lat", Type: field.TypeFloat64, Nullable: true},
@@ -227,19 +229,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "checkins_drinks_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[12]},
+				Columns:    []*schema.Column{CheckinsColumns[14]},
 				RefColumns: []*schema.Column{DrinksColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "checkins_users_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[13]},
+				Columns:    []*schema.Column{CheckinsColumns[15]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "checkins_venues_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[14]},
+				Columns:    []*schema.Column{CheckinsColumns[16]},
 				RefColumns: []*schema.Column{VenuesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -248,17 +250,17 @@ var (
 			{
 				Name:    "checkin_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinsColumns[13], CheckinsColumns[9]},
+				Columns: []*schema.Column{CheckinsColumns[15], CheckinsColumns[11]},
 			},
 			{
 				Name:    "checkin_drink_id",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinsColumns[12]},
+				Columns: []*schema.Column{CheckinsColumns[14]},
 			},
 			{
 				Name:    "checkin_idempotency_key",
 				Unique:  true,
-				Columns: []*schema.Column{CheckinsColumns[8]},
+				Columns: []*schema.Column{CheckinsColumns[10]},
 			},
 		},
 	}
@@ -373,6 +375,8 @@ var (
 		{Name: "slug", Type: field.TypeString, Unique: true},
 		{Name: "description", Type: field.TypeString, Default: ""},
 		{Name: "image_url", Type: field.TypeString, Nullable: true},
+		{Name: "beverage_type", Type: field.TypeEnum, Enums: []string{"soda", "water", "tea", "coffee", "na_beer", "na_wine", "na_spirit", "other"}, Default: "soda"},
+		{Name: "abv_percent", Type: field.TypeFloat64, Default: 0},
 		{Name: "container", Type: field.TypeEnum, Enums: []string{"can", "glass", "pet", "fountain", "carton", "other"}, Default: "can"},
 		{Name: "volume_ml", Type: field.TypeInt, Default: 355},
 		{Name: "caffeine_mg_per_100ml", Type: field.TypeInt, Default: 0},
@@ -403,13 +407,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "drinks_brands_drinks",
-				Columns:    []*schema.Column{DrinksColumns[24]},
+				Columns:    []*schema.Column{DrinksColumns[26]},
 				RefColumns: []*schema.Column{BrandsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "drinks_styles_drinks",
-				Columns:    []*schema.Column{DrinksColumns[25]},
+				Columns:    []*schema.Column{DrinksColumns[27]},
 				RefColumns: []*schema.Column{StylesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -423,12 +427,12 @@ var (
 			{
 				Name:    "drink_brand_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[24]},
+				Columns: []*schema.Column{DrinksColumns[26]},
 			},
 			{
 				Name:    "drink_style_id",
 				Unique:  false,
-				Columns: []*schema.Column{DrinksColumns[25]},
+				Columns: []*schema.Column{DrinksColumns[27]},
 			},
 		},
 	}

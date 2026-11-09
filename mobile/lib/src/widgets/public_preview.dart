@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../theme/soda_theme.dart';
 import '../utils/url.dart';
+import 'soda_format.dart';
 import 'soda_ui.dart';
 
 /// Read-only check-in card used by the logged-out preview. It deliberately has
@@ -118,6 +119,17 @@ class PublicCheckinCard extends StatelessWidget {
               if (item.note.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(item.note, style: theme.textTheme.bodyMedium),
+              ],
+              if (sodaPrepMethod(item.prepMethod).isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  item.prepNote.isEmpty
+                      ? sodaPrepMethod(item.prepMethod)
+                      : '${sodaPrepMethod(item.prepMethod)} · ${item.prepNote}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
               const SizedBox(height: 10),
               Row(

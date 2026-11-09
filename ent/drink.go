@@ -30,6 +30,10 @@ type Drink struct {
 	Description string `json:"description,omitempty"`
 	// ImageURL holds the value of the "image_url" field.
 	ImageURL *string `json:"image_url,omitempty"`
+	// BeverageType holds the value of the "beverage_type" field.
+	BeverageType drink.BeverageType `json:"beverage_type,omitempty"`
+	// AbvPercent holds the value of the "abv_percent" field.
+	AbvPercent float64 `json:"abv_percent,omitempty"`
 	// Container holds the value of the "container" field.
 	Container drink.Container `json:"container,omitempty"`
 	// VolumeMl holds the value of the "volume_ml" field.
@@ -169,11 +173,11 @@ func (*Drink) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case drink.FieldPublished:
 			values[i] = new(sql.NullBool)
-		case drink.FieldSugarGPer100ml:
+		case drink.FieldAbvPercent, drink.FieldSugarGPer100ml:
 			values[i] = new(sql.NullFloat64)
 		case drink.FieldID, drink.FieldBrandID, drink.FieldStyleID, drink.FieldVolumeMl, drink.FieldCaffeineMgPer100ml, drink.FieldCaloriesKcalPer100ml, drink.FieldMergedIntoID:
 			values[i] = new(sql.NullInt64)
-		case drink.FieldName, drink.FieldSlug, drink.FieldDescription, drink.FieldImageURL, drink.FieldContainer, drink.FieldSweetener, drink.FieldCarbonation, drink.FieldAcid, drink.FieldKind, drink.FieldRecipeJSON, drink.FieldSource, drink.FieldStatus, drink.FieldDiscontinuedAt, drink.FieldLimitedUntil, drink.FieldCreatedBy, drink.FieldCreatedAt, drink.FieldUpdatedAt:
+		case drink.FieldName, drink.FieldSlug, drink.FieldDescription, drink.FieldImageURL, drink.FieldBeverageType, drink.FieldContainer, drink.FieldSweetener, drink.FieldCarbonation, drink.FieldAcid, drink.FieldKind, drink.FieldRecipeJSON, drink.FieldSource, drink.FieldStatus, drink.FieldDiscontinuedAt, drink.FieldLimitedUntil, drink.FieldCreatedBy, drink.FieldCreatedAt, drink.FieldUpdatedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -234,6 +238,18 @@ func (_m *Drink) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ImageURL = new(string)
 				*_m.ImageURL = value.String
+			}
+		case drink.FieldBeverageType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field beverage_type", values[i])
+			} else if value.Valid {
+				_m.BeverageType = drink.BeverageType(value.String)
+			}
+		case drink.FieldAbvPercent:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field abv_percent", values[i])
+			} else if value.Valid {
+				_m.AbvPercent = value.Float64
 			}
 		case drink.FieldContainer:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -447,6 +463,12 @@ func (_m *Drink) String() string {
 		builder.WriteString("image_url=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("beverage_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BeverageType))
+	builder.WriteString(", ")
+	builder.WriteString("abv_percent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AbvPercent))
 	builder.WriteString(", ")
 	builder.WriteString("container=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Container))

@@ -76,6 +76,34 @@ func (_c *CheckinCreate) SetNillableServing(v *checkin.Serving) *CheckinCreate {
 	return _c
 }
 
+// SetPrepMethod sets the "prep_method" field.
+func (_c *CheckinCreate) SetPrepMethod(v checkin.PrepMethod) *CheckinCreate {
+	_c.mutation.SetPrepMethod(v)
+	return _c
+}
+
+// SetNillablePrepMethod sets the "prep_method" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillablePrepMethod(v *checkin.PrepMethod) *CheckinCreate {
+	if v != nil {
+		_c.SetPrepMethod(*v)
+	}
+	return _c
+}
+
+// SetPrepNote sets the "prep_note" field.
+func (_c *CheckinCreate) SetPrepNote(v string) *CheckinCreate {
+	_c.mutation.SetPrepNote(v)
+	return _c
+}
+
+// SetNillablePrepNote sets the "prep_note" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillablePrepNote(v *string) *CheckinCreate {
+	if v != nil {
+		_c.SetPrepNote(*v)
+	}
+	return _c
+}
+
 // SetNote sets the "note" field.
 func (_c *CheckinCreate) SetNote(v string) *CheckinCreate {
 	_c.mutation.SetNote(v)
@@ -270,6 +298,14 @@ func (_c *CheckinCreate) defaults() {
 		v := checkin.DefaultServing
 		_c.mutation.SetServing(v)
 	}
+	if _, ok := _c.mutation.PrepMethod(); !ok {
+		v := checkin.DefaultPrepMethod
+		_c.mutation.SetPrepMethod(v)
+	}
+	if _, ok := _c.mutation.PrepNote(); !ok {
+		v := checkin.DefaultPrepNote
+		_c.mutation.SetPrepNote(v)
+	}
 	if _, ok := _c.mutation.Note(); !ok {
 		v := checkin.DefaultNote
 		_c.mutation.SetNote(v)
@@ -317,6 +353,17 @@ func (_c *CheckinCreate) check() error {
 		if err := checkin.ServingValidator(v); err != nil {
 			return &ValidationError{Name: "serving", err: fmt.Errorf(`ent: validator failed for field "Checkin.serving": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.PrepMethod(); !ok {
+		return &ValidationError{Name: "prep_method", err: errors.New(`ent: missing required field "Checkin.prep_method"`)}
+	}
+	if v, ok := _c.mutation.PrepMethod(); ok {
+		if err := checkin.PrepMethodValidator(v); err != nil {
+			return &ValidationError{Name: "prep_method", err: fmt.Errorf(`ent: validator failed for field "Checkin.prep_method": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PrepNote(); !ok {
+		return &ValidationError{Name: "prep_note", err: errors.New(`ent: missing required field "Checkin.prep_note"`)}
 	}
 	if _, ok := _c.mutation.Note(); !ok {
 		return &ValidationError{Name: "note", err: errors.New(`ent: missing required field "Checkin.note"`)}
@@ -383,6 +430,14 @@ func (_c *CheckinCreate) createSpec() (*Checkin, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Serving(); ok {
 		_spec.SetField(checkin.FieldServing, field.TypeEnum, value)
 		_node.Serving = value
+	}
+	if value, ok := _c.mutation.PrepMethod(); ok {
+		_spec.SetField(checkin.FieldPrepMethod, field.TypeEnum, value)
+		_node.PrepMethod = value
+	}
+	if value, ok := _c.mutation.PrepNote(); ok {
+		_spec.SetField(checkin.FieldPrepNote, field.TypeString, value)
+		_node.PrepNote = value
 	}
 	if value, ok := _c.mutation.Note(); ok {
 		_spec.SetField(checkin.FieldNote, field.TypeString, value)

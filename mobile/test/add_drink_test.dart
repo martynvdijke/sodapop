@@ -50,6 +50,8 @@ class _FakeApi extends ApiClient {
     String styleSlug = '',
     String container = 'can',
     int volumeMl = 355,
+    String beverageType = 'soda',
+    double abvPercent = 0,
     String sweetener = '',
     String carbonation = '',
     String acid = '',

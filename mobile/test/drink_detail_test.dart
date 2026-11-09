@@ -89,7 +89,7 @@ void main() {
 
     expect(find.text('Cherry Cola'), findsOneWidget);
     expect(find.text('SODA CO'), findsOneWidget);
-    expect(find.text('Cola · Can · 330 ml'), findsOneWidget);
+    expect(find.text('Soda · Cola · Can · 330 ml'), findsOneWidget);
     expect(find.text('Limited run'), findsOneWidget);
     expect(find.text('4.5'), findsOneWidget);
     expect(find.text('12 ratings'), findsOneWidget);

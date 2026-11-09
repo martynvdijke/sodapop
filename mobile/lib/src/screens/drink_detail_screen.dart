@@ -460,9 +460,11 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
   Widget _hero(Drink drink) {
     final theme = Theme.of(context);
     final meta = [
+      _beverageTypeLabel(drink.beverageType),
       drink.style,
       _containerLabel(drink.container),
       if (drink.volumeMl > 0) '${drink.volumeMl} ml',
+      if (drink.abvPercent > 0) 'ABV ${_decimal(drink.abvPercent)}%',
     ].where((value) => value.isNotEmpty).join(' · ');
     final status = _statusLabel(drink.status);
 
@@ -1071,6 +1073,29 @@ class _PhotoPlaceholder extends StatelessWidget {
 String _decimal(double value) {
   final text = value.toStringAsFixed(1);
   return text.endsWith('.0') ? text.substring(0, text.length - 2) : text;
+}
+
+String _beverageTypeLabel(String type) {
+  switch (type) {
+    case 'water':
+      return 'Water';
+    case 'tea':
+      return 'Tea';
+    case 'coffee':
+      return 'Coffee';
+    case 'na_beer':
+      return 'NA beer';
+    case 'na_wine':
+      return 'NA wine';
+    case 'na_spirit':
+      return 'NA spirits';
+    case 'other':
+      return 'Other';
+    case 'soda':
+      return 'Soda';
+    default:
+      return type.isEmpty ? 'Soda' : type;
+  }
 }
 
 String _containerLabel(String container) {

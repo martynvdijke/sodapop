@@ -29,6 +29,10 @@ type Checkin struct {
 	Rating *int `json:"rating,omitempty"`
 	// Serving holds the value of the "serving" field.
 	Serving checkin.Serving `json:"serving,omitempty"`
+	// PrepMethod holds the value of the "prep_method" field.
+	PrepMethod checkin.PrepMethod `json:"prep_method,omitempty"`
+	// PrepNote holds the value of the "prep_note" field.
+	PrepNote string `json:"prep_note,omitempty"`
 	// Note holds the value of the "note" field.
 	Note string `json:"note,omitempty"`
 	// PhotoMediaID holds the value of the "photo_media_id" field.
@@ -108,7 +112,7 @@ func (*Checkin) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case checkin.FieldDrinkID, checkin.FieldVenueID, checkin.FieldRating:
 			values[i] = new(sql.NullInt64)
-		case checkin.FieldID, checkin.FieldUserID, checkin.FieldServing, checkin.FieldNote, checkin.FieldPhotoMediaID, checkin.FieldVisibility, checkin.FieldIdempotencyKey, checkin.FieldCreatedAt, checkin.FieldUpdatedAt, checkin.FieldDeletedAt:
+		case checkin.FieldID, checkin.FieldUserID, checkin.FieldServing, checkin.FieldPrepMethod, checkin.FieldPrepNote, checkin.FieldNote, checkin.FieldPhotoMediaID, checkin.FieldVisibility, checkin.FieldIdempotencyKey, checkin.FieldCreatedAt, checkin.FieldUpdatedAt, checkin.FieldDeletedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -162,6 +166,18 @@ func (_m *Checkin) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field serving", values[i])
 			} else if value.Valid {
 				_m.Serving = checkin.Serving(value.String)
+			}
+		case checkin.FieldPrepMethod:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field prep_method", values[i])
+			} else if value.Valid {
+				_m.PrepMethod = checkin.PrepMethod(value.String)
+			}
+		case checkin.FieldPrepNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field prep_note", values[i])
+			} else if value.Valid {
+				_m.PrepNote = value.String
 			}
 		case checkin.FieldNote:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -291,6 +307,12 @@ func (_m *Checkin) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("serving=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Serving))
+	builder.WriteString(", ")
+	builder.WriteString("prep_method=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PrepMethod))
+	builder.WriteString(", ")
+	builder.WriteString("prep_note=")
+	builder.WriteString(_m.PrepNote)
 	builder.WriteString(", ")
 	builder.WriteString("note=")
 	builder.WriteString(_m.Note)

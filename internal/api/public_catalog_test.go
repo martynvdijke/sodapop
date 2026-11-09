@@ -70,7 +70,8 @@ func TestPublicDrinkReturnsOnlyPublicFacts(t *testing.T) {
 	}
 	allowed := map[string]bool{
 		"slug": true, "name": true, "description": true, "brand": true, "style": true,
-		"container": true, "volume_ml": true, "caffeine_mg_per_100ml": true,
+		"container": true, "beverage_type": true, "abv_percent": true,
+		"volume_ml": true, "caffeine_mg_per_100ml": true,
 		"sugar_g_per_100ml": true, "calories_kcal_per_100ml": true, "sweetener": true,
 		"carbonation": true, "acid": true, "status": true, "image_url": true,
 		"flavours": true, "rating": true,

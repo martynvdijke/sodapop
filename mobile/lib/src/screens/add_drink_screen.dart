@@ -39,6 +39,18 @@ const _containers = <(String, String)>[
   ('other', 'Other'),
 ];
 
+/// The beverage types the server understands. Non-NA drinks carry no ABV.
+const _beverageTypes = <(String, String)>[
+  ('soda', 'Soda'),
+  ('water', 'Water'),
+  ('tea', 'Tea'),
+  ('coffee', 'Coffee'),
+  ('na_beer', 'NA beer'),
+  ('na_wine', 'NA wine'),
+  ('na_spirit', 'NA spirits'),
+  ('other', 'Other'),
+];
+
 const _sweeteners = <(String, String)>[
   ('', 'Unknown'),
   ('sugar', 'Sugar'),
@@ -120,9 +132,11 @@ class _AddDrinkScreenState extends ConsumerState<AddDrinkScreen> {
     text: '${(widget.initialVolumeMl ?? 0) > 0 ? widget.initialVolumeMl : 355}',
   );
   final _notes = TextEditingController();
+  final _abv = TextEditingController(text: '0');
 
   String _style = '';
   String _container = 'can';
+  String _beverageType = 'soda';
   String _sweetener = '';
   String _carbonation = '';
   String _acid = '';
@@ -136,6 +150,7 @@ class _AddDrinkScreenState extends ConsumerState<AddDrinkScreen> {
     _brand.dispose();
     _volume.dispose();
     _notes.dispose();
+    _abv.dispose();
     super.dispose();
   }
 
@@ -150,6 +165,7 @@ class _AddDrinkScreenState extends ConsumerState<AddDrinkScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final route = ModalRoute.of(context);
     final volume = int.tryParse(_volume.text.trim()) ?? 355;
+    final abv = (double.tryParse(_abv.text.trim()) ?? 0).clamp(0, 100).toDouble();
 
     setState(() {
       _submitting = true;
@@ -163,6 +179,8 @@ class _AddDrinkScreenState extends ConsumerState<AddDrinkScreen> {
         styleSlug: _style,
         container: _container,
         volumeMl: volume,
+        beverageType: _beverageType,
+        abvPercent: abv,
         sweetener: _sweetener,
         carbonation: _carbonation,
         acid: _acid,
@@ -301,6 +319,52 @@ class _AddDrinkScreenState extends ConsumerState<AddDrinkScreen> {
                         final ml = int.tryParse((value ?? '').trim());
                         if (ml == null || ml < 1 || ml > 5000) {
                           return '1–5000';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _Dropdown(
+                      fieldKey: const Key('add-beverage-type'),
+                      label: 'Beverage type',
+                      value: _beverageType,
+                      options: _beverageTypes,
+                      onChanged: (value) =>
+                          setState(() => _beverageType = value),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      key: const Key('add-abv'),
+                      controller: _abv,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d{0,3}(\.\d?)?'),
+                        ),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'ABV %',
+                        helperText: '0 if none',
+                      ),
+                      validator: (value) {
+                        final raw = (value ?? '').trim();
+                        if (raw.isEmpty) return null;
+                        final abv = double.tryParse(raw);
+                        if (abv == null || abv < 0 || abv > 100) {
+                          return '0–100';
                         }
                         return null;
                       },

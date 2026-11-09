@@ -94,6 +94,34 @@ func (_c *DrinkCreate) SetNillableImageURL(v *string) *DrinkCreate {
 	return _c
 }
 
+// SetBeverageType sets the "beverage_type" field.
+func (_c *DrinkCreate) SetBeverageType(v drink.BeverageType) *DrinkCreate {
+	_c.mutation.SetBeverageType(v)
+	return _c
+}
+
+// SetNillableBeverageType sets the "beverage_type" field if the given value is not nil.
+func (_c *DrinkCreate) SetNillableBeverageType(v *drink.BeverageType) *DrinkCreate {
+	if v != nil {
+		_c.SetBeverageType(*v)
+	}
+	return _c
+}
+
+// SetAbvPercent sets the "abv_percent" field.
+func (_c *DrinkCreate) SetAbvPercent(v float64) *DrinkCreate {
+	_c.mutation.SetAbvPercent(v)
+	return _c
+}
+
+// SetNillableAbvPercent sets the "abv_percent" field if the given value is not nil.
+func (_c *DrinkCreate) SetNillableAbvPercent(v *float64) *DrinkCreate {
+	if v != nil {
+		_c.SetAbvPercent(*v)
+	}
+	return _c
+}
+
 // SetContainer sets the "container" field.
 func (_c *DrinkCreate) SetContainer(v drink.Container) *DrinkCreate {
 	_c.mutation.SetContainer(v)
@@ -490,6 +518,14 @@ func (_c *DrinkCreate) defaults() {
 		v := drink.DefaultDescription
 		_c.mutation.SetDescription(v)
 	}
+	if _, ok := _c.mutation.BeverageType(); !ok {
+		v := drink.DefaultBeverageType
+		_c.mutation.SetBeverageType(v)
+	}
+	if _, ok := _c.mutation.AbvPercent(); !ok {
+		v := drink.DefaultAbvPercent
+		_c.mutation.SetAbvPercent(v)
+	}
 	if _, ok := _c.mutation.Container(); !ok {
 		v := drink.DefaultContainer
 		_c.mutation.SetContainer(v)
@@ -572,6 +608,22 @@ func (_c *DrinkCreate) check() error {
 	}
 	if _, ok := _c.mutation.Description(); !ok {
 		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "Drink.description"`)}
+	}
+	if _, ok := _c.mutation.BeverageType(); !ok {
+		return &ValidationError{Name: "beverage_type", err: errors.New(`ent: missing required field "Drink.beverage_type"`)}
+	}
+	if v, ok := _c.mutation.BeverageType(); ok {
+		if err := drink.BeverageTypeValidator(v); err != nil {
+			return &ValidationError{Name: "beverage_type", err: fmt.Errorf(`ent: validator failed for field "Drink.beverage_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AbvPercent(); !ok {
+		return &ValidationError{Name: "abv_percent", err: errors.New(`ent: missing required field "Drink.abv_percent"`)}
+	}
+	if v, ok := _c.mutation.AbvPercent(); ok {
+		if err := drink.AbvPercentValidator(v); err != nil {
+			return &ValidationError{Name: "abv_percent", err: fmt.Errorf(`ent: validator failed for field "Drink.abv_percent": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Container(); !ok {
 		return &ValidationError{Name: "container", err: errors.New(`ent: missing required field "Drink.container"`)}
@@ -700,6 +752,14 @@ func (_c *DrinkCreate) createSpec() (*Drink, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ImageURL(); ok {
 		_spec.SetField(drink.FieldImageURL, field.TypeString, value)
 		_node.ImageURL = &value
+	}
+	if value, ok := _c.mutation.BeverageType(); ok {
+		_spec.SetField(drink.FieldBeverageType, field.TypeEnum, value)
+		_node.BeverageType = value
+	}
+	if value, ok := _c.mutation.AbvPercent(); ok {
+		_spec.SetField(drink.FieldAbvPercent, field.TypeFloat64, value)
+		_node.AbvPercent = value
 	}
 	if value, ok := _c.mutation.Container(); ok {
 		_spec.SetField(drink.FieldContainer, field.TypeEnum, value)

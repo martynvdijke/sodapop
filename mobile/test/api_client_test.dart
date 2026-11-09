@@ -1783,6 +1783,8 @@ void main() {
         'style_slug': 'cola',
         'container': 'glass',
         'volume_ml': 330,
+        'beverage_type': 'soda',
+        'abv_percent': 0,
         'sweetener': 'sugar',
         'carbonation': 'standard',
         'acid': 'citric',
