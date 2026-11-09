@@ -1,3 +1,11 @@
+# [1.27.0](https://github.com/martynvdijke/sodapop/compare/v1.26.2...v1.27.0) (2026-11-09)
+
+
+### Features
+
+* check in at home and see nearby places ([0263db8](https://github.com/martynvdijke/sodapop/commit/0263db859541770fce46bd512d5d492a38ef0f05))
+* suggest drink pairings on the drink page ([f63054b](https://github.com/martynvdijke/sodapop/commit/f63054b7f3ce36d394d48172d8d88fabd5cd5e8b))
+
 ## [1.26.2](https://github.com/martynvdijke/sodapop/compare/v1.26.1...v1.26.2) (2026-11-09)
 
 
