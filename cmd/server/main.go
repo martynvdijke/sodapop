@@ -28,6 +28,7 @@ import (
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
+	"sodapop/internal/pairings"
 	"sodapop/internal/ratelimit"
 	"sodapop/internal/saves"
 	"sodapop/internal/settings"
@@ -205,6 +206,7 @@ func run() error {
 	badgeSvc := badges.New(database)
 	tasteSvc := taste.New(database)
 	mixSvc := mix.New(database)
+	pairingSvc := pairings.New(cfg.SandwitchesBaseURL)
 	limiter := ratelimit.New()
 	setupSvc := setup.New(database.Client, authSvc, limiter, log, os.Getenv("SETUP_TOKEN"))
 
@@ -223,6 +225,7 @@ func run() error {
 		Backup:  backupSvc,
 		Limiter: limiter, Render: renderer, Setup: setupSvc, Settings: settingsSvc,
 		ShareLinks: sharelinks.New(database.SQL),
+		Pairings:   pairingSvc,
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,

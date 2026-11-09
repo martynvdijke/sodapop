@@ -22,6 +22,24 @@
     <button class="btn" type="button" data-share data-share-url="/drinks/{{$d.Drink.Slug}}" data-share-title="{{$d.Drink.Name}}" data-share-text="{{$d.Drink.Name}}{{if $d.BrandName}} by {{$d.BrandName}}{{end}} on Sodapop">Share</button>
   </div>
 
+  {{if .Pairings}}
+  <section class="drink-gallery" aria-labelledby="pairings-title">
+    <h2 id="pairings-title">Pairs with</h2>
+    <p class="gallery-intro">Sandwich pairings from <a href="{{.PairingsBase}}">Sandwitches</a>.</p>
+    <ul class="gallery-grid">
+      {{range .Pairings}}
+        <li class="gallery-item card">
+          {{if .ImageURL}}<img class="gallery-photo" src="{{.ImageURL}}" alt="" loading="lazy" decoding="async" width="480" height="480">{{end}}
+          <div class="gallery-meta">
+            <a href="{{.URL}}"><strong>{{.Title}}</strong></a>
+            {{if .Summary}}<p class="muted">{{.Summary}}</p>{{end}}
+          </div>
+        </li>
+      {{end}}
+    </ul>
+  </section>
+  {{end}}
+
   {{if .User}}
   <div class="drink-pin">
     <form method="post" action="/drinks/{{$d.Drink.Slug}}/{{if .IsFavourite}}unfavourite{{else}}favourite{{end}}" class="drink-pin-form">

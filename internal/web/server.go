@@ -23,6 +23,7 @@ import (
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
+	"sodapop/internal/pairings"
 	"sodapop/internal/ratelimit"
 	"sodapop/internal/saves"
 	"sodapop/internal/settings"
@@ -73,6 +74,7 @@ type Server struct {
 	Setup        *setup.Service
 	Settings     *settings.Service
 	ShareLinks   *sharelinks.Service
+	Pairings     *pairings.Client
 }
 
 // Register wires HTML routes and the OIDC redirect endpoints.

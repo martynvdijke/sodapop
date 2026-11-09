@@ -376,6 +376,8 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 		"GalleryError":     gallery.GalleryError,
 		"IsFavourite":      isFavourite,
 		"FavouriteDrinkID": favouriteID,
+		"Pairings":         s.Pairings.ForDrink(r.Context(), d.Drink.Slug),
+		"PairingsBase":     s.Pairings.Base(),
 	})
 }
 
