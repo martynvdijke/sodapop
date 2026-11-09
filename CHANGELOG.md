@@ -1,3 +1,11 @@
+# [1.26.0](https://github.com/martynvdijke/sodapop/compare/v1.25.0...v1.26.0) (2026-11-09)
+
+
+### Features
+
+* support tea, coffee and 0.0% drinks with prep details ([db3ed1f](https://github.com/martynvdijke/sodapop/commit/db3ed1f1613c1afd54e3f4c70ab76d438a512291))
+* **trmnl:** add e-ink plugins backed by a dedicated TRMNL API ([759ed21](https://github.com/martynvdijke/sodapop/commit/759ed21347272a5e00e31dc306aebab554868e8d))
+
 # [1.25.0](https://github.com/martynvdijke/sodapop/compare/v1.24.0...v1.25.0) (2026-11-08)
 
 
