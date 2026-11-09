@@ -44,10 +44,10 @@ custom_fields:
     name: About This Plugin
     category: entertainment
     field_type: author_bio
-    description: Your Sodapop stats, streak and notifications
+    description: Your stats, streak and alerts
     github_url: https://github.com/martynvdijke/sodapop
     learn_more_url: https://github.com/martynvdijke/sodapop
     email_address: martyn@vandijke.xyz
 name: Sodapop - My Stats
-description: Your Sodapop stats, streak and notifications
+description: Your stats, streak and alerts
 refresh_interval: 30
