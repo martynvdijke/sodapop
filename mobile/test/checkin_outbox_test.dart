@@ -17,6 +17,7 @@ class _Call {
     this.photoMime,
     this.lat,
     this.lng,
+    this.atHome = false,
     this.friendIds = const [],
   });
 
@@ -29,6 +30,7 @@ class _Call {
   final String? photoMime;
   final double? lat;
   final double? lng;
+  final bool atHome;
   final List<String> friendIds;
 }
 
@@ -51,6 +53,7 @@ class _RecordingApi extends ApiClient {
     String? photoMime,
     double? lat,
     double? lng,
+    bool atHome = false,
     List<String> friendIds = const [],
   }) async {
     calls.add(
@@ -64,6 +67,7 @@ class _RecordingApi extends ApiClient {
         photoMime: photoMime,
         lat: lat,
         lng: lng,
+        atHome: atHome,
         friendIds: friendIds,
       ),
     );
@@ -176,6 +180,28 @@ void main() {
     expect(api.calls.single.lat, 51.50722);
     expect(api.calls.single.lng, -0.1275);
     expect(api.calls.single.friendIds, ['u-ada', 'u-grace']);
+  });
+
+  test('round-trips an at-home check-in and drops any coordinates', () async {
+    final outbox = CheckinOutbox();
+    await outbox.enqueue({
+      'drink_id': 9,
+      'rating': 16,
+      'note': 'From the fridge.',
+      'idempotency_key': 'key-home',
+      'at_home': true,
+      'lat': 51.50722,
+      'lng': -0.1275,
+    });
+
+    final row = (await outbox.pending()).single;
+    expect(row['at_home'], isTrue);
+
+    final api = _RecordingApi();
+    expect(await outbox.flush(api), 1);
+    expect(api.calls.single.atHome, isTrue);
+    expect(api.calls.single.lat, isNull);
+    expect(api.calls.single.lng, isNull);
   });
 
   test('replays legacy rows without photo fields', () async {

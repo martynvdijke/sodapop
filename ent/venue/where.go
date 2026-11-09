@@ -94,6 +94,21 @@ func Lng(v float64) predicate.Venue {
 	return predicate.Venue(sql.FieldEQ(FieldLng, v))
 }
 
+// Hidden applies equality check predicate on the "hidden" field. It's identical to HiddenEQ.
+func Hidden(v bool) predicate.Venue {
+	return predicate.Venue(sql.FieldEQ(FieldHidden, v))
+}
+
+// ExternalProvider applies equality check predicate on the "external_provider" field. It's identical to ExternalProviderEQ.
+func ExternalProvider(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldEQ(FieldExternalProvider, v))
+}
+
+// ExternalID applies equality check predicate on the "external_id" field. It's identical to ExternalIDEQ.
+func ExternalID(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldEQ(FieldExternalID, v))
+}
+
 // Website applies equality check predicate on the "website" field. It's identical to WebsiteEQ.
 func Website(v string) predicate.Venue {
 	return predicate.Venue(sql.FieldEQ(FieldWebsite, v))
@@ -607,6 +622,166 @@ func LngLT(v float64) predicate.Venue {
 // LngLTE applies the LTE predicate on the "lng" field.
 func LngLTE(v float64) predicate.Venue {
 	return predicate.Venue(sql.FieldLTE(FieldLng, v))
+}
+
+// HiddenEQ applies the EQ predicate on the "hidden" field.
+func HiddenEQ(v bool) predicate.Venue {
+	return predicate.Venue(sql.FieldEQ(FieldHidden, v))
+}
+
+// HiddenNEQ applies the NEQ predicate on the "hidden" field.
+func HiddenNEQ(v bool) predicate.Venue {
+	return predicate.Venue(sql.FieldNEQ(FieldHidden, v))
+}
+
+// ExternalProviderEQ applies the EQ predicate on the "external_provider" field.
+func ExternalProviderEQ(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldEQ(FieldExternalProvider, v))
+}
+
+// ExternalProviderNEQ applies the NEQ predicate on the "external_provider" field.
+func ExternalProviderNEQ(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldNEQ(FieldExternalProvider, v))
+}
+
+// ExternalProviderIn applies the In predicate on the "external_provider" field.
+func ExternalProviderIn(vs ...string) predicate.Venue {
+	return predicate.Venue(sql.FieldIn(FieldExternalProvider, vs...))
+}
+
+// ExternalProviderNotIn applies the NotIn predicate on the "external_provider" field.
+func ExternalProviderNotIn(vs ...string) predicate.Venue {
+	return predicate.Venue(sql.FieldNotIn(FieldExternalProvider, vs...))
+}
+
+// ExternalProviderGT applies the GT predicate on the "external_provider" field.
+func ExternalProviderGT(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldGT(FieldExternalProvider, v))
+}
+
+// ExternalProviderGTE applies the GTE predicate on the "external_provider" field.
+func ExternalProviderGTE(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldGTE(FieldExternalProvider, v))
+}
+
+// ExternalProviderLT applies the LT predicate on the "external_provider" field.
+func ExternalProviderLT(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldLT(FieldExternalProvider, v))
+}
+
+// ExternalProviderLTE applies the LTE predicate on the "external_provider" field.
+func ExternalProviderLTE(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldLTE(FieldExternalProvider, v))
+}
+
+// ExternalProviderContains applies the Contains predicate on the "external_provider" field.
+func ExternalProviderContains(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldContains(FieldExternalProvider, v))
+}
+
+// ExternalProviderHasPrefix applies the HasPrefix predicate on the "external_provider" field.
+func ExternalProviderHasPrefix(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldHasPrefix(FieldExternalProvider, v))
+}
+
+// ExternalProviderHasSuffix applies the HasSuffix predicate on the "external_provider" field.
+func ExternalProviderHasSuffix(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldHasSuffix(FieldExternalProvider, v))
+}
+
+// ExternalProviderIsNil applies the IsNil predicate on the "external_provider" field.
+func ExternalProviderIsNil() predicate.Venue {
+	return predicate.Venue(sql.FieldIsNull(FieldExternalProvider))
+}
+
+// ExternalProviderNotNil applies the NotNil predicate on the "external_provider" field.
+func ExternalProviderNotNil() predicate.Venue {
+	return predicate.Venue(sql.FieldNotNull(FieldExternalProvider))
+}
+
+// ExternalProviderEqualFold applies the EqualFold predicate on the "external_provider" field.
+func ExternalProviderEqualFold(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldEqualFold(FieldExternalProvider, v))
+}
+
+// ExternalProviderContainsFold applies the ContainsFold predicate on the "external_provider" field.
+func ExternalProviderContainsFold(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldContainsFold(FieldExternalProvider, v))
+}
+
+// ExternalIDEQ applies the EQ predicate on the "external_id" field.
+func ExternalIDEQ(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldEQ(FieldExternalID, v))
+}
+
+// ExternalIDNEQ applies the NEQ predicate on the "external_id" field.
+func ExternalIDNEQ(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldNEQ(FieldExternalID, v))
+}
+
+// ExternalIDIn applies the In predicate on the "external_id" field.
+func ExternalIDIn(vs ...string) predicate.Venue {
+	return predicate.Venue(sql.FieldIn(FieldExternalID, vs...))
+}
+
+// ExternalIDNotIn applies the NotIn predicate on the "external_id" field.
+func ExternalIDNotIn(vs ...string) predicate.Venue {
+	return predicate.Venue(sql.FieldNotIn(FieldExternalID, vs...))
+}
+
+// ExternalIDGT applies the GT predicate on the "external_id" field.
+func ExternalIDGT(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldGT(FieldExternalID, v))
+}
+
+// ExternalIDGTE applies the GTE predicate on the "external_id" field.
+func ExternalIDGTE(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldGTE(FieldExternalID, v))
+}
+
+// ExternalIDLT applies the LT predicate on the "external_id" field.
+func ExternalIDLT(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldLT(FieldExternalID, v))
+}
+
+// ExternalIDLTE applies the LTE predicate on the "external_id" field.
+func ExternalIDLTE(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldLTE(FieldExternalID, v))
+}
+
+// ExternalIDContains applies the Contains predicate on the "external_id" field.
+func ExternalIDContains(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldContains(FieldExternalID, v))
+}
+
+// ExternalIDHasPrefix applies the HasPrefix predicate on the "external_id" field.
+func ExternalIDHasPrefix(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldHasPrefix(FieldExternalID, v))
+}
+
+// ExternalIDHasSuffix applies the HasSuffix predicate on the "external_id" field.
+func ExternalIDHasSuffix(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldHasSuffix(FieldExternalID, v))
+}
+
+// ExternalIDIsNil applies the IsNil predicate on the "external_id" field.
+func ExternalIDIsNil() predicate.Venue {
+	return predicate.Venue(sql.FieldIsNull(FieldExternalID))
+}
+
+// ExternalIDNotNil applies the NotNil predicate on the "external_id" field.
+func ExternalIDNotNil() predicate.Venue {
+	return predicate.Venue(sql.FieldNotNull(FieldExternalID))
+}
+
+// ExternalIDEqualFold applies the EqualFold predicate on the "external_id" field.
+func ExternalIDEqualFold(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldEqualFold(FieldExternalID, v))
+}
+
+// ExternalIDContainsFold applies the ContainsFold predicate on the "external_id" field.
+func ExternalIDContainsFold(v string) predicate.Venue {
+	return predicate.Venue(sql.FieldContainsFold(FieldExternalID, v))
 }
 
 // WebsiteEQ applies the EQ predicate on the "website" field.

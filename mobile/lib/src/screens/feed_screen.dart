@@ -407,9 +407,12 @@ class _FeedCard extends ConsumerWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              if (item.venueName.isNotEmpty)
+              if (item.venueName.isNotEmpty || item.atHome)
                 Text(
-                  'at ${item.venueName}',
+                  sodaPlaceLabel(
+                    atHome: item.atHome,
+                    venueName: item.venueName,
+                  ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

@@ -170,6 +170,60 @@ func (_u *VenueUpdate) AddLng(v float64) *VenueUpdate {
 	return _u
 }
 
+// SetHidden sets the "hidden" field.
+func (_u *VenueUpdate) SetHidden(v bool) *VenueUpdate {
+	_u.mutation.SetHidden(v)
+	return _u
+}
+
+// SetNillableHidden sets the "hidden" field if the given value is not nil.
+func (_u *VenueUpdate) SetNillableHidden(v *bool) *VenueUpdate {
+	if v != nil {
+		_u.SetHidden(*v)
+	}
+	return _u
+}
+
+// SetExternalProvider sets the "external_provider" field.
+func (_u *VenueUpdate) SetExternalProvider(v string) *VenueUpdate {
+	_u.mutation.SetExternalProvider(v)
+	return _u
+}
+
+// SetNillableExternalProvider sets the "external_provider" field if the given value is not nil.
+func (_u *VenueUpdate) SetNillableExternalProvider(v *string) *VenueUpdate {
+	if v != nil {
+		_u.SetExternalProvider(*v)
+	}
+	return _u
+}
+
+// ClearExternalProvider clears the value of the "external_provider" field.
+func (_u *VenueUpdate) ClearExternalProvider() *VenueUpdate {
+	_u.mutation.ClearExternalProvider()
+	return _u
+}
+
+// SetExternalID sets the "external_id" field.
+func (_u *VenueUpdate) SetExternalID(v string) *VenueUpdate {
+	_u.mutation.SetExternalID(v)
+	return _u
+}
+
+// SetNillableExternalID sets the "external_id" field if the given value is not nil.
+func (_u *VenueUpdate) SetNillableExternalID(v *string) *VenueUpdate {
+	if v != nil {
+		_u.SetExternalID(*v)
+	}
+	return _u
+}
+
+// ClearExternalID clears the value of the "external_id" field.
+func (_u *VenueUpdate) ClearExternalID() *VenueUpdate {
+	_u.mutation.ClearExternalID()
+	return _u
+}
+
 // SetWebsite sets the "website" field.
 func (_u *VenueUpdate) SetWebsite(v string) *VenueUpdate {
 	_u.mutation.SetWebsite(v)
@@ -469,6 +523,21 @@ func (_u *VenueUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedLng(); ok {
 		_spec.AddField(venue.FieldLng, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Hidden(); ok {
+		_spec.SetField(venue.FieldHidden, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ExternalProvider(); ok {
+		_spec.SetField(venue.FieldExternalProvider, field.TypeString, value)
+	}
+	if _u.mutation.ExternalProviderCleared() {
+		_spec.ClearField(venue.FieldExternalProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExternalID(); ok {
+		_spec.SetField(venue.FieldExternalID, field.TypeString, value)
+	}
+	if _u.mutation.ExternalIDCleared() {
+		_spec.ClearField(venue.FieldExternalID, field.TypeString)
 	}
 	if value, ok := _u.mutation.Website(); ok {
 		_spec.SetField(venue.FieldWebsite, field.TypeString, value)
@@ -789,6 +858,60 @@ func (_u *VenueUpdateOne) SetNillableLng(v *float64) *VenueUpdateOne {
 // AddLng adds value to the "lng" field.
 func (_u *VenueUpdateOne) AddLng(v float64) *VenueUpdateOne {
 	_u.mutation.AddLng(v)
+	return _u
+}
+
+// SetHidden sets the "hidden" field.
+func (_u *VenueUpdateOne) SetHidden(v bool) *VenueUpdateOne {
+	_u.mutation.SetHidden(v)
+	return _u
+}
+
+// SetNillableHidden sets the "hidden" field if the given value is not nil.
+func (_u *VenueUpdateOne) SetNillableHidden(v *bool) *VenueUpdateOne {
+	if v != nil {
+		_u.SetHidden(*v)
+	}
+	return _u
+}
+
+// SetExternalProvider sets the "external_provider" field.
+func (_u *VenueUpdateOne) SetExternalProvider(v string) *VenueUpdateOne {
+	_u.mutation.SetExternalProvider(v)
+	return _u
+}
+
+// SetNillableExternalProvider sets the "external_provider" field if the given value is not nil.
+func (_u *VenueUpdateOne) SetNillableExternalProvider(v *string) *VenueUpdateOne {
+	if v != nil {
+		_u.SetExternalProvider(*v)
+	}
+	return _u
+}
+
+// ClearExternalProvider clears the value of the "external_provider" field.
+func (_u *VenueUpdateOne) ClearExternalProvider() *VenueUpdateOne {
+	_u.mutation.ClearExternalProvider()
+	return _u
+}
+
+// SetExternalID sets the "external_id" field.
+func (_u *VenueUpdateOne) SetExternalID(v string) *VenueUpdateOne {
+	_u.mutation.SetExternalID(v)
+	return _u
+}
+
+// SetNillableExternalID sets the "external_id" field if the given value is not nil.
+func (_u *VenueUpdateOne) SetNillableExternalID(v *string) *VenueUpdateOne {
+	if v != nil {
+		_u.SetExternalID(*v)
+	}
+	return _u
+}
+
+// ClearExternalID clears the value of the "external_id" field.
+func (_u *VenueUpdateOne) ClearExternalID() *VenueUpdateOne {
+	_u.mutation.ClearExternalID()
 	return _u
 }
 
@@ -1121,6 +1244,21 @@ func (_u *VenueUpdateOne) sqlSave(ctx context.Context) (_node *Venue, err error)
 	}
 	if value, ok := _u.mutation.AddedLng(); ok {
 		_spec.AddField(venue.FieldLng, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Hidden(); ok {
+		_spec.SetField(venue.FieldHidden, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ExternalProvider(); ok {
+		_spec.SetField(venue.FieldExternalProvider, field.TypeString, value)
+	}
+	if _u.mutation.ExternalProviderCleared() {
+		_spec.ClearField(venue.FieldExternalProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExternalID(); ok {
+		_spec.SetField(venue.FieldExternalID, field.TypeString, value)
+	}
+	if _u.mutation.ExternalIDCleared() {
+		_spec.ClearField(venue.FieldExternalID, field.TypeString)
 	}
 	if value, ok := _u.mutation.Website(); ok {
 		_spec.SetField(venue.FieldWebsite, field.TypeString, value)

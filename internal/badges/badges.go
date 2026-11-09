@@ -223,7 +223,7 @@ func (s *Service) Progress(ctx context.Context, userID string) (map[string]int, 
 		SELECT count(DISTINCT v.country)
 		FROM checkins c
 		JOIN venues v ON v.id = c.venue_id
-		WHERE c.user_id = ? AND c.deleted_at IS NULL AND v.country <> ''`, userID).
+		WHERE c.user_id = ? AND c.deleted_at IS NULL AND v.hidden = 0 AND v.country <> ''`, userID).
 		Scan(&distinctCountries); err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func (s *Service) Progress(ctx context.Context, userID string) (map[string]int, 
 		SELECT count(DISTINCT v.kind)
 		FROM checkins c
 		JOIN venues v ON v.id = c.venue_id
-		WHERE c.user_id = ? AND c.deleted_at IS NULL`, userID).
+		WHERE c.user_id = ? AND c.deleted_at IS NULL AND v.hidden = 0`, userID).
 		Scan(&distinctVenueKinds); err != nil {
 		return nil, err
 	}

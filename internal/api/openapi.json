@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Sodapop API",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "summary": "Soda check-in API with a narrow read-only public preview",
-    "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. The only anonymous data routes are the read-only public preview (public check-ins from authors who opted into a public profile) and the public drink fact sheet. All member data endpoints require a personal `sd_` bearer token; requests are rate limited per token or per IP for the public preview.",
+    "description": "Sodapop exposes an intentionally narrow API. There is no endpoint that lists the whole catalog, all users or all venues. Catalog access is limited to single-drink reads, an authenticated search capped at 10 results, and barcode resolution. Social reads are limited to your own data and accepted friends. The only anonymous data routes are the read-only public preview (public check-ins from authors who opted into a public profile) and the public drink fact sheet. All member data endpoints require a personal `sd_` bearer token; requests are rate limited per token or per IP for the public preview. Check-ins can optionally be marked at_home, which uses one shared hidden @home venue; Sodapop never stores or returns a home coordinate. Nearby venue search can opt into external Photon (OpenStreetMap) results with source=external|all and consent=true.",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -43,130 +43,403 @@
       "TrmnlCheckinItem": {
         "type": "object",
         "properties": {
-          "handle": {"type": "string"},
-          "display_name": {"type": "string"},
-          "drink": {"type": "string"},
-          "brand": {"type": "string"},
-          "rating_display": {"type": "string", "description": "Quarter-star rating as stars with up to two decimals, or an em dash when unrated."},
-          "rating_pct": {"type": "integer", "minimum": 0, "maximum": 100},
-          "note": {"type": "string", "description": "Whitespace-collapsed, truncated to 140 runes."},
-          "toasts": {"type": "integer"},
-          "venue": {"type": "string"},
-          "when": {"type": "string", "description": "Short relative label, e.g. 2h ago, 3d ago or Nov 8."},
-          "time": {"type": "string", "description": "HH:MM UTC."},
-          "photo_url": {"type": ["string", "null"]},
-          "href": {"type": "string"}
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "drink": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "rating_display": {
+            "type": "string",
+            "description": "Quarter-star rating as stars with up to two decimals, or an em dash when unrated."
+          },
+          "rating_pct": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "note": {
+            "type": "string",
+            "description": "Whitespace-collapsed, truncated to 140 runes."
+          },
+          "toasts": {
+            "type": "integer"
+          },
+          "venue": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string",
+            "description": "Short relative label, e.g. 2h ago, 3d ago or Nov 8."
+          },
+          "time": {
+            "type": "string",
+            "description": "HH:MM UTC."
+          },
+          "photo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "href": {
+            "type": "string"
+          }
         },
-        "required": ["handle", "display_name", "drink", "brand", "rating_display", "rating_pct", "note", "toasts", "venue", "when", "time", "photo_url", "href"]
+        "required": [
+          "handle",
+          "display_name",
+          "drink",
+          "brand",
+          "rating_display",
+          "rating_pct",
+          "note",
+          "toasts",
+          "venue",
+          "when",
+          "time",
+          "photo_url",
+          "href"
+        ]
       },
       "TrmnlEvent": {
         "type": "object",
         "properties": {
-          "title": {"type": "string"},
-          "detail": {"type": "string", "description": "Whitespace-collapsed, truncated to 120 runes."},
-          "status": {"type": "string"},
-          "actor_handle": {"type": "string"},
-          "when": {"type": "string"},
-          "href": {"type": "string"},
-          "kind": {"type": "string"}
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string",
+            "description": "Whitespace-collapsed, truncated to 120 runes."
+          },
+          "status": {
+            "type": "string"
+          },
+          "actor_handle": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
         },
-        "required": ["title", "detail", "status", "actor_handle", "when", "href"]
+        "required": [
+          "title",
+          "detail",
+          "status",
+          "actor_handle",
+          "when",
+          "href"
+        ]
       },
       "TrmnlCheckinsResponse": {
         "type": "object",
         "properties": {
-          "error": {"type": "string"},
-          "scope": {"type": "string", "enum": ["feed", "handle"]},
-          "heading": {"type": "string"},
-          "items": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlCheckinItem"}},
-          "item_count": {"type": "integer"},
-          "latest": {"type": "string"},
-          "total_toasts": {"type": "integer"},
-          "best_rating": {"type": "string"}
+          "error": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "feed",
+              "handle"
+            ]
+          },
+          "heading": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrmnlCheckinItem"
+            }
+          },
+          "item_count": {
+            "type": "integer"
+          },
+          "latest": {
+            "type": "string"
+          },
+          "total_toasts": {
+            "type": "integer"
+          },
+          "best_rating": {
+            "type": "string"
+          }
         },
-        "required": ["scope", "heading", "items", "item_count", "latest", "total_toasts", "best_rating"]
+        "required": [
+          "scope",
+          "heading",
+          "items",
+          "item_count",
+          "latest",
+          "total_toasts",
+          "best_rating"
+        ]
       },
       "TrmnlNewDrinksResponse": {
         "type": "object",
         "properties": {
-          "error": {"type": "string"},
-          "scope": {"type": "string", "enum": ["drinks", "venues", "users", "all"]},
-          "scope_label": {"type": "string", "enum": ["Drinks", "Venues", "Members", "Everything"]},
-          "added_24h": {"type": "integer"},
-          "pending": {"type": "integer"},
-          "items": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlEvent"}},
-          "item_count": {"type": "integer"},
-          "latest": {"type": "string"}
+          "error": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "drinks",
+              "venues",
+              "users",
+              "all"
+            ]
+          },
+          "scope_label": {
+            "type": "string",
+            "enum": [
+              "Drinks",
+              "Venues",
+              "Members",
+              "Everything"
+            ]
+          },
+          "added_24h": {
+            "type": "integer"
+          },
+          "pending": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrmnlEvent"
+            }
+          },
+          "item_count": {
+            "type": "integer"
+          },
+          "latest": {
+            "type": "string"
+          }
         },
-        "required": ["scope", "scope_label", "added_24h", "pending", "items", "item_count", "latest"]
+        "required": [
+          "scope",
+          "scope_label",
+          "added_24h",
+          "pending",
+          "items",
+          "item_count",
+          "latest"
+        ]
       },
       "TrmnlAdminCounts": {
         "type": "object",
         "properties": {
-          "checkins_24h": {"type": "integer"},
-          "drinks_24h": {"type": "integer"},
-          "users_7d": {"type": "integer"},
-          "open_reports": {"type": "integer"},
-          "pending_drinks": {"type": "integer"}
+          "checkins_24h": {
+            "type": "integer"
+          },
+          "drinks_24h": {
+            "type": "integer"
+          },
+          "users_7d": {
+            "type": "integer"
+          },
+          "open_reports": {
+            "type": "integer"
+          },
+          "pending_drinks": {
+            "type": "integer"
+          }
         },
-        "required": ["checkins_24h", "drinks_24h", "users_7d", "open_reports", "pending_drinks"]
+        "required": [
+          "checkins_24h",
+          "drinks_24h",
+          "users_7d",
+          "open_reports",
+          "pending_drinks"
+        ]
       },
       "TrmnlAdminResponse": {
         "type": "object",
         "properties": {
-          "error": {"type": "string"},
-          "counts": {"$ref": "#/components/schemas/TrmnlAdminCounts"},
-          "reports": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlEvent"}},
-          "report_count": {"type": "integer"},
-          "events": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlEvent"}},
-          "event_count": {"type": "integer"},
-          "needs_attention": {"type": "boolean"},
-          "banner": {"type": "string"}
+          "error": {
+            "type": "string"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/TrmnlAdminCounts"
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrmnlEvent"
+            }
+          },
+          "report_count": {
+            "type": "integer"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrmnlEvent"
+            }
+          },
+          "event_count": {
+            "type": "integer"
+          },
+          "needs_attention": {
+            "type": "boolean"
+          },
+          "banner": {
+            "type": "string"
+          }
         },
-        "required": ["counts", "reports", "report_count", "events", "event_count", "needs_attention", "banner"]
+        "required": [
+          "counts",
+          "reports",
+          "report_count",
+          "events",
+          "event_count",
+          "needs_attention",
+          "banner"
+        ]
       },
       "TrmnlNotification": {
         "type": "object",
         "properties": {
-          "kind": {"type": "string"},
-          "text": {"type": "string"},
-          "when": {"type": "string"},
-          "actor_handle": {"type": "string"}
+          "kind": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string"
+          },
+          "actor_handle": {
+            "type": "string"
+          }
         },
-        "required": ["kind", "text", "when", "actor_handle"]
+        "required": [
+          "kind",
+          "text",
+          "when",
+          "actor_handle"
+        ]
       },
       "TrmnlRecentPour": {
         "type": "object",
         "properties": {
-          "drink_name": {"type": "string"},
-          "brand": {"type": "string"},
-          "rating_display": {"type": "string"},
-          "when": {"type": "string"},
-          "venue_name": {"type": "string"},
-          "photo_url": {"type": ["string", "null"]},
-          "href": {"type": "string"}
+          "drink_name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "rating_display": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string"
+          },
+          "venue_name": {
+            "type": "string"
+          },
+          "photo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "href": {
+            "type": "string"
+          }
         },
-        "required": ["drink_name", "brand", "rating_display", "when", "venue_name", "photo_url", "href"]
+        "required": [
+          "drink_name",
+          "brand",
+          "rating_display",
+          "when",
+          "venue_name",
+          "photo_url",
+          "href"
+        ]
       },
       "TrmnlMeResponse": {
         "type": "object",
         "properties": {
-          "error": {"type": "string"},
-          "handle": {"type": "string"},
-          "display_name": {"type": "string"},
-          "pours": {"type": "integer"},
-          "unique_drinks": {"type": "integer"},
-          "badges": {"type": "integer"},
-          "toasts_received": {"type": "integer"},
-          "avg_rating_display": {"type": "string"},
-          "current_streak": {"type": "integer"},
-          "longest_streak": {"type": "integer"},
-          "unread": {"type": "integer"},
-          "has_notifications": {"type": "boolean"},
-          "notifications": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlNotification"}},
-          "recent": {"type": "array", "items": {"$ref": "#/components/schemas/TrmnlRecentPour"}}
+          "error": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "pours": {
+            "type": "integer"
+          },
+          "unique_drinks": {
+            "type": "integer"
+          },
+          "badges": {
+            "type": "integer"
+          },
+          "toasts_received": {
+            "type": "integer"
+          },
+          "avg_rating_display": {
+            "type": "string"
+          },
+          "current_streak": {
+            "type": "integer"
+          },
+          "longest_streak": {
+            "type": "integer"
+          },
+          "unread": {
+            "type": "integer"
+          },
+          "has_notifications": {
+            "type": "boolean"
+          },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrmnlNotification"
+            }
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrmnlRecentPour"
+            }
+          }
         },
-        "required": ["handle", "display_name", "pours", "unique_drinks", "badges", "toasts_received", "avg_rating_display", "current_streak", "longest_streak", "unread", "has_notifications", "notifications", "recent"]
+        "required": [
+          "handle",
+          "display_name",
+          "pours",
+          "unique_drinks",
+          "badges",
+          "toasts_received",
+          "avg_rating_display",
+          "current_streak",
+          "longest_streak",
+          "unread",
+          "has_notifications",
+          "notifications",
+          "recent"
+        ]
       },
       "FeedItem": {
         "type": "object",
@@ -557,6 +830,10 @@
               "type": "string"
             },
             "description": "Accepted friend user IDs to tag. Duplicates and the author's own id are ignored."
+          },
+          "at_home": {
+            "type": "boolean",
+            "description": "Mark the check-in at the shared hidden @home venue. Mutually exclusive with venue_id. Coordinates are ignored and never stored."
           }
         }
       },
@@ -1010,18 +1287,6 @@
           "note": {
             "type": "string"
           },
-          "lat": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "lng": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
           "tagged_friends": {
             "type": "array",
             "items": {
@@ -1090,6 +1355,10 @@
           "saved": {
             "type": "boolean",
             "description": "True when the authenticated viewer has bookmarked this check-in."
+          },
+          "at_home": {
+            "type": "boolean",
+            "description": "True for the shared hidden @home marker."
           }
         },
         "required": [
@@ -2509,6 +2778,10 @@
                 "type": "string"
               }
             }
+          },
+          "at_home": {
+            "type": "boolean",
+            "description": "True for the shared hidden @home marker."
           }
         },
         "required": [
@@ -2726,6 +2999,10 @@
           },
           "photo_url": {
             "type": "string"
+          },
+          "at_home": {
+            "type": "boolean",
+            "description": "True for the shared hidden @home marker."
           }
         },
         "required": [
@@ -4784,6 +5061,10 @@
                     "type": "string",
                     "format": "binary",
                     "description": "Alias for `image`."
+                  },
+                  "at_home": {
+                    "type": "boolean",
+                    "description": "true/1 marks the check-in at home. Mutually exclusive with venue_id."
                   }
                 }
               }
@@ -5681,7 +5962,7 @@
     "/api/v1/venues/search": {
       "get": {
         "summary": "Search venues (capped)",
-        "description": "Without GPS, q is required and must be at least 2 characters. When both lat and lng are supplied, q may be empty to return the nearest venues within radius; results are ordered nearest first and each carries distance_m. Returns at most 20 results and never a directory export.",
+        "description": "Without GPS, q is required and must be at least 2 characters. When both lat and lng are supplied, q may be empty to return the nearest venues within radius; results are ordered nearest first and each carries distance_m. source selects local (default), external or all. External/all require consent=true and return provider rows without a selectable id until promoted. A provider failure still returns local rows plus external_status:\"unavailable\". Returns at most 20 local or 15 merged results.",
         "parameters": [
           {
             "name": "q",
@@ -5735,6 +6016,31 @@
               "maximum": 25000
             },
             "description": "Search radius in metres used only when lat/lng are present."
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "local",
+                "external",
+                "all"
+              ],
+              "default": "local"
+            },
+            "description": "local (default) is Sodapop-authored venues only. external appends Photon/OpenStreetMap places, all merges both."
+          },
+          {
+            "name": "consent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Required as true for source=external or source=all; otherwise the request is rejected with consent_required."
           }
         ],
         "responses": {
@@ -5751,7 +6057,11 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "integer"
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "description": "Selectable local venue id. Omitted for external rows until promoted."
                           },
                           "slug": {
                             "type": "string"
@@ -5787,9 +6097,36 @@
                             "type": "integer",
                             "minimum": 0,
                             "description": "Only present when lat/lng were supplied; venues are ordered nearest first."
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "local",
+                              "external"
+                            ]
+                          },
+                          "provider": {
+                            "type": "string",
+                            "description": "Present on external rows, currently photon."
+                          },
+                          "provider_id": {
+                            "type": "string",
+                            "description": "Provider identifier used to promote an external row into a venue."
+                          },
+                          "at_home": {
+                            "type": "boolean"
                           }
                         }
                       }
+                    },
+                    "external_status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "unavailable",
+                        "rate_limited"
+                      ],
+                      "description": "Only present when source is external or all. unavailable/rate_limited still carry local rows."
                     }
                   }
                 }
@@ -5881,6 +6218,14 @@
                   },
                   "website": {
                     "type": "string"
+                  },
+                  "external_provider": {
+                    "type": "string",
+                    "description": "With external_id, promote a nearby provider result instead of creating a free-text venue."
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "description": "Provider identifier from venue search."
                   }
                 }
               }
@@ -9028,12 +9373,19 @@
             "name": "handle",
             "in": "query",
             "description": "Optional public profile handle.",
-            "schema": {"type": "string"}
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "limit",
             "in": "query",
-            "schema": {"type": "integer", "default": 10, "minimum": 1, "maximum": 20}
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 20
+            }
           }
         ],
         "responses": {
@@ -9042,18 +9394,26 @@
             "headers": {
               "Cache-Control": {
                 "description": "public, max-age=60",
-                "schema": {"type": "string"}
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/TrmnlCheckinsResponse"}
+                "schema": {
+                  "$ref": "#/components/schemas/TrmnlCheckinsResponse"
+                }
               }
             }
           },
-          "429": {"$ref": "#/components/responses/TooManyRequests"}
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
         },
-        "tags": ["public"]
+        "tags": [
+          "public"
+        ]
       }
     },
     "/api/v1/trmnl/new-drinks": {
@@ -9061,13 +9421,24 @@
         "summary": "TRMNL new on the shelf",
         "description": "Ready-to-render payload for the TRMNL new-drinks e-ink view. Admin or moderator only; non-admins receive 404. `scope` filters the activity to drinks, venues, members or everything except toasts.",
         "security": [
-          {"bearerAuth": []}
+          {
+            "bearerAuth": []
+          }
         ],
         "parameters": [
           {
             "name": "scope",
             "in": "query",
-            "schema": {"type": "string", "enum": ["drinks", "venues", "users", "all"], "default": "drinks"}
+            "schema": {
+              "type": "string",
+              "enum": [
+                "drinks",
+                "venues",
+                "users",
+                "all"
+              ],
+              "default": "drinks"
+            }
           }
         ],
         "responses": {
@@ -9076,19 +9447,29 @@
             "headers": {
               "Cache-Control": {
                 "description": "private, no-store",
-                "schema": {"type": "string"}
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/TrmnlNewDrinksResponse"}
+                "schema": {
+                  "$ref": "#/components/schemas/TrmnlNewDrinksResponse"
+                }
               }
             }
           },
-          "401": {"$ref": "#/components/responses/Unauthorized"},
-          "404": {"description": "Caller is not an admin or moderator"}
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Caller is not an admin or moderator"
+          }
         },
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/v1/trmnl/admin": {
@@ -9096,7 +9477,9 @@
         "summary": "TRMNL moderation desk",
         "description": "Ready-to-render payload for the TRMNL admin e-ink view: counters, open reports, latest activity and an attention banner. Admin or moderator only; non-admins receive 404.",
         "security": [
-          {"bearerAuth": []}
+          {
+            "bearerAuth": []
+          }
         ],
         "responses": {
           "200": {
@@ -9104,19 +9487,29 @@
             "headers": {
               "Cache-Control": {
                 "description": "private, no-store",
-                "schema": {"type": "string"}
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/TrmnlAdminResponse"}
+                "schema": {
+                  "$ref": "#/components/schemas/TrmnlAdminResponse"
+                }
               }
             }
           },
-          "401": {"$ref": "#/components/responses/Unauthorized"},
-          "404": {"description": "Caller is not an admin or moderator"}
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Caller is not an admin or moderator"
+          }
         },
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/v1/trmnl/me": {
@@ -9124,7 +9517,9 @@
         "summary": "TRMNL my stats",
         "description": "Ready-to-render payload for the TRMNL me e-ink view: totals, streaks, unread notifications and recent pours. Member photo URLs are always null because an e-ink screen cannot send the bearer token.",
         "security": [
-          {"bearerAuth": []}
+          {
+            "bearerAuth": []
+          }
         ],
         "responses": {
           "200": {
@@ -9132,18 +9527,26 @@
             "headers": {
               "Cache-Control": {
                 "description": "private, no-store",
-                "schema": {"type": "string"}
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/TrmnlMeResponse"}
+                "schema": {
+                  "$ref": "#/components/schemas/TrmnlMeResponse"
+                }
               }
             }
           },
-          "401": {"$ref": "#/components/responses/Unauthorized"}
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
         },
-        "tags": ["me"]
+        "tags": [
+          "me"
+        ]
       }
     }
   }

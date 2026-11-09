@@ -345,8 +345,8 @@ func TestCheckinDetailShowsTaggedFriendsAndMapLink(t *testing.T) {
 	if !strings.Contains(body, `href="/u/detail-friend"`) {
 		t.Fatalf("detail missing tagged friend link: %s", body)
 	}
-	if !strings.Contains(body, "openstreetmap.org") {
-		t.Fatalf("detail missing map link: %s", body)
+	if strings.Contains(body, "openstreetmap.org") {
+		t.Fatalf("detail must not link raw coordinates: %s", body)
 	}
 }
 
@@ -355,7 +355,6 @@ func TestFeedItemShowsTaggedFriendsAndLocation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("renderer: %v", err)
 	}
-	lat, lng := 51.5, -0.12
 	var buf bytes.Buffer
 	err = renderer.pages["home"].ExecuteTemplate(&buf, "feed_item", social.FeedItem{
 		ID:          "c1",
@@ -363,8 +362,6 @@ func TestFeedItemShowsTaggedFriendsAndLocation(t *testing.T) {
 		DisplayName: "Owner",
 		DrinkName:   "Cola",
 		DrinkSlug:   "cola",
-		Lat:         &lat,
-		Lng:         &lng,
 		TaggedFriends: []social.FeedTaggedFriend{
 			{Handle: "alice", DisplayName: "Alice"},
 			{Handle: "bob", DisplayName: "Bob"},
@@ -377,8 +374,8 @@ func TestFeedItemShowsTaggedFriendsAndLocation(t *testing.T) {
 	if !strings.Contains(body, "With") || !strings.Contains(body, `href="/u/alice"`) || !strings.Contains(body, " and ") {
 		t.Fatalf("feed item missing tag list: %s", body)
 	}
-	if !strings.Contains(body, "openstreetmap.org") {
-		t.Fatalf("feed item missing location link: %s", body)
+	if strings.Contains(body, "openstreetmap.org") {
+		t.Fatalf("feed item must not link raw coordinates: %s", body)
 	}
 
 	// The profile page reuses feed_item through a wrapper because ProfileItem

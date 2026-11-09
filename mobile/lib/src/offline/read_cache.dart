@@ -183,6 +183,7 @@ Map<String, dynamic> _feedToJson(FeedItem item) => <String, dynamic>{
   'toasts': item.toasts,
   'toasted': item.toasted,
   'saved': item.saved,
+  'at_home': item.atHome,
 };
 
 Map<String, dynamic> _drinkToJson(Drink drink) => <String, dynamic>{

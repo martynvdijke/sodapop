@@ -52,8 +52,7 @@ class _DetailApi extends ApiClient {
     initial: 'A',
     drinkSlug: 'cherry-cola',
     drinkName: 'Cherry Cola',
-    lat: 51.50722,
-    lng: -0.1275,
+    atHome: true,
     taggedFriends: [TaggedFriend(id: 'u-grace', handle: 'grace')],
   );
 
@@ -109,8 +108,7 @@ void main() {
 
     expect(find.byKey(const Key('detail-tags')), findsOneWidget);
     expect(find.text('With @grace'), findsOneWidget);
-    // No map SDK: the check-in keeps a plain location line instead.
-    expect(find.text('Location shared'), findsOneWidget);
+    expect(find.text('@home'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

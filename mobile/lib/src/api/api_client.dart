@@ -743,6 +743,7 @@ class ApiClient {
     String? photoMime,
     double? lat,
     double? lng,
+    bool atHome = false,
     List<String> friendIds = const [],
   }) => _guard(() async {
     final key = idempotencyKey ?? newIdempotencyKey();
@@ -754,8 +755,12 @@ class ApiClient {
     final hasPrep =
         prepMethodText != null && prepMethodText.toLowerCase() != 'none';
     final visibilityText = _trimmed(visibility);
-    // The server rejects one coordinate without the other, so send neither.
-    final hasLocation = lat != null && lng != null;
+    // At home is a place of its own: no coordinates and no venue id may ride
+    // along with it. Otherwise the server rejects one coordinate without the
+    // other, so send neither.
+    final sendsPlace = !atHome;
+    final placeVenueId = atHome ? null : venueId;
+    final hasLocation = sendsPlace && lat != null && lng != null;
     final tagged = friendIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
@@ -764,9 +769,10 @@ class ApiClient {
     if (photo == null) {
       final payload = <String, dynamic>{
         'drink_id': drinkId,
-        'venue_id': ?venueId,
+        'venue_id': ?placeVenueId,
         'serving': ?servingText,
         'visibility': ?visibilityText,
+        if (atHome) 'at_home': true,
       };
       if (hasLocation) {
         payload['lat'] = lat;
@@ -789,7 +795,10 @@ class ApiClient {
     // strip the boundary.
     final form = FormData();
     form.fields.add(MapEntry('drink_id', '$drinkId'));
-    if (venueId != null) form.fields.add(MapEntry('venue_id', '$venueId'));
+    if (atHome) form.fields.add(const MapEntry('at_home', 'true'));
+    if (placeVenueId != null) {
+      form.fields.add(MapEntry('venue_id', '$placeVenueId'));
+    }
     if (ratingValue != null) {
       form.fields.add(MapEntry('rating', '$ratingValue'));
     }
@@ -1438,11 +1447,38 @@ class ApiClient {
   /// Searches venues. Passing both [lat] and [lng] makes the server order the
   /// results by distance and fill in [Venue.distanceM]. [radiusM] is in metres
   /// and defaults to the server's 2 km when omitted.
+  ///
+  /// [source] is `local`, `external` or `all`; external suggestions have no
+  /// Sodapop id and must not be sent back as a `venue_id`. Asking for external
+  /// rows requires [consent] because the server forwards the coordinates to
+  /// the external provider.
   Future<List<Venue>> venues(
     String query, {
     double? lat,
     double? lng,
     int? radiusM,
+    String source = 'local',
+    bool consent = false,
+  }) async {
+    final result = await venueSearch(
+      query,
+      lat: lat,
+      lng: lng,
+      radiusM: radiusM,
+      source: source,
+      consent: consent,
+    );
+    return result.venues;
+  }
+
+  /// The full venue search envelope, including `external_status`.
+  Future<VenueSearch> venueSearch(
+    String query, {
+    double? lat,
+    double? lng,
+    int? radiusM,
+    String source = 'local',
+    bool consent = false,
   }) => _guard(() async {
     final hasLocation = lat != null && lng != null;
     final response = await _dio.get<dynamic>(
@@ -1452,13 +1488,28 @@ class ApiClient {
         if (hasLocation) 'lat': lat,
         if (hasLocation) 'lng': lng,
         if (hasLocation && radiusM != null) 'radius': radiusM,
+        if (source != 'local') 'source': source,
+        if (consent) 'consent': 'true',
       },
       options: _options(),
     );
-    final rows = _data(response);
-    return (rows as List)
-        .map((e) => Venue.fromJson((e as Map).cast<String, dynamic>()))
-        .toList();
+    final body = response.data;
+    final rows = _rows(_data(response));
+    var status = '';
+    if (body is Map) {
+      status = '${body['external_status'] ?? ''}'.trim();
+      final meta = body['meta'];
+      if (status.isEmpty && meta is Map) {
+        status = '${meta['external_status'] ?? ''}'.trim();
+      }
+    }
+    return VenueSearch(
+      venues: rows
+          .whereType<Map>()
+          .map((row) => Venue.fromJson(row.cast<String, dynamic>()))
+          .toList(),
+      externalStatus: status,
+    );
   });
 
   /// Adds a community venue. The server answers 200 with an existing row when

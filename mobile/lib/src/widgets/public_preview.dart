@@ -93,11 +93,16 @@ class PublicCheckinCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              if (item.brand.isNotEmpty || item.venueName.isNotEmpty)
+              if (item.brand.isNotEmpty ||
+                  item.venueName.isNotEmpty ||
+                  item.atHome)
                 Text(
                   [
                     if (item.brand.isNotEmpty) item.brand,
-                    if (item.venueName.isNotEmpty) 'at ${item.venueName}',
+                    if (item.venueName.isNotEmpty)
+                      'at ${item.venueName}'
+                    else if (item.atHome)
+                      sodaAtHomeLabel(true),
                   ].join(' · '),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,

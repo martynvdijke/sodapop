@@ -132,6 +132,7 @@ type ProfileItem struct {
 	VolumeML    int    `json:"volume_ml"`
 	VenueID     *int   `json:"venue_id,omitempty"`
 	VenueName   string `json:"venue_name,omitempty"`
+	AtHome      bool   `json:"at_home,omitempty"`
 	Rating      *int   `json:"rating,omitempty"`
 	Serving     string `json:"serving"`
 	PrepMethod  string `json:"prep_method,omitempty"`
@@ -302,7 +303,7 @@ func (s *Service) ProfileCheckinsPage(ctx context.Context, f ProfileCheckinsFilt
 		SELECT c.id, c.user_id, u.handle, COALESCE(u.display_name,''),
 		       c.drink_id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
 		       c.rating, c.serving, COALESCE(c.prep_method,''), COALESCE(c.prep_note,''),
-		       c.venue_id, COALESCE(c.note,''), COALESCE(v.name,''),
+		       c.venue_id, COALESCE(c.note,''), COALESCE(v.name,''), COALESCE(v.hidden,0),
 		       c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.poster_path,''),
 		       ` + profileLikesExpr + `,
@@ -383,7 +384,7 @@ func (s *Service) ProfileCheckinsPage(ctx context.Context, f ProfileCheckinsFilt
 		)
 		if err := rows.Scan(&it.ID, &it.UserID, &it.Handle, &it.DisplayName,
 			&it.DrinkID, &it.DrinkName, &it.DrinkSlug, &it.Brand, &it.Container, &it.VolumeML,
-			&rating, &it.Serving, &it.PrepMethod, &it.PrepNote, &venueID, &it.Note, &it.VenueName,
+			&rating, &it.Serving, &it.PrepMethod, &it.PrepNote, &venueID, &it.Note, &it.VenueName, &it.AtHome,
 			&it.Visibility, &it.CreatedAt,
 			&it.PhotoID, &it.PhotoMime, &it.PosterPath,
 			&it.Toasts, &toasted); err != nil {
@@ -422,11 +423,12 @@ func (s *Service) ProfileStats(ctx context.Context, viewerID, targetID string) (
 	visit := s.ProfileVisitFor(ctx, viewerID, targetID)
 	vis := profileCheckinVisibilitySet(visit)
 	q := `
-		SELECT COUNT(*), COUNT(DISTINCT d.style_id), COUNT(DISTINCT c.venue_id),
+		SELECT COUNT(*), COUNT(DISTINCT d.style_id), COUNT(DISTINCT CASE WHEN v.hidden = 0 THEN c.venue_id END),
 		       COUNT(DISTINCT c.drink_id)
 		FROM checkins c
 		JOIN users u ON u.id = c.user_id
 		JOIN drinks d ON d.id = c.drink_id
+		LEFT JOIN venues v ON v.id = c.venue_id
 		WHERE c.user_id = ? AND c.deleted_at IS NULL
 		  AND u.deleted_at IS NULL AND u.status <> 'deleted'
 		  AND c.visibility IN (` + placeholders(len(vis)) + `)`

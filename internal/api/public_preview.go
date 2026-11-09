@@ -188,6 +188,7 @@ func publicItemDTO(it checkins.ProfileItem) map[string]any {
 		"rating":     it.Rating,
 		"note":       it.Note,
 		"toasts":     it.Toasts,
+		"at_home":    it.AtHome,
 		"created_at": it.CreatedAt,
 	}
 	if it.VenueName != "" {
@@ -235,6 +236,7 @@ func publicCheckinDTO(d *checkins.Detail) map[string]any {
 		"rating":         d.Rating,
 		"note":           d.Note,
 		"visibility":     d.Visibility,
+		"at_home":        d.AtHome,
 		"toasts":         d.Toasts,
 		"comments_count": d.CommentsCount,
 		"created_at":     d.CreatedAt,

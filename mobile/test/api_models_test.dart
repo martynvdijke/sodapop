@@ -1044,25 +1044,22 @@ void main() {
   });
 
   group('FeedItem', () {
-    test('parses location and tagged friends when present', () {
+    test('parses at_home and tagged friends when present', () {
       final item = FeedItem.fromJson({
         'id': 'c1',
         'handle': 'ada',
         'drink_name': 'Cola',
-        'lat': 51.5,
-        'lng': -0.12,
+        'at_home': true,
         'tagged_friends': [
           {'id': 'u1', 'handle': 'grace', 'display_name': 'Grace Hopper'},
         ],
       });
 
-      expect(item.hasLocation, isTrue);
-      expect(item.lat, 51.5);
-      expect(item.lng, -0.12);
+      expect(item.atHome, isTrue);
       expect(item.taggedFriends.single.name, 'Grace Hopper');
     });
 
-    test('nearby rows omit location and tags without failing', () {
+    test('nearby rows default at_home and tags without failing', () {
       final nearby = NearbyItem.fromJson({
         'id': 'c1',
         'handle': 'ada',
@@ -1071,9 +1068,7 @@ void main() {
       });
 
       expect(nearby.distanceM, 120);
-      expect(nearby.checkin.lat, isNull);
-      expect(nearby.checkin.lng, isNull);
-      expect(nearby.checkin.hasLocation, isFalse);
+      expect(nearby.checkin.atHome, isFalse);
       expect(nearby.checkin.taggedFriends, isEmpty);
     });
   });

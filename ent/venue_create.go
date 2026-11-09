@@ -132,6 +132,48 @@ func (_c *VenueCreate) SetNillableLng(v *float64) *VenueCreate {
 	return _c
 }
 
+// SetHidden sets the "hidden" field.
+func (_c *VenueCreate) SetHidden(v bool) *VenueCreate {
+	_c.mutation.SetHidden(v)
+	return _c
+}
+
+// SetNillableHidden sets the "hidden" field if the given value is not nil.
+func (_c *VenueCreate) SetNillableHidden(v *bool) *VenueCreate {
+	if v != nil {
+		_c.SetHidden(*v)
+	}
+	return _c
+}
+
+// SetExternalProvider sets the "external_provider" field.
+func (_c *VenueCreate) SetExternalProvider(v string) *VenueCreate {
+	_c.mutation.SetExternalProvider(v)
+	return _c
+}
+
+// SetNillableExternalProvider sets the "external_provider" field if the given value is not nil.
+func (_c *VenueCreate) SetNillableExternalProvider(v *string) *VenueCreate {
+	if v != nil {
+		_c.SetExternalProvider(*v)
+	}
+	return _c
+}
+
+// SetExternalID sets the "external_id" field.
+func (_c *VenueCreate) SetExternalID(v string) *VenueCreate {
+	_c.mutation.SetExternalID(v)
+	return _c
+}
+
+// SetNillableExternalID sets the "external_id" field if the given value is not nil.
+func (_c *VenueCreate) SetNillableExternalID(v *string) *VenueCreate {
+	if v != nil {
+		_c.SetExternalID(*v)
+	}
+	return _c
+}
+
 // SetWebsite sets the "website" field.
 func (_c *VenueCreate) SetWebsite(v string) *VenueCreate {
 	_c.mutation.SetWebsite(v)
@@ -316,6 +358,10 @@ func (_c *VenueCreate) defaults() {
 		v := venue.DefaultLng
 		_c.mutation.SetLng(v)
 	}
+	if _, ok := _c.mutation.Hidden(); !ok {
+		v := venue.DefaultHidden
+		_c.mutation.SetHidden(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := venue.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -369,6 +415,9 @@ func (_c *VenueCreate) check() error {
 	}
 	if _, ok := _c.mutation.Lng(); !ok {
 		return &ValidationError{Name: "lng", err: errors.New(`ent: missing required field "Venue.lng"`)}
+	}
+	if _, ok := _c.mutation.Hidden(); !ok {
+		return &ValidationError{Name: "hidden", err: errors.New(`ent: missing required field "Venue.hidden"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Venue.created_at"`)}
@@ -443,6 +492,18 @@ func (_c *VenueCreate) createSpec() (*Venue, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Lng(); ok {
 		_spec.SetField(venue.FieldLng, field.TypeFloat64, value)
 		_node.Lng = value
+	}
+	if value, ok := _c.mutation.Hidden(); ok {
+		_spec.SetField(venue.FieldHidden, field.TypeBool, value)
+		_node.Hidden = value
+	}
+	if value, ok := _c.mutation.ExternalProvider(); ok {
+		_spec.SetField(venue.FieldExternalProvider, field.TypeString, value)
+		_node.ExternalProvider = &value
+	}
+	if value, ok := _c.mutation.ExternalID(); ok {
+		_spec.SetField(venue.FieldExternalID, field.TypeString, value)
+		_node.ExternalID = &value
 	}
 	if value, ok := _c.mutation.Website(); ok {
 		_spec.SetField(venue.FieldWebsite, field.TypeString, value)

@@ -21,6 +21,7 @@ import (
 	"sodapop/internal/comments"
 	"sodapop/internal/config"
 	"sodapop/internal/db"
+	"sodapop/internal/geocode"
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
@@ -81,6 +82,7 @@ func newHarness(t *testing.T) *harness {
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		Integrations: integrations.New(database, cfg, slog.New(slog.NewTextHandler(io.Discard, nil))),
 		Log:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Nearby:       geocode.New(cfg.NearbyGeocoderEnabled, cfg.NearbyGeocoderURL, cfg.NearbyGeocoderUserAgent, cfg.NearbyGeocoderTimeout),
 	}
 	mux := http.NewServeMux()
 	srv.Register(mux)

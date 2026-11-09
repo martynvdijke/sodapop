@@ -139,6 +139,23 @@ void main() {
 
       expect(h.adapter.requests.single.data, {'drink_id': 7});
     });
+
+    test('at_home drops venue and coordinates from the JSON body', () async {
+      final h = _Harness(body: '{"data":{"id":"c-home"}}', status: 201);
+      final id = await h.api.createCheckin(
+        drinkId: 7,
+        venueId: 2,
+        lat: 51.50722,
+        lng: -0.1275,
+        atHome: true,
+      );
+
+      expect(id, 'c-home');
+      expect(h.adapter.requests.single.data, {
+        'drink_id': 7,
+        'at_home': true,
+      });
+    });
   });
 
   group('createCheckin multipart', () {
@@ -225,6 +242,25 @@ void main() {
           .toList();
       expect(friends, ['u-ada', 'u-grace']);
       expect(id, 'c10');
+    });
+
+    test('at_home drops venue and coordinates from the multipart form', () async {
+      final h = _Harness(body: '{"data":{"id":"c-home"}}', status: 201);
+      final id = await h.api.createCheckin(
+        drinkId: 7,
+        venueId: 2,
+        lat: 51.50722,
+        lng: -0.1275,
+        atHome: true,
+        photo: Uint8List.fromList([1]),
+      );
+
+      final fields = _fields(h.captured!);
+      expect(fields['at_home'], 'true');
+      expect(fields.containsKey('venue_id'), isFalse);
+      expect(fields.containsKey('lat'), isFalse);
+      expect(fields.containsKey('lng'), isFalse);
+      expect(id, 'c-home');
     });
   });
 
@@ -434,6 +470,46 @@ void main() {
         'radius': 25000,
       });
       expect(venues.single.distanceM, 180);
+    });
+
+    test('venueSearch carries source and consent for external rows', () async {
+      final h = _Harness(
+        body: jsonEncode({
+          'data': [
+            {
+              'name': 'Corner Café',
+              'kind': 'cafe',
+              'city': 'Leeds',
+              'distance_m': 90,
+              'lat': 51.5,
+              'lng': -0.12,
+              'source': 'external',
+              'provider': 'photon',
+              'provider_id': 'osm-1',
+            },
+          ],
+          'external_status': 'unavailable',
+        }),
+      );
+
+      final result = await h.api.venueSearch(
+        'Corner',
+        lat: 51.5,
+        lng: -0.12,
+        source: 'all',
+        consent: true,
+      );
+      final request = h.adapter.requests.single;
+      expect(request.queryParameters, {
+        'q': 'Corner',
+        'lat': 51.5,
+        'lng': -0.12,
+        'source': 'all',
+        'consent': 'true',
+      });
+      expect(result.externalUnavailable, isTrue);
+      expect(result.venues.single.isExternal, isTrue);
+      expect(result.venues.single.id, 0);
     });
 
     test('creates a venue with the supplied place and fix', () async {

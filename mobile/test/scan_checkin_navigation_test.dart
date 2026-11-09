@@ -93,6 +93,7 @@ class _Api extends ApiClient {
     String? photoMime,
     double? lat,
     double? lng,
+    bool atHome = false,
     List<String> friendIds = const [],
   }) async {
     createCalls++;

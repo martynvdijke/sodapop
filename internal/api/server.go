@@ -23,6 +23,7 @@ import (
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/email"
+	"sodapop/internal/geocode"
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
@@ -54,6 +55,7 @@ type Server struct {
 	Taste        *taste.Service
 	Mix          *mix.Service
 	Account      *account.Service
+	Nearby       *geocode.Client
 
 	routes []string
 }
@@ -289,6 +291,8 @@ func (s *Server) mapError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "invalid_friend", "a check-in can tag at most 10 friends")
 	case errors.Is(err, checkins.ErrInvalidCoords):
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+	case errors.Is(err, checkins.ErrAtHomeConflict):
+		writeError(w, http.StatusBadRequest, "invalid_input", err.Error())
 	case errors.Is(err, checkins.ErrInvalidRating), errors.Is(err, checkins.ErrInvalidInput), errors.Is(err, venues.ErrInvalid),
 		errors.Is(err, comments.ErrInvalid), errors.Is(err, venues.ErrInvalidKind), errors.Is(err, venues.ErrInvalidLabel),
 		errors.Is(err, mix.ErrInvalidInput), errors.Is(err, saves.ErrInvalid):

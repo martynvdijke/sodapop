@@ -404,8 +404,7 @@ type FeedItem struct {
 	Container     string             `json:"container"`
 	VolumeML      int                `json:"volume_ml"`
 	VenueName     string             `json:"venue_name,omitempty"`
-	Lat           *float64           `json:"lat"`
-	Lng           *float64           `json:"lng"`
+	AtHome        bool               `json:"at_home,omitempty"`
 	TaggedFriends []FeedTaggedFriend `json:"tagged_friends"`
 	Rating        *int               `json:"rating,omitempty"`
 	Note          string             `json:"note,omitempty"`
@@ -464,7 +463,7 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 	query := `
 		SELECT c.id, c.user_id, u.handle, u.display_name,
 		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
-		       COALESCE(v.name,''), c.lat, c.lng, c.rating, c.note, c.visibility, c.created_at,
+		       COALESCE(v.name,''), COALESCE(v.hidden,0), c.rating, c.note, c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.kind,''),
 		       COALESCE(m.poster_path,''), COALESCE(m.duration_seconds,0),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
@@ -522,10 +521,9 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 	for rows.Next() {
 		var f FeedItem
 		var rating sql.NullInt64
-		var lat, lng sql.NullFloat64
 		if err := rows.Scan(&f.ID, &f.UserID, &f.Handle, &f.DisplayName,
 			&f.DrinkID, &f.DrinkName, &f.DrinkSlug, &f.Brand, &f.Container, &f.VolumeML,
-			&f.VenueName, &lat, &lng, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
+			&f.VenueName, &f.AtHome, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
 			&f.PhotoID, &f.PhotoMime, &f.PhotoKind, &f.PosterPath, &f.Duration,
 			&f.Toasts, &f.Toasted, &f.Comments); err != nil {
 			return nil, err
@@ -533,10 +531,6 @@ func (s *Service) feed(ctx context.Context, userID string, limit int, before str
 		if rating.Valid {
 			v := int(rating.Int64)
 			f.Rating = &v
-		}
-		if lat.Valid && lng.Valid {
-			la, ln := lat.Float64, lng.Float64
-			f.Lat, f.Lng = &la, &ln
 		}
 		f.TaggedFriends = []FeedTaggedFriend{}
 		out = append(out, f)
@@ -610,7 +604,7 @@ func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]F
 	query := `
 		SELECT c.id, c.user_id, u.handle, u.display_name,
 		       d.id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
-		       COALESCE(v.name,''), c.lat, c.lng, c.rating, c.note, c.visibility, c.created_at,
+		       COALESCE(v.name,''), COALESCE(v.hidden,0), c.rating, c.note, c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.kind,''),
 		       COALESCE(m.poster_path,''), COALESCE(m.duration_seconds,0),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
@@ -638,10 +632,9 @@ func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]F
 	for rows.Next() {
 		var f FeedItem
 		var rating sql.NullInt64
-		var lat, lng sql.NullFloat64
 		if err := rows.Scan(&f.ID, &f.UserID, &f.Handle, &f.DisplayName,
 			&f.DrinkID, &f.DrinkName, &f.DrinkSlug, &f.Brand, &f.Container, &f.VolumeML,
-			&f.VenueName, &lat, &lng, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
+			&f.VenueName, &f.AtHome, &rating, &f.Note, &f.Visibility, &f.CreatedAt,
 			&f.PhotoID, &f.PhotoMime, &f.PhotoKind, &f.PosterPath, &f.Duration,
 			&f.Toasts, &f.Toasted, &f.Comments); err != nil {
 			return nil, err
@@ -649,10 +642,6 @@ func (s *Service) ByIDs(ctx context.Context, viewerID string, ids []string) ([]F
 		if rating.Valid {
 			v := int(rating.Int64)
 			f.Rating = &v
-		}
-		if lat.Valid && lng.Valid {
-			la, ln := lat.Float64, lng.Float64
-			f.Lat, f.Lng = &la, &ln
 		}
 		f.TaggedFriends = []FeedTaggedFriend{}
 		byID[f.ID] = f

@@ -34,6 +34,12 @@ type Venue struct {
 	Lat float64 `json:"lat,omitempty"`
 	// Lng holds the value of the "lng" field.
 	Lng float64 `json:"lng,omitempty"`
+	// Hidden holds the value of the "hidden" field.
+	Hidden bool `json:"hidden,omitempty"`
+	// ExternalProvider holds the value of the "external_provider" field.
+	ExternalProvider *string `json:"external_provider,omitempty"`
+	// ExternalID holds the value of the "external_id" field.
+	ExternalID *string `json:"external_id,omitempty"`
 	// Website holds the value of the "website" field.
 	Website *string `json:"website,omitempty"`
 	// CreatedBy holds the value of the "created_by" field.
@@ -95,11 +101,13 @@ func (*Venue) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case venue.FieldHidden:
+			values[i] = new(sql.NullBool)
 		case venue.FieldLat, venue.FieldLng:
 			values[i] = new(sql.NullFloat64)
 		case venue.FieldID, venue.FieldMergedIntoID:
 			values[i] = new(sql.NullInt64)
-		case venue.FieldName, venue.FieldSlug, venue.FieldKind, venue.FieldAddress, venue.FieldCity, venue.FieldRegion, venue.FieldCountry, venue.FieldWebsite, venue.FieldCreatedBy, venue.FieldCreatedAt, venue.FieldUpdatedAt:
+		case venue.FieldName, venue.FieldSlug, venue.FieldKind, venue.FieldAddress, venue.FieldCity, venue.FieldRegion, venue.FieldCountry, venue.FieldExternalProvider, venue.FieldExternalID, venue.FieldWebsite, venue.FieldCreatedBy, venue.FieldCreatedAt, venue.FieldUpdatedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -175,6 +183,26 @@ func (_m *Venue) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field lng", values[i])
 			} else if value.Valid {
 				_m.Lng = value.Float64
+			}
+		case venue.FieldHidden:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field hidden", values[i])
+			} else if value.Valid {
+				_m.Hidden = value.Bool
+			}
+		case venue.FieldExternalProvider:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field external_provider", values[i])
+			} else if value.Valid {
+				_m.ExternalProvider = new(string)
+				*_m.ExternalProvider = value.String
+			}
+		case venue.FieldExternalID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field external_id", values[i])
+			} else if value.Valid {
+				_m.ExternalID = new(string)
+				*_m.ExternalID = value.String
 			}
 		case venue.FieldWebsite:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -286,6 +314,19 @@ func (_m *Venue) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("lng=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Lng))
+	builder.WriteString(", ")
+	builder.WriteString("hidden=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Hidden))
+	builder.WriteString(", ")
+	if v := _m.ExternalProvider; v != nil {
+		builder.WriteString("external_provider=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ExternalID; v != nil {
+		builder.WriteString("external_id=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.Website; v != nil {
 		builder.WriteString("website=")

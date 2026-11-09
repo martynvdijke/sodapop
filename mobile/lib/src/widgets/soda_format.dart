@@ -120,6 +120,16 @@ String sodaVenueKind(String kind) {
 String sodaCount(int count, String singular, [String? plural]) =>
     '$count ${count == 1 ? singular : (plural ?? '${singular}s')}';
 
+/// The `@home` marker shown in place of a venue name.
+String sodaAtHomeLabel(bool atHome) => atHome ? '@home' : '';
+
+/// A one-line place label: `at <venue>`, `@home`, or empty when neither.
+String sodaPlaceLabel({bool atHome = false, String venueName = ''}) {
+  final name = venueName.trim();
+  if (name.isNotEmpty) return 'at $name';
+  return sodaAtHomeLabel(atHome);
+}
+
 /// A readable preparation method. `none` and blank have no label, so callers
 /// can hide the row entirely.
 String sodaPrepMethod(String method) {

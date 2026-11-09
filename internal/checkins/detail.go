@@ -28,10 +28,9 @@ type Detail struct {
 	Visibility    string
 	VenueID       *int
 	VenueName     string
+	AtHome        bool
 	MediaID       string
 	MediaMime     string
-	Lat           *float64
-	Lng           *float64
 	TaggedFriends []TaggedFriend
 	Toasts        int
 	Toasted       bool
@@ -97,8 +96,6 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		d       Detail
 		rating  sql.NullInt64
 		venueID sql.NullInt64
-		lat     sql.NullFloat64
-		lng     sql.NullFloat64
 		toasted int
 	)
 	err := s.SQL.QueryRowContext(ctx, `
@@ -106,8 +103,7 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		       d.id, d.slug, d.name, COALESCE(b.name,''), COALESCE(st.name,''),
 		       c.rating, COALESCE(c.prep_method,''), COALESCE(c.prep_note,''),
 		       COALESCE(c.note,''), c.created_at, c.visibility,
-		       c.venue_id, COALESCE(v.name,''),
-		       c.lat, c.lng,
+		       c.venue_id, COALESCE(v.name,''), COALESCE(v.hidden,0),
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
 		       EXISTS(SELECT 1 FROM checkin_likes l2 WHERE l2.checkin_id = c.id AND l2.user_id = ?),
@@ -127,8 +123,7 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		&d.ID, &d.UserID, &d.UserHandle, &d.UserName,
 		&d.DrinkID, &d.DrinkSlug, &d.DrinkName, &d.Brand, &d.Style,
 		&rating, &d.PrepMethod, &d.PrepNote, &d.Note, &d.CreatedAt, &d.Visibility,
-		&venueID, &d.VenueName,
-		&lat, &lng,
+		&venueID, &d.VenueName, &d.AtHome,
 		&d.MediaID, &d.MediaMime,
 		&d.Toasts, &toasted, &d.CommentsCount,
 	)
@@ -145,11 +140,6 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 	if venueID.Valid {
 		v := int(venueID.Int64)
 		d.VenueID = &v
-	}
-	if lat.Valid && lng.Valid {
-		la, ln := lat.Float64, lng.Float64
-		d.Lat = &la
-		d.Lng = &ln
 	}
 	tags, err := s.loadTags(ctx, d.ID)
 	if err != nil {

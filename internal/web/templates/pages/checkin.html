@@ -70,40 +70,66 @@
       <fieldset class="checkin-venue" data-venue-picker>
         <legend>Where? <span class="hint">optional</span></legend>
 
-        <div class="venue-search-row">
-          <label class="sr-only" for="venue-q">Search venues</label>
-          <input id="venue-q" name="venue_q" type="search" form="venue-search" value="{{.VenueQuery}}" placeholder="Search by venue or city" autocomplete="off" data-venue-query>
-          <button class="btn btn-small" type="submit" form="venue-search">Search</button>
+        <div class="venue-mode" role="radiogroup" aria-label="Where was this soda?">
+          <label><input type="radio" name="where_mode" value="home" data-where="home"> At home</label>
+          <label><input type="radio" name="where_mode" value="nearby" data-where="nearby"> Nearby</label>
+          <label><input type="radio" name="where_mode" value="search" data-where="search" checked> Search</label>
         </div>
+        <input type="hidden" name="at_home" value="" data-at-home>
 
-        <label class="venue-select-label" for="venue-select">Venue</label>
-        <select id="venue-select" name="venue_id" data-venue-select>
-          <option value="">No venue</option>
-          {{range .Venues}}<option value="{{.ID}}"{{if eq .ID $.SelectedVenueID}} selected{{end}}>{{.Name}}{{if .City}} · {{.City}}{{end}}{{if .Distance}} · {{.Distance}}{{end}}</option>{{end}}
-        </select>
-        <p class="hint" data-venue-status aria-live="polite">{{if .VenueSearchActive}}Showing matches for “{{.VenueQuery}}”.{{else}}Search for a venue, pick a recent one, or add it below.{{end}}</p>
-
-        <details class="venue-create">
-          <summary>Add a new venue</summary>
-          <label>Name <input name="new_venue_name" maxlength="120" autocomplete="organization" placeholder="The Corner Fridge"></label>
-          <label>Address <span class="hint">optional</span> <input name="new_venue_address" maxlength="200"></label>
-          <div class="venue-create-row">
-            <label>City <span class="hint">optional</span> <input name="new_venue_city" maxlength="120"></label>
-            <label>Country <span class="hint">optional</span> <input name="new_venue_country" maxlength="120"></label>
+        <div data-where-panel="search">
+          <div class="venue-search-row">
+            <label class="sr-only" for="venue-q">Search venues</label>
+            <input id="venue-q" name="venue_q" type="search" form="venue-search" value="{{.VenueQuery}}" placeholder="Search by venue or city" autocomplete="off" data-venue-query>
+            <button class="btn btn-small" type="submit" form="venue-search">Search</button>
           </div>
-          <p class="hint">A new venue name takes priority over the selected venue. Coordinates from “Use my location” are attached to it.</p>
-        </details>
-      </fieldset>
 
-      <fieldset class="checkin-location" data-location>
-        <legend>Location <span class="hint">optional</span></legend>
-        <input type="hidden" name="lat" value="" data-lat>
-        <input type="hidden" name="lng" value="" data-lng>
-        <div class="location-actions">
-          <button class="btn btn-small" type="button" data-locate>Use my location</button>
-          <button class="btn btn-small" type="button" data-clear-location hidden>Clear location</button>
+          <label class="venue-select-label" for="venue-select">Venue</label>
+          <select id="venue-select" name="venue_id" data-venue-select>
+            <option value="">No venue</option>
+            {{range .Venues}}<option value="{{.ID}}"{{if eq .ID $.SelectedVenueID}} selected{{end}}>{{.Name}}{{if .City}} · {{.City}}{{end}}{{if .Distance}} · {{.Distance}}{{end}}</option>{{end}}
+          </select>
+          <p class="hint" data-venue-status aria-live="polite">{{if .VenueSearchActive}}Showing matches for “{{.VenueQuery}}”.{{else}}Search for a venue, pick a recent one, or add it below.{{end}}</p>
+
+          <details class="venue-create">
+            <summary>Add a new venue</summary>
+            <label>Name <input name="new_venue_name" maxlength="120" autocomplete="organization" placeholder="The Corner Fridge" data-new-venue-name></label>
+            <label>Address <span class="hint">optional</span> <input name="new_venue_address" maxlength="200"></label>
+            <div class="venue-create-row">
+              <label>City <span class="hint">optional</span> <input name="new_venue_city" maxlength="120" data-new-venue-city></label>
+              <label>Country <span class="hint">optional</span> <input name="new_venue_country" maxlength="120" data-new-venue-country></label>
+            </div>
+            <p class="hint">A new venue name takes priority over the selected venue. Coordinates from “Use my location” are attached to it.</p>
+          </details>
         </div>
-        <p class="hint" data-location-status role="status" aria-live="polite">Share a location to see nearby venues and pin this pour on a map. It is only saved when you save the check-in.</p>
+
+        <div data-where-panel="nearby" hidden>
+          <p class="hint">We'll send your approximate location (~100 m) to Photon (OpenStreetMap) to suggest nearby places. Sodapop does not store it.</p>
+          <input type="hidden" name="lat" value="" data-lat>
+          <input type="hidden" name="lng" value="" data-lng>
+          <div class="location-actions">
+            <button class="btn btn-small" type="button" data-locate>Use my location</button>
+            <button class="btn btn-small" type="button" data-clear-location hidden>Clear location</button>
+            <button class="btn btn-small" type="button" data-nearby-show hidden>Show nearby places</button>
+          </div>
+          <p class="hint" data-location-status role="status" aria-live="polite">Share a location to suggest nearby places. It is only saved if you add a new venue and save the check-in.</p>
+          <div class="nearby-external" data-nearby-external hidden>
+            <p class="hint">From OpenStreetMap</p>
+            <ul class="nearby-list" data-nearby-results></ul>
+            <p class="hint" data-nearby-status role="status" aria-live="polite"></p>
+          </div>
+          <p class="hint" data-external-selected hidden></p>
+        </div>
+
+        <div data-where-panel="home" hidden>
+          <p class="hint">A shared <strong>@home</strong> marker. Sodapop never stores your home location — just that you had this one at home.</p>
+        </div>
+
+        <input type="hidden" name="external_provider" value="" data-external-provider>
+        <input type="hidden" name="external_id" value="" data-external-id>
+        <input type="hidden" name="external_kind" value="" data-external-kind>
+        <input type="hidden" name="external_city" value="" data-external-city>
+        <input type="hidden" name="external_country" value="" data-external-country>
       </fieldset>
 
       <fieldset class="checkin-friends" data-friend-picker>

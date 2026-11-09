@@ -288,7 +288,7 @@ func (s *Server) passportPage(w http.ResponseWriter, r *http.Request) {
 	p := passportData{StyleRows: []passportStyleRow{}, VenueRows: []passportCountRow{}, CountryRows: []passportCountRow{}, Recent: []passportRecent{}}
 	_ = s.Auth.SQL.QueryRowContext(r.Context(), `SELECT count(*) FROM checkins WHERE user_id=? AND deleted_at IS NULL`, u.ID).Scan(&p.Checkins)
 	_ = s.Auth.SQL.QueryRowContext(r.Context(), `SELECT count(DISTINCT d.style_id) FROM checkins c JOIN drinks d ON d.id=c.drink_id WHERE c.user_id=? AND c.deleted_at IS NULL AND d.style_id IS NOT NULL`, u.ID).Scan(&p.Styles)
-	_ = s.Auth.SQL.QueryRowContext(r.Context(), `SELECT count(DISTINCT v.kind) FROM checkins c JOIN venues v ON v.id=c.venue_id WHERE c.user_id=? AND c.deleted_at IS NULL`, u.ID).Scan(&p.VenueKinds)
+	_ = s.Auth.SQL.QueryRowContext(r.Context(), `SELECT count(DISTINCT v.kind) FROM checkins c JOIN venues v ON v.id=c.venue_id WHERE c.user_id=? AND c.deleted_at IS NULL AND v.hidden = 0`, u.ID).Scan(&p.VenueKinds)
 	_ = s.Auth.SQL.QueryRowContext(r.Context(), `SELECT count(DISTINCT b.country) FROM checkins c JOIN drinks d ON d.id=c.drink_id JOIN brands b ON b.id=d.brand_id WHERE c.user_id=? AND c.deleted_at IS NULL AND b.country IS NOT NULL AND b.country != ''`, u.ID).Scan(&p.Countries)
 
 	if rows, err := s.Auth.SQL.QueryContext(r.Context(), `
@@ -306,7 +306,7 @@ func (s *Server) passportPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if rows, err := s.Auth.SQL.QueryContext(r.Context(), `
 		SELECT v.kind, count(*) FROM checkins c JOIN venues v ON v.id=c.venue_id
-		WHERE c.user_id=? AND c.deleted_at IS NULL GROUP BY v.kind ORDER BY count(*) DESC`, u.ID); err == nil {
+		WHERE c.user_id=? AND c.deleted_at IS NULL AND v.hidden = 0 GROUP BY v.kind ORDER BY count(*) DESC`, u.ID); err == nil {
 		for rows.Next() {
 			var row passportCountRow
 			if rows.Scan(&row.Label, &row.Count) == nil {
@@ -895,21 +895,24 @@ func (s *Server) venuePage(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That venue is not in Sodapop."})
 		return
 	}
-	mediaRows, err := s.Venues.VenueMedia(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, venues.ErrNotFound) {
-			s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That venue is not in Sodapop."})
+	u := UserFromContext(r)
+	var mediaRows []venues.VenueMediaView
+	if !v.AtHome {
+		mediaRows, err = s.Venues.VenueMedia(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, venues.ErrNotFound) {
+				s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That venue is not in Sodapop."})
+				return
+			}
+			s.fail(w, r, err)
 			return
 		}
-		s.fail(w, r, err)
-		return
 	}
-	u := UserFromContext(r)
 	for i := range mediaRows {
 		mediaRows[i].CanRemove = u != nil &&
 			(mediaRows[i].UploadedBy == u.ID || u.Role == "admin" || u.Role == "moderator")
 	}
-	canUpload := u != nil && u.EmailVerifiedAt != nil
+	canUpload := !v.AtHome && u != nil && u.EmailVerifiedAt != nil
 	s.render(w, r, http.StatusOK, "venue", map[string]any{
 		"Title":      v.Name,
 		"Venue":      v,

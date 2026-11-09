@@ -371,8 +371,7 @@ class FeedItem {
     this.comments = 0,
     this.toasted = false,
     this.saved = false,
-    this.lat,
-    this.lng,
+    this.atHome = false,
     this.taggedFriends = const [],
   });
 
@@ -401,12 +400,10 @@ class FeedItem {
   final bool toasted;
   final bool saved;
 
-  /// Set when the check-in was shared from a place without a venue.
-  final double? lat;
-  final double? lng;
+  /// True when the pour was logged at home rather than at a venue or a
+  /// coordinate. Check-ins no longer carry coordinates.
+  final bool atHome;
   final List<TaggedFriend> taggedFriends;
-
-  bool get hasLocation => lat != null && lng != null;
 
   /// The friends feed is flat; `/me/saved` reuses the nested check-in detail
   /// projection and adds `saved`, so both shapes are accepted here.
@@ -452,8 +449,7 @@ class FeedItem {
           0,
       toasted: _bool(json['toasted']),
       saved: _bool(json['saved']),
-      lat: _double(json['lat']),
-      lng: _double(json['lng']),
+      atHome: _bool(json['at_home']),
       taggedFriends: _list(json['tagged_friends'])
           .whereType<Map>()
           .map((row) => TaggedFriend.fromJson(row.cast<String, dynamic>()))
@@ -479,8 +475,7 @@ class FeedItem {
         comments: comments ?? this.comments,
         toasted: toasted ?? this.toasted,
         saved: saved ?? this.saved,
-        lat: lat,
-        lng: lng,
+        atHome: atHome,
         taggedFriends: taggedFriends,
       );
 }
@@ -617,8 +612,8 @@ class BarcodeResult {
 
 class Venue {
   const Venue({
-    required this.id,
     required this.name,
+    this.id = 0,
     required this.kind,
     this.slug = '',
     this.city = '',
@@ -629,8 +624,12 @@ class Venue {
     this.lat = 0,
     this.lng = 0,
     this.distanceM = 0,
+    this.source = 'local',
+    this.provider = '',
+    this.providerId = '',
   });
 
+  /// Zero for external (OpenStreetMap) suggestions, which have no Sodapop id.
   final int id;
   final String name;
   final String kind;
@@ -647,6 +646,14 @@ class Venue {
   /// server did not have a location to compare against.
   final int distanceM;
 
+  /// `local` for a Sodapop venue, `external` for a suggestion that cannot be
+  /// attached as a `venue_id`.
+  final String source;
+  final String provider;
+  final String providerId;
+
+  bool get isExternal => source == 'external';
+
   factory Venue.fromJson(Map<String, dynamic> json) => Venue(
     id: _int(json['id']) ?? 0,
     name: _string(json['name']),
@@ -660,7 +667,25 @@ class Venue {
     lat: _double(json['lat']) ?? 0,
     lng: _double(json['lng']) ?? 0,
     distanceM: _int(json['distance_m']) ?? 0,
+    source: _firstString([json['source'], 'local']),
+    provider: _string(json['provider']),
+    providerId: _string(json['provider_id']),
   );
+}
+
+/// The venue search response: local rows plus the external lookup state.
+class VenueSearch {
+  const VenueSearch({this.venues = const [], this.externalStatus = ''});
+
+  final List<Venue> venues;
+
+  /// `unavailable` when the server could not reach the external provider.
+  final String externalStatus;
+
+  bool get externalUnavailable => externalStatus == 'unavailable';
+
+  List<Venue> get local => venues.where((venue) => !venue.isExternal).toList();
+  List<Venue> get external => venues.where((venue) => venue.isExternal).toList();
 }
 
 class AuthStatus {
@@ -705,8 +730,7 @@ class CheckinDetail {
     this.venueName = '',
     this.photoId = '',
     this.photoMime = '',
-    this.lat,
-    this.lng,
+    this.atHome = false,
     this.taggedFriends = const [],
     this.canDelete = false,
     this.canToast = false,
@@ -737,11 +761,10 @@ class CheckinDetail {
   final String venueName;
   final String photoId;
   final String photoMime;
-  final double? lat;
-  final double? lng;
-  final List<TaggedFriend> taggedFriends;
 
-  bool get hasLocation => lat != null && lng != null;
+  /// True when the pour was logged with the @home marker.
+  final bool atHome;
+  final List<TaggedFriend> taggedFriends;
 
   final bool canDelete;
   final bool canToast;
@@ -799,8 +822,7 @@ class CheckinDetail {
       venueName: _firstString([venue['name'], json['venue_name']]),
       photoId: _firstString([photo['id'], json['photo_id']]),
       photoMime: _firstString([photo['mime'], json['photo_mime']]),
-      lat: _double(json['lat']),
-      lng: _double(json['lng']),
+      atHome: _bool(json['at_home']),
       taggedFriends: _list(json['tagged_friends'])
           .whereType<Map>()
           .map((row) => TaggedFriend.fromJson(row.cast<String, dynamic>()))
@@ -831,6 +853,7 @@ class CheckinSummary {
     this.prepNote = '',
     this.venueId,
     this.venueName = '',
+    this.atHome = false,
     this.visibility = '',
     this.createdAt = '',
     this.photoUrl = '',
@@ -851,6 +874,7 @@ class CheckinSummary {
   final String prepNote;
   final int? venueId;
   final String venueName;
+  final bool atHome;
   final String visibility;
   final String createdAt;
   final String photoUrl;
@@ -874,6 +898,7 @@ class CheckinSummary {
       prepNote: _string(json['prep_note']),
       venueId: _int(_firstValue([json['venue_id'], venue['id']])),
       venueName: _firstString([json['venue_name'], venue['name']]),
+      atHome: _bool(json['at_home']),
       visibility: _string(json['visibility']),
       createdAt: _firstString([json['created_at'], json['createdAt']]),
       photoUrl: _firstString([json['photo_url'], photo['url'], photo['id']]),

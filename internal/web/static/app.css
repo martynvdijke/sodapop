@@ -3794,6 +3794,34 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
 .checkin-location.is-ready { border-color: var(--success); background: var(--success-tint); }
 .location-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .35rem 0 0; }
 
+/* At home / Nearby / Search venue modes. */
+.venue-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .9rem;
+  margin: .2rem 0 .7rem;
+  font-size: .9rem;
+}
+.venue-mode label { display: inline-flex; align-items: center; gap: .35rem; font-weight: 600; }
+[data-where-panel] .hint:first-child { margin-top: 0; }
+[data-where-panel].is-ready { border-radius: var(--radius); }
+.nearby-external { margin-top: .7rem; }
+.nearby-list { list-style: none; display: grid; gap: .35rem; margin: .35rem 0; padding: 0; }
+.nearby-place {
+  width: 100%;
+  text-align: left;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.nearby-place:hover,
+.nearby-place:focus-visible { border-color: var(--accent); }
+.chip-at-home { background: var(--surface-2, var(--surface)); border: 1px solid var(--border); }
+
 .friend-filter { width: 100%; margin: .55rem 0 .6rem; }
 .friend-options {
   display: grid;

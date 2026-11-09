@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"sodapop/ent"
 	"sodapop/internal/auth"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
@@ -30,6 +31,20 @@ type checkinVenueOption struct {
 	Name     string `json:"name"`
 	City     string `json:"city,omitempty"`
 	Distance string `json:"distance,omitempty"`
+}
+
+// externalVenueOption is a nearby provider result before it is promoted into a
+// real venue. It carries provider identifiers, never a local id.
+type externalVenueOption struct {
+	Provider   string  `json:"provider"`
+	ProviderID string  `json:"provider_id"`
+	Name       string  `json:"name"`
+	Kind       string  `json:"kind,omitempty"`
+	City       string  `json:"city,omitempty"`
+	Country    string  `json:"country,omitempty"`
+	Distance   string  `json:"distance,omitempty"`
+	Lat        float64 `json:"lat"`
+	Lng        float64 `json:"lng"`
 }
 
 // checkinFormData is the shared view model for the /checkins/new and /scan
@@ -92,7 +107,7 @@ func (s *Server) checkinVenueOptions(ctx context.Context, query string, selected
 func (s *Server) recentVenues(ctx context.Context, limit int) []checkinVenueOption {
 	rows, err := s.Auth.SQL.QueryContext(ctx, `
 		SELECT id, name, COALESCE(city,'') FROM venues
-		WHERE merged_into_id IS NULL
+		WHERE merged_into_id IS NULL AND hidden = 0
 		ORDER BY updated_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return []checkinVenueOption{}
@@ -122,7 +137,7 @@ func (s *Server) withSelectedVenue(ctx context.Context, opts []checkinVenueOptio
 	var v checkinVenueOption
 	err := s.Auth.SQL.QueryRowContext(ctx, `
 		SELECT id, name, COALESCE(city,'') FROM venues
-		WHERE id = ? AND merged_into_id IS NULL`, selectedID).
+		WHERE id = ? AND merged_into_id IS NULL AND hidden = 0`, selectedID).
 		Scan(&v.ID, &v.Name, &v.City)
 	if err != nil {
 		return opts
@@ -135,7 +150,7 @@ func (s *Server) withSelectedVenue(ctx context.Context, opts []checkinVenueOptio
 func (s *Server) nearbyVenues(ctx context.Context, lat, lng float64, limit int) []checkinVenueOption {
 	rows, err := s.Auth.SQL.QueryContext(ctx, `
 		SELECT id, name, COALESCE(city,''), lat, lng FROM venues
-		WHERE merged_into_id IS NULL AND lat != 0 AND lng != 0
+		WHERE merged_into_id IS NULL AND hidden = 0 AND lat != 0 AND lng != 0
 		ORDER BY updated_at DESC LIMIT ?`, 300)
 	if err != nil {
 		return []checkinVenueOption{}
@@ -219,6 +234,15 @@ func (s *Server) checkinVenueOptionsJSON(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+
+	if r.URL.Query().Get("source") == "external" {
+		s.externalVenuesJSON(w, r, u, lat, lng)
+		return
+	}
+
 	var opts []checkinVenueOption
 	switch {
 	case len([]rune(query)) >= catalog.MinSearchLen:
@@ -232,10 +256,48 @@ func (s *Server) checkinVenueOptionsJSON(w http.ResponseWriter, r *http.Request)
 		opts = []checkinVenueOption{}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "private, no-store")
-	w.Header().Set("Referrer-Policy", "no-referrer")
 	_ = json.NewEncoder(w).Encode(map[string]any{"venues": opts})
+}
+
+// externalVenuesJSON proxies an explicit, consented Photon lookup. The
+// coordinates are used for this request only; no result is stored until the
+// member picks one and the check-in is saved.
+func (s *Server) externalVenuesJSON(w http.ResponseWriter, r *http.Request, u *ent.User, lat, lng *float64) {
+	if u == nil || !r.URL.Query().Has("consent") {
+		http.Error(w, "consent_required", http.StatusBadRequest)
+		return
+	}
+	if lat == nil || lng == nil {
+		http.Error(w, "location required", http.StatusBadRequest)
+		return
+	}
+	if s.Limiter != nil && !s.Limiter.Allow("nearby-geo:"+u.ID, 6, time.Minute) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"external": []externalVenueOption{}, "external_status": "rate_limited"})
+		return
+	}
+	out := []externalVenueOption{}
+	status := "ok"
+	if s.Nearby == nil || !s.Nearby.Enabled {
+		status = "unavailable"
+	} else if places, err := s.Nearby.Nearby(r.Context(), *lat, *lng); err != nil {
+		status = "unavailable"
+	} else {
+		for _, p := range places {
+			if len(out) >= checkinVenueLimit {
+				break
+			}
+			metres := haversineMeters(*lat, *lng, p.Lat, p.Lng)
+			if metres > 2000 {
+				continue
+			}
+			out = append(out, externalVenueOption{
+				Provider: "photon", ProviderID: p.ProviderID, Name: p.Name, Kind: p.Kind,
+				City: p.City, Country: p.Country, Distance: distanceLabel(metres),
+				Lat: p.Lat, Lng: p.Lng,
+			})
+		}
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"external": out, "external_status": status})
 }
 
 // optionalCoordinates parses a lat/lng pair. Both absent means no location;
@@ -264,6 +326,16 @@ func optionalCoordinates(latRaw, lngRaw string) (*float64, *float64, error) {
 		return nil, nil, checkins.ErrInvalidCoords
 	}
 	return &lat, &lng, nil
+}
+
+// formBool reads the boolean spellings a checkbox or hidden field may send.
+func formBool(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func haversineMeters(lat1, lng1, lat2, lng2 float64) float64 {

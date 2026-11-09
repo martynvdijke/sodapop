@@ -149,6 +149,9 @@ func (s *Service) Merge(ctx context.Context, fromID, intoID int, userID string) 
 	if into.MergedIntoID != nil {
 		return ErrInvalid
 	}
+	if from.Hidden || into.Hidden {
+		return ErrInvalid
+	}
 	for cur := into; cur.MergedIntoID != nil; {
 		if *cur.MergedIntoID == fromID {
 			return ErrMergeCycle

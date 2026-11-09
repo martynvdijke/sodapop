@@ -525,7 +525,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 : null,
                           ),
                           if (checkin.venueName.isNotEmpty)
-                            TextSpan(text: ' · ${checkin.venueName}'),
+                            TextSpan(text: ' · ${checkin.venueName}')
+                          else if (checkin.atHome)
+                            TextSpan(text: ' · ${sodaAtHomeLabel(true)}'),
                         ],
                       ),
                       maxLines: 1,

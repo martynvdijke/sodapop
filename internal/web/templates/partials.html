@@ -25,8 +25,8 @@
     {{$tags := .TaggedFriends}}
     <p class="checkin-with">With {{range $i, $f := $tags}}{{if $i}}{{if isLast $i (len $tags)}} and {{else}}, {{end}}{{end}}<a href="/u/{{$f.Handle}}">{{if $f.DisplayName}}{{$f.DisplayName}}{{else}}@{{$f.Handle}}{{end}}</a>{{end}}</p>
   {{end}}
-  {{if and .Lat .Lng (not .VenueName)}}
-    <p class="checkin-location-link"><a class="chip chip-location" href="https://www.openstreetmap.org/?mlat={{coord .Lat}}&amp;mlon={{coord .Lng}}#map=16/{{coord .Lat}}/{{coord .Lng}}" target="_blank" rel="nofollow noopener" aria-label="View the location of this pour on OpenStreetMap">Location</a></p>
+  {{if .AtHome}}
+    <p class="checkin-location-link"><span class="chip chip-at-home" title="A shared marker, not a place">@home</span></p>
   {{end}}
   <div class="checkin-actions" data-checkin-actions>
     {{if .CSRF}}

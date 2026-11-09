@@ -44,7 +44,7 @@ func (s *Service) PublicFeed(ctx context.Context, f PublicFeedFilter) ([]Profile
 	q := `
 		SELECT c.id, c.user_id, u.handle, COALESCE(u.display_name,''),
 		       c.drink_id, d.name, d.slug, COALESCE(b.name,''), d.container, d.volume_ml,
-		       c.rating, COALESCE(c.note,''), COALESCE(v.name,''),
+		       c.rating, COALESCE(c.note,''), COALESCE(v.name,''), COALESCE(v.hidden,0),
 		       c.visibility, c.created_at,
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''), COALESCE(m.poster_path,''),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
@@ -84,7 +84,7 @@ func (s *Service) PublicFeed(ctx context.Context, f PublicFeedFilter) ([]Profile
 		)
 		if err := rows.Scan(&it.ID, &it.UserID, &it.Handle, &it.DisplayName,
 			&it.DrinkID, &it.DrinkName, &it.DrinkSlug, &it.Brand, &it.Container, &it.VolumeML,
-			&rating, &it.Note, &it.VenueName,
+			&rating, &it.Note, &it.VenueName, &it.AtHome,
 			&it.Visibility, &it.CreatedAt,
 			&it.PhotoID, &it.PhotoMime, &it.PosterPath,
 			&it.Toasts, &toasted); err != nil {

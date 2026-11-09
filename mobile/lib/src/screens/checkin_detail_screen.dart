@@ -606,7 +606,7 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
             ),
             if (visibility.isNotEmpty ||
                 detail.venueName.isNotEmpty ||
-                (detail.venueName.isEmpty && detail.hasLocation)) ...[
+                detail.atHome) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -618,11 +618,10 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                       icon: Icons.place_outlined,
                       label: detail.venueName,
                     ),
-                  // No map SDK: the chip just says a place was attached.
-                  if (detail.venueName.isEmpty && detail.hasLocation)
+                  if (detail.venueName.isEmpty && detail.atHome)
                     SodaPill(
-                      icon: Icons.my_location_rounded,
-                      label: 'Location shared',
+                      icon: Icons.home_outlined,
+                      label: sodaAtHomeLabel(true),
                     ),
                 ],
               ),

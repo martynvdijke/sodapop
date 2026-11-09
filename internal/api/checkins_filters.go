@@ -130,6 +130,7 @@ func profileItemsAsItems(items []checkins.ProfileItem) []checkins.Item {
 			Note:       it.Note,
 			VenueID:    it.VenueID,
 			VenueName:  it.VenueName,
+			AtHome:     it.AtHome,
 			Visibility: it.Visibility,
 			CreatedAt:  it.CreatedAt,
 			PhotoID:    it.PhotoID,

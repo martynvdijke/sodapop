@@ -185,7 +185,10 @@ class _SavedPostsScreenState extends ConsumerState<SavedPostsScreen> {
     ].join(' · ');
     final date = sodaDate(item.createdAt);
     final meta = [
-      if (item.venueName.isNotEmpty) item.venueName,
+      if (item.venueName.isNotEmpty)
+        item.venueName
+      else if (item.atHome)
+        sodaAtHomeLabel(true),
       if (date.isNotEmpty) date,
     ].join(' · ');
     final metaStyle = theme.textTheme.bodySmall?.copyWith(

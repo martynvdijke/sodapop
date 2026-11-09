@@ -28,6 +28,9 @@ var (
 	ErrInvalid  = errors.New("invalid venue")
 )
 
+// homeSlug is the fixed slug of the shared hidden @home venue.
+const homeSlug = "at-home"
+
 type Service struct {
 	Client *ent.Client
 	SQL    *sql.DB
@@ -50,6 +53,8 @@ type Venue struct {
 	Lat     float64 `json:"lat"`
 	Lng     float64 `json:"lng"`
 	Website string  `json:"website,omitempty"`
+	// AtHome marks the single shared hidden @home marker.
+	AtHome bool `json:"at_home,omitempty"`
 	// DistanceM is only set when the search was given a reference point.
 	DistanceM *int `json:"distance_m,omitempty"`
 }
@@ -86,7 +91,7 @@ func (s *Service) SearchNear(ctx context.Context, q string, limit int, lat, lng 
 		box = venueSearchBoxFor(*lat, *lng, float64(radiusM)/1000)
 	}
 
-	where := []string{"v.merged_into_id IS NULL"}
+	where := []string{"v.merged_into_id IS NULL", "v.hidden = 0"}
 	args := []any{}
 	if q != "" {
 		where = append(where, `(
@@ -231,16 +236,18 @@ func distanceMeters(lat1, lng1, lat2, lng2 float64) float64 {
 // Get returns a single venue and the drinks recently seen there.
 func (s *Service) Get(ctx context.Context, id int) (*Venue, []VenueDrink, error) {
 	var v Venue
+	var hidden bool
 	err := s.SQL.QueryRowContext(ctx, `
-		SELECT id, slug, name, kind, address, city, region, country, lat, lng, COALESCE(website,'')
+		SELECT id, slug, name, kind, address, city, region, country, lat, lng, COALESCE(website,''), hidden
 		FROM venues WHERE id = ? AND merged_into_id IS NULL`, id).
-		Scan(&v.ID, &v.Slug, &v.Name, &v.Kind, &v.Address, &v.City, &v.Region, &v.Country, &v.Lat, &v.Lng, &v.Website)
+		Scan(&v.ID, &v.Slug, &v.Name, &v.Kind, &v.Address, &v.City, &v.Region, &v.Country, &v.Lat, &v.Lng, &v.Website, &hidden)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, nil, err
 	}
+	v.AtHome = hidden || v.Slug == homeSlug
 	rows, err := s.SQL.QueryContext(ctx, `
 		SELECT d.slug, d.name, COALESCE(b.name,''), vd.last_seen_at, vd.on_offer
 		FROM venue_drinks vd
@@ -394,6 +401,116 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateInput) (*e
 	return v, true, nil
 }
 
+// EnsureHome returns the id of the single shared hidden @home venue, creating
+// it on first use. It re-selects on a unique conflict so two concurrent first
+// check-ins converge on one row.
+func (s *Service) EnsureHome(ctx context.Context) (int, error) {
+	var id int
+	err := s.SQL.QueryRowContext(ctx, `SELECT id FROM venues WHERE slug = ? ORDER BY id LIMIT 1`, homeSlug).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
+	v, err := s.Client.Venue.Create().
+		SetName("@home").
+		SetSlug(homeSlug).
+		SetKind(venue.KindOther).
+		SetHidden(true).
+		Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			if e2 := s.SQL.QueryRowContext(ctx, `SELECT id FROM venues WHERE slug = ? ORDER BY id LIMIT 1`, homeSlug).Scan(&id); e2 == nil {
+				return id, nil
+			}
+		}
+		return 0, err
+	}
+	return v.ID, nil
+}
+
+// CreateFromExternal promotes a nearby result from an external provider into a
+// real, selectable venue. It is keyed by (provider, providerID) so repeated
+// prompts reuse the same row. Run inside the existing transaction style: a
+// unique violation re-selects the winner.
+func (s *Service) CreateFromExternal(ctx context.Context, provider, providerID, name, kind, city, country string, lat, lng float64) (int, error) {
+	provider = strings.TrimSpace(provider)
+	providerID = strings.TrimSpace(providerID)
+	if provider == "" || providerID == "" {
+		return 0, ErrInvalid
+	}
+	find := func() (int, bool, error) {
+		var id int
+		err := s.SQL.QueryRowContext(ctx, `
+			SELECT id FROM venues
+			WHERE external_provider = ? AND external_id = ? AND merged_into_id IS NULL
+			ORDER BY id LIMIT 1`, provider, providerID).Scan(&id)
+		if err == nil {
+			return id, true, nil
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, false, nil
+		}
+		return 0, false, err
+	}
+	if id, ok, err := find(); err != nil {
+		return 0, err
+	} else if ok {
+		return id, nil
+	}
+
+	cleanName, err := normalizeVenueName(name)
+	if err != nil {
+		cleanName = provider + " venue"
+	}
+	slug := catalog.Slugify(cleanName + " " + provider + " " + providerID)
+	if slug == "" {
+		slug = provider + "-" + providerID
+	}
+	unique := slug
+	for i := 2; i < 100; i++ {
+		n, err := s.Client.Venue.Query().Where(venue.Slug(unique)).Count(ctx)
+		if err == nil && n == 0 {
+			break
+		}
+		unique = slug + "-" + itoa(i)
+	}
+	tx, err := s.Client.Tx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	v, err := tx.Venue.Create().
+		SetName(cleanName).
+		SetSlug(unique).
+		SetKind(kindEnum(kind)).
+		SetCity(city).
+		SetCountry(country).
+		SetLat(lat).
+		SetLng(lng).
+		SetHidden(false).
+		SetExternalProvider(provider).
+		SetExternalID(providerID).
+		Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			_ = tx.Rollback()
+			if id, ok, e2 := find(); e2 == nil && ok {
+				return id, nil
+			}
+		}
+		return 0, err
+	}
+	if err := addVenueName(ctx, tx.VenueName, v.ID, cleanName); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return v.ID, nil
+}
+
 func (s *Service) findNearby(ctx context.Context, in CreateInput) (*ent.Venue, error) {
 	named, err := s.findByName(ctx, in.Name, in.City)
 	if err != nil {
@@ -404,7 +521,7 @@ func (s *Service) findNearby(ctx context.Context, in CreateInput) (*ent.Venue, e
 	}
 	rows, err := s.SQL.QueryContext(ctx, `
 		SELECT id, name, city, lat, lng FROM venues
-		WHERE merged_into_id IS NULL
+		WHERE merged_into_id IS NULL AND hidden = 0
 		  AND (lower(name) = lower(?) OR (abs(lat - ?) < 0.003 AND abs(lng - ?) < 0.003))
 		LIMIT 25`, in.Name, in.Lat, in.Lng)
 	if err != nil {
@@ -434,7 +551,7 @@ func (s *Service) Saved(ctx context.Context, userID string) ([]Venue, error) {
 		       COALESCE(v.region,''), COALESCE(v.country,''), v.lat, v.lng, COALESCE(v.website,'')
 		FROM venue_saves vs
 		JOIN venues v ON v.id = vs.venue_id
-		WHERE vs.user_id = ? AND v.merged_into_id IS NULL
+		WHERE vs.user_id = ? AND v.merged_into_id IS NULL AND v.hidden = 0
 		ORDER BY vs.created_at DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -452,8 +569,19 @@ func (s *Service) Saved(ctx context.Context, userID string) ([]Venue, error) {
 	return out, rows.Err()
 }
 
-// Save bookmarks a venue for a user.
+// Save bookmarks a venue for a user. Hidden rows (the @home marker and
+// external discovery stubs before promotion) cannot be bookmarked.
 func (s *Service) Save(ctx context.Context, userID string, venueID int) error {
+	v, err := s.Client.Venue.Query().Where(venue.ID(venueID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if v.Hidden || v.MergedIntoID != nil {
+		return ErrInvalid
+	}
 	exists, err := s.Client.VenueSave.Query().
 		Where(venuesave.UserID(userID), venuesave.VenueID(venueID)).Exist(ctx)
 	if err != nil || exists {

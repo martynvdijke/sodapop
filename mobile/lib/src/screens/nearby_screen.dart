@@ -833,19 +833,23 @@ class _NearbyCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (checkin.venueName.isNotEmpty) ...[
+                  if (checkin.venueName.isNotEmpty || checkin.atHome) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         Icon(
-                          Icons.place_outlined,
+                          checkin.venueName.isNotEmpty
+                              ? Icons.place_outlined
+                              : Icons.home_outlined,
                           size: 14,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            checkin.venueName,
+                            checkin.venueName.isNotEmpty
+                                ? checkin.venueName
+                                : sodaAtHomeLabel(true),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(

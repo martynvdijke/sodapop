@@ -18,6 +18,7 @@ import (
 	"sodapop/internal/auth"
 	"sodapop/internal/catalog"
 	"sodapop/internal/checkins"
+	"sodapop/internal/geocode"
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/search"
@@ -402,6 +403,7 @@ type checkinRequest struct {
 	Lat            *float64
 	Lng            *float64
 	FriendIDs      []string
+	AtHome         bool
 }
 
 // createCheckin accepts JSON, or multipart/form-data with an optional `image`
@@ -424,6 +426,7 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 		Lat            *float64 `json:"lat"`
 		Lng            *float64 `json:"lng"`
 		FriendIDs      []string `json:"friend_ids"`
+		AtHome         bool     `json:"at_home"`
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
@@ -432,7 +435,7 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 		DrinkID: in.DrinkID, VenueID: in.VenueID, Rating: in.Rating, Serving: in.Serving,
 		PrepMethod: in.PrepMethod, PrepNote: in.PrepNote,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
-		Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs,
+		Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs, AtHome: in.AtHome,
 	}, nil)
 }
 
@@ -459,6 +462,7 @@ func (s *Server) createCheckinMultipart(w http.ResponseWriter, r *http.Request, 
 		Note:           r.FormValue("note"),
 		Visibility:     strings.TrimSpace(r.FormValue("visibility")),
 		IdempotencyKey: strings.TrimSpace(r.FormValue("idempotency_key")),
+		AtHome:         parseBoolish(r.FormValue("at_home")),
 	}
 	drinkID, err := strconv.Atoi(strings.TrimSpace(r.FormValue("drink_id")))
 	if err != nil || drinkID <= 0 {
@@ -545,6 +549,7 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 		PrepMethod: in.PrepMethod, PrepNote: in.PrepNote,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
 		PhotoMediaID: photoMediaID, Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs,
+		AtHome: in.AtHome,
 	})
 	if err != nil {
 		s.discardCheckinMedia(r.Context(), stored)
@@ -578,7 +583,7 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 		"id": c.ID, "drink_id": c.DrinkID, "rating": c.Rating, "visibility": c.Visibility,
 		"serving": c.Serving, "prep_method": c.PrepMethod, "prep_note": c.PrepNote,
 		"created_at": c.CreatedAt, "created": created,
-		"lat": c.Lat, "lng": c.Lng, "tagged_friends": tags,
+		"venue_id": c.VenueID, "at_home": in.AtHome, "tagged_friends": tags,
 	}
 	if c.PhotoMediaID != nil && *c.PhotoMediaID != "" {
 		data["photo_media_id"] = *c.PhotoMediaID
@@ -652,6 +657,26 @@ func (s *Server) untoast(w http.ResponseWriter, r *http.Request, tok *auth.APITo
 	return nil
 }
 
+// searchVenueRow is one nearby or local result. Local rows carry a selectable
+// id; external rows carry provider identifiers and no id until promoted.
+type searchVenueRow struct {
+	ID         *int    `json:"id,omitempty"`
+	Slug       string  `json:"slug,omitempty"`
+	Name       string  `json:"name"`
+	Kind       string  `json:"kind,omitempty"`
+	Address    string  `json:"address,omitempty"`
+	City       string  `json:"city,omitempty"`
+	Region     string  `json:"region,omitempty"`
+	Country    string  `json:"country,omitempty"`
+	Lat        float64 `json:"lat,omitempty"`
+	Lng        float64 `json:"lng,omitempty"`
+	DistanceM  *int    `json:"distance_m,omitempty"`
+	Source     string  `json:"source"`
+	Provider   string  `json:"provider,omitempty"`
+	ProviderID string  `json:"provider_id,omitempty"`
+	AtHome     bool    `json:"at_home,omitempty"`
+}
+
 func (s *Server) searchVenues(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
 	q := r.URL.Query()
 	lat, lng, err := optionalCoords(q.Get("lat"), q.Get("lng"))
@@ -665,12 +690,151 @@ func (s *Server) searchVenues(w http.ResponseWriter, r *http.Request, tok *auth.
 			return bad("radius must be a positive number of metres")
 		}
 	}
-	results, err := s.Venues.SearchNear(r.Context(), q.Get("q"), queryInt(r, "limit", 10, 20), lat, lng, radius)
+	source := strings.TrimSpace(q.Get("source"))
+	if source == "" {
+		source = "local"
+	}
+	switch source {
+	case "local", "external", "all":
+	default:
+		return bad("source must be local, external or all")
+	}
+	wantExternal := source == "external" || source == "all"
+	if wantExternal && !parseBoolish(q.Get("consent")) {
+		writeError(w, http.StatusBadRequest, "consent_required", "external place search requires consent=true")
+		return nil
+	}
+
+	limit := queryInt(r, "limit", 10, 20)
+	if wantExternal && limit > 15 {
+		limit = 15
+	}
+	local, err := s.Venues.SearchNear(r.Context(), q.Get("q"), limit, lat, lng, radius)
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": results})
+	rows := make([]searchVenueRow, 0, len(local))
+	for _, v := range local {
+		id := v.ID
+		rows = append(rows, searchVenueRow{
+			ID: &id, Slug: v.Slug, Name: v.Name, Kind: v.Kind, Address: v.Address,
+			City: v.City, Region: v.Region, Country: v.Country, Lat: v.Lat, Lng: v.Lng,
+			DistanceM: v.DistanceM, Source: "local", AtHome: v.AtHome,
+		})
+	}
+	if !wantExternal {
+		writeJSON(w, http.StatusOK, map[string]any{"data": rows})
+		return nil
+	}
+
+	externalStatus := "ok"
+	external := []searchVenueRow{}
+	switch {
+	case lat == nil || lng == nil:
+		externalStatus = "unavailable"
+	case s.Nearby == nil || !s.Nearby.Enabled:
+		externalStatus = "unavailable"
+	case !s.Limiter.Allow("nearby-geo:"+tok.User.ID, 6, time.Minute):
+		externalStatus = "rate_limited"
+	default:
+		places, err := s.Nearby.Nearby(r.Context(), *lat, *lng)
+		if err != nil {
+			// A provider failure must never fail the request; local rows stand.
+			externalStatus = "unavailable"
+		} else {
+			radiusM := radius
+			if radiusM <= 0 {
+				radiusM = 2000
+			}
+			external = appendExternalRows(places, rows, *lat, *lng, radiusM, limitForSource(source, limit))
+		}
+	}
+	if source == "external" {
+		// External-only responses omit the local rows but still used them for
+		// dedupe above.
+		rows = external
+	} else {
+		rows = append(rows, external...)
+		if len(rows) > 15 {
+			rows = rows[:15]
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": rows, "external_status": externalStatus})
 	return nil
+}
+
+func limitForSource(source string, limit int) int {
+	if source == "external" {
+		if limit > 15 {
+			return 15
+		}
+		return limit
+	}
+	return 15
+}
+
+// appendExternalRows filters provider places against the local results and the
+// requested radius, then returns at most limit rows.
+func appendExternalRows(places []geocode.Place, local []searchVenueRow, lat, lng float64, radiusM, limit int) []searchVenueRow {
+	out := []searchVenueRow{}
+	for _, p := range places {
+		if len(out) >= limit {
+			break
+		}
+		d := geoDistanceMeters(lat, lng, p.Lat, p.Lng)
+		if d > float64(radiusM) {
+			continue
+		}
+		if duplicateOfLocal(p, local, lat, lng) {
+			continue
+		}
+		rounded := int(math.Round(d))
+		out = append(out, searchVenueRow{
+			Name: p.Name, Kind: p.Kind, City: p.City, Country: p.Country,
+			Lat: p.Lat, Lng: p.Lng, DistanceM: &rounded,
+			Source: "external", Provider: "photon", ProviderID: p.ProviderID,
+		})
+	}
+	return out
+}
+
+// duplicateOfLocal reports whether a provider place is the same as a local
+// venue: within 150 m or an identical case-insensitive name.
+func duplicateOfLocal(p geocode.Place, local []searchVenueRow, lat, lng float64) bool {
+	for _, v := range local {
+		if strings.EqualFold(strings.TrimSpace(v.Name), strings.TrimSpace(p.Name)) {
+			return true
+		}
+		if v.Lat != 0 || v.Lng != 0 {
+			if geoDistanceMeters(p.Lat, p.Lng, v.Lat, v.Lng) <= 150 {
+				return true
+			}
+		}
+	}
+	_ = lat
+	_ = lng
+	return false
+}
+
+func geoDistanceMeters(lat1, lng1, lat2, lng2 float64) float64 {
+	const earthRadiusM = 6371000.0
+	rad := math.Pi / 180
+	dLat := (lat2 - lat1) * rad
+	dLng := (lng2 - lng1) * rad
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1*rad)*math.Cos(lat2*rad)*math.Sin(dLng/2)*math.Sin(dLng/2)
+	return earthRadiusM * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+}
+
+// parseBoolish accepts the boolean spellings a HTML form or the Android app
+// may send. Anything unrecognised is false.
+func parseBoolish(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // optionalCoords parses an optional lat/lng pair. Both must be present or both
@@ -719,12 +883,25 @@ func (s *Server) createVenue(w http.ResponseWriter, r *http.Request, tok *auth.A
 		Lat     float64 `json:"lat"`
 		Lng     float64 `json:"lng"`
 		Website string  `json:"website"`
+		// ExternalProvider/ExternalID promote a nearby Photon result into a
+		// real venue. Both must be present together.
+		ExternalProvider string `json:"external_provider"`
+		ExternalID       string `json:"external_id"`
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
 	}
 	if !s.Limiter.Allow("newvenue:"+tok.User.ID, 10, time.Hour) {
 		writeError(w, http.StatusTooManyRequests, "rate_limited", "too many venue submissions")
+		return nil
+	}
+	if in.ExternalProvider != "" || in.ExternalID != "" {
+		id, err := s.Venues.CreateFromExternal(r.Context(), in.ExternalProvider, in.ExternalID,
+			in.Name, in.Kind, in.City, in.Country, in.Lat, in.Lng)
+		if err != nil {
+			return err
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"id": id, "name": in.Name, "created": false, "promoted": true}})
 		return nil
 	}
 	v, created, err := s.Venues.Create(r.Context(), tok.User.ID, venues.CreateInput{

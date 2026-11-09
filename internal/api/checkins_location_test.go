@@ -137,8 +137,11 @@ func TestCheckinGPSAndTagsRoundTrip(t *testing.T) {
 	}
 	created := dataMap(t, rec)
 	id, _ := created["id"].(string)
-	if created["lat"] != 51.5 || created["lng"] != -0.12 {
-		t.Fatalf("create coords = %v,%v", created["lat"], created["lng"])
+	if _, ok := created["lat"]; ok {
+		t.Fatalf("create response must not include lat: %v", created)
+	}
+	if _, ok := created["lng"]; ok {
+		t.Fatalf("create response must not include lng: %v", created)
 	}
 	if tags, _ := created["tagged_friends"].([]any); len(tags) != 1 {
 		t.Fatalf("create tagged_friends = %v", created["tagged_friends"])
@@ -149,8 +152,11 @@ func TestCheckinGPSAndTagsRoundTrip(t *testing.T) {
 		t.Fatalf("detail: %d %s", rec.Code, rec.Body.String())
 	}
 	detail := dataMap(t, rec)
-	if detail["lat"] != 51.5 || detail["lng"] != -0.12 {
-		t.Fatalf("detail coords = %v,%v", detail["lat"], detail["lng"])
+	if _, ok := detail["lat"]; ok {
+		t.Fatalf("detail must not include lat: %v", detail)
+	}
+	if _, ok := detail["lng"]; ok {
+		t.Fatalf("detail must not include lng: %v", detail)
 	}
 	tags := detail["tagged_friends"].([]any)
 	if len(tags) != 1 {
@@ -177,8 +183,11 @@ func TestCheckinGPSAndTagsRoundTrip(t *testing.T) {
 			continue
 		}
 		found = true
-		if item["lat"] != 51.5 || item["lng"] != -0.12 {
-			t.Fatalf("feed coords = %v,%v", item["lat"], item["lng"])
+		if _, ok := item["lat"]; ok {
+			t.Fatalf("feed must not include lat: %v", item)
+		}
+		if _, ok := item["lng"]; ok {
+			t.Fatalf("feed must not include lng: %v", item)
 		}
 		if got := item["tagged_friends"].([]any); len(got) != 1 {
 			t.Fatalf("feed tagged_friends = %v", item["tagged_friends"])
@@ -226,8 +235,11 @@ func TestCheckinMultipartRepeatedFriendIDs(t *testing.T) {
 	if len(tags) != 1 {
 		t.Fatalf("duplicate friend_ids were not deduped: %v", created["tagged_friends"])
 	}
-	if created["lat"] != 51.5 || created["lng"] != -0.12 {
-		t.Fatalf("multipart coords = %v,%v", created["lat"], created["lng"])
+	if _, ok := created["lat"]; ok {
+		t.Fatalf("multipart create must not include lat: %v", created)
+	}
+	if _, ok := created["lng"]; ok {
+		t.Fatalf("multipart create must not include lng: %v", created)
 	}
 }
 

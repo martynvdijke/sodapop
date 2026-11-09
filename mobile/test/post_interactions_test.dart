@@ -168,8 +168,6 @@ class _PhotoFeedApi extends ApiClient {
           displayName: 'Grace Hopper',
         ),
       ],
-      lat: 51.5,
-      lng: -0.12,
     ),
   ];
 }
@@ -183,8 +181,7 @@ class _TaggedDetailApi extends ApiClient {
     initial: 'A',
     drinkSlug: 'cherry-cola',
     drinkName: 'Cherry Cola',
-    lat: 51.5,
-    lng: -0.12,
+    atHome: true,
     taggedFriends: [
       TaggedFriend(id: 'u-grace', handle: 'grace', displayName: 'Grace Hopper'),
     ],
@@ -508,7 +505,7 @@ void main() {
 
       expect(find.byKey(const Key('detail-tags')), findsOneWidget);
       expect(find.text('With Grace Hopper'), findsOneWidget);
-      expect(find.text('Location shared'), findsOneWidget);
+      expect(find.text('@home'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

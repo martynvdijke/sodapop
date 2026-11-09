@@ -80,7 +80,7 @@ func (s *Service) Passport(ctx context.Context, userID string) (*Passport, error
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
 		JOIN venues v ON v.id = c.venue_id
-		WHERE c.user_id = ? AND c.deleted_at IS NULL AND d.status <> 'merged'`, userID).
+		WHERE c.user_id = ? AND c.deleted_at IS NULL AND d.status <> 'merged' AND v.hidden = 0`, userID).
 		Scan(&out.Totals.VenueKinds); err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (s *Service) Passport(ctx context.Context, userID string) (*Passport, error
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
 		JOIN venues v ON v.id = c.venue_id
-		WHERE c.user_id = ? AND c.deleted_at IS NULL AND d.status <> 'merged'
+		WHERE c.user_id = ? AND c.deleted_at IS NULL AND d.status <> 'merged' AND v.hidden = 0
 		GROUP BY v.kind
 		ORDER BY COUNT(*) DESC, v.kind ASC`, userID)
 	if err != nil {

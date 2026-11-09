@@ -123,12 +123,14 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
   String _visibility = 'private';
   String _prepMethod = 'none';
   Venue? _venue;
+  bool _atHome = false;
   String? _error;
 
   final List<FriendUser> _tagged = [];
   double? _lat;
   double? _lng;
   bool _locating = false;
+  bool _nearbyConsent = false;
   String? _locationMessage;
   bool _needsSettings = false;
   bool _needsService = false;
@@ -161,6 +163,28 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
   }
 
   String get _ratingText => _notRated ? 'Not rated' : ratingLabel(_quarters);
+
+  /// External suggestions cannot be attached as a venue id.
+  int? get _venueId {
+    final venue = _venue;
+    if (venue == null || venue.isExternal) return null;
+    return venue.id;
+  }
+
+  /// External picks are preserved as an at-place note because the server has
+  /// no venue id to store.
+  String get _noteText {
+    final base = _note.text;
+    final venue = _venue;
+    if (venue != null && venue.isExternal && venue.name.isNotEmpty) {
+      final marker = 'At ${venue.name}';
+      if (base.trim().isEmpty) return marker;
+      if (!base.toLowerCase().contains(venue.name.toLowerCase())) {
+        return '${base.trimRight()}\n$marker';
+      }
+    }
+    return base;
+  }
 
   String get _visibilityHint {
     switch (_visibility) {
@@ -285,7 +309,78 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
     }
   }
 
-  Future<void> _openVenuePicker() async {
+  /// Picks "at home": clear any place or fix so the request carries neither.
+  void _selectAtHome() {
+    if (_saving) return;
+    setState(() {
+      _atHome = true;
+      _venue = null;
+      _lat = null;
+      _lng = null;
+      _locationMessage = null;
+      _needsSettings = false;
+      _needsService = false;
+    });
+  }
+
+  void _clearVenue() {
+    setState(() => _venue = null);
+  }
+
+  void _clearAtHome() {
+    setState(() => _atHome = false);
+  }
+
+  /// "Nearby" asks once per sheet, then uses the fix only to ask the server for
+  /// local venues and external OpenStreetMap suggestions.
+  Future<void> _useNearby() async {
+    if (_saving || _locating) return;
+    if (!_nearbyConsent) {
+      final accepted = await _askNearbyConsent();
+      if (accepted != true || !mounted) return;
+      setState(() => _nearbyConsent = true);
+    }
+    setState(() => _atHome = false);
+    final position = await _requestPosition();
+    if (position == null || !mounted) return;
+    // Rounded to ~100 m: enough for suggestions, no sharper than the consent
+    // copy promises.
+    setState(() {
+      _lat = double.parse(position.latitude.toStringAsFixed(3));
+      _lng = double.parse(position.longitude.toStringAsFixed(3));
+    });
+    await _openVenuePicker(source: 'all', consent: true);
+  }
+
+  Future<bool?> _askNearbyConsent() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Use your approximate location?'),
+        content: const Text(
+          "We'll send your approximate location (~100 m) to Photon "
+          '(OpenStreetMap) to suggest nearby places. Sodapop does not store it.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('nearby-consent-cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            key: const Key('nearby-consent-allow'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openVenuePicker({
+    String source = 'local',
+    bool consent = false,
+  }) async {
     if (_saving) return;
     final choice = await showModalBottomSheet<_VenueChoice>(
       context: context,
@@ -293,10 +388,18 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
       useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: _topRounded,
-      builder: (_) => _VenuePickerSheet(lat: _lat, lng: _lng),
+      builder: (_) => _VenuePickerSheet(
+        lat: _lat,
+        lng: _lng,
+        source: source,
+        consent: consent,
+      ),
     );
     if (choice == null || !mounted) return;
-    setState(() => _venue = choice.venue);
+    setState(() {
+      _venue = choice.venue;
+      if (choice.venue != null) _atHome = false;
+    });
   }
 
   Future<void> _openFriendPicker() async {
@@ -326,10 +429,10 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
     ),
   );
 
-  /// One deliberate tap asks for permission, then stores a fix for the
-  /// check-in and for nearby venue suggestions.
-  Future<void> _useLocation() async {
-    if (_locating || _saving) return;
+  /// One deliberate tap asks for permission, then returns a fix for nearby
+  /// venue suggestions. Every failure is reported inline and leaves the sheet
+  /// fully usable; nothing retries on its own.
+  Future<Position?> _requestPosition() async {
     setState(() {
       _locating = true;
       _locationMessage = null;
@@ -340,15 +443,16 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
       final enabled =
           await (widget.serviceChecker ??
               Geolocator.isLocationServiceEnabled)();
-      if (!mounted) return;
+      if (!mounted) return null;
       if (!enabled) {
         setState(() {
           _locating = false;
           _needsService = true;
           _locationMessage =
-              'Location services are off. Turn them on to pick nearby venues.';
+              'Location services are off. Turn them on for nearby places, or '
+              'log this one at home.';
         });
-        return;
+        return null;
       }
 
       var permission =
@@ -358,61 +462,65 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
             await (widget.permissionRequester ??
                 Geolocator.requestPermission)();
       }
-      if (!mounted) return;
+      if (!mounted) return null;
       if (permission == LocationPermission.deniedForever) {
         setState(() {
           _locating = false;
           _needsSettings = true;
           _locationMessage =
-              'Location is blocked for Sodapop. Allow it in settings to pick nearby venues.';
+              'Location is blocked for Sodapop. Allow it in settings for '
+              'nearby places, or log this one at home.';
         });
-        return;
+        return null;
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.unableToDetermine) {
         setState(() {
           _locating = false;
           _locationMessage =
-              'Location permission was declined. Nothing is shared until you allow it.';
+              'Location permission was declined. Nothing is shared. You can '
+              'still pick a venue or log this one at home.';
         });
-        return;
+        return null;
       }
 
       final position = await (widget.locationProvider ?? _defaultFix)();
-      if (!mounted) return;
-      setState(() {
-        _lat = double.parse(position.latitude.toStringAsFixed(5));
-        _lng = double.parse(position.longitude.toStringAsFixed(5));
-        _locating = false;
-        _locationMessage = null;
-      });
+      if (!mounted) return null;
+      setState(() => _locating = false);
+      return position;
     } on TimeoutException {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _locating = false;
         _locationMessage = 'Finding your location took too long. Try again.';
       });
+      return null;
     } on LocationServiceDisabledException {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _locating = false;
         _needsService = true;
         _locationMessage =
-            'Location services are off. Turn them on to pick nearby venues.';
+            'Location services are off. Turn them on for nearby places, or '
+            'log this one at home.';
       });
+      return null;
     } on PermissionDeniedException {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _locating = false;
         _locationMessage =
-            'Location permission is needed to pick nearby venues.';
+            'Location permission is needed for nearby places. You can still '
+            'pick a venue or log this one at home.';
       });
+      return null;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _locating = false;
         _locationMessage = 'Could not read your location. Try again.';
       });
+      return null;
     }
   }
 
@@ -451,15 +559,16 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
       final id = await api.createCheckin(
         drinkId: widget.drink.id,
         rating: rating,
-        note: _note.text,
-        venueId: _venue?.id,
+        note: _noteText,
+        venueId: _venueId,
         serving: _serving,
         prepMethod: _prepMethod,
         prepNote: _prepNote.text,
         visibility: _visibility,
         idempotencyKey: key,
-        lat: _lat,
-        lng: _lng,
+        lat: _atHome ? null : _lat,
+        lng: _atHome ? null : _lng,
+        atHome: _atHome,
         friendIds: _tagged.map((friend) => friend.id).toList(),
         photo: video ?? _photoBytes,
         photoFilename: video != null ? _videoName : _photoName,
@@ -496,15 +605,16 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
         {
           'drink_id': widget.drink.id,
           'rating': rating,
-          'note': _note.text,
-          'venue_id': _venue?.id,
+          'note': _noteText,
+          'venue_id': _venueId,
+          'at_home': _atHome,
           'serving': _serving,
           'prep_method': _prepMethod,
           'prep_note': _prepNote.text,
           'visibility': _visibility,
           'idempotency_key': key,
-          if (_lat != null && _lng != null) 'lat': _lat,
-          if (_lat != null && _lng != null) 'lng': _lng,
+          if (!_atHome && _lat != null && _lng != null) 'lat': _lat,
+          if (!_atHome && _lat != null && _lng != null) 'lng': _lng,
           if (_tagged.isNotEmpty)
             'friend_ids': _tagged.map((friend) => friend.id).toList(),
         },
@@ -808,78 +918,96 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
   Widget _venueSection(ThemeData theme) {
     final venue = _venue;
     final hasFix = _lat != null && _lng != null;
+    final hint = _atHome
+        ? 'Logged as @home. No location leaves this device.'
+        : hasFix
+        ? 'Nearby places are sorted by distance. Your location is only used '
+              'to ask for suggestions.'
+        : 'Log it at home, see nearby places, or search for a venue.';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(theme, 'Where', trailing: 'Optional'),
         const SizedBox(height: 8),
         Text(
-          hasFix
-              ? 'Nearby venues are sorted by distance. Your location is saved '
-                    'with this check-in.'
-              : 'Pick a venue, or use your location to see what is nearby.',
+          hint,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 10),
-        if (!hasFix)
-          OutlinedButton.icon(
-            key: const Key('checkin-location'),
-            onPressed: _locating || _saving ? null : _useLocation,
-            icon: _locating
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.my_location_rounded, size: 18),
-            label: Text(_locating ? 'Finding you…' : 'Use my location'),
-            style: _outlinedStyle(theme),
-          )
-        else
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              key: const Key('checkin-at-home'),
+              onPressed: _saving ? null : _selectAtHome,
+              icon: const Icon(Icons.home_outlined, size: 18),
+              label: const Text('At home'),
+              style: _outlinedStyle(theme),
+            ),
+            OutlinedButton.icon(
+              key: const Key('checkin-nearby'),
+              onPressed: _locating || _saving ? null : _useNearby,
+              icon: _locating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.near_me_outlined, size: 18),
+              label: Text(_locating ? 'Finding you…' : 'Nearby'),
+              style: _outlinedStyle(theme),
+            ),
+            OutlinedButton.icon(
+              key: const Key('checkin-choose-venue'),
+              onPressed: _saving ? null : () => _openVenuePicker(),
+              icon: const Icon(Icons.place_outlined, size: 18),
+              label: const Text('Choose a venue'),
+              style: _outlinedStyle(theme),
+            ),
+          ],
+        ),
+        if (_atHome || venue != null || hasFix) ...[
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              InputChip(
-                key: const Key('checkin-location-chip'),
-                avatar: const Icon(Icons.my_location_rounded, size: 16),
-                label: const Text('Location added'),
-                deleteButtonTooltipMessage: 'Remove location',
-                onDeleted: _saving ? null : _clearLocation,
-              ),
-              ActionChip(
-                key: const Key('checkin-location-update'),
-                avatar: const Icon(Icons.refresh_rounded, size: 16),
-                label: Text(_locating ? 'Updating…' : 'Update'),
-                onPressed: _locating || _saving ? null : _useLocation,
-              ),
+              if (_atHome)
+                InputChip(
+                  key: const Key('checkin-at-home-chip'),
+                  avatar: const Icon(Icons.home_outlined, size: 16),
+                  label: const Text('@home'),
+                  deleteButtonTooltipMessage: 'Remove @home',
+                  onDeleted: _saving ? null : _clearAtHome,
+                ),
+              if (venue != null)
+                InputChip(
+                  key: const Key('venue-chip'),
+                  avatar: const Icon(Icons.place_outlined, size: 16),
+                  label: Text(
+                    venue.isExternal ? '${venue.name} · OSM' : venue.name,
+                  ),
+                  deleteButtonTooltipMessage: 'Remove venue',
+                  onDeleted: _saving ? null : _clearVenue,
+                ),
+              if (hasFix && !_atHome)
+                InputChip(
+                  key: const Key('checkin-location-chip'),
+                  avatar: const Icon(Icons.near_me_outlined, size: 16),
+                  label: const Text('Nearby location'),
+                  deleteButtonTooltipMessage: 'Clear nearby location',
+                  onDeleted: _saving ? null : _clearLocation,
+                ),
             ],
           ),
+        ],
         if (_locationMessage != null) ...[
           const SizedBox(height: 10),
           _locationNotice(theme),
         ],
-        const SizedBox(height: 10),
-        if (venue == null)
-          OutlinedButton.icon(
-            onPressed: _saving ? null : _openVenuePicker,
-            icon: const Icon(Icons.place_outlined, size: 18),
-            label: const Text('Choose a venue'),
-            style: _outlinedStyle(theme),
-          )
-        else
-          Align(
-            alignment: Alignment.centerLeft,
-            child: InputChip(
-              key: const Key('venue-chip'),
-              avatar: const Icon(Icons.place_outlined, size: 16),
-              label: Text(venue.name),
-              deleteButtonTooltipMessage: 'Remove venue',
-              onDeleted: _saving ? null : () => setState(() => _venue = null),
-            ),
-          ),
       ],
     );
   }
@@ -1263,11 +1391,20 @@ class _VenueChoice {
 }
 
 class _VenuePickerSheet extends ConsumerStatefulWidget {
-  const _VenuePickerSheet({this.lat, this.lng});
+  const _VenuePickerSheet({
+    this.lat,
+    this.lng,
+    this.source = 'local',
+    this.consent = false,
+  });
 
   /// A fix lets the picker open on nearby venues and order search results.
   final double? lat;
   final double? lng;
+
+  /// `local` for a plain search, `all` after the Nearby consent flow.
+  final String source;
+  final bool consent;
 
   @override
   ConsumerState<_VenuePickerSheet> createState() => _VenuePickerSheetState();
@@ -1281,13 +1418,20 @@ class _VenuePickerSheetState extends ConsumerState<_VenuePickerSheet> {
   List<Venue> _results = const [];
   bool _loading = false;
   bool _browsingNearby = false;
+  bool _externalUnavailable = false;
   String? _error;
   String? _hint;
   int _requestId = 0;
 
   bool get _hasFix => widget.lat != null && widget.lng != null;
+  bool get _includesExternal => widget.source != 'local';
   String get _queryText => _query.text.trim();
   String get _radiusLabel => '${_searchRadiusM ~/ 1000} km';
+
+  List<Venue> get _localResults =>
+      _results.where((venue) => !venue.isExternal).toList();
+  List<Venue> get _externalResults =>
+      _results.where((venue) => venue.isExternal).toList();
 
   String get _modeTitle {
     if (_browsingNearby) return 'Venues near you';
@@ -1333,17 +1477,20 @@ class _VenuePickerSheetState extends ConsumerState<_VenuePickerSheet> {
       _hint = null;
     });
     try {
-      final results = await ref
+      final result = await ref
           .read(apiProvider)
-          .venues(
+          .venueSearch(
             '',
             lat: widget.lat,
             lng: widget.lng,
             radiusM: _searchRadiusM,
+            source: widget.source,
+            consent: widget.consent,
           );
       if (!mounted || request != _requestId) return;
       setState(() {
-        _results = results;
+        _results = result.venues;
+        _externalUnavailable = result.externalUnavailable;
         _loading = false;
       });
     } catch (error) {
@@ -1410,17 +1557,20 @@ class _VenuePickerSheetState extends ConsumerState<_VenuePickerSheet> {
       _hint = null;
     });
     try {
-      final results = await ref
+      final result = await ref
           .read(apiProvider)
-          .venues(
+          .venueSearch(
             query,
             lat: widget.lat,
             lng: widget.lng,
             radiusM: _hasFix ? _searchRadiusM : null,
+            source: widget.source,
+            consent: widget.consent,
           );
       if (!mounted || request != _requestId) return;
       setState(() {
-        _results = results;
+        _results = result.venues;
+        _externalUnavailable = result.externalUnavailable;
         _loading = false;
       });
     } catch (error) {
@@ -1609,24 +1759,33 @@ class _VenuePickerSheetState extends ConsumerState<_VenuePickerSheet> {
         );
       }
       final nearbyEmpty = _browsingNearby && query.isEmpty;
-      return SingleChildScrollView(
-        child: SodaStatusView(
-          dense: true,
-          icon: nearbyEmpty
-              ? Icons.location_searching_rounded
-              : Icons.search_off_rounded,
-          title: nearbyEmpty
-              ? 'No venues within $_radiusLabel'
-              : 'No venues matched',
-          message: nearbyEmpty
-              ? 'Nothing is close enough yet. Create the place you are at, or '
-                    'search by name.'
-              : 'Try a shorter name, or add the place yourself.',
-          actionLabel: 'Create a venue',
-          onAction: _openCreate,
-        ),
+      final emptyStatus = SodaStatusView(
+        dense: true,
+        icon: nearbyEmpty
+            ? Icons.location_searching_rounded
+            : Icons.search_off_rounded,
+        title: nearbyEmpty
+            ? 'No venues within $_radiusLabel'
+            : 'No venues matched',
+        message: nearbyEmpty
+            ? 'Nothing is close enough yet. Create the place you are at, or '
+                  'search by name.'
+            : 'Try a shorter name, or add the place yourself.',
+        actionLabel: 'Create a venue',
+        onAction: _openCreate,
       );
+      if (_includesExternal && _externalUnavailable) {
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [_externalNotice(theme), emptyStatus],
+          ),
+        );
+      }
+      return SingleChildScrollView(child: emptyStatus);
     }
+    final localResults = _localResults;
+    final externalResults = _externalResults;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1640,38 +1799,107 @@ class _VenuePickerSheetState extends ConsumerState<_VenuePickerSheet> {
               ),
             ),
           ),
+        if (_includesExternal && _externalUnavailable)
+          _externalNotice(theme),
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 20),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            itemCount: _results.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 4),
-            itemBuilder: (context, index) {
-              final venue = _results[index];
-              final meta = [
-                if (venue.distanceM > 0) _distanceLabel(venue.distanceM),
-                sodaVenueKind(venue.kind),
-                venue.city,
-              ].where((value) => value.isNotEmpty).join(' · ');
-              return ListTile(
-                leading: Icon(
-                  Icons.place_outlined,
-                  color: theme.colorScheme.onSurfaceVariant,
+            children: [
+              for (final venue in localResults) _venueTile(theme, venue),
+              if (externalResults.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.public_rounded,
+                        size: 16,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'From OpenStreetMap',
+                        key: const Key('external-venue-group'),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                title: Text(
-                  venue.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: meta.isEmpty ? null : Text(meta),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                onTap: () => _choose(venue),
-              );
-            },
+                for (final venue in externalResults)
+                  _venueTile(theme, venue, external: true),
+              ],
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _externalNotice(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+      child: Container(
+        key: const Key('external-unavailable'),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'OpenStreetMap suggestions are unavailable right now. Sodapop '
+                'venues still work.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _venueTile(ThemeData theme, Venue venue, {bool external = false}) {
+    final meta = [
+      if (venue.distanceM > 0) _distanceLabel(venue.distanceM),
+      sodaVenueKind(venue.kind),
+      venue.city,
+      if (external && venue.provider.isNotEmpty) venue.provider,
+    ].where((value) => value.isNotEmpty).join(' · ');
+    return ListTile(
+      leading: Icon(
+        external ? Icons.public_rounded : Icons.place_outlined,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+      title: Text(
+        venue.name,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: meta.isEmpty ? null : Text(meta),
+      trailing: external
+          ? Text(
+              'Suggestion',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onTap: () => _choose(venue),
     );
   }
 

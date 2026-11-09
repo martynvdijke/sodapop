@@ -118,7 +118,7 @@ var branches = map[string]string{
 		       '/venues/' || v.id AS href
 		FROM venues v
 		LEFT JOIN users u ON u.id = v.created_by
-		WHERE v.merged_into_id IS NULL`,
+		WHERE v.merged_into_id IS NULL AND v.hidden = 0`,
 	"report": `
 		SELECT 'report' AS kind, r.created_at AS created_at,
 		       'report:' || r.id AS id,

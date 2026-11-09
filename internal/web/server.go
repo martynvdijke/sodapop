@@ -20,6 +20,7 @@ import (
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/email"
+	"sodapop/internal/geocode"
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
@@ -75,6 +76,7 @@ type Server struct {
 	Settings     *settings.Service
 	ShareLinks   *sharelinks.Service
 	Pairings     *pairings.Client
+	Nearby       *geocode.Client
 }
 
 // Register wires HTML routes and the OIDC redirect endpoints.

@@ -59,19 +59,21 @@ class CheckinOutbox {
     var sent = 0;
     for (final row in rows) {
       final item = (jsonDecode(row) as Map).cast<String, dynamic>();
+      final atHome = item['at_home'] == true;
       try {
         await api.createCheckin(
           drinkId: (item['drink_id'] as num).toInt(),
           rating: (item['rating'] as num?)?.toInt(),
           note: '${item['note'] ?? ''}',
-          venueId: (item['venue_id'] as num?)?.toInt(),
+          venueId: atHome ? null : (item['venue_id'] as num?)?.toInt(),
           serving: item['serving'] as String?,
           prepMethod: '${item['prep_method'] ?? 'none'}',
           prepNote: '${item['prep_note'] ?? ''}',
           visibility: item['visibility'] as String?,
           idempotencyKey: '${item['idempotency_key']}',
-          lat: (item['lat'] as num?)?.toDouble(),
-          lng: (item['lng'] as num?)?.toDouble(),
+          lat: atHome ? null : (item['lat'] as num?)?.toDouble(),
+          lng: atHome ? null : (item['lng'] as num?)?.toDouble(),
+          atHome: atHome,
           friendIds: _friendIds(item['friend_ids']),
           photo: _decodePhoto(item['photo_base64']),
           photoFilename: item['photo_filename'] as String?,

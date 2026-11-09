@@ -1091,6 +1091,9 @@ var (
 		{Name: "country", Type: field.TypeString, Default: ""},
 		{Name: "lat", Type: field.TypeFloat64, Default: 0},
 		{Name: "lng", Type: field.TypeFloat64, Default: 0},
+		{Name: "hidden", Type: field.TypeBool, Default: false},
+		{Name: "external_provider", Type: field.TypeString, Nullable: true},
+		{Name: "external_id", Type: field.TypeString, Nullable: true},
 		{Name: "website", Type: field.TypeString, Nullable: true},
 		{Name: "created_by", Type: field.TypeString, Nullable: true},
 		{Name: "merged_into_id", Type: field.TypeInt, Nullable: true},
@@ -1102,6 +1105,18 @@ var (
 		Name:       "venues",
 		Columns:    VenuesColumns,
 		PrimaryKey: []*schema.Column{VenuesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "venue_hidden",
+				Unique:  false,
+				Columns: []*schema.Column{VenuesColumns[10]},
+			},
+			{
+				Name:    "venue_external_provider_external_id",
+				Unique:  true,
+				Columns: []*schema.Column{VenuesColumns[11], VenuesColumns[12]},
+			},
+		},
 	}
 	// VenueDrinksColumns holds the columns for the "venue_drinks" table.
 	VenueDrinksColumns = []*schema.Column{

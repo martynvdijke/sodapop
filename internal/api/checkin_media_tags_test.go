@@ -36,8 +36,11 @@ func TestCheckinMultipartPhotoTagsLocationAndIdempotentRetry(t *testing.T) {
 	if id == "" || photoID == "" {
 		t.Fatalf("missing id/photo: %s", first.Body.String())
 	}
-	if created["lat"] != 51.5 || created["lng"] != -0.12 {
-		t.Fatalf("coords = %v,%v", created["lat"], created["lng"])
+	if _, ok := created["lat"]; ok {
+		t.Fatalf("create response must not include lat: %v", created)
+	}
+	if _, ok := created["lng"]; ok {
+		t.Fatalf("create response must not include lng: %v", created)
 	}
 	if tags, _ := created["tagged_friends"].([]any); len(tags) != 1 {
 		t.Fatalf("tagged_friends = %v", created["tagged_friends"])
@@ -87,8 +90,11 @@ func TestCheckinMultipartPhotoTagsLocationAndIdempotentRetry(t *testing.T) {
 		t.Fatalf("detail: %d %s", rec.Code, rec.Body.String())
 	}
 	detail := dataMap(t, rec)
-	if detail["lat"] != 51.5 || detail["lng"] != -0.12 {
-		t.Fatalf("detail coords = %v,%v", detail["lat"], detail["lng"])
+	if _, ok := detail["lat"]; ok {
+		t.Fatalf("detail must not include lat: %v", detail)
+	}
+	if _, ok := detail["lng"]; ok {
+		t.Fatalf("detail must not include lng: %v", detail)
 	}
 	if tags, _ := detail["tagged_friends"].([]any); len(tags) != 1 {
 		t.Fatalf("detail tagged_friends = %v", detail["tagged_friends"])

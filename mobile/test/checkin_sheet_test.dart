@@ -41,6 +41,7 @@ class _Call {
     required this.photoMime,
     required this.lat,
     required this.lng,
+    required this.atHome,
     required this.friendIds,
   });
 
@@ -56,6 +57,7 @@ class _Call {
   final String? photoMime;
   final double? lat;
   final double? lng;
+  final bool atHome;
   final List<String> friendIds;
 }
 
@@ -81,11 +83,13 @@ class _FakeApi extends ApiClient {
   _FakeApi({
     this.venueResults = const [],
     this.friendResults = const [],
+    this.externalStatus = '',
     this.failure,
   });
 
   final List<Venue> venueResults;
   final List<FriendUser> friendResults;
+  final String externalStatus;
   final Object? failure;
   final calls = <_Call>[];
   final venueCalls = <_VenueCall>[];
@@ -94,6 +98,27 @@ class _FakeApi extends ApiClient {
   double? venueLat;
   double? venueLng;
   int? venueRadiusM;
+  String? venueSource;
+  bool? venueConsent;
+
+  @override
+  Future<VenueSearch> venueSearch(
+    String query, {
+    double? lat,
+    double? lng,
+    int? radiusM,
+    String source = 'local',
+    bool consent = false,
+  }) async {
+    venueQuery = query;
+    venueQueries.add(query);
+    venueLat = lat;
+    venueLng = lng;
+    venueRadiusM = radiusM;
+    venueSource = source;
+    venueConsent = consent;
+    return VenueSearch(venues: venueResults, externalStatus: externalStatus);
+  }
 
   @override
   Future<List<Venue>> venues(
@@ -101,12 +126,16 @@ class _FakeApi extends ApiClient {
     double? lat,
     double? lng,
     int? radiusM,
+    String source = 'local',
+    bool consent = false,
   }) async {
     venueQuery = query;
     venueQueries.add(query);
     venueLat = lat;
     venueLng = lng;
     venueRadiusM = radiusM;
+    venueSource = source;
+    venueConsent = consent;
     return venueResults;
   }
 
@@ -161,6 +190,7 @@ class _FakeApi extends ApiClient {
     String? photoMime,
     double? lat,
     double? lng,
+    bool atHome = false,
     List<String> friendIds = const [],
   }) async {
     calls.add(
@@ -177,6 +207,7 @@ class _FakeApi extends ApiClient {
         photoMime: photoMime,
         lat: lat,
         lng: lng,
+        atHome: atHome,
         friendIds: friendIds,
       ),
     );
@@ -199,6 +230,7 @@ Future<void> _openSheet(
   CheckinVideoPicker? pickVideo,
   Future<Position> Function()? locationProvider,
   Future<LocationPermission> Function()? permissionChecker,
+  Future<LocationPermission> Function()? permissionRequester,
   Future<bool> Function()? serviceChecker,
 }) async {
   await tester.pumpWidget(
@@ -220,6 +252,7 @@ Future<void> _openSheet(
                     pickVideo: pickVideo,
                     locationProvider: locationProvider,
                     permissionChecker: permissionChecker,
+                    permissionRequester: permissionRequester,
                     serviceChecker: serviceChecker,
                   ),
                 ),
@@ -257,6 +290,11 @@ Future<void> _tapVisible(WidgetTester tester, String label) async {
 }
 
 Future<void> _save(WidgetTester tester) => _tapVisible(tester, 'Save check-in');
+
+Future<void> _allowNearby(WidgetTester tester) async {
+  await _tapVisible(tester, 'Nearby');
+  await _tapVisible(tester, 'Allow');
+}
 
 Future<void> _chooseVenue(
   WidgetTester tester,
@@ -565,16 +603,17 @@ void main() {
       serviceChecker: () async => true,
     );
 
-    await _tapVisible(tester, 'Use my location');
+    await _allowNearby(tester);
     expect(find.byKey(const Key('checkin-location-chip')), findsOneWidget);
 
-    await _tapVisible(tester, 'Choose a venue');
     await tester.enterText(find.byKey(const Key('venue-query')), 'Corner');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
-    expect(api.venueLat, closeTo(51.50722, 0.00001));
-    expect(api.venueLng, closeTo(-0.1275, 0.00001));
+    expect(api.venueLat, closeTo(51.507, 0.001));
+    expect(api.venueLng, closeTo(-0.1275, 0.001));
     expect(api.venueRadiusM, 25000);
+    expect(api.venueSource, 'all');
+    expect(api.venueConsent, isTrue);
 
     await tester.tap(find.byKey(const Key('venue-create')));
     await tester.pumpAndSettle();
@@ -589,13 +628,14 @@ void main() {
 
     expect(api.venueCalls.single.name, 'Corner Shop');
     expect(api.venueCalls.single.city, 'Leeds');
-    expect(api.venueCalls.single.lat, closeTo(51.50722, 0.00001));
+    expect(api.venueCalls.single.lat, closeTo(51.507, 0.001));
     expect(find.byKey(const Key('venue-chip')), findsOneWidget);
 
     await _save(tester);
     expect(api.calls.single.venueId, 99);
-    expect(api.calls.single.lat, closeTo(51.50722, 0.00001));
-    expect(api.calls.single.lng, closeTo(-0.1275, 0.00001));
+    expect(api.calls.single.atHome, isFalse);
+    expect(api.calls.single.lat, closeTo(51.507, 0.001));
+    expect(api.calls.single.lng, closeTo(-0.1275, 0.001));
   });
 
   testWidgets('opens on venues near you and returns after clearing', (
@@ -621,13 +661,14 @@ void main() {
       serviceChecker: () async => true,
     );
 
-    await _tapVisible(tester, 'Use my location');
-    await _tapVisible(tester, 'Choose a venue');
+    await _allowNearby(tester);
 
     // Opening with a fix browses nearby venues before any typing.
     expect(api.venueQueries, ['']);
-    expect(api.venueLat, closeTo(51.50722, 0.00001));
+    expect(api.venueLat, closeTo(51.507, 0.001));
     expect(api.venueRadiusM, 25000);
+    expect(api.venueSource, 'all');
+    expect(api.venueConsent, isTrue);
     expect(find.text('Venues near you'), findsOneWidget);
     expect(find.text('Corner Shop'), findsOneWidget);
     expect(find.textContaining('180 m'), findsOneWidget);
@@ -658,8 +699,7 @@ void main() {
       serviceChecker: () async => true,
     );
 
-    await _tapVisible(tester, 'Use my location');
-    await _tapVisible(tester, 'Choose a venue');
+    await _allowNearby(tester);
 
     expect(find.text('No venues within 25 km'), findsOneWidget);
     expect(find.text('Create a venue'), findsOneWidget);
@@ -668,5 +708,122 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('venue-create-name')), findsOneWidget);
+  });
+
+  testWidgets('At home clears the venue and sends no venue id', (tester) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      venueResults: const [
+        Venue(id: 7, name: 'Corner Shop', kind: 'shop', city: 'Leeds'),
+      ],
+    );
+    await _openSheet(tester, api: api);
+
+    await _chooseVenue(tester, 'Corner', 'Corner Shop');
+    expect(find.byKey(const Key('venue-chip')), findsOneWidget);
+
+    await _tapVisible(tester, 'At home');
+
+    expect(find.byKey(const Key('checkin-at-home-chip')), findsOneWidget);
+    expect(find.byKey(const Key('venue-chip')), findsNothing);
+
+    await _save(tester);
+    expect(api.calls.single.atHome, isTrue);
+    expect(api.calls.single.venueId, isNull);
+    expect(api.calls.single.lat, isNull);
+    expect(api.calls.single.lng, isNull);
+  });
+
+  testWidgets('permission denied keeps the sheet usable', (tester) async {
+    _useTallScreen(tester);
+    final api = _FakeApi();
+    await _openSheet(
+      tester,
+      api: api,
+      permissionChecker: () async => LocationPermission.denied,
+      permissionRequester: () async => LocationPermission.denied,
+      serviceChecker: () async => true,
+    );
+
+    await _allowNearby(tester);
+
+    expect(
+      find.textContaining('Location permission was declined'),
+      findsOneWidget,
+    );
+    expect(find.text('At home'), findsOneWidget);
+    expect(find.text('Choose a venue'), findsOneWidget);
+
+    await _tapVisible(tester, 'At home');
+    await _save(tester);
+    expect(api.calls.single.atHome, isTrue);
+  });
+
+  testWidgets('Nearby keeps OpenStreetMap rows separate from venues', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      externalStatus: '',
+      venueResults: const [
+        Venue(id: 7, name: 'Corner Shop', kind: 'shop', city: 'Leeds'),
+        Venue(
+          name: 'Corner Café',
+          kind: 'cafe',
+          city: 'Leeds',
+          distanceM: 90,
+          source: 'external',
+          provider: 'photon',
+        ),
+      ],
+    );
+    await _openSheet(
+      tester,
+      api: api,
+      locationProvider: () async => _fix(),
+      permissionChecker: () async => LocationPermission.whileInUse,
+      serviceChecker: () async => true,
+    );
+
+    await _allowNearby(tester);
+
+    expect(find.byKey(const Key('external-venue-group')), findsOneWidget);
+    expect(find.text('From OpenStreetMap'), findsOneWidget);
+
+    await tester.tap(find.text('Corner Café'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('venue-chip')), findsOneWidget);
+    expect(find.textContaining('Corner Café · OSM'), findsOneWidget);
+
+    await _save(tester);
+    // No venue id: the external pick is carried as an at-place note.
+    expect(api.calls.single.venueId, isNull);
+    expect(api.calls.single.atHome, isFalse);
+    expect(api.calls.single.note, contains('At Corner Café'));
+  });
+
+  testWidgets('an unavailable external lookup shows an inline note', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      externalStatus: 'unavailable',
+      venueResults: const [
+        Venue(id: 7, name: 'Corner Shop', kind: 'shop', city: 'Leeds'),
+      ],
+    );
+    await _openSheet(
+      tester,
+      api: api,
+      locationProvider: () async => _fix(),
+      permissionChecker: () async => LocationPermission.whileInUse,
+      serviceChecker: () async => true,
+    );
+
+    await _allowNearby(tester);
+
+    expect(find.byKey(const Key('external-unavailable')), findsOneWidget);
+    expect(find.text('Corner Shop'), findsOneWidget);
   });
 }

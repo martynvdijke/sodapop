@@ -71,7 +71,11 @@ func newFixture(t *testing.T) (context.Context, *db.DB, *overview.Service, *ent.
 }
 
 func TestListReturnsAllSevenKindsNewestFirst(t *testing.T) {
-	ctx, _, svc, u, d, c, cm := newFixture(t)
+	ctx, database, svc, u, d, c, cm := newFixture(t)
+	v, err := database.Client.Venue.Query().Where(venue.Slug("corner-shop")).Only(ctx)
+	if err != nil {
+		t.Fatalf("venue lookup: %v", err)
+	}
 
 	items, next, err := svc.List(ctx, overview.Filter{})
 	if err != nil {
@@ -85,7 +89,7 @@ func TestListReturnsAllSevenKindsNewestFirst(t *testing.T) {
 		"comment:" + cm.ID,
 		"report:1",
 		"checkin:" + c.ID,
-		"venue:1",
+		"venue:" + fmt.Sprint(v.ID),
 		"drink:" + fmt.Sprint(d.ID),
 		"user:" + u.ID,
 	}

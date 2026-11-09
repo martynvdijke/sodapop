@@ -25,6 +25,7 @@ import (
 	"sodapop/internal/db"
 	"sodapop/internal/demo"
 	"sodapop/internal/email"
+	"sodapop/internal/geocode"
 	"sodapop/internal/integrations"
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
@@ -226,6 +227,7 @@ func run() error {
 		Limiter: limiter, Render: renderer, Setup: setupSvc, Settings: settingsSvc,
 		ShareLinks: sharelinks.New(database.SQL),
 		Pairings:   pairingSvc,
+		Nearby:     geocode.New(cfg.NearbyGeocoderEnabled, cfg.NearbyGeocoderURL, cfg.NearbyGeocoderUserAgent, cfg.NearbyGeocoderTimeout),
 	}
 	apiSrv := &api.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
@@ -235,6 +237,7 @@ func run() error {
 		Limiter: limiter, DB: database, Media: mediaSvc, AI: aiSvc,
 		Integrations: integrationSvc, Badges: badgeSvc,
 		Taste: tasteSvc, Mix: mixSvc, Account: accountSvc,
+		Nearby: geocode.New(cfg.NearbyGeocoderEnabled, cfg.NearbyGeocoderURL, cfg.NearbyGeocoderUserAgent, cfg.NearbyGeocoderTimeout),
 	}
 
 	mux := http.NewServeMux()

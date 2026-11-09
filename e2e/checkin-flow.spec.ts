@@ -169,11 +169,24 @@ test('the composer tags a friend, captures a photo and creates a venue from a lo
 
   await page.locator('select[name="rating"]').selectOption('4.50');
 
+  // Nearby is an explicit two-step flow: location first, provider lookup only
+  // after the separate button. The consent copy is part of the contract.
+  await page.getByRole('radio', { name: 'Nearby' }).check();
+  await expect(page.locator('[data-where-panel="nearby"]')).toBeVisible();
+  await expect(
+    page.getByText(/We'll send your approximate location.*Photon \(OpenStreetMap\).*Sodapop does not store it\./),
+  ).toBeVisible();
+
   // Attach the location from the click gesture.
   await page.getByRole('button', { name: 'Use my location' }).click();
   await expect(page.locator('[data-location-status]')).toContainText('Location attached');
   await expect(page.locator('input[name="lat"]')).toHaveValue(LAT.toFixed(3));
   await expect(page.locator('input[name="lng"]')).toHaveValue(LNG.toFixed(3));
+  await expect(page.getByRole('button', { name: 'Show nearby places' })).toBeVisible();
+
+  // Return to Search to create a venue from the same location fix.
+  await page.getByRole('radio', { name: 'Search' }).check();
+  await expect(page.locator('[data-where-panel="search"]')).toBeVisible();
 
   // Search for a venue that does not exist yet, then create it inline.
   await page.locator('#venue-q').fill(venueName);
@@ -213,28 +226,105 @@ test('the composer tags a friend, captures a photo and creates a venue from a lo
   // no venue, so that branch lives in the location-only test below.
 });
 
-test('a location-only check-in links to the map without dumping coordinates', async ({ page }) => {
+test('location-only and at-home check-ins expose no coordinates', async ({ page, request }) => {
   await registerAndVerify(page);
-  const note = unique('E2E map-only pour');
+  const token = await createToken(page);
+  const headers = { Authorization: `Bearer ${token}` };
+  const requestFn = request;
 
+  async function assertNoCoordsInPayload(id: string, label: string) {
+    const res = await requestFn.get(`/api/v1/checkins/${id}`, { headers });
+    expect(res.status(), label).toBe(200);
+    const payload = await res.json();
+    expect(payload.data, `${label} payload`).not.toHaveProperty('lat');
+    expect(payload.data, `${label} payload`).not.toHaveProperty('lng');
+    return payload.data as Record<string, unknown>;
+  }
+
+  // 1. A location-only pour is accepted, but the DOM and API never show the fix.
+  const locationNote = unique('E2E map-only pour');
   await page.goto('/checkins/new?slug=coca-cola-355');
+  await page.getByRole('radio', { name: 'Nearby' }).check();
   await page.getByRole('button', { name: 'Use my location' }).click();
   await expect(page.locator('[data-location-status]')).toContainText('Location attached');
-  await page.locator('textarea[name="note"]').fill(note);
+  await page.getByRole('radio', { name: 'Search' }).check();
+  await page.locator('textarea[name="note"]').fill(locationNote);
   await page.getByRole('button', { name: 'Save check-in' }).click();
   await expect(page).toHaveURL(/\/$/);
 
-  const card = page.locator('.checkin').filter({ hasText: note }).first();
-  await expect(card).toBeVisible();
-  const mapLink = card.locator('a[href*="openstreetmap.org"]');
-  await expect(mapLink).toBeVisible();
-  await expect(mapLink).toHaveAccessibleName(/OpenStreetMap/i);
+  const locationCard = page.locator('.checkin').filter({ hasText: locationNote }).first();
+  await expect(locationCard).toBeVisible();
+  await expect(locationCard.locator('a[href*="openstreetmap.org"]')).toHaveCount(0);
+  await expect(page.getByText(LAT.toFixed(3), { exact: false })).toHaveCount(0);
+  await expect(page.getByText(LNG.toFixed(3), { exact: false })).toHaveCount(0);
 
-  const checkinID = await card.getAttribute('data-checkin-id');
-  expect(checkinID).toBeTruthy();
-  await page.goto(`/checkins/${checkinID}`);
-  const detailMapLink = page.locator('a[href*="openstreetmap.org"]');
-  await expect(detailMapLink).toBeVisible();
+  const locationID = await locationCard.getAttribute('data-checkin-id');
+  expect(locationID).toBeTruthy();
+  const locationData = await assertNoCoordsInPayload(locationID!, 'location-only');
+  expect(locationData.at_home).toBe(false);
+
+  await page.goto(`/checkins/${locationID}`);
+  await expect(page.locator('a[href*="openstreetmap.org"]')).toHaveCount(0);
+  await expect(page.getByText(LAT.toFixed(3), { exact: false })).toHaveCount(0);
+  await expect(page.getByText(LNG.toFixed(3), { exact: false })).toHaveCount(0);
+
+  // 2. At home renders the shared @home pill and stores no coordinate.
+  const homeNote = unique('E2E at-home pour');
+  await page.goto('/checkins/new?slug=coca-cola-355');
+  await page.getByRole('radio', { name: 'At home' }).check();
+  await expect(page.locator('[data-where-panel="home"]')).toBeVisible();
+  await expect(page.locator('input[name="at_home"]')).toHaveValue('1');
+  await page.locator('textarea[name="note"]').fill(homeNote);
+  await page.getByRole('button', { name: 'Save check-in' }).click();
+  await expect(page).toHaveURL(/\/$/);
+
+  const homeCard = page.locator('.checkin').filter({ hasText: homeNote }).first();
+  await expect(homeCard).toBeVisible();
+  await expect(homeCard.locator('.chip-at-home')).toHaveText('@home');
+  await expect(homeCard.locator('a[href*="openstreetmap.org"]')).toHaveCount(0);
+
+  const homeID = await homeCard.getAttribute('data-checkin-id');
+  expect(homeID).toBeTruthy();
+  const homeData = await assertNoCoordsInPayload(homeID!, 'at-home');
+  expect(homeData.at_home).toBe(true);
+
+  await page.goto(`/checkins/${homeID}`);
+  await expect(page.getByText('@home').first()).toBeVisible();
+  await expect(page.locator('a[href*="openstreetmap.org"]')).toHaveCount(0);
+
+  // 3. A venue-attached pour shows the venue name, never a coordinate link.
+  const search = await requestFn.get('/api/v1/search?q=cola', { headers });
+  expect(search.status()).toBe(200);
+  const drink = ((await search.json()).data as Array<{ id: number }>)[0];
+  const venueName = unique('E2E Located Venue');
+  // Offset the venue fixture so a prior spec's same-coordinate venue cannot
+  // dedupe it (Create merges venues within 150 m).
+  const venueLat = LAT + 0.02;
+  const venueLng = LNG + 0.02;
+  const venueRes = await requestFn.post('/api/v1/venues', {
+    headers,
+    data: { name: venueName, kind: 'shop', city: 'Testville', country: 'NL', lat: venueLat, lng: venueLng },
+  });
+  expect([200, 201]).toContain(venueRes.status());
+  const venue = (await venueRes.json()).data as { id: number };
+  const venueCheckinRes = await requestFn.post('/api/v1/checkins', {
+    headers,
+    data: {
+      drink_id: drink.id,
+      venue_id: venue.id,
+      lat: LAT,
+      lng: LNG,
+      visibility: 'public',
+      note: unique('E2E venue pour'),
+    },
+  });
+  expect([200, 201]).toContain(venueCheckinRes.status());
+  const venueCheckin = (await venueCheckinRes.json()).data as { id: string };
+  await assertNoCoordsInPayload(venueCheckin.id, 'venue-attached');
+
+  await page.goto(`/checkins/${venueCheckin.id}`);
+  await expect(page.getByRole('link', { name: venueName })).toBeVisible();
+  await expect(page.locator('a[href*="openstreetmap.org"]')).toHaveCount(0);
   await expect(page.getByText(LAT.toFixed(3), { exact: false })).toHaveCount(0);
   await expect(page.getByText(LNG.toFixed(3), { exact: false })).toHaveCount(0);
 });

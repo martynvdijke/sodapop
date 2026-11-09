@@ -48,6 +48,13 @@ type Config struct {
 	OFFUserAgent string
 	OFFEnabled   bool
 
+	// NearbyGeocoder is the server-proxied Photon lookup used for the "nearby
+	// places" suggestions. It is never called from the browser.
+	NearbyGeocoderEnabled   bool
+	NearbyGeocoderURL       string
+	NearbyGeocoderTimeout   time.Duration
+	NearbyGeocoderUserAgent string
+
 	// SandwitchesBaseURL is the sibling Sandwitches app. Empty disables the
 	// sandwich-pairing block on drink pages entirely.
 	SandwitchesBaseURL string
@@ -81,35 +88,39 @@ type Config struct {
 // Load reads configuration from the environment, applying safe local defaults.
 func Load() (*Config, error) {
 	c := &Config{
-		AppName:            env("APP_NAME", "Sodapop"),
-		Env:                env("ENV", "development"),
-		Port:               env("PORT", "8097"),
-		BaseURL:            strings.TrimRight(env("BASE_URL", "http://localhost:8097"), "/"),
-		DataDir:            env("DATA_DIR", "data"),
-		DBPath:             env("DATABASE_PATH", "data/sodapop.db"),
-		Version:            env("VERSION", "0.0.0-dev"),
-		LogLevel:           env("LOG_LEVEL", "info"),
-		BcryptCost:         envInt("BCRYPT_COST", 12),
-		OIDCEnabled:        envBool("OIDC_ENABLED", false),
-		OIDCIssuer:         strings.TrimRight(env("OIDC_ISSUER_URL", ""), "/"),
-		OIDCClientID:       env("OIDC_CLIENT_ID", ""),
-		OIDCRedirectURL:    env("OIDC_REDIRECT_URL", env("BASE_URL", "http://localhost:8097")+"/auth/oidc/callback"),
-		PasswordFallback:   envBool("ALLOW_PASSWORD_FALLBACK", !envBool("OIDC_ENABLED", false)),
-		SMTPHost:           env("SMTP_HOST", ""),
-		SMTPPort:           envInt("SMTP_PORT", 587),
-		SMTPUser:           env("SMTP_USER", ""),
-		SMTPTLS:            env("SMTP_TLS", "starttls"),
-		SMTPFrom:           env("SMTP_FROM", "Sodapop <no-reply@sodapop.local>"),
-		EmailDevDir:        env("EMAIL_DEV_DIR", ""),
-		OFFBaseURL:         strings.TrimRight(env("OPENFOODFACTS_URL", "https://world.openfoodfacts.org"), "/"),
-		OFFUserAgent:       env("OPENFOODFACTS_USER_AGENT", "Sodapop/"+env("VERSION", "0.0.0-dev")+" (admin@sodapop.local)"),
-		OFFEnabled:         envBool("OPENFOODFACTS_ENABLED", true),
-		SandwitchesBaseURL: strings.TrimRight(env("SANDWITCHES_BASE_URL", ""), "/"),
-		UmamiURL:           strings.TrimRight(env("UMAMI_URL", ""), "/"),
-		UmamiWebsiteID:     env("UMAMI_WEBSITE_ID", ""),
-		FCMProjectID:       strings.TrimSpace(env("FCM_PROJECT_ID", "")),
-		RateLimitPerMin:    envInt("API_RATE_LIMIT_PER_MIN", 120),
-		TrustedProxies:     splitCSV(env("TRUSTED_PROXIES", "")),
+		AppName:                 env("APP_NAME", "Sodapop"),
+		Env:                     env("ENV", "development"),
+		Port:                    env("PORT", "8097"),
+		BaseURL:                 strings.TrimRight(env("BASE_URL", "http://localhost:8097"), "/"),
+		DataDir:                 env("DATA_DIR", "data"),
+		DBPath:                  env("DATABASE_PATH", "data/sodapop.db"),
+		Version:                 env("VERSION", "0.0.0-dev"),
+		LogLevel:                env("LOG_LEVEL", "info"),
+		BcryptCost:              envInt("BCRYPT_COST", 12),
+		OIDCEnabled:             envBool("OIDC_ENABLED", false),
+		OIDCIssuer:              strings.TrimRight(env("OIDC_ISSUER_URL", ""), "/"),
+		OIDCClientID:            env("OIDC_CLIENT_ID", ""),
+		OIDCRedirectURL:         env("OIDC_REDIRECT_URL", env("BASE_URL", "http://localhost:8097")+"/auth/oidc/callback"),
+		PasswordFallback:        envBool("ALLOW_PASSWORD_FALLBACK", !envBool("OIDC_ENABLED", false)),
+		SMTPHost:                env("SMTP_HOST", ""),
+		SMTPPort:                envInt("SMTP_PORT", 587),
+		SMTPUser:                env("SMTP_USER", ""),
+		SMTPTLS:                 env("SMTP_TLS", "starttls"),
+		SMTPFrom:                env("SMTP_FROM", "Sodapop <no-reply@sodapop.local>"),
+		EmailDevDir:             env("EMAIL_DEV_DIR", ""),
+		OFFBaseURL:              strings.TrimRight(env("OPENFOODFACTS_URL", "https://world.openfoodfacts.org"), "/"),
+		OFFUserAgent:            env("OPENFOODFACTS_USER_AGENT", "Sodapop/"+env("VERSION", "0.0.0-dev")+" (admin@sodapop.local)"),
+		OFFEnabled:              envBool("OPENFOODFACTS_ENABLED", true),
+		NearbyGeocoderEnabled:   envBool("NEARBY_GEOCODER_ENABLED", true),
+		NearbyGeocoderURL:       strings.TrimRight(env("NEARBY_GEOCODER_URL", "https://photon.komoot.io"), "/"),
+		NearbyGeocoderTimeout:   envDuration("NEARBY_GEOCODER_TIMEOUT", 2500*time.Millisecond),
+		NearbyGeocoderUserAgent: env("NEARBY_GEOCODER_USER_AGENT", "Sodapop/"+env("VERSION", "0.0.0-dev")+" (+"+env("BASE_URL", "http://localhost:8097")+")"),
+		SandwitchesBaseURL:      strings.TrimRight(env("SANDWITCHES_BASE_URL", ""), "/"),
+		UmamiURL:                strings.TrimRight(env("UMAMI_URL", ""), "/"),
+		UmamiWebsiteID:          env("UMAMI_WEBSITE_ID", ""),
+		FCMProjectID:            strings.TrimSpace(env("FCM_PROJECT_ID", "")),
+		RateLimitPerMin:         envInt("API_RATE_LIMIT_PER_MIN", 120),
+		TrustedProxies:          splitCSV(env("TRUSTED_PROXIES", "")),
 
 		LegalControllerName: strings.TrimSpace(env("LEGAL_CONTROLLER_NAME", "")),
 		LegalContactEmail:   strings.TrimSpace(env("LEGAL_CONTACT_EMAIL", "")),

@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // Venue is a place where soda is bought or drunk, including hotels and vending
@@ -24,11 +25,21 @@ func (Venue) Fields() []ent.Field {
 		field.String("country").Default(""),
 		field.Float("lat").Default(0),
 		field.Float("lng").Default(0),
+		field.Bool("hidden").Default(false),
+		field.String("external_provider").Optional().Nillable(),
+		field.String("external_id").Optional().Nillable(),
 		field.String("website").Optional().Nillable(),
 		field.String("created_by").Optional().Nillable(),
 		field.Int("merged_into_id").Optional().Nillable(),
 		field.String("created_at").DefaultFunc(now),
 		field.String("updated_at").DefaultFunc(now),
+	}
+}
+
+func (Venue) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("hidden"),
+		index.Fields("external_provider", "external_id").Unique(),
 	}
 }
 

@@ -3,6 +3,9 @@
 <article class="narrow" data-venue-id="{{$v.ID}}">
   <p class="eyebrow">{{container $v.Kind}}{{if $v.City}} · {{$v.City}}{{end}}</p>
   <h1>{{$v.Name}}</h1>
+  {{if $v.AtHome}}
+    <p class="banner">A shared marker, not a place.</p>
+  {{else}}
   {{if $v.Address}}<p class="muted">{{$v.Address}}{{if $v.Country}} · {{$v.Country}}{{end}}</p>{{end}}
   <div class="actions">
     <form method="post" action="/venues/{{$v.ID}}/save" class="inline">
@@ -11,6 +14,7 @@
     </form>
     {{if $v.Website}}<a class="btn" href="{{$v.Website}}" rel="nofollow noopener" target="_blank">Website</a>{{end}}
   </div>
+  {{end}}
   <h2>Seen here</h2>
   {{range .Drinks}}
     <a class="card row" href="/drinks/{{.Slug}}">
@@ -18,6 +22,7 @@
     </a>
   {{else}}<div class="empty"><p>No sodas logged here yet. Be the first.</p></div>{{end}}
 
+  {{if not $v.AtHome}}
   <section id="photos" class="venue-media" aria-labelledby="photos-heading">
     <h2 id="photos-heading">Photos and menus</h2>
     <p class="venue-media-intro">Photos of the place and its soda menu, added by people who have been here.</p>
@@ -93,5 +98,6 @@
       </form>
     {{end}}
   </section>
+  {{end}}
 </article>
 {{end}}

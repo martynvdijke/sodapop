@@ -52,12 +52,36 @@ function initCheckin(): void {
   const venueStatus = form.querySelector<HTMLElement>('[data-venue-status]')
   const venueForm = document.querySelector<HTMLFormElement>('[data-venue-search]')
 
+  const atHomeField = form.querySelector<HTMLInputElement>('[data-at-home]')
+  const modeRadios = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="where_mode"]'))
+  const panels = Array.from(form.querySelectorAll<HTMLElement>('[data-where-panel]'))
+  const nearbyShow = form.querySelector<HTMLButtonElement>('[data-nearby-show]')
+  const nearbyExternal = form.querySelector<HTMLElement>('[data-nearby-external]')
+  const nearbyResults = form.querySelector<HTMLUListElement>('[data-nearby-results]')
+  const nearbyStatus = form.querySelector<HTMLElement>('[data-nearby-status]')
+  const externalSelected = form.querySelector<HTMLElement>('[data-external-selected]')
+  const externalFields = {
+    provider: form.querySelector<HTMLInputElement>('[data-external-provider]'),
+    id: form.querySelector<HTMLInputElement>('[data-external-id]'),
+    kind: form.querySelector<HTMLInputElement>('[data-external-kind]'),
+    city: form.querySelector<HTMLInputElement>('[data-external-city]'),
+    country: form.querySelector<HTMLInputElement>('[data-external-country]'),
+  }
+  const newName = form.querySelector<HTMLInputElement>('[data-new-venue-name]')
+  const newCity = form.querySelector<HTMLInputElement>('[data-new-venue-city]')
+  const newCountry = form.querySelector<HTMLInputElement>('[data-new-venue-country]')
+
   let venueRequest = 0
   let searchTimer: number | undefined
+  let externalRequest = 0
+
+  function currentMode(): string {
+    return modeRadios.find((radio) => radio.checked)?.value ?? 'search'
+  }
 
   function setLocationStatus(message: string, ready: boolean): void {
     if (locationStatus) locationStatus.textContent = message
-    locationStatus?.closest('[data-location]')?.classList.toggle('is-ready', ready)
+    locationStatus?.closest('[data-where-panel]')?.classList.toggle('is-ready', ready)
   }
 
   function hasCoordinates(): boolean {
@@ -66,6 +90,7 @@ function initCheckin(): void {
 
   function syncClearButton(): void {
     if (clearButton) clearButton.hidden = !hasCoordinates()
+    if (nearbyShow) nearbyShow.hidden = !hasCoordinates()
   }
 
   function setCoordinates(latitude: number, longitude: number): void {
@@ -73,6 +98,28 @@ function initCheckin(): void {
     if (latField) latField.value = latitude.toFixed(3)
     if (lngField) lngField.value = longitude.toFixed(3)
     syncClearButton()
+  }
+
+  function clearExternal(): void {
+    for (const field of Object.values(externalFields)) if (field) field.value = ''
+    if (externalSelected) {
+      externalSelected.hidden = true
+      externalSelected.textContent = ''
+    }
+    if (nearbyExternal) nearbyExternal.hidden = true
+    if (nearbyResults) nearbyResults.replaceChildren()
+    if (nearbyStatus) nearbyStatus.textContent = ''
+  }
+
+  function setMode(mode: string): void {
+    for (const panel of panels) panel.hidden = panel.dataset.wherePanel !== mode
+    if (atHomeField) atHomeField.value = mode === 'home' ? '1' : ''
+    if (mode === 'home') {
+      if (venueSelect) venueSelect.value = ''
+      clearExternal()
+      if (newName) newName.value = ''
+    }
+    if (mode !== 'nearby') clearExternal()
   }
 
   function renderVenues(venues: VenueOption[]): void {
@@ -151,6 +198,88 @@ function initCheckin(): void {
     }
   }
 
+  type ExternalPlace = {
+    provider: string
+    provider_id: string
+    name: string
+    kind?: string
+    city?: string
+    country?: string
+    distance?: string
+    lat: number
+    lng: number
+  }
+
+  function renderExternal(places: ExternalPlace[]): void {
+    if (!nearbyResults) return
+    nearbyResults.replaceChildren()
+    if (places.length === 0) {
+      if (nearbyStatus) nearbyStatus.textContent = 'No nearby places found. You can still add one manually.'
+      return
+    }
+    for (const place of places) {
+      const item = document.createElement('li')
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'nearby-place'
+      button.textContent = [place.name, place.city, place.distance].filter(Boolean).join(' · ')
+      button.addEventListener('click', () => {
+        if (externalFields.provider) externalFields.provider.value = place.provider
+        if (externalFields.id) externalFields.id.value = place.provider_id
+        if (externalFields.kind) externalFields.kind.value = place.kind ?? ''
+        if (externalFields.city) externalFields.city.value = place.city ?? ''
+        if (externalFields.country) externalFields.country.value = place.country ?? ''
+        if (newName) newName.value = place.name
+        if (newCity) newCity.value = place.city ?? ''
+        if (newCountry) newCountry.value = place.country ?? ''
+        if (latField) latField.value = place.lat.toFixed(3)
+        if (lngField) lngField.value = place.lng.toFixed(3)
+        if (venueSelect) venueSelect.value = ''
+        if (externalSelected) {
+          externalSelected.hidden = false
+          externalSelected.textContent = `Selected: ${place.name} (from OpenStreetMap). It will be added when you save.`
+        }
+        syncClearButton()
+      })
+      item.append(button)
+      nearbyResults.append(item)
+    }
+  }
+
+  async function showNearby(): Promise<void> {
+    if (!hasCoordinates() || !latField || !lngField) {
+      if (nearbyStatus) nearbyStatus.textContent = 'Use my location first.'
+      return
+    }
+    const request = ++externalRequest
+    if (nearbyStatus) nearbyStatus.textContent = 'Looking for places…'
+    try {
+      const params = new URLSearchParams({ source: 'external', consent: '1', lat: latField.value, lng: lngField.value })
+      const response = await fetch(`/checkins/venues?${params.toString()}`, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      })
+      if (!response.ok || request !== externalRequest) {
+        if (nearbyStatus) nearbyStatus.textContent = 'Nearby places are unavailable right now.'
+        return
+      }
+      const body = (await response.json()) as { external?: ExternalPlace[]; external_status?: string }
+      if (request !== externalRequest) return
+      if (nearbyExternal) nearbyExternal.hidden = false
+      if (body.external_status && body.external_status !== 'ok') {
+        if (nearbyStatus) {
+          nearbyStatus.textContent =
+            body.external_status === 'rate_limited'
+              ? 'Too many nearby lookups. Try again in a minute.'
+              : 'Nearby places are unavailable right now. You can still search or add a venue.'
+        }
+      }
+      renderExternal(body.external ?? [])
+    } catch {
+      if (nearbyStatus) nearbyStatus.textContent = 'Nearby places are unavailable right now.'
+    }
+  }
+
   function locate(): void {
     if (!navigator.geolocation) {
       setLocationStatus(LOCATION_UNSUPPORTED, false)
@@ -165,7 +294,11 @@ function initCheckin(): void {
           setCoordinates(position.coords.latitude, position.coords.longitude)
           setLocationStatus(LOCATION_READY, true)
           if (locateButton) locateButton.disabled = false
-          void loadVenues()
+          if (currentMode() === 'nearby') {
+            if (nearbyShow) nearbyShow.hidden = false
+          } else {
+            void loadVenues()
+          }
         },
         (error) => {
           if (locateButton) locateButton.disabled = false
@@ -186,8 +319,18 @@ function initCheckin(): void {
     if (lngField) lngField.value = ''
     syncClearButton()
     setLocationStatus(LOCATION_CLEARED, false)
-    void loadVenues()
+    clearExternal()
+    if (currentMode() !== 'nearby') void loadVenues()
   })
+
+  nearbyShow?.addEventListener('click', () => void showNearby())
+
+  for (const radio of modeRadios) {
+    radio.addEventListener('change', () => {
+      setMode(currentMode())
+      if (currentMode() === 'search' && hasCoordinates()) void loadVenues()
+    })
+  }
 
   venueForm?.addEventListener('submit', (event) => {
     event.preventDefault()
@@ -201,6 +344,7 @@ function initCheckin(): void {
 
   initPhoto(form)
   syncClearButton()
+  setMode(currentMode())
 }
 
 function initFriends(form: HTMLFormElement): void {

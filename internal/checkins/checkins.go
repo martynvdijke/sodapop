@@ -18,6 +18,7 @@ import (
 	"sodapop/internal/db"
 	"sodapop/internal/social"
 	"sodapop/internal/streak"
+	"sodapop/internal/venues"
 )
 
 var (
@@ -29,6 +30,9 @@ var (
 	ErrInvalidCoords  = errors.New("lat and lng must be provided together and in range")
 	ErrInvalidFriend  = errors.New("tagged user is not an accepted friend")
 	ErrTooManyFriends = errors.New("too many tagged friends")
+	// ErrAtHomeConflict is returned when a request asks for both the shared
+	// @home marker and an explicit venue.
+	ErrAtHomeConflict = errors.New("choose either at home or a venue")
 )
 
 // maxTaggedFriends caps friend tags per check-in so one row cannot fan out an
@@ -68,6 +72,10 @@ type CreateInput struct {
 	Lat            *float64
 	Lng            *float64
 	FriendIDs      []string
+	// AtHome marks a check-in at the shared hidden @home venue. It is mutually
+	// exclusive with VenueID; coordinates are withheld so a home fix is never
+	// stored.
+	AtHome bool
 }
 
 // Create logs a check-in. The bool reports whether a new row was created; a
@@ -81,6 +89,18 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	}
 	if len(in.Note) > maxNoteLength {
 		return nil, false, errors.New("note is too long")
+	}
+	if in.AtHome && in.VenueID != nil {
+		return nil, false, ErrAtHomeConflict
+	}
+	if in.AtHome {
+		homeID, err := (&venues.Service{Client: s.Client, SQL: s.SQL}).EnsureHome(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		in.VenueID = &homeID
+		// Never persist a coordinate on an @home row.
+		in.Lat, in.Lng = nil, nil
 	}
 	if err := validateCoords(in.Lat, in.Lng); err != nil {
 		return nil, false, err
@@ -267,6 +287,7 @@ type Item struct {
 	Note       string `json:"note,omitempty"`
 	VenueID    *int   `json:"venue_id,omitempty"`
 	VenueName  string `json:"venue_name,omitempty"`
+	AtHome     bool   `json:"at_home,omitempty"`
 	Visibility string `json:"visibility"`
 	CreatedAt  string `json:"created_at"`
 	PhotoID    string `json:"photo_id,omitempty"`
@@ -285,7 +306,7 @@ func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, li
 	q := `
 		SELECT c.id, c.user_id, c.drink_id, d.name, d.slug, COALESCE(b.name,''),
 		       c.rating, c.serving, COALESCE(c.prep_method,''), COALESCE(c.prep_note,''),
-		       c.note, c.venue_id, COALESCE(v.name,''),
+		       c.note, c.venue_id, COALESCE(v.name,''), COALESCE(v.hidden,0),
 		       c.visibility, c.created_at, COALESCE(m.id,''), COALESCE(m.mime,'')
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
@@ -315,7 +336,7 @@ func (s *Service) ListForUser(ctx context.Context, viewerID, targetID string, li
 		var rating, venueID sql.NullInt64
 		var note, photoMime string
 		if err := rows.Scan(&it.ID, &it.UserID, &it.DrinkID, &it.DrinkName, &it.DrinkSlug, &it.Brand,
-			&rating, &it.Serving, &it.PrepMethod, &it.PrepNote, &note, &venueID, &it.VenueName,
+			&rating, &it.Serving, &it.PrepMethod, &it.PrepNote, &note, &venueID, &it.VenueName, &it.AtHome,
 			&it.Visibility, &it.CreatedAt, &it.PhotoID, &photoMime); err != nil {
 			return nil, err
 		}

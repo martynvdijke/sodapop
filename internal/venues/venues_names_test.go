@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"sodapop/ent"
+	"sodapop/ent/venue"
 	"sodapop/internal/catalog"
 	"sodapop/internal/db"
 )
@@ -54,7 +55,7 @@ func (h *venueHarness) create(t *testing.T, name, city string, lat, lng float64)
 
 func (h *venueHarness) venueCount(t *testing.T) int {
 	t.Helper()
-	n, err := h.db.Client.Venue.Query().Count(h.ctx)
+	n, err := h.db.Client.Venue.Query().Where(venue.Hidden(false)).Count(h.ctx)
 	if err != nil {
 		t.Fatalf("count venues: %v", err)
 	}

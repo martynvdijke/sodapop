@@ -33570,6 +33570,9 @@ type VenueMutation struct {
 	addlat            *float64
 	lng               *float64
 	addlng            *float64
+	hidden            *bool
+	external_provider *string
+	external_id       *string
 	website           *string
 	created_by        *string
 	merged_into_id    *int
@@ -34059,6 +34062,140 @@ func (m *VenueMutation) ResetLng() {
 	m.addlng = nil
 }
 
+// SetHidden sets the "hidden" field.
+func (m *VenueMutation) SetHidden(b bool) {
+	m.hidden = &b
+}
+
+// Hidden returns the value of the "hidden" field in the mutation.
+func (m *VenueMutation) Hidden() (r bool, exists bool) {
+	v := m.hidden
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHidden returns the old "hidden" field's value of the Venue entity.
+// If the Venue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VenueMutation) OldHidden(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHidden is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHidden requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHidden: %w", err)
+	}
+	return oldValue.Hidden, nil
+}
+
+// ResetHidden resets all changes to the "hidden" field.
+func (m *VenueMutation) ResetHidden() {
+	m.hidden = nil
+}
+
+// SetExternalProvider sets the "external_provider" field.
+func (m *VenueMutation) SetExternalProvider(s string) {
+	m.external_provider = &s
+}
+
+// ExternalProvider returns the value of the "external_provider" field in the mutation.
+func (m *VenueMutation) ExternalProvider() (r string, exists bool) {
+	v := m.external_provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalProvider returns the old "external_provider" field's value of the Venue entity.
+// If the Venue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VenueMutation) OldExternalProvider(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalProvider: %w", err)
+	}
+	return oldValue.ExternalProvider, nil
+}
+
+// ClearExternalProvider clears the value of the "external_provider" field.
+func (m *VenueMutation) ClearExternalProvider() {
+	m.external_provider = nil
+	m.clearedFields[venue.FieldExternalProvider] = struct{}{}
+}
+
+// ExternalProviderCleared returns if the "external_provider" field was cleared in this mutation.
+func (m *VenueMutation) ExternalProviderCleared() bool {
+	_, ok := m.clearedFields[venue.FieldExternalProvider]
+	return ok
+}
+
+// ResetExternalProvider resets all changes to the "external_provider" field.
+func (m *VenueMutation) ResetExternalProvider() {
+	m.external_provider = nil
+	delete(m.clearedFields, venue.FieldExternalProvider)
+}
+
+// SetExternalID sets the "external_id" field.
+func (m *VenueMutation) SetExternalID(s string) {
+	m.external_id = &s
+}
+
+// ExternalID returns the value of the "external_id" field in the mutation.
+func (m *VenueMutation) ExternalID() (r string, exists bool) {
+	v := m.external_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalID returns the old "external_id" field's value of the Venue entity.
+// If the Venue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VenueMutation) OldExternalID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalID: %w", err)
+	}
+	return oldValue.ExternalID, nil
+}
+
+// ClearExternalID clears the value of the "external_id" field.
+func (m *VenueMutation) ClearExternalID() {
+	m.external_id = nil
+	m.clearedFields[venue.FieldExternalID] = struct{}{}
+}
+
+// ExternalIDCleared returns if the "external_id" field was cleared in this mutation.
+func (m *VenueMutation) ExternalIDCleared() bool {
+	_, ok := m.clearedFields[venue.FieldExternalID]
+	return ok
+}
+
+// ResetExternalID resets all changes to the "external_id" field.
+func (m *VenueMutation) ResetExternalID() {
+	m.external_id = nil
+	delete(m.clearedFields, venue.FieldExternalID)
+}
+
 // SetWebsite sets the "website" field.
 func (m *VenueMutation) SetWebsite(s string) {
 	m.website = &s
@@ -34495,7 +34632,7 @@ func (m *VenueMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *VenueMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 17)
 	if m.name != nil {
 		fields = append(fields, venue.FieldName)
 	}
@@ -34522,6 +34659,15 @@ func (m *VenueMutation) Fields() []string {
 	}
 	if m.lng != nil {
 		fields = append(fields, venue.FieldLng)
+	}
+	if m.hidden != nil {
+		fields = append(fields, venue.FieldHidden)
+	}
+	if m.external_provider != nil {
+		fields = append(fields, venue.FieldExternalProvider)
+	}
+	if m.external_id != nil {
+		fields = append(fields, venue.FieldExternalID)
 	}
 	if m.website != nil {
 		fields = append(fields, venue.FieldWebsite)
@@ -34564,6 +34710,12 @@ func (m *VenueMutation) Field(name string) (ent.Value, bool) {
 		return m.Lat()
 	case venue.FieldLng:
 		return m.Lng()
+	case venue.FieldHidden:
+		return m.Hidden()
+	case venue.FieldExternalProvider:
+		return m.ExternalProvider()
+	case venue.FieldExternalID:
+		return m.ExternalID()
 	case venue.FieldWebsite:
 		return m.Website()
 	case venue.FieldCreatedBy:
@@ -34601,6 +34753,12 @@ func (m *VenueMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldLat(ctx)
 	case venue.FieldLng:
 		return m.OldLng(ctx)
+	case venue.FieldHidden:
+		return m.OldHidden(ctx)
+	case venue.FieldExternalProvider:
+		return m.OldExternalProvider(ctx)
+	case venue.FieldExternalID:
+		return m.OldExternalID(ctx)
 	case venue.FieldWebsite:
 		return m.OldWebsite(ctx)
 	case venue.FieldCreatedBy:
@@ -34682,6 +34840,27 @@ func (m *VenueMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLng(v)
+		return nil
+	case venue.FieldHidden:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHidden(v)
+		return nil
+	case venue.FieldExternalProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalProvider(v)
+		return nil
+	case venue.FieldExternalID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalID(v)
 		return nil
 	case venue.FieldWebsite:
 		v, ok := value.(string)
@@ -34787,6 +34966,12 @@ func (m *VenueMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *VenueMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(venue.FieldExternalProvider) {
+		fields = append(fields, venue.FieldExternalProvider)
+	}
+	if m.FieldCleared(venue.FieldExternalID) {
+		fields = append(fields, venue.FieldExternalID)
+	}
 	if m.FieldCleared(venue.FieldWebsite) {
 		fields = append(fields, venue.FieldWebsite)
 	}
@@ -34810,6 +34995,12 @@ func (m *VenueMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *VenueMutation) ClearField(name string) error {
 	switch name {
+	case venue.FieldExternalProvider:
+		m.ClearExternalProvider()
+		return nil
+	case venue.FieldExternalID:
+		m.ClearExternalID()
+		return nil
 	case venue.FieldWebsite:
 		m.ClearWebsite()
 		return nil
@@ -34853,6 +35044,15 @@ func (m *VenueMutation) ResetField(name string) error {
 		return nil
 	case venue.FieldLng:
 		m.ResetLng()
+		return nil
+	case venue.FieldHidden:
+		m.ResetHidden()
+		return nil
+	case venue.FieldExternalProvider:
+		m.ResetExternalProvider()
+		return nil
+	case venue.FieldExternalID:
+		m.ResetExternalID()
 		return nil
 	case venue.FieldWebsite:
 		m.ResetWebsite()

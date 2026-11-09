@@ -1131,12 +1131,16 @@ func init() {
 	venueDescLng := venueFields[9].Descriptor()
 	// venue.DefaultLng holds the default value on creation for the lng field.
 	venue.DefaultLng = venueDescLng.Default.(float64)
+	// venueDescHidden is the schema descriptor for hidden field.
+	venueDescHidden := venueFields[10].Descriptor()
+	// venue.DefaultHidden holds the default value on creation for the hidden field.
+	venue.DefaultHidden = venueDescHidden.Default.(bool)
 	// venueDescCreatedAt is the schema descriptor for created_at field.
-	venueDescCreatedAt := venueFields[13].Descriptor()
+	venueDescCreatedAt := venueFields[16].Descriptor()
 	// venue.DefaultCreatedAt holds the default value on creation for the created_at field.
 	venue.DefaultCreatedAt = venueDescCreatedAt.Default.(func() string)
 	// venueDescUpdatedAt is the schema descriptor for updated_at field.
-	venueDescUpdatedAt := venueFields[14].Descriptor()
+	venueDescUpdatedAt := venueFields[17].Descriptor()
 	// venue.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	venue.DefaultUpdatedAt = venueDescUpdatedAt.Default.(func() string)
 	venuedrinkFields := schema.VenueDrink{}.Fields()

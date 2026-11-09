@@ -32,6 +32,12 @@ const (
 	FieldLat = "lat"
 	// FieldLng holds the string denoting the lng field in the database.
 	FieldLng = "lng"
+	// FieldHidden holds the string denoting the hidden field in the database.
+	FieldHidden = "hidden"
+	// FieldExternalProvider holds the string denoting the external_provider field in the database.
+	FieldExternalProvider = "external_provider"
+	// FieldExternalID holds the string denoting the external_id field in the database.
+	FieldExternalID = "external_id"
 	// FieldWebsite holds the string denoting the website field in the database.
 	FieldWebsite = "website"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
@@ -85,6 +91,9 @@ var Columns = []string{
 	FieldCountry,
 	FieldLat,
 	FieldLng,
+	FieldHidden,
+	FieldExternalProvider,
+	FieldExternalID,
 	FieldWebsite,
 	FieldCreatedBy,
 	FieldMergedIntoID,
@@ -119,6 +128,8 @@ var (
 	DefaultLat float64
 	// DefaultLng holds the default value on creation for the "lng" field.
 	DefaultLng float64
+	// DefaultHidden holds the default value on creation for the "hidden" field.
+	DefaultHidden bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() string
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -208,6 +219,21 @@ func ByLat(opts ...sql.OrderTermOption) OrderOption {
 // ByLng orders the results by the lng field.
 func ByLng(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLng, opts...).ToFunc()
+}
+
+// ByHidden orders the results by the hidden field.
+func ByHidden(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHidden, opts...).ToFunc()
+}
+
+// ByExternalProvider orders the results by the external_provider field.
+func ByExternalProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExternalProvider, opts...).ToFunc()
+}
+
+// ByExternalID orders the results by the external_id field.
+func ByExternalID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExternalID, opts...).ToFunc()
 }
 
 // ByWebsite orders the results by the website field.

@@ -58,6 +58,7 @@ class _Call {
     required this.photoMime,
     required this.lat,
     required this.lng,
+    required this.atHome,
     required this.friendIds,
   });
 
@@ -72,6 +73,7 @@ class _Call {
   final String? photoMime;
   final double? lat;
   final double? lng;
+  final bool atHome;
   final List<String> friendIds;
 }
 
@@ -88,11 +90,25 @@ class _Api extends ApiClient {
   );
 
   @override
+  Future<VenueSearch> venueSearch(
+    String query, {
+    double? lat,
+    double? lng,
+    int? radiusM,
+    String source = 'local',
+    bool consent = false,
+  }) async => const VenueSearch(
+    venues: [Venue(id: 7, name: 'Corner Shop', kind: 'shop', city: 'Leeds')],
+  );
+
+  @override
   Future<List<Venue>> venues(
     String query, {
     double? lat,
     double? lng,
     int? radiusM,
+    String source = 'local',
+    bool consent = false,
   }) async => const [
     Venue(id: 7, name: 'Corner Shop', kind: 'shop', city: 'Leeds'),
   ];
@@ -113,6 +129,7 @@ class _Api extends ApiClient {
     String? photoMime,
     double? lat,
     double? lng,
+    bool atHome = false,
     List<String> friendIds = const [],
   }) async {
     calls.add(
@@ -128,6 +145,7 @@ class _Api extends ApiClient {
         photoMime: photoMime,
         lat: lat,
         lng: lng,
+        atHome: atHome,
         friendIds: friendIds,
       ),
     );
@@ -248,10 +266,10 @@ void main() {
     await tester.tap(find.byKey(const Key('friend-picker-done')));
     await tester.pumpAndSettle();
 
-    await _tapVisible(tester, 'Use my location');
+    await _tapVisible(tester, 'Nearby');
+    await _tapVisible(tester, 'Allow');
     expect(find.byKey(const Key('checkin-location-chip')), findsOneWidget);
 
-    await _tapVisible(tester, 'Choose a venue');
     await tester.enterText(find.byKey(const Key('venue-query')), 'Corner');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
@@ -274,8 +292,8 @@ void main() {
     expect(call.serving, 'bottle');
     expect(call.visibility, 'friends');
     expect(call.venueId, 7);
-    expect(call.lat, closeTo(51.50722, 0.00001));
-    expect(call.lng, closeTo(-0.1275, 0.00001));
+    expect(call.lat, closeTo(51.507, 0.001));
+    expect(call.lng, closeTo(-0.1275, 0.001));
     expect(call.friendIds, ['u-ada', 'u-grace']);
     expect(call.photo, _photoBytes);
     expect(call.photoFilename, 'can.png');

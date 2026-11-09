@@ -486,9 +486,33 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 	if v, err := strconv.Atoi(r.FormValue("venue_id")); err == nil && v > 0 {
 		venueID = &v
 	}
+	atHome := formBool(r.FormValue("at_home")) || r.FormValue("where_mode") == "home"
+	if atHome {
+		// At home wins over any leftover venue pick from a no-JS round trip.
+		venueID = nil
+		lat, lng = nil, nil
+	}
+	// An external place chosen from the nearby list is promoted to a real venue
+	// first. The provider identifiers only travel with this explicit choice.
+	if provider := strings.TrimSpace(r.FormValue("external_provider")); provider != "" {
+		providerID := strings.TrimSpace(r.FormValue("external_id"))
+		var vLat, vLng float64
+		if lat != nil {
+			vLat, vLng = *lat, *lng
+		}
+		id, err := s.Venues.CreateFromExternal(r.Context(), provider, providerID,
+			r.FormValue("new_venue_name"), r.FormValue("external_kind"),
+			r.FormValue("external_city"), r.FormValue("external_country"), vLat, vLng)
+		if err != nil {
+			s.Log.Warn("external venue promote failed", "err", err)
+			http.Error(w, "could not add that place: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		venueID = &id
+	}
 	// An inline new venue wins over the selected list entry: the fields are
 	// only filled when the member chose to add one.
-	if name := strings.TrimSpace(r.FormValue("new_venue_name")); name != "" {
+	if name := strings.TrimSpace(r.FormValue("new_venue_name")); name != "" && strings.TrimSpace(r.FormValue("external_provider")) == "" {
 		var vLat, vLng float64
 		if lat != nil {
 			vLat, vLng = *lat, *lng
@@ -523,10 +547,13 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		Lat:            lat,
 		Lng:            lng,
 		FriendIDs:      r.Form["friend_ids"],
+		AtHome:         atHome,
 	})
 	if err != nil {
 		s.Log.Warn("checkin failed", "err", err)
 		switch {
+		case errors.Is(err, checkins.ErrAtHomeConflict):
+			http.Error(w, "choose either at home or a venue.", http.StatusBadRequest)
 		case errors.Is(err, checkins.ErrInvalidCoords):
 			http.Error(w, "that location could not be read. Turn on location and try again.", http.StatusBadRequest)
 		case errors.Is(err, checkins.ErrInvalidFriend):
