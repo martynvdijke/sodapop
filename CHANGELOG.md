@@ -1,3 +1,10 @@
+## [1.26.1](https://github.com/martynvdijke/sodapop/compare/v1.26.0...v1.26.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **trmnl:** shorten My Stats description for trmnlp lint ([cc458c7](https://github.com/martynvdijke/sodapop/commit/cc458c7c6e72950f0992a3c87cb15e5b009791af))
+
 # [1.26.0](https://github.com/martynvdijke/sodapop/compare/v1.25.0...v1.26.0) (2026-11-09)
 
 
