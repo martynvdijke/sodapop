@@ -1,3 +1,10 @@
+## [1.30.2](https://github.com/martynvdijke/sodapop/compare/v1.30.1...v1.30.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **renovate:** disable platform automerge so Renovate merges green PRs itself ([8ed339c](https://github.com/martynvdijke/sodapop/commit/8ed339cb2f577be18c9d5663914e7a50d05230b5))
+
 ## [1.30.1](https://github.com/martynvdijke/sodapop/compare/v1.30.0...v1.30.1) (2026-11-10)
 
 
