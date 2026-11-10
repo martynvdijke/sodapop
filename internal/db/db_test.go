@@ -68,6 +68,68 @@ func TestSchemaConsistency(t *testing.T) {
 	}
 }
 
+// TestInitPreservesViewsAcrossReopen is the regression guard for the v1.27.0
+// startup failure: Ent's schema rebuild could not rename a table because the
+// drink_ratings view still referenced it. Init must drop views before the
+// rebuild and restore them afterwards, including views users added themselves.
+func TestInitPreservesViewsAcrossReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+
+	first, err := Init(path)
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if _, err := first.SQL.ExecContext(context.Background(),
+		`CREATE VIEW IF NOT EXISTS v_checkin_count AS SELECT COUNT(*) AS n FROM checkins`); err != nil {
+		_ = first.Close()
+		t.Fatalf("create view: %v", err)
+	}
+	// Force the next Init to rebuild checkins, as a schema-version upgrade
+	// does. Without the view fix, Ent's rename fails here with
+	// "error in view ...: no such table: main.checkins".
+	if _, err := first.SQL.ExecContext(context.Background(),
+		`ALTER TABLE checkins DROP COLUMN prep_note`); err != nil {
+		_ = first.Close()
+		t.Fatalf("drop column: %v", err)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	second, err := Init(path)
+	if err != nil {
+		t.Fatalf("reinit: %v", err)
+	}
+	defer second.Close()
+
+	var n int
+	if err := second.SQL.QueryRowContext(context.Background(),
+		`SELECT n FROM v_checkin_count`).Scan(&n); err != nil {
+		t.Fatalf("query view: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("v_checkin_count = %d, want 0", n)
+	}
+
+	var views int
+	if err := second.SQL.QueryRowContext(context.Background(),
+		`SELECT count(*) FROM sqlite_master WHERE type = 'view' AND name = 'drink_ratings'`).Scan(&views); err != nil {
+		t.Fatalf("count views: %v", err)
+	}
+	if views != 1 {
+		t.Fatalf("drink_ratings view count = %d, want 1", views)
+	}
+
+	var prepNote int
+	if err := second.SQL.QueryRowContext(context.Background(),
+		`SELECT count(*) FROM pragma_table_info('checkins') WHERE name = 'prep_note'`).Scan(&prepNote); err != nil {
+		t.Fatalf("check checkins columns: %v", err)
+	}
+	if prepNote != 1 {
+		t.Fatal("checkins was not rebuilt by the schema migration")
+	}
+}
+
 // TestNoUserLocationColumns is the guard for the product promise that user
 // locations are never stored. Nearby is computed from the request coordinates
 // and venues, not from a persisted profile.
