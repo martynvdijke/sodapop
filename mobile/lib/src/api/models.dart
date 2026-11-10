@@ -685,7 +685,8 @@ class VenueSearch {
   bool get externalUnavailable => externalStatus == 'unavailable';
 
   List<Venue> get local => venues.where((venue) => !venue.isExternal).toList();
-  List<Venue> get external => venues.where((venue) => venue.isExternal).toList();
+  List<Venue> get external =>
+      venues.where((venue) => venue.isExternal).toList();
 }
 
 class AuthStatus {
@@ -1931,6 +1932,95 @@ class VenueDetail {
   }
 }
 
+/// One drink a member reported seeing in stock at a venue.
+class ShelfEntry {
+  const ShelfEntry({
+    this.drinkId = 0,
+    this.drinkSlug = '',
+    this.drinkName = '',
+    this.brand = '',
+    this.style = '',
+    this.priceCents,
+    this.note = '',
+    this.seenAt = '',
+    this.ageDays = 0,
+    this.band = '',
+    this.reporters = 0,
+    this.mine = false,
+    this.reportId,
+    this.source = '',
+  });
+
+  final int drinkId;
+  final String drinkSlug;
+  final String drinkName;
+  final String brand;
+  final String style;
+
+  /// Price in minor units, with no currency attached. Null when unreported.
+  final int? priceCents;
+  final String note;
+  final String seenAt;
+
+  /// Whole days between [seenAt] and the server's clock.
+  final int ageDays;
+
+  /// `fresh` or `stale`, as decided by the server.
+  final String band;
+  final int reporters;
+  final bool mine;
+
+  /// The viewer's own report id, present only when [mine] is true.
+  final String? reportId;
+
+  /// `report`, `checkin` or `both`.
+  final String source;
+
+  factory ShelfEntry.fromJson(Map<String, dynamic> json) {
+    final reportId = _string(json['report_id']);
+    return ShelfEntry(
+      drinkId: _int(json['drink_id']) ?? 0,
+      drinkSlug: _string(json['drink_slug']),
+      drinkName: _string(json['drink_name']),
+      brand: _string(json['brand']),
+      style: _string(json['style']),
+      priceCents: _int(json['price_cents']),
+      note: _string(json['note']),
+      seenAt: _string(json['seen_at']),
+      ageDays: _int(json['age_days']) ?? 0,
+      band: _string(json['band']),
+      reporters: _int(json['reporters']) ?? 0,
+      mine: _bool(json['mine']),
+      reportId: reportId.isEmpty ? null : reportId,
+      source: _string(json['source']),
+    );
+  }
+}
+
+/// Which wishlist events the server may notify the member about.
+class WishlistAlerts {
+  const WishlistAlerts({this.friendCheckins = false, this.venueShelf = false});
+
+  final bool friendCheckins;
+  final bool venueShelf;
+
+  factory WishlistAlerts.fromJson(Map<String, dynamic> json) => WishlistAlerts(
+    friendCheckins: _bool(json['friend_checkins']),
+    venueShelf: _bool(json['venue_shelf']),
+  );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'friend_checkins': friendCheckins,
+    'venue_shelf': venueShelf,
+  };
+
+  WishlistAlerts copyWith({bool? friendCheckins, bool? venueShelf}) =>
+      WishlistAlerts(
+        friendCheckins: friendCheckins ?? this.friendCheckins,
+        venueShelf: venueShelf ?? this.venueShelf,
+      );
+}
+
 class MyStats {
   const MyStats({
     this.checkins = 0,
@@ -2446,7 +2536,9 @@ class AdminOverviewPage {
     return AdminOverviewPage(
       items: rows
           .whereType<Map>()
-          .map((row) => AdminOverviewEvent.fromJson(row.cast<String, dynamic>()))
+          .map(
+            (row) => AdminOverviewEvent.fromJson(row.cast<String, dynamic>()),
+          )
           .toList(),
       nextBefore: _string(_map(json['meta'])['next_before']),
     );

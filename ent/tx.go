@@ -114,6 +114,8 @@ type Tx struct {
 	VenueName *VenueNameClient
 	// VenueSave is the client for interacting with the VenueSave builders.
 	VenueSave *VenueSaveClient
+	// VenueStockReport is the client for interacting with the VenueStockReport builders.
+	VenueStockReport *VenueStockReportClient
 
 	// lazily loaded.
 	client     *Client
@@ -296,6 +298,7 @@ func (tx *Tx) init() {
 	tx.VenueMedia = NewVenueMediaClient(tx.config)
 	tx.VenueName = NewVenueNameClient(tx.config)
 	tx.VenueSave = NewVenueSaveClient(tx.config)
+	tx.VenueStockReport = NewVenueStockReportClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

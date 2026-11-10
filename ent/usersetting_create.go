@@ -67,6 +67,34 @@ func (_c *UserSettingCreate) SetNillablePushEnabled(v *bool) *UserSettingCreate 
 	return _c
 }
 
+// SetWishlistFriendAlerts sets the "wishlist_friend_alerts" field.
+func (_c *UserSettingCreate) SetWishlistFriendAlerts(v bool) *UserSettingCreate {
+	_c.mutation.SetWishlistFriendAlerts(v)
+	return _c
+}
+
+// SetNillableWishlistFriendAlerts sets the "wishlist_friend_alerts" field if the given value is not nil.
+func (_c *UserSettingCreate) SetNillableWishlistFriendAlerts(v *bool) *UserSettingCreate {
+	if v != nil {
+		_c.SetWishlistFriendAlerts(*v)
+	}
+	return _c
+}
+
+// SetWishlistShelfAlerts sets the "wishlist_shelf_alerts" field.
+func (_c *UserSettingCreate) SetWishlistShelfAlerts(v bool) *UserSettingCreate {
+	_c.mutation.SetWishlistShelfAlerts(v)
+	return _c
+}
+
+// SetNillableWishlistShelfAlerts sets the "wishlist_shelf_alerts" field if the given value is not nil.
+func (_c *UserSettingCreate) SetNillableWishlistShelfAlerts(v *bool) *UserSettingCreate {
+	if v != nil {
+		_c.SetWishlistShelfAlerts(*v)
+	}
+	return _c
+}
+
 // SetTheme sets the "theme" field.
 func (_c *UserSettingCreate) SetTheme(v usersetting.Theme) *UserSettingCreate {
 	_c.mutation.SetTheme(v)
@@ -184,6 +212,14 @@ func (_c *UserSettingCreate) defaults() {
 		v := usersetting.DefaultPushEnabled
 		_c.mutation.SetPushEnabled(v)
 	}
+	if _, ok := _c.mutation.WishlistFriendAlerts(); !ok {
+		v := usersetting.DefaultWishlistFriendAlerts
+		_c.mutation.SetWishlistFriendAlerts(v)
+	}
+	if _, ok := _c.mutation.WishlistShelfAlerts(); !ok {
+		v := usersetting.DefaultWishlistShelfAlerts
+		_c.mutation.SetWishlistShelfAlerts(v)
+	}
 	if _, ok := _c.mutation.Theme(); !ok {
 		v := usersetting.DefaultTheme
 		_c.mutation.SetTheme(v)
@@ -224,6 +260,12 @@ func (_c *UserSettingCreate) check() error {
 	}
 	if _, ok := _c.mutation.PushEnabled(); !ok {
 		return &ValidationError{Name: "push_enabled", err: errors.New(`ent: missing required field "UserSetting.push_enabled"`)}
+	}
+	if _, ok := _c.mutation.WishlistFriendAlerts(); !ok {
+		return &ValidationError{Name: "wishlist_friend_alerts", err: errors.New(`ent: missing required field "UserSetting.wishlist_friend_alerts"`)}
+	}
+	if _, ok := _c.mutation.WishlistShelfAlerts(); !ok {
+		return &ValidationError{Name: "wishlist_shelf_alerts", err: errors.New(`ent: missing required field "UserSetting.wishlist_shelf_alerts"`)}
 	}
 	if _, ok := _c.mutation.Theme(); !ok {
 		return &ValidationError{Name: "theme", err: errors.New(`ent: missing required field "UserSetting.theme"`)}
@@ -291,6 +333,14 @@ func (_c *UserSettingCreate) createSpec() (*UserSetting, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PushEnabled(); ok {
 		_spec.SetField(usersetting.FieldPushEnabled, field.TypeBool, value)
 		_node.PushEnabled = value
+	}
+	if value, ok := _c.mutation.WishlistFriendAlerts(); ok {
+		_spec.SetField(usersetting.FieldWishlistFriendAlerts, field.TypeBool, value)
+		_node.WishlistFriendAlerts = value
+	}
+	if value, ok := _c.mutation.WishlistShelfAlerts(); ok {
+		_spec.SetField(usersetting.FieldWishlistShelfAlerts, field.TypeBool, value)
+		_node.WishlistShelfAlerts = value
 	}
 	if value, ok := _c.mutation.Theme(); ok {
 		_spec.SetField(usersetting.FieldTheme, field.TypeEnum, value)

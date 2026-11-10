@@ -24,6 +24,10 @@ type UserSetting struct {
 	EmailWeekly bool `json:"email_weekly,omitempty"`
 	// PushEnabled holds the value of the "push_enabled" field.
 	PushEnabled bool `json:"push_enabled,omitempty"`
+	// WishlistFriendAlerts holds the value of the "wishlist_friend_alerts" field.
+	WishlistFriendAlerts bool `json:"wishlist_friend_alerts,omitempty"`
+	// WishlistShelfAlerts holds the value of the "wishlist_shelf_alerts" field.
+	WishlistShelfAlerts bool `json:"wishlist_shelf_alerts,omitempty"`
 	// Theme holds the value of the "theme" field.
 	Theme usersetting.Theme `json:"theme,omitempty"`
 	// PublicProfile holds the value of the "public_profile" field.
@@ -42,7 +46,7 @@ func (*UserSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usersetting.FieldEmailFriendReq, usersetting.FieldEmailWeekly, usersetting.FieldPushEnabled, usersetting.FieldPublicProfile:
+		case usersetting.FieldEmailFriendReq, usersetting.FieldEmailWeekly, usersetting.FieldPushEnabled, usersetting.FieldWishlistFriendAlerts, usersetting.FieldWishlistShelfAlerts, usersetting.FieldPublicProfile:
 			values[i] = new(sql.NullBool)
 		case usersetting.FieldID:
 			values[i] = new(sql.NullInt64)
@@ -92,6 +96,18 @@ func (_m *UserSetting) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field push_enabled", values[i])
 			} else if value.Valid {
 				_m.PushEnabled = value.Bool
+			}
+		case usersetting.FieldWishlistFriendAlerts:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field wishlist_friend_alerts", values[i])
+			} else if value.Valid {
+				_m.WishlistFriendAlerts = value.Bool
+			}
+		case usersetting.FieldWishlistShelfAlerts:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field wishlist_shelf_alerts", values[i])
+			} else if value.Valid {
+				_m.WishlistShelfAlerts = value.Bool
 			}
 		case usersetting.FieldTheme:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -170,6 +186,12 @@ func (_m *UserSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("push_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PushEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("wishlist_friend_alerts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WishlistFriendAlerts))
+	builder.WriteString(", ")
+	builder.WriteString("wishlist_shelf_alerts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WishlistShelfAlerts))
 	builder.WriteString(", ")
 	builder.WriteString("theme=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Theme))

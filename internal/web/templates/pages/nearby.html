@@ -54,6 +54,30 @@
       <noscript><p class="hint nearby-hint">Finding your location needs JavaScript. You can still choose a radius, but this page cannot ask for your position without it.</p></noscript>
     </div>
 
+    {{if .WishlistShelf}}
+    <section class="nearby-wishlist" aria-labelledby="nearby-wishlist-heading">
+      <h2 class="nearby-results-heading" id="nearby-wishlist-heading">Your wishlist, nearby</h2>
+      <p class="hint">Places inside your radius where members have seen these drinks in the last week.</p>
+      <div class="nearby-results">
+        {{range .WishlistShelf}}
+        <article class="card nearby-card">
+          <div class="nearby-body">
+            <div class="nearby-card-head">
+              <h3><a href="/venues/{{.VenueID}}">{{.VenueName}}</a></h3>
+              <span class="nearby-distance">{{.DistanceLabel}}</span>
+            </div>
+            {{range .Matches}}
+            <p class="nearby-meta">
+              <strong>{{.DrinkName}}</strong>{{if .Brand}} · {{.Brand}}{{end}}{{if .PriceLabel}} · {{.PriceLabel}}{{end}} · {{.AgeLabel}} · {{if eq .Reporters 1}}1 member{{else}}{{.Reporters}} members{{end}}
+            </p>
+            {{end}}
+          </div>
+        </article>
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+
     <h2 class="nearby-results-heading" id="nearby-results-heading" tabindex="-1" data-nearby-results-heading>Nearby pours</h2>
     <p class="sr-only" data-nearby-result-status role="status" aria-live="polite"></p>
 

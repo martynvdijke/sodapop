@@ -15,10 +15,58 @@
     {{if $v.Website}}<a class="btn" href="{{$v.Website}}" rel="nofollow noopener" target="_blank">Website</a>{{end}}
   </div>
   {{end}}
+  <section id="shelf" aria-labelledby="shelf-heading">
+    <h2 id="shelf-heading">Shelf</h2>
+    <p class="muted">What members have found on the shelf here in the last 30 days.</p>
+    {{if .ShelfError}}<p class="banner error" role="alert">{{.ShelfError}}</p>{{end}}
+    {{range .Shelf}}
+      <div class="card shelf-entry">
+        <div>
+          <strong>{{.DrinkName}}</strong>
+          <div class="muted">{{if .Brand}}{{.Brand}}{{end}}{{if .Style}} · {{.Style}}{{end}}{{if .Price}} · {{.Price}}{{end}}</div>
+          <div class="muted">{{.Seen}} · {{.Band}}{{if eq .Reporters 1}} · 1 member{{else}} · {{.Reporters}} members{{end}}</div>
+          {{if .Note}}<p>{{.Note}}</p>{{end}}
+        </div>
+        {{if .Mine}}
+          <form method="post" action="/venues/{{$v.ID}}/shelf/{{with .ReportID}}{{.}}{{end}}/retract" class="inline">
+            <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+            <button class="btn btn-small" type="submit">Remove my report</button>
+          </form>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="empty"><p>Nobody has reported stock here yet.</p></div>
+    {{end}}
+
+    <form class="shelf-report" method="post" action="/venues/{{$v.ID}}/shelf">
+      <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+      <h3>Add to the shelf</h3>
+      <label>Drink
+        <select name="drink">
+          <option value="">Choose a drink seen here</option>
+          {{range .Drinks}}<option value="{{.DrinkSlug}}"{{if eq $.ShelfForm.drink .DrinkSlug}} selected{{end}}>{{.DrinkName}}</option>{{end}}
+        </select>
+      </label>
+      <label>Or drink slug <span class="hint">if it is not listed</span>
+        <input type="text" name="drink_slug" value="{{.ShelfForm.drink_slug}}" maxlength="120" autocomplete="off">
+      </label>
+      <label>Price <span class="hint">optional, like 1.50</span>
+        <input type="text" name="price" value="{{.ShelfForm.price}}" inputmode="decimal" autocomplete="off">
+      </label>
+      <label>Note <span class="hint">optional, up to 140 characters</span>
+        <input type="text" name="note" value="{{.ShelfForm.note}}" maxlength="140" autocomplete="off">
+      </label>
+      <label class="inline"><input type="checkbox" name="seen_now" value="1"{{if eq .ShelfForm.seen_now "1"}} checked{{end}}> I saw it just now</label>
+      <div class="form-actions">
+        <button class="btn" type="submit">Add report</button>
+      </div>
+    </form>
+  </section>
+
   <h2>Seen here</h2>
   {{range .Drinks}}
-    <a class="card row" href="/drinks/{{.Slug}}">
-      <div><strong>{{.Name}}</strong><div class="muted">{{.Brand}}{{if .LastSeen}} · last seen {{.LastSeen}}{{end}}{{if .OnOffer}} · on offer{{end}}</div></div>
+    <a class="card row" href="/drinks/{{.DrinkSlug}}">
+      <div><strong>{{.DrinkName}}</strong><div class="muted">{{.Brand}}{{if .LastSeenAt}} · last seen {{.LastSeenAt}}{{end}}{{if .OnOffer}} · on offer{{end}}</div></div>
     </a>
   {{else}}<div class="empty"><p>No sodas logged here yet. Be the first.</p></div>{{end}}
 

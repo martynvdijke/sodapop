@@ -52,7 +52,7 @@ Boot sequence in `internal/db.Init(dbPath)`:
 | `0012` | `0012_share_links.sql` | `share_links` capability tokens for passport and streak cards, plus `idx_share_links_user` |
 | `0013` | `0013_delivery_history.sql` | `idx_delivery_outbox_created` on `delivery_outbox(created_at)` for the admin delivery history page |
 
-Migration `0014` is the next append-only step after the badge, share-link and delivery-history indexes. The AI tables remain Ent-managed and have no SQL migration; the v1.7 operations slice added no tables and no migrations, because its backups are standalone `.db` files under `$DATA_DIR/backups` outside SQLite. Migrations remain append-only, so any future schema change gets the next number.
+Migration `0018_venue_shelf.sql` is the latest append-only step; it adds the venue shelf index and the two wishlist alert columns. The AI tables remain Ent-managed and have no SQL migration; the v1.7 operations slice added no tables and no migrations, because its backups are standalone `.db` files under `$DATA_DIR/backups` outside SQLite. Migrations remain append-only, so any future schema change gets the next number.
 
 ### 1.3 Mechanical Schema Guard (`internal/db/db_test.go`)
 Just like `dnd/db/schema_consistency_test.go`, `TestSchemaConsistency` initializes an in-memory database (`Init(":memory:")`) and asserts that every table in `sqlite_master` is either present in `ent/migrate.Tables` or listed in the raw-only allowlist (`schema_migrations` and `drinks_fts*`). Any ad-hoc raw `CREATE TABLE` outside Ent + the migration registry fails CI immediately.
@@ -182,6 +182,8 @@ CREATE TABLE user_settings (
   email_friend_req  INTEGER NOT NULL DEFAULT 1 CHECK (email_friend_req IN (0,1)),
   email_weekly      INTEGER NOT NULL DEFAULT 0 CHECK (email_weekly IN (0,1)),
   push_enabled      INTEGER NOT NULL DEFAULT 0 CHECK (push_enabled IN (0,1)),
+  wishlist_friend_alerts INTEGER NOT NULL DEFAULT 0 CHECK (wishlist_friend_alerts IN (0,1)),  -- migration 0018
+  wishlist_shelf_alerts  INTEGER NOT NULL DEFAULT 0 CHECK (wishlist_shelf_alerts IN (0,1)),   -- migration 0018
   theme             TEXT NOT NULL DEFAULT 'system' CHECK (theme IN ('system','light','dark')),
   public_profile    INTEGER NOT NULL DEFAULT 0 CHECK (public_profile IN (0,1)),
   units             TEXT NOT NULL DEFAULT 'metric' CHECK (units IN ('metric','imperial')),
@@ -434,6 +436,31 @@ CREATE INDEX idx_venue_media_uploader_venue ON venue_media(uploaded_by, venue_id
 
 `venue_media` is the attachment row; `media` owns the bytes. Active rows are public and follow the venue; removal is a soft delete that revokes media access while keeping the file. Caps are 6 active rows per uploader per venue and 20 per venue, enforced in the service. A deleted or merged venue stops serving its media.
 
+### Venue shelf
+
+```sql
+CREATE TABLE venue_stock_reports (       -- one member's "seen on the shelf" report
+  id          TEXT PRIMARY KEY,          -- 32-char hex
+  venue_id    INTEGER NOT NULL,
+  drink_id    INTEGER NOT NULL,
+  user_id     TEXT NOT NULL,
+  price_cents INTEGER,                   -- nullable, 0..100000, minor units
+  note        TEXT,                      -- nullable, <= 140 runes in the service
+  seen_at     TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  removed_at  TEXT
+);
+CREATE UNIQUE INDEX venuestockreport_venue_id_drink_id_user_id
+  ON venue_stock_reports(venue_id, drink_id, user_id);
+CREATE INDEX venuestockreport_venue_id_seen_at ON venue_stock_reports(venue_id, seen_at);
+CREATE INDEX venuestockreport_drink_id ON venue_stock_reports(drink_id);
+CREATE INDEX idx_venue_stock_reports_venue_seen
+  ON venue_stock_reports(venue_id, seen_at DESC);  -- migration 0018
+```
+
+The shelf is a read model, not a stored list. `venues.Service.Shelf` unions `venue_stock_reports` with check-ins logged at the same venue in the last 30 days, groups them one row per drink, and computes freshness at read time: 7 days or newer is fresh, 8–30 days is stale, and older evidence is excluded from both sources. Reporters are counted across both sources; price and note come from the newest report that carries each; one venue renders at most 40 entries. A member has at most one live report per `(venue, drink, user)`, updated in place, and retraction stamps `removed_at` rather than deleting the row. `price_cents` is a unitless amount in minor units; no currency code is stored. A report is refused for a hidden or merged venue, which is why the shared hidden `@home` marker cannot carry one.
+
 Venue dedupe: exact normalized name + city wins; otherwise within ~150 m and same kind prompts "is this the same place?" on the create flow. A venue is never deleted once check-ins reference it — only merged via `venues.merged_into_id`, which redirects reads and returns 409 + canonical ID on write.
 
 ## 5. Check-ins
@@ -572,6 +599,23 @@ CREATE TABLE notifications (
 CREATE INDEX notification_user_id_created_at ON notifications(user_id, created_at);
 CREATE INDEX idx_notifications_unread ON notifications(user_id, created_at DESC) WHERE read_at IS NULL;  -- migration 0002
 ```
+
+### Share links
+
+```sql
+CREATE TABLE share_links (              -- revocable public capability token
+  id         TEXT PRIMARY KEY,          -- 32-char hex
+  user_id    TEXT NOT NULL,
+  kind       TEXT NOT NULL,             -- card kind, e.g. passport or streak
+  token      TEXT NOT NULL UNIQUE,
+  year       INTEGER NOT NULL DEFAULT 0, -- migration 0017; 0 = not year-scoped
+  created_at TEXT NOT NULL,
+  revoked_at TEXT
+);
+CREATE INDEX idx_share_links_user ON share_links(user_id, created_at DESC);
+```
+
+A year-scoped card carries its calendar year in `year`; every other kind stores 0, and the service rejects a mismatch. Links are owner-scoped and revocation stamps `revoked_at`.
 
 Feed read is `activities JOIN follows ON followee_id = activities.user_id WHERE follower_id = ?` union own rows, filtered by visibility and blocks, ordered `(created_at DESC, id DESC)`, keyset paginated. Blocking is checked on read and on write.
 

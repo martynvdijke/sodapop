@@ -868,7 +868,15 @@ func (s *Server) getVenue(w http.ResponseWriter, r *http.Request, tok *auth.APIT
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"venue": v, "drinks": drinks}})
+	data := map[string]any{"venue": v, "drinks": drinks}
+	// The shelf is a convenience block on the detail page: a failure there must
+	// not fail a venue read, so it degrades to an absent field.
+	if shelf, shelfErr := s.Venues.Shelf(r.Context(), id, tok.User.ID, time.Now()); shelfErr != nil {
+		s.Log.WarnContext(r.Context(), "api: venue shelf", "err", shelfErr, "venue_id", id)
+	} else {
+		data["shelf"] = shelf
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": data})
 	return nil
 }
 

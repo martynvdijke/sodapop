@@ -92,6 +92,8 @@ func (s *Server) settingsData(ctx context.Context, r *http.Request) (map[string]
 			"EmailWeekly":     prefs.EmailWeekly,
 			"EmailFriendReq":  prefs.EmailFriendReq,
 			"PushEnabled":     prefs.PushEnabled,
+			"WishlistFriend":  prefs.WishlistFriendAlerts,
+			"WishlistShelf":   prefs.WishlistShelfAlerts,
 			"PublicProfile":   prefs.PublicProfile,
 			"AnalyticsOptOut": u.AnalyticsOptOut,
 			"CaffeineBedtime": prefs.CaffeineBedtime,
@@ -229,7 +231,9 @@ func (s *Server) settingsPreferences(w http.ResponseWriter, r *http.Request) {
 	} else {
 		upd.SetEmailWeekly(r.Form.Has("email_weekly")).
 			SetEmailFriendReq(r.Form.Has("email_friend_req")).
-			SetPushEnabled(r.Form.Has("push_enabled"))
+			SetPushEnabled(r.Form.Has("push_enabled")).
+			SetWishlistFriendAlerts(r.Form.Has("wishlist_friend_alerts")).
+			SetWishlistShelfAlerts(r.Form.Has("wishlist_shelf_alerts"))
 	}
 	if _, err := upd.SetUpdatedAt(db.Now()).Save(r.Context()); err != nil {
 		s.fail(w, r, err)

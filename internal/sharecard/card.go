@@ -27,6 +27,13 @@ const (
 	cardHeight = 630
 )
 
+// Axis is one dimension of the flavour fingerprint. Score is already scaled to
+// 0..100 and is used directly as a fraction of the radar radius.
+type Axis struct {
+	Label string
+	Score float64
+}
+
 // Data is everything the card needs. Empty or zero values are skipped rather
 // than rendered as blank cells.
 type Data struct {
@@ -38,8 +45,21 @@ type Data struct {
 	VenueKinds    int
 	CurrentStreak int
 	LongestStreak int
-	Kind          string
-	GeneratedAt   time.Time
+
+	// Year scopes a recap card to one calendar year. It is ignored by the
+	// other kinds, which describe the whole history.
+	Year int
+	// UniqueDrinks, Badges, TopVenue, and TopStyle feed the recap body line.
+	UniqueDrinks int
+	Badges       int
+	TopVenue     string
+	TopStyle     string
+	// Axes feeds the flavour fingerprint radar. Fewer than three axes render
+	// as a bar list instead.
+	Axes []Axis
+
+	Kind        string
+	GeneratedAt time.Time
 }
 
 var (
@@ -68,10 +88,16 @@ func Render(data Data) ([]byte, error) {
 	draw.Draw(img, img.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)
 	fillRoundRect(img, 24, 24, cardWidth-24, cardHeight-24, 34, panelColor)
 
+	kind := normalizeKind(data.Kind)
+
 	// Warm fizz rings on the right, kept behind all copy and inside the panel.
-	fillCircle(img, 980, 285, 190, accentWash)
-	strokeCircle(img, 980, 285, 132, 3, accentRing)
-	fillCircle(img, 1124, 104, 6, accentRing)
+	// The fingerprint replaces them with its own rings, so they are skipped
+	// there rather than fighting the chart.
+	if kind != "fingerprint" {
+		fillCircle(img, 980, 285, 190, accentWash)
+		strokeCircle(img, 980, 285, 132, 3, accentRing)
+		fillCircle(img, 1124, 104, 6, accentRing)
+	}
 
 	const (
 		padX      = 84
@@ -93,31 +119,19 @@ func Render(data Data) ([]byte, error) {
 	fillCircle(img, padX+10, padTop+10, 10, accentColor)
 	drawText(img, brandFace, "Sodapop", padX+34, padTop+22, inkColor)
 
-	kind := strings.ToLower(strings.TrimSpace(data.Kind))
-	if kind != "streak" {
-		kind = "passport"
-	}
 	eyebrow := "SODA PASSPORT"
-	if kind == "streak" {
+	switch kind {
+	case "streak":
 		eyebrow = "SODA STREAK"
+	case "recap":
+		eyebrow = "YEAR IN SODA"
+	case "fingerprint":
+		eyebrow = "FLAVOUR FINGERPRINT"
 	}
 	drawTrackedRight(img, eyebrowFace, eyebrow, cardWidth-padX, padTop+20, 3, accentColor)
 
-	headline := data.Checkins
-	headlineLabel := "check-ins logged"
-	if kind == "streak" {
-		headline = data.CurrentStreak
-		headlineLabel = "days in a row"
-		if headline == 1 {
-			headlineLabel = "day in a row"
-		}
-	} else if headline == 1 {
-		headlineLabel = "check-in logged"
-	}
-	drawText(img, headlineFace, formatNumber(headline), padX, 322, inkColor)
-	drawText(img, labelFace, headlineLabel, padX+4, 372, mutedColor)
-
-	// Identity sits above the stat shelf.
+	// Identity sits above the stat shelf. Resolved once so every kind falls
+	// back to the handle and then to a neutral name.
 	name := strings.TrimSpace(data.DisplayName)
 	if name == "" {
 		name = strings.TrimSpace(data.Handle)
@@ -125,25 +139,45 @@ func Render(data Data) ([]byte, error) {
 	if name == "" {
 		name = "Sodapop member"
 	}
-	maxNameWidth := 700
-	drawText(img, nameFace, fitText(nameFace, name, maxNameWidth), padX, 428, inkColor)
-	if handle := strings.TrimSpace(data.Handle); handle != "" {
-		drawText(img, handleFace, fitText(handleFace, "@"+handle, maxNameWidth), padX+2, 462, mutedColor)
-	}
 
-	cells := statCells(data, kind)
-	if len(cells) > 0 {
-		fillRect(img, padX, 488, cardWidth-padX, 490, softRule)
-		gap := 28
-		cellWidth := (cardWidth - 2*padX - gap*(len(cells)-1)) / len(cells)
-		if cellWidth > 260 {
-			cellWidth = 260
+	switch kind {
+	case "fingerprint":
+		nameHeadline := mustFace(fnt, 62)
+		drawText(img, nameHeadline, fitText(nameHeadline, name, 700), padX, 244, inkColor)
+		if handle := strings.TrimSpace(data.Handle); handle != "" {
+			drawText(img, handleFace, fitText(handleFace, "@"+handle, 700), padX+2, 282, mutedColor)
 		}
-		for i, cell := range cells {
-			x := padX + i*(cellWidth+gap)
-			drawText(img, statFace, formatNumber(cell.Value), x, 530, inkColor)
-			drawTracked(img, statLabelFace, strings.ToUpper(cell.Label), x, 554, 2, mutedColor)
+		drawRadar(img, fnt, data.Axes)
+	case "recap":
+		recapFace := mustFace(fnt, 132)
+		drawText(img, recapFace, formatYear(recapYear(data)), padX, 316, inkColor)
+		// The summary is optional detail: drop trailing segments rather than
+		// ellipsizing mid-word when the year has a lot to say.
+		parts := recapSummaryParts(data)
+		for len(parts) > 0 && measure(labelFace, strings.Join(parts, " · ")) > cardWidth-2*padX {
+			parts = parts[:len(parts)-1]
 		}
+		if len(parts) > 0 {
+			drawText(img, labelFace, strings.Join(parts, " · "), padX+4, 360, mutedColor)
+		}
+		drawIdentity(img, nameFace, handleFace, data, name, padX)
+		drawShelf(img, statFace, statLabelFace, data, kind, padX)
+	default:
+		headline := data.Checkins
+		headlineLabel := "check-ins logged"
+		if kind == "streak" {
+			headline = data.CurrentStreak
+			headlineLabel = "days in a row"
+			if headline == 1 {
+				headlineLabel = "day in a row"
+			}
+		} else if headline == 1 {
+			headlineLabel = "check-in logged"
+		}
+		drawText(img, headlineFace, formatNumber(headline), padX, 322, inkColor)
+		drawText(img, labelFace, headlineLabel, padX+4, 372, mutedColor)
+		drawIdentity(img, nameFace, handleFace, data, name, padX)
+		drawShelf(img, statFace, statLabelFace, data, kind, padX)
 	}
 
 	fillRect(img, padX, 566, cardWidth-padX, 568, softRule)
@@ -167,11 +201,58 @@ type statCell struct {
 	Value int
 }
 
+// normalizeKind maps the stored kind onto one of the four renderers. Unknown
+// kinds keep the old, safe passport rendering.
+func normalizeKind(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "streak":
+		return "streak"
+	case "recap":
+		return "recap"
+	case "fingerprint":
+		return "fingerprint"
+	default:
+		return "passport"
+	}
+}
+
+// drawIdentity writes the member name and handle above the stat shelf.
+func drawIdentity(dst *image.RGBA, nameFace, handleFace font.Face, data Data, name string, padX int) {
+	const maxNameWidth = 700
+	drawText(dst, nameFace, fitText(nameFace, name, maxNameWidth), padX, 428, inkColor)
+	if handle := strings.TrimSpace(data.Handle); handle != "" {
+		drawText(dst, handleFace, fitText(handleFace, "@"+handle, maxNameWidth), padX+2, 462, mutedColor)
+	}
+}
+
+// drawShelf draws the row of small totals. A recap keeps up to five cells so
+// the best streak fits; the other kinds stay at four.
+func drawShelf(dst *image.RGBA, statFace, statLabelFace font.Face, data Data, kind string, padX int) {
+	cells := statCells(data, kind)
+	if len(cells) == 0 {
+		return
+	}
+	fillRect(dst, padX, 488, cardWidth-padX, 490, softRule)
+	gap := 28
+	cellWidth := (cardWidth - 2*padX - gap*(len(cells)-1)) / len(cells)
+	if cellWidth > 260 {
+		cellWidth = 260
+	}
+	for i, cell := range cells {
+		x := padX + i*(cellWidth+gap)
+		drawText(dst, statFace, formatNumber(cell.Value), x, 530, inkColor)
+		drawTracked(dst, statLabelFace, strings.ToUpper(cell.Label), x, 554, 2, mutedColor)
+	}
+}
+
 // statCells reorders the summary for the kind. Zero values are omitted so a new
-// account does not show a wall of dashes.
+// account does not show a wall of dashes, except on a recap with nothing in it:
+// that still renders its year and explicit zeros.
 func statCells(data Data, kind string) []statCell {
 	var cells []statCell
-	if kind == "streak" {
+	limit := 4
+	switch kind {
+	case "streak":
 		cells = []statCell{
 			{"Check-ins", data.Checkins},
 			{"Styles", data.Styles},
@@ -179,7 +260,16 @@ func statCells(data Data, kind string) []statCell {
 			{"Countries", data.Countries},
 			{"Longest streak", data.LongestStreak},
 		}
-	} else {
+	case "recap":
+		limit = 5
+		cells = []statCell{
+			{"Drinks", data.UniqueDrinks},
+			{"Check-ins", data.Checkins},
+			{"Styles", data.Styles},
+			{"Badges", data.Badges},
+			{"Best streak", data.LongestStreak},
+		}
+	default:
 		cells = []statCell{
 			{"Styles", data.Styles},
 			{"Venue kinds", data.VenueKinds},
@@ -187,17 +277,78 @@ func statCells(data Data, kind string) []statCell {
 			{"Longest streak", data.LongestStreak},
 		}
 	}
-	out := make([]statCell, 0, 4)
+	out := make([]statCell, 0, limit)
 	for _, cell := range cells {
 		if cell.Value <= 0 {
 			continue
 		}
 		out = append(out, cell)
-		if len(out) == 4 {
+		if len(out) == limit {
 			break
 		}
 	}
+	if len(out) == 0 && kind == "recap" {
+		out = []statCell{
+			{"Drinks", 0},
+			{"Check-ins", 0},
+		}
+	}
 	return out
+}
+
+// recapYear returns the calendar year a recap card describes, falling back to
+// the generation date for a caller that forgot to set it.
+func recapYear(data Data) int {
+	if data.Year > 0 {
+		return data.Year
+	}
+	generated := data.GeneratedAt
+	if generated.IsZero() {
+		generated = time.Now().UTC()
+	}
+	return generated.Year()
+}
+
+// recapSummaryParts builds "N drinks · N styles · N badges" defensively: zero
+// parts are dropped and a top style or venue is appended only when known.
+func recapSummaryParts(data Data) []string {
+	parts := make([]string, 0, 4)
+	if n := data.UniqueDrinks; n > 0 {
+		parts = append(parts, pluralCount(n, "drink"))
+	}
+	if n := data.Styles; n > 0 {
+		parts = append(parts, pluralCount(n, "style"))
+	}
+	if n := data.Badges; n > 0 {
+		parts = append(parts, pluralCount(n, "badge"))
+	}
+	switch {
+	case data.TopStyle != "" && data.TopVenue != "":
+		parts = append(parts, "favourite "+data.TopStyle+" at "+data.TopVenue)
+	case data.TopStyle != "":
+		parts = append(parts, "favourite "+data.TopStyle)
+	case data.TopVenue != "":
+		parts = append(parts, "most visits at "+data.TopVenue)
+	}
+	return parts
+}
+
+// recapSummary joins the parts for callers that want the whole line.
+func recapSummary(data Data) string {
+	return strings.Join(recapSummaryParts(data), " · ")
+}
+
+func pluralCount(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return formatNumber(n) + " " + noun + "s"
+}
+
+// formatYear prints a calendar year without the thousands separator
+// formatNumber adds for counts.
+func formatYear(year int) string {
+	return fmt.Sprintf("%d", year)
 }
 
 func baseFont() (*sfnt.Font, error) {

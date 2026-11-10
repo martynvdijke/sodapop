@@ -165,6 +165,7 @@ func digestMessage(handle, baseURL string, items []digestItem) (string, string) 
 			b.WriteString(": " + baseURL + "/new")
 		}
 		b.WriteString(".\n")
+		b.WriteString(recapDigestLine(baseURL, time.Now().UTC()))
 		return subject, b.String()
 	}
 	b.WriteString("Here is what your friends drank on Sodapop this week:\n\n")
@@ -187,4 +188,15 @@ func digestMessage(handle, baseURL string, items []digestItem) (string, string) 
 	}
 	b.WriteString("\n")
 	return subject, b.String()
+}
+
+// recapDigestLine is the December pointer to the member's year in soda. It is
+// one line, and only in the final month, so the digest stays a friend summary
+// for the rest of the year.
+func recapDigestLine(baseURL string, now time.Time) string {
+	if baseURL == "" || now.Month() != time.December {
+		return ""
+	}
+	year := strconv.Itoa(now.Year())
+	return "\nYour " + year + " in soda: " + baseURL + "/recap/" + year + "\n"
 }

@@ -208,3 +208,108 @@ func TestListForUserOrderingAndCap(t *testing.T) {
 		t.Errorf("short list = %+v", short)
 	}
 }
+
+func TestCreateForYearValidatesYear(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	cases := []struct {
+		kind    string
+		year    int
+		wantErr error
+	}{
+		// Recap needs a real calendar year.
+		{"recap", 0, ErrInvalidYear},
+		{"recap", 1999, ErrInvalidYear},
+		{"recap", 2101, ErrInvalidYear},
+		{"recap", 2025, nil},
+		// Every other kind is year-less.
+		{"passport", 2025, ErrInvalidYear},
+		{"streak", 2025, ErrInvalidYear},
+		{"fingerprint", 2025, ErrInvalidYear},
+		{"passport", 0, nil},
+		{"streak", 0, nil},
+		{"fingerprint", 0, nil},
+		// Kind validation still wins over year validation.
+		{"bogus", 2025, ErrInvalidKind},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s-%d", tc.kind, tc.year), func(t *testing.T) {
+			link, err := svc.CreateForYear(ctx, "u1", tc.kind, tc.year)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantErr != nil {
+				if link != nil {
+					t.Fatalf("got link %+v with error", link)
+				}
+				return
+			}
+			if link.Year != tc.year {
+				t.Errorf("link.Year = %d, want %d", link.Year, tc.year)
+			}
+		})
+	}
+}
+
+func TestRecapYearRoundTrips(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	recap, err := svc.CreateForYear(ctx, "u1", "recap", 2024)
+	if err != nil {
+		t.Fatalf("create recap: %v", err)
+	}
+	if recap.Year != 2024 {
+		t.Errorf("created year = %d, want 2024", recap.Year)
+	}
+
+	got, err := svc.Resolve(ctx, recap.Token)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if got.Kind != "recap" || got.Year != 2024 {
+		t.Errorf("resolved %+v, want kind recap year 2024", got)
+	}
+
+	fingerprint, err := svc.CreateForYear(ctx, "u1", "fingerprint", 0)
+	if err != nil {
+		t.Fatalf("create fingerprint: %v", err)
+	}
+	if fingerprint.Year != 0 {
+		t.Errorf("fingerprint year = %d, want 0", fingerprint.Year)
+	}
+
+	listed, err := svc.ListForUser(ctx, "u1", 50)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	years := map[string]int{}
+	for _, link := range listed {
+		years[link.Kind] = link.Year
+	}
+	if years["recap"] != 2024 {
+		t.Errorf("listed recap year = %d, want 2024", years["recap"])
+	}
+	if years["fingerprint"] != 0 {
+		t.Errorf("listed fingerprint year = %d, want 0", years["fingerprint"])
+	}
+}
+
+func TestKindsCoverEveryRenderer(t *testing.T) {
+	want := []string{"passport", "streak", "recap", "fingerprint"}
+	if len(Kinds) != len(want) {
+		t.Fatalf("Kinds = %v, want %v", Kinds, want)
+	}
+	for i, kind := range want {
+		if Kinds[i] != kind {
+			t.Errorf("Kinds[%d] = %q, want %q", i, Kinds[i], kind)
+		}
+		if !ValidKind(kind) {
+			t.Errorf("ValidKind(%q) = false", kind)
+		}
+	}
+	if ValidKind("bogus") {
+		t.Error("ValidKind(bogus) = true")
+	}
+}

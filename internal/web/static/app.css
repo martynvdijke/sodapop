@@ -4009,3 +4009,93 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
   .venue-create-row { grid-template-columns: 1fr; }
   .photo-preview img { width: 96px; height: 96px; }
 }
+
+/* Year in soda recap ------------------------------------------------------ */
+.recap-page { padding-bottom: 1rem; }
+/* The year is the subject of the page, so it carries a highlighter mark rather
+   than a second colour: lime tint behind text that stays the normal ink. */
+.recap-year {
+  display: inline-block;
+  padding: 0 .16em;
+  border-radius: 8px;
+  background: var(--primary-tint);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+}
+.recap-note {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: .875rem;
+}
+.recap-nudge { margin: -.35rem 0 1rem; font-size: .9rem; }
+.recap-nudge a { font-weight: 600; }
+.recap-block { margin: 0 0 4px; }
+.recap-block h2 { margin-top: 1.75rem; }
+.recap-intro { margin: 0 0 12px; }
+.recap-subhead { margin: 16px 0 8px; }
+.recap-foot { margin: 12px 0 0; }
+
+/* Most logged and top brand sit side by side once there is room. */
+.recap-split { display: grid; gap: 8px; }
+@media (min-width: 520px) {
+  .recap-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.recap-feature { display: grid; align-content: start; gap: 2px; }
+.recap-feature .insight-label { margin: 0; }
+.recap-feature-name {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.recap-feature-name a { text-decoration: none; }
+.recap-feature-name a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.recap-feature .muted { margin: 2px 0 0; font-size: .85rem; }
+
+/* Shared bar chart for rating buckets and flavour axes. The width is the data;
+   the label and count beside it are the accessible version of the same fact. */
+.recap-bars { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.recap-bar { display: grid; gap: 6px; }
+.recap-bar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.recap-bar-label { font-size: .9375rem; font-weight: 650; }
+.recap-bar-meta {
+  color: var(--text-muted);
+  font-size: .8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.recap-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.recap-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+.recap-bar-note { margin: 0; color: var(--text-muted); font-size: .8125rem; }
+
+.recap-palate { display: grid; gap: 8px; }
+.recap-palate .clock-rows { margin: 0; }
+.recap-palate .recap-intro { margin: 0; }
+
+.recap-empty .empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .6rem;
+}

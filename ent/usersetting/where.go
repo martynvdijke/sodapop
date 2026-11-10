@@ -73,6 +73,16 @@ func PushEnabled(v bool) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldEQ(FieldPushEnabled, v))
 }
 
+// WishlistFriendAlerts applies equality check predicate on the "wishlist_friend_alerts" field. It's identical to WishlistFriendAlertsEQ.
+func WishlistFriendAlerts(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldWishlistFriendAlerts, v))
+}
+
+// WishlistShelfAlerts applies equality check predicate on the "wishlist_shelf_alerts" field. It's identical to WishlistShelfAlertsEQ.
+func WishlistShelfAlerts(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldWishlistShelfAlerts, v))
+}
+
 // PublicProfile applies equality check predicate on the "public_profile" field. It's identical to PublicProfileEQ.
 func PublicProfile(v bool) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldEQ(FieldPublicProfile, v))
@@ -181,6 +191,26 @@ func PushEnabledEQ(v bool) predicate.UserSetting {
 // PushEnabledNEQ applies the NEQ predicate on the "push_enabled" field.
 func PushEnabledNEQ(v bool) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldNEQ(FieldPushEnabled, v))
+}
+
+// WishlistFriendAlertsEQ applies the EQ predicate on the "wishlist_friend_alerts" field.
+func WishlistFriendAlertsEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldWishlistFriendAlerts, v))
+}
+
+// WishlistFriendAlertsNEQ applies the NEQ predicate on the "wishlist_friend_alerts" field.
+func WishlistFriendAlertsNEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNEQ(FieldWishlistFriendAlerts, v))
+}
+
+// WishlistShelfAlertsEQ applies the EQ predicate on the "wishlist_shelf_alerts" field.
+func WishlistShelfAlertsEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldWishlistShelfAlerts, v))
+}
+
+// WishlistShelfAlertsNEQ applies the NEQ predicate on the "wishlist_shelf_alerts" field.
+func WishlistShelfAlertsNEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNEQ(FieldWishlistShelfAlerts, v))
 }
 
 // ThemeEQ applies the EQ predicate on the "theme" field.

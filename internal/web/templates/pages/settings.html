@@ -142,6 +142,20 @@
           <span class="hint">Toasts, friend requests and badges. Needs HTTPS and a browser that supports web push.</span>
         </span>
       </label>
+      <label class="check-row">
+        <input type="checkbox" name="wishlist_friend_alerts" value="1"{{if .Prefs.WishlistFriend}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Wishlist friend check-ins</strong>
+          <span class="hint">Tell me when a friend checks in a wishlisted drink. Shown in the app only.</span>
+        </span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" name="wishlist_shelf_alerts" value="1"{{if .Prefs.WishlistShelf}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Wishlist venue sightings</strong>
+          <span class="hint">Tell me when a saved venue reports a wishlisted drink in stock. Shown in the app only.</span>
+        </span>
+      </label>
       <div class="form-actions">
         <button class="btn" type="submit">Save notification settings</button>
       </div>

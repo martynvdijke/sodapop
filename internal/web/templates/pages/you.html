@@ -28,6 +28,8 @@
   <a class="pill" href="/export.json">Export JSON</a>
 </div>
 
+{{if .RecapNudgeYear}}<p class="recap-nudge"><a href="/recap/{{.RecapNudgeYear}}">Look back at {{.RecapNudgeYear}} in soda</a></p>{{end}}
+
 <section class="share-panel" aria-labelledby="share-you">
   <h2 id="share-you">Share your cards</h2>
   <p class="muted">A share link opens a private page and a 1200×630 card for social previews. Revoke it whenever you like.</p>

@@ -34,7 +34,7 @@ func NewRenderer() (*Renderer, error) {
 		"notifications", "checkin_detail", "settings", "forgot", "reset",
 		"browse", "brand", "style", "profile", "insights", "drops", "venues_saved", "saved", "nearby", "compare", "settings_blocked", "setup", "admin_settings",
 		"admin_system", "admin_badges", "admin_venues", "admin_digest", "share", "admin_deliveries",
-		"admin_activity", "privacy", "terms", "account_delete", "people"}
+		"admin_activity", "privacy", "terms", "account_delete", "people", "recap"}
 	r := &Renderer{
 		pages:         map[string]*template.Template{},
 		imperialPages: map[string]*template.Template{},

@@ -21,6 +21,10 @@ const (
 	FieldEmailWeekly = "email_weekly"
 	// FieldPushEnabled holds the string denoting the push_enabled field in the database.
 	FieldPushEnabled = "push_enabled"
+	// FieldWishlistFriendAlerts holds the string denoting the wishlist_friend_alerts field in the database.
+	FieldWishlistFriendAlerts = "wishlist_friend_alerts"
+	// FieldWishlistShelfAlerts holds the string denoting the wishlist_shelf_alerts field in the database.
+	FieldWishlistShelfAlerts = "wishlist_shelf_alerts"
 	// FieldTheme holds the string denoting the theme field in the database.
 	FieldTheme = "theme"
 	// FieldPublicProfile holds the string denoting the public_profile field in the database.
@@ -42,6 +46,8 @@ var Columns = []string{
 	FieldEmailFriendReq,
 	FieldEmailWeekly,
 	FieldPushEnabled,
+	FieldWishlistFriendAlerts,
+	FieldWishlistShelfAlerts,
 	FieldTheme,
 	FieldPublicProfile,
 	FieldUnits,
@@ -68,6 +74,10 @@ var (
 	DefaultEmailWeekly bool
 	// DefaultPushEnabled holds the default value on creation for the "push_enabled" field.
 	DefaultPushEnabled bool
+	// DefaultWishlistFriendAlerts holds the default value on creation for the "wishlist_friend_alerts" field.
+	DefaultWishlistFriendAlerts bool
+	// DefaultWishlistShelfAlerts holds the default value on creation for the "wishlist_shelf_alerts" field.
+	DefaultWishlistShelfAlerts bool
 	// DefaultPublicProfile holds the default value on creation for the "public_profile" field.
 	DefaultPublicProfile bool
 	// DefaultCaffeineBedtime holds the default value on creation for the "caffeine_bedtime" field.
@@ -155,6 +165,16 @@ func ByEmailWeekly(opts ...sql.OrderTermOption) OrderOption {
 // ByPushEnabled orders the results by the push_enabled field.
 func ByPushEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPushEnabled, opts...).ToFunc()
+}
+
+// ByWishlistFriendAlerts orders the results by the wishlist_friend_alerts field.
+func ByWishlistFriendAlerts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWishlistFriendAlerts, opts...).ToFunc()
+}
+
+// ByWishlistShelfAlerts orders the results by the wishlist_shelf_alerts field.
+func ByWishlistShelfAlerts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWishlistShelfAlerts, opts...).ToFunc()
 }
 
 // ByTheme orders the results by the theme field.

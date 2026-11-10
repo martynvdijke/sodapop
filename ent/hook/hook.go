@@ -620,6 +620,18 @@ func (f VenueSaveFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VenueSaveMutation", m)
 }
 
+// The VenueStockReportFunc type is an adapter to allow the use of ordinary
+// function as VenueStockReport mutator.
+type VenueStockReportFunc func(context.Context, *ent.VenueStockReportMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VenueStockReportFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VenueStockReportMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VenueStockReportMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

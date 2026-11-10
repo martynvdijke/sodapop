@@ -74,6 +74,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   AccountSettings? _settings;
   List<SettingsSession> _sessions = const [];
   List<BlockedUser> _blocked = const [];
+  WishlistAlerts? _alerts;
   bool _loading = true;
   String? _error;
 
@@ -83,6 +84,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _savingNotifications = false;
   bool _savingPrivacy = false;
   bool _savingBedtime = false;
+  bool _savingAlerts = false;
+  bool _alertsLoading = true;
+  String? _alertsError;
   bool _signingOutAll = false;
   bool _exporting = false;
   int? _busySession;
@@ -96,6 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _bio.addListener(_onProfileChanged);
     _bedtime.addListener(_onBedtimeChanged);
     _load();
+    _loadAlerts();
   }
 
   @override
@@ -173,6 +178,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _loadAlerts() async {
+    setState(() {
+      _alertsLoading = true;
+      _alertsError = null;
+    });
+    try {
+      final alerts = await ref.read(apiProvider).wishlistAlerts();
+      if (!mounted) return;
+      setState(() {
+        _alerts = alerts;
+        _alertsLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _alertsLoading = false;
+        _alertsError = ApiClient.describe(error).message;
+      });
+    }
+  }
+
+  /// Saves the whole pair in one call. Local state changes only after the
+  /// server confirms, so a failed toggle leaves the previous values visible.
+  Future<void> _saveAlerts(WishlistAlerts next) async {
+    if (_savingAlerts) return;
+    setState(() => _savingAlerts = true);
+    try {
+      await ref.read(apiProvider).setWishlistAlerts(next);
+      if (!mounted) return;
+      setState(() {
+        _alerts = next;
+        _savingAlerts = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _savingAlerts = false);
+      _notify(ApiClient.describe(error).message);
+    }
   }
 
   /// Applies a partial settings update. The previous values stay on screen
@@ -664,6 +709,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 24),
         _notificationsSection(theme, settings.prefs),
         const SizedBox(height: 24),
+        _wishlistAlertsSection(theme),
+        const SizedBox(height: 24),
         _privacySection(theme, settings.prefs),
         const SizedBox(height: 24),
         _caffeineSection(theme, settings.prefs),
@@ -1007,6 +1054,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _wishlistAlertsSection(ThemeData theme) {
+    final alerts = _alerts;
+    final busy = _savingAlerts || _alertsLoading;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SodaSectionTitle(title: 'Wishlist alerts'),
+        const SizedBox(height: 10),
+        if (_alertsError != null)
+          SodaStatusView(
+            dense: true,
+            icon: Icons.notifications_off_outlined,
+            title: 'Wishlist alerts did not load',
+            message: _alertsError,
+            actionLabel: 'Try again',
+            onAction: _loadAlerts,
+          )
+        else
+          Card(
+            child: Column(
+              children: [
+                _switchRow(
+                  key: const Key('settings-alerts-friend-checkins'),
+                  icon: Icons.people_outline,
+                  title: 'When a friend checks in a drink on my wishlist',
+                  subtitle: 'A notification when they log one you want.',
+                  value: alerts?.friendCheckins ?? false,
+                  onChanged: busy || alerts == null
+                      ? null
+                      : (value) =>
+                            _saveAlerts(alerts.copyWith(friendCheckins: value)),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                _switchRow(
+                  key: const Key('settings-alerts-venue-shelf'),
+                  icon: Icons.inventory_2_outlined,
+                  title: 'When a venue I saved reports it in stock',
+                  subtitle: 'A notification when a saved venue adds it.',
+                  value: alerts?.venueShelf ?? false,
+                  onChanged: busy || alerts == null
+                      ? null
+                      : (value) =>
+                            _saveAlerts(alerts.copyWith(venueShelf: value)),
+                ),
+                if (_savingAlerts)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: _busyBar(true),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }

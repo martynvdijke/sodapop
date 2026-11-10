@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"sodapop/ent"
 	"sodapop/ent/comment"
@@ -21,6 +24,12 @@ import (
 	"sodapop/internal/mix"
 	"sodapop/internal/venues"
 )
+
+type shelfEntryView struct {
+	venues.ShelfEntry
+	Price string
+	Seen  string
+}
 
 type listView struct {
 	ID          string
@@ -616,6 +625,7 @@ func (s *Server) youPage(w http.ResponseWriter, r *http.Request) {
 		activityViews = append(activityViews, v)
 	}
 	shareURL, shareError := s.shareNotice(r, u.ID)
+	nudgeYear := recapNudgeYear(time.Now().UTC())
 	s.render(w, r, http.StatusOK, "you", map[string]any{
 		"Title": "You", "Stats": stats, "Badges": badgeViews, "Recent": recent,
 		"Activity":        activityViews,
@@ -623,6 +633,7 @@ func (s *Server) youPage(w http.ResponseWriter, r *http.Request) {
 		"ShareLinks":      s.shareLinkViews(r, u.ID),
 		"CreatedShareURL": shareURL,
 		"ShareError":      shareError,
+		"RecapNudgeYear":  nudgeYear,
 	})
 }
 
@@ -890,6 +901,13 @@ func (s *Server) venueCreate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) venuePage(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
+	s.renderVenue(w, r, http.StatusOK, id, nil)
+}
+
+// renderVenue renders the venue page, including its shelf. extra lets a POST
+// handler re-render the page with a validation message and the submitted form
+// values without duplicating the load logic.
+func (s *Server) renderVenue(w http.ResponseWriter, r *http.Request, status, id int, extra map[string]any) {
 	v, drinks, err := s.Venues.Get(r.Context(), id)
 	if err != nil {
 		s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That venue is not in Sodapop."})
@@ -913,14 +931,158 @@ func (s *Server) venuePage(w http.ResponseWriter, r *http.Request) {
 			(mediaRows[i].UploadedBy == u.ID || u.Role == "admin" || u.Role == "moderator")
 	}
 	canUpload := !v.AtHome && u != nil && u.EmailVerifiedAt != nil
-	s.render(w, r, http.StatusOK, "venue", map[string]any{
+
+	shelf := []venues.ShelfEntry{}
+	shelfError := ""
+	if u != nil {
+		shelf, err = s.Venues.Shelf(r.Context(), id, u.ID, time.Now())
+		if err != nil {
+			shelfError = "The shelf could not be loaded just now."
+		}
+	}
+	shelfViews := make([]shelfEntryView, 0, len(shelf))
+	for _, entry := range shelf {
+		view := shelfEntryView{ShelfEntry: entry}
+		if entry.PriceCents != nil {
+			view.Price = fmt.Sprintf("%d.%02d", *entry.PriceCents/100, *entry.PriceCents%100)
+		}
+		switch entry.AgeDays {
+		case 0:
+			view.Seen = "seen today"
+		case 1:
+			view.Seen = "seen 1 day ago"
+		default:
+			view.Seen = fmt.Sprintf("seen %d days ago", entry.AgeDays)
+		}
+		shelfViews = append(shelfViews, view)
+	}
+	shelfForm := map[string]string{"drink": "", "drink_slug": "", "price": "", "note": "", "seen_now": ""}
+
+	data := map[string]any{
 		"Title":      v.Name,
 		"Venue":      v,
 		"Drinks":     drinks,
 		"Media":      mediaRows,
 		"CanUpload":  canUpload,
 		"MediaError": mediaErrorFromQuery(r.URL.Query().Get("media_error")),
+		"Shelf":      shelfViews,
+		"ShelfError": shelfError,
+		"ShelfForm":  shelfForm,
+	}
+	for k, val := range extra {
+		data[k] = val
+	}
+	s.render(w, r, status, "venue", data)
+}
+
+// maxShelfPriceCents matches the venue service limit (1000 currency units).
+const maxShelfPriceCents = 100000
+
+// errShelfPrice marks a price the shelf form cannot accept.
+var errShelfPrice = errors.New("invalid shelf price")
+
+// parseShelfPrice accepts a decimal amount ("1.50") or an integer number of
+// cents ("150") and returns cents.
+func parseShelfPrice(raw string) (*int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	if strings.Contains(raw, ".") {
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || value < 0 || value > float64(maxShelfPriceCents)/100 {
+			return nil, errShelfPrice
+		}
+		cents := int(math.Round(value * 100))
+		return &cents, nil
+	}
+	cents, err := strconv.Atoi(raw)
+	if err != nil || cents < 0 || cents > maxShelfPriceCents {
+		return nil, errShelfPrice
+	}
+	return &cents, nil
+}
+
+func (s *Server) venueShelfReport(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	form := map[string]string{
+		"drink":      strings.TrimSpace(r.FormValue("drink")),
+		"drink_slug": strings.TrimSpace(r.FormValue("drink_slug")),
+		"price":      strings.TrimSpace(r.FormValue("price")),
+		"note":       r.FormValue("note"),
+		"seen_now":   "",
+	}
+	if _, ok := r.PostForm["seen_now"]; ok {
+		form["seen_now"] = "1"
+	}
+
+	fail := func(status int, message string) {
+		s.renderVenue(w, r, status, id, map[string]any{
+			"ShelfError": message,
+			"ShelfForm":  form,
+		})
+	}
+
+	if s.Limiter != nil && !s.Limiter.Allow("shelf-report:"+u.ID, 30, time.Hour) {
+		fail(http.StatusTooManyRequests, "Too many shelf reports. Try again later.")
+		return
+	}
+
+	slug := form["drink"]
+	if slug == "" {
+		slug = form["drink_slug"]
+	}
+	if slug == "" {
+		fail(http.StatusBadRequest, "Choose a drink or enter its slug.")
+		return
+	}
+	price, err := parseShelfPrice(form["price"])
+	if err != nil {
+		fail(http.StatusBadRequest, "Enter a price like 1.50, or leave it blank.")
+		return
+	}
+
+	_, err = s.Venues.ReportShelf(r.Context(), u.ID, id, venues.ShelfReportInput{
+		DrinkSlug:  slug,
+		PriceCents: price,
+		Note:       form["note"],
+		SeenNow:    form["seen_now"] == "1",
 	})
+	if err != nil {
+		switch {
+		case errors.Is(err, venues.ErrDrinkNotFound):
+			fail(http.StatusBadRequest, "That drink is not in Sodapop. Pick one from the list or check the slug.")
+		case errors.Is(err, venues.ErrSeenAtFuture):
+			fail(http.StatusBadRequest, "A sighting cannot be in the future.")
+		case errors.Is(err, venues.ErrSeenAtTooOld):
+			fail(http.StatusBadRequest, "Only sightings from the last 30 days count.")
+		case errors.Is(err, venues.ErrInvalid):
+			fail(http.StatusBadRequest, "Check the price, note, and drink, then try again.")
+		case errors.Is(err, venues.ErrNotFound):
+			s.render(w, r, http.StatusNotFound, "error", map[string]any{"Title": "Not found", "Message": "That venue is not in Sodapop."})
+		default:
+			s.fail(w, r, err)
+		}
+		return
+	}
+	http.Redirect(w, r, "/venues/"+strconv.Itoa(id), http.StatusSeeOther)
+}
+
+func (s *Server) venueShelfRetract(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	u := UserFromContext(r)
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	if _, err := s.Venues.RetractShelf(r.Context(), u.ID, r.PathValue("report_id")); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/venues/"+strconv.Itoa(id), http.StatusSeeOther)
 }
 
 // mediaErrorFromQuery maps a fixed set of query codes to display copy. It never

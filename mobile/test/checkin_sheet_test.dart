@@ -92,6 +92,29 @@ class _FakeApi extends ApiClient {
   final String externalStatus;
   final Object? failure;
   final calls = <_Call>[];
+  final shelfReports = <(int, String)>[];
+
+  @override
+  Future<ShelfEntry> reportVenueShelf(
+    int id, {
+    required String drinkSlug,
+    int? priceCents,
+    String? note,
+  }) async {
+    shelfReports.add((id, drinkSlug));
+    return ShelfEntry(
+      drinkId: 9,
+      drinkSlug: drinkSlug,
+      drinkName: 'Cherry Cola',
+      seenAt: '2026-10-28T10:00:00Z',
+      band: 'fresh',
+      reporters: 1,
+      mine: true,
+      reportId: 'r1',
+      source: 'report',
+    );
+  }
+
   final venueCalls = <_VenueCall>[];
   String? venueQuery;
   final venueQueries = <String>[];
@@ -352,6 +375,62 @@ void main() {
 
     await _save(tester);
     expect(api.calls.single.venueId, 7);
+  });
+
+  testWidgets('a saved check-in offers adding the drink to the shelf', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      venueResults: const [
+        Venue(id: 7, name: 'Corner Shop', kind: 'shop', city: 'Leeds'),
+      ],
+    );
+    await _openSheet(tester, api: api);
+
+    await _chooseVenue(tester, 'Corner', 'Corner Shop');
+    await _save(tester);
+
+    expect(find.text('Add to the shelf'), findsOneWidget);
+    expect(api.shelfReports, isEmpty);
+
+    await tester.tap(find.text('Add to the shelf'));
+    await tester.pumpAndSettle();
+
+    expect(api.shelfReports, [(7, 'cherry-cola')]);
+    expect(find.text('Added to the shelf'), findsOneWidget);
+  });
+
+  testWidgets('a check-in without a venue offers no shelf action', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final api = _FakeApi();
+    await _openSheet(tester, api: api);
+
+    await _save(tester);
+
+    expect(find.text('Check-in saved'), findsOneWidget);
+    expect(find.text('Add to the shelf'), findsNothing);
+  });
+
+  testWidgets('a queued check-in offers no shelf action', (tester) async {
+    _useTallScreen(tester);
+    final api = _FakeApi(
+      venueResults: const [
+        Venue(id: 7, name: 'Corner Shop', kind: 'shop', city: 'Leeds'),
+      ],
+      failure: ApiException(
+        'Cannot reach the server. Check the address and try again.',
+      ),
+    );
+    await _openSheet(tester, api: api);
+
+    await _chooseVenue(tester, 'Corner', 'Corner Shop');
+    await _save(tester);
+
+    expect(find.text('Saved offline'), findsOneWidget);
+    expect(find.text('Add to the shelf'), findsNothing);
   });
 
   testWidgets('a venue chip can be removed', (tester) async {

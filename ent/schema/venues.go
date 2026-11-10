@@ -125,3 +125,34 @@ func (VenueMedia) Fields() []ent.Field {
 		field.String("deleted_at").Optional().Nillable(),
 	}
 }
+
+// VenueStockReport is one member saying "this drink is on the shelf at this
+// venue", optionally with a price. Reports merge with check-ins at the same
+// venue to build the shelf view, and are retracted by the reporter rather than
+// deleted so the history stays auditable.
+type VenueStockReport struct {
+	ent.Schema
+}
+
+func (VenueStockReport) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").DefaultFunc(newID).Unique(),
+		field.Int("venue_id"),
+		field.Int("drink_id"),
+		field.String("user_id").NotEmpty(),
+		field.Int("price_cents").Optional().Nillable().Range(0, 100000),
+		field.String("note").Optional().Nillable(),
+		field.String("seen_at").DefaultFunc(now),
+		field.String("created_at").DefaultFunc(now),
+		field.String("updated_at").DefaultFunc(now),
+		field.String("removed_at").Optional().Nillable(),
+	}
+}
+
+func (VenueStockReport) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("venue_id", "drink_id", "user_id").Unique(),
+		index.Fields("venue_id", "seen_at"),
+		index.Fields("drink_id"),
+	}
+}

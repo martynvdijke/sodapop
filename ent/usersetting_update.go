@@ -83,6 +83,34 @@ func (_u *UserSettingUpdate) SetNillablePushEnabled(v *bool) *UserSettingUpdate 
 	return _u
 }
 
+// SetWishlistFriendAlerts sets the "wishlist_friend_alerts" field.
+func (_u *UserSettingUpdate) SetWishlistFriendAlerts(v bool) *UserSettingUpdate {
+	_u.mutation.SetWishlistFriendAlerts(v)
+	return _u
+}
+
+// SetNillableWishlistFriendAlerts sets the "wishlist_friend_alerts" field if the given value is not nil.
+func (_u *UserSettingUpdate) SetNillableWishlistFriendAlerts(v *bool) *UserSettingUpdate {
+	if v != nil {
+		_u.SetWishlistFriendAlerts(*v)
+	}
+	return _u
+}
+
+// SetWishlistShelfAlerts sets the "wishlist_shelf_alerts" field.
+func (_u *UserSettingUpdate) SetWishlistShelfAlerts(v bool) *UserSettingUpdate {
+	_u.mutation.SetWishlistShelfAlerts(v)
+	return _u
+}
+
+// SetNillableWishlistShelfAlerts sets the "wishlist_shelf_alerts" field if the given value is not nil.
+func (_u *UserSettingUpdate) SetNillableWishlistShelfAlerts(v *bool) *UserSettingUpdate {
+	if v != nil {
+		_u.SetWishlistShelfAlerts(*v)
+	}
+	return _u
+}
+
 // SetTheme sets the "theme" field.
 func (_u *UserSettingUpdate) SetTheme(v usersetting.Theme) *UserSettingUpdate {
 	_u.mutation.SetTheme(v)
@@ -229,6 +257,12 @@ func (_u *UserSettingUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.PushEnabled(); ok {
 		_spec.SetField(usersetting.FieldPushEnabled, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.WishlistFriendAlerts(); ok {
+		_spec.SetField(usersetting.FieldWishlistFriendAlerts, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.WishlistShelfAlerts(); ok {
+		_spec.SetField(usersetting.FieldWishlistShelfAlerts, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Theme(); ok {
 		_spec.SetField(usersetting.FieldTheme, field.TypeEnum, value)
 	}
@@ -316,6 +350,34 @@ func (_u *UserSettingUpdateOne) SetPushEnabled(v bool) *UserSettingUpdateOne {
 func (_u *UserSettingUpdateOne) SetNillablePushEnabled(v *bool) *UserSettingUpdateOne {
 	if v != nil {
 		_u.SetPushEnabled(*v)
+	}
+	return _u
+}
+
+// SetWishlistFriendAlerts sets the "wishlist_friend_alerts" field.
+func (_u *UserSettingUpdateOne) SetWishlistFriendAlerts(v bool) *UserSettingUpdateOne {
+	_u.mutation.SetWishlistFriendAlerts(v)
+	return _u
+}
+
+// SetNillableWishlistFriendAlerts sets the "wishlist_friend_alerts" field if the given value is not nil.
+func (_u *UserSettingUpdateOne) SetNillableWishlistFriendAlerts(v *bool) *UserSettingUpdateOne {
+	if v != nil {
+		_u.SetWishlistFriendAlerts(*v)
+	}
+	return _u
+}
+
+// SetWishlistShelfAlerts sets the "wishlist_shelf_alerts" field.
+func (_u *UserSettingUpdateOne) SetWishlistShelfAlerts(v bool) *UserSettingUpdateOne {
+	_u.mutation.SetWishlistShelfAlerts(v)
+	return _u
+}
+
+// SetNillableWishlistShelfAlerts sets the "wishlist_shelf_alerts" field if the given value is not nil.
+func (_u *UserSettingUpdateOne) SetNillableWishlistShelfAlerts(v *bool) *UserSettingUpdateOne {
+	if v != nil {
+		_u.SetWishlistShelfAlerts(*v)
 	}
 	return _u
 }
@@ -495,6 +557,12 @@ func (_u *UserSettingUpdateOne) sqlSave(ctx context.Context) (_node *UserSetting
 	}
 	if value, ok := _u.mutation.PushEnabled(); ok {
 		_spec.SetField(usersetting.FieldPushEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.WishlistFriendAlerts(); ok {
+		_spec.SetField(usersetting.FieldWishlistFriendAlerts, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.WishlistShelfAlerts(); ok {
+		_spec.SetField(usersetting.FieldWishlistShelfAlerts, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Theme(); ok {
 		_spec.SetField(usersetting.FieldTheme, field.TypeEnum, value)

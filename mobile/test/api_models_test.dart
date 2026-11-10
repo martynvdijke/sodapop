@@ -2,6 +2,58 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sodapop/src/api/models.dart';
 
 void main() {
+  group('ShelfEntry', () {
+    test('reads price, age and ownership', () {
+      final entry = ShelfEntry.fromJson({
+        'drink_id': 9,
+        'drink_slug': 'cherry-cola',
+        'drink_name': 'Cherry Cola',
+        'brand': 'Soda Co',
+        'style': 'Cola',
+        'price_cents': 150,
+        'note': 'Bottom shelf.',
+        'seen_at': '2026-10-28T10:00:00Z',
+        'age_days': 0,
+        'band': 'fresh',
+        'reporters': 3,
+        'mine': true,
+        'report_id': 'r1',
+        'source': 'report',
+      });
+
+      expect(entry.drinkId, 9);
+      expect(entry.drinkSlug, 'cherry-cola');
+      expect(entry.priceCents, 150);
+      expect(entry.band, 'fresh');
+      expect(entry.reporters, 3);
+      expect(entry.mine, isTrue);
+      expect(entry.reportId, 'r1');
+    });
+
+    test('keeps an absent price and report id null', () {
+      final entry = ShelfEntry.fromJson({
+        'drink_name': 'Cherry Cola',
+        'price_cents': null,
+        'report_id': null,
+      });
+      expect(entry.priceCents, isNull);
+      expect(entry.reportId, isNull);
+      expect(entry.mine, isFalse);
+    });
+  });
+
+  group('WishlistAlerts', () {
+    test('round-trips the wire field names', () {
+      final alerts = WishlistAlerts.fromJson({
+        'friend_checkins': true,
+        'venue_shelf': false,
+      });
+      expect(alerts.friendCheckins, isTrue);
+      expect(alerts.venueShelf, isFalse);
+      expect(alerts.toJson(), {'friend_checkins': true, 'venue_shelf': false});
+    });
+  });
+
   group('CheckinDetail', () {
     test('reads the nested detail payload', () {
       final detail = CheckinDetail.fromJson({

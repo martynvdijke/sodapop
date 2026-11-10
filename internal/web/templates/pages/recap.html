@@ -1,0 +1,151 @@
+{{define "content"}}
+<section class="narrow recap-page">
+  <p class="eyebrow">Year in soda</p>
+  <h1>Your <span class="recap-year">{{.Recap.Year}}</span> in soda</h1>
+  {{if .Recap.Summary}}<p class="lede">{{.Recap.Summary}}</p>{{end}}
+  {{if .Recap.Sparse}}<p class="recap-note">{{.Recap.SparseNote}}</p>{{end}}
+
+  {{if gt (len .Years) 1}}
+    <nav class="range-tabs" aria-label="Recap year">
+      {{range .Years}}
+        <a class="range-tab" href="/recap/{{.}}"{{if eq . $.RecapYear}} aria-current="page"{{end}}>{{.}}</a>
+      {{end}}
+    </nav>
+  {{end}}
+
+  {{if not .Recap.HasData}}
+    <div class="empty recap-empty">
+      <p class="empty-title">Nothing logged in {{.Recap.Year}} yet</p>
+      <p>{{if .Recap.InProgress}}The year is still running. Log a soda and this page builds itself from your check-ins.{{else}}No check-ins are recorded for this year, so there is nothing to add up.{{end}}</p>
+      <p class="empty-actions">
+        <a class="btn btn-primary" href="/scan">Scan a soda</a>
+        <a class="btn" href="/drinks">Browse drinks</a>
+      </p>
+    </div>
+  {{else}}
+    <section class="stat-grid" aria-label="Totals for {{.Recap.Year}}">
+      {{range .Recap.Stats}}
+        <div><strong>{{.Value}}</strong><span>{{.Label}}</span></div>
+      {{end}}
+    </section>
+
+    <section class="recap-block" aria-labelledby="recap-drank">
+      <h2 id="recap-drank">What you drank</h2>
+      <div class="recap-split">
+        {{if .Recap.TopDrink}}
+          <div class="card recap-feature">
+            <p class="insight-label">Most logged</p>
+            <p class="recap-feature-name"><a href="/drinks/{{.Recap.TopDrink.Slug}}">{{.Recap.TopDrink.Name}}</a></p>
+            <p class="muted">{{if and .Recap.TopDrink.Brand (ne .Recap.TopDrink.Brand .Recap.TopDrink.Name)}}{{.Recap.TopDrink.Brand}} · {{end}}{{.Recap.TopDrink.Count}} check-ins</p>
+          </div>
+        {{end}}
+        {{if .Recap.TopBrand}}
+          <div class="card recap-feature">
+            <p class="insight-label">Top brand</p>
+            <p class="recap-feature-name"><a href="/brands/{{.Recap.TopBrand.Slug}}">{{.Recap.TopBrand.Name}}</a></p>
+            <p class="muted">{{.Recap.TopBrand.Count}} check-ins</p>
+          </div>
+        {{end}}
+      </div>
+      {{if .Recap.TopStyles}}
+        <p class="insight-label recap-subhead">Top styles</p>
+        <div class="pill-row">
+          {{range .Recap.TopStyles}}
+            <a class="pill" href="/styles/{{.Slug}}">{{.Name}} · {{.Count}}</a>
+          {{end}}
+        </div>
+      {{end}}
+    </section>
+
+    <section class="recap-block" aria-labelledby="recap-where">
+      <h2 id="recap-where">Where you drank</h2>
+      {{if .Recap.TopVenue}}
+        <div class="card recap-feature">
+          <p class="insight-label">Most visits</p>
+          <p class="recap-feature-name"><a href="/venues/{{.Recap.TopVenue.ID}}">{{.Recap.TopVenue.Name}}</a></p>
+          <p class="muted">{{.Recap.TopVenue.Count}} check-ins</p>
+        </div>
+      {{else}}
+        <p class="muted">No check-ins at a venue in {{.Recap.Year}}.</p>
+      {{end}}
+    </section>
+
+    <section class="recap-block" aria-labelledby="recap-rated">
+      <h2 id="recap-rated">How you rated</h2>
+      {{if .Recap.Rated}}
+        <p class="muted recap-intro">{{.Recap.RatedLine}}</p>
+        <ul class="recap-bars">
+          {{range .Recap.RatingBars}}
+            <li class="recap-bar">
+              <div class="recap-bar-head">
+                <span class="recap-bar-label">{{.Label}}</span>
+                <span class="recap-bar-meta">{{.Meta}}</span>
+              </div>
+              <div class="recap-bar-track" aria-hidden="true"><span class="recap-bar-fill" style="width:{{.Width}}"></span></div>
+            </li>
+          {{end}}
+        </ul>
+      {{else}}
+        <p class="muted">No ratings in {{.Recap.Year}}. A rating you give a soda lands in one of five quarter-star bands here.</p>
+      {{end}}
+    </section>
+
+    <section class="recap-block" aria-labelledby="recap-palate">
+      <h2 id="recap-palate">Palate shift</h2>
+      {{if .Recap.Palate}}
+        <div class="card recap-palate">
+          <dl class="clock-rows">
+            {{range .Recap.Palate}}
+              <div class="clock-row"><dt>{{.Label}}</dt><dd>{{.Value}}</dd></div>
+            {{end}}
+          </dl>
+          {{if .Recap.PalateNote}}<p class="muted recap-intro">{{.Recap.PalateNote}}</p>{{end}}
+        </div>
+      {{else}}
+        <p class="muted">{{.Recap.PalateNote}}</p>
+      {{end}}
+    </section>
+
+    <section class="recap-block" aria-labelledby="recap-fingerprint">
+      <h2 id="recap-fingerprint">Flavour fingerprint</h2>
+      {{if .Recap.Axes}}
+        <p class="muted recap-intro">Built from all your check-ins, not just {{.Recap.Year}}. Each score weighs how often you drink a flavour against how you rated it, with your strongest at 100.</p>
+        <ul class="recap-bars">
+          {{range .Recap.Axes}}
+            <li class="recap-bar">
+              <div class="recap-bar-head">
+                <span class="recap-bar-label">{{.Label}}</span>
+                <span class="recap-bar-meta">{{.Meta}}</span>
+              </div>
+              <div class="recap-bar-track" aria-hidden="true"><span class="recap-bar-fill" style="width:{{.Width}}"></span></div>
+              {{if .Note}}<p class="recap-bar-note">{{.Note}}</p>{{end}}
+            </li>
+          {{end}}
+        </ul>
+        {{if .Recap.AxesNote}}<p class="muted recap-foot">{{.Recap.AxesNote}}</p>{{end}}
+      {{else}}
+        <p class="muted">No flavour data yet. Drinks tagged with flavours build this chart.</p>
+      {{end}}
+    </section>
+
+    <section class="share-panel" aria-labelledby="recap-share">
+      <h2 id="recap-share">Share this recap</h2>
+      <p class="muted">Create a private link to a 1200×630 card for {{.Recap.Year}}. Anyone with the link sees these totals; revoke it whenever you like.</p>
+      {{if .ShareError}}<p class="banner warn" role="status">{{.ShareError}}</p>{{end}}
+      {{if .CreatedShareURL}}
+        <div class="card share-created">
+          <p><strong>Your link is ready.</strong></p>
+          <p class="share-url"><a href="{{.CreatedShareURL}}">{{.CreatedShareURL}}</a></p>
+          <button class="btn btn-small" type="button" data-share data-share-url="{{.CreatedShareURL}}" data-share-title="My {{.Recap.Year}} in soda on Sodapop">Copy link</button>
+        </div>
+      {{end}}
+      <form method="post" action="/share" class="actions">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <input type="hidden" name="kind" value="recap">
+        <input type="hidden" name="year" value="{{.Recap.Year}}">
+        <button class="btn btn-primary" type="submit">Create recap link</button>
+      </form>
+    </section>
+  {{end}}
+</section>
+{{end}}

@@ -70,6 +70,34 @@ class _InsightsApi extends ApiClient {
 
 class _VenueApi extends ApiClient {
   bool saved = false;
+  List<ShelfEntry> shelf = const [
+    ShelfEntry(
+      drinkId: 9,
+      drinkSlug: 'cherry-cola',
+      drinkName: 'Cherry Cola',
+      brand: 'Soda Co',
+      style: 'Cola',
+      priceCents: 150,
+      note: 'Bottom shelf, by the till.',
+      seenAt: '2026-10-28T10:00:00Z',
+      ageDays: 0,
+      band: 'fresh',
+      reporters: 3,
+      mine: true,
+      reportId: 'r1',
+      source: 'report',
+    ),
+  ];
+  final List<String> retracted = [];
+
+  @override
+  Future<List<ShelfEntry>> venueShelf(int id) async => shelf;
+
+  @override
+  Future<void> retractShelf(int venueId, String reportId) async {
+    retracted.add(reportId);
+    shelf = shelf.where((row) => row.reportId != reportId).toList();
+  }
 
   @override
   Future<VenueDetail> venue(int id) async => VenueDetail(
@@ -267,6 +295,60 @@ void main() {
     expect(api.saved, isFalse);
     expect(find.text('Save venue'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('venue shelf shows price, age and reporters, and retracts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final api = _VenueApi();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: sodaTheme(Brightness.light),
+          home: const VenueDetailScreen(venueId: 4),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Shelf'), findsOneWidget);
+    expect(find.text('Cherry Cola'), findsWidgets);
+    expect(find.text('1.50 · seen today · 3 members · fresh'), findsOneWidget);
+    expect(find.text('Bottom shelf, by the till.'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Retract'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Retract'));
+    await tester.pumpAndSettle();
+
+    expect(api.retracted, ['r1']);
+    expect(find.text('Nobody has reported stock here yet.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('venue shelf empty state names the gap', (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final api = _VenueApi()..shelf = const [];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: sodaTheme(Brightness.light),
+          home: const VenueDetailScreen(venueId: 4),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nobody has reported stock here yet.'), findsOneWidget);
   });
 
   testWidgets('mix form validates name and component count', (tester) async {

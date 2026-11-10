@@ -347,6 +347,58 @@ func (s *Server) mePassword(w http.ResponseWriter, r *http.Request, tok *auth.AP
 	return nil
 }
 
+// wishlistAlertsDTO is the mobile counterpart of the two wishlist alert
+// toggles. The values live on user_settings, not the user row.
+type wishlistAlertsDTO struct {
+	FriendCheckins bool `json:"friend_checkins"`
+	VenueShelf     bool `json:"venue_shelf"`
+}
+
+// meWishlistAlertsGet handles GET /api/v1/me/wishlist/alerts.
+func (s *Server) meWishlistAlertsGet(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
+	prefs, err := s.Auth.GetOrCreateSettings(r.Context(), tok.User.ID)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": wishlistAlertsDTO{
+		FriendCheckins: prefs.WishlistFriendAlerts,
+		VenueShelf:     prefs.WishlistShelfAlerts,
+	}})
+	return nil
+}
+
+// meWishlistAlertsPut handles PUT /api/v1/me/wishlist/alerts. Both fields are
+// optional; only supplied values change, and the updated pair is returned.
+func (s *Server) meWishlistAlertsPut(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {
+	var in struct {
+		FriendCheckins *bool `json:"friend_checkins"`
+		VenueShelf     *bool `json:"venue_shelf"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return err
+	}
+	prefs, err := s.Auth.GetOrCreateSettings(r.Context(), tok.User.ID)
+	if err != nil {
+		return err
+	}
+	upd := prefs.Update()
+	if in.FriendCheckins != nil {
+		upd.SetWishlistFriendAlerts(*in.FriendCheckins)
+	}
+	if in.VenueShelf != nil {
+		upd.SetWishlistShelfAlerts(*in.VenueShelf)
+	}
+	updated, err := upd.SetUpdatedAt(db.Now()).Save(r.Context())
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": wishlistAlertsDTO{
+		FriendCheckins: updated.WishlistFriendAlerts,
+		VenueShelf:     updated.WishlistShelfAlerts,
+	}})
+	return nil
+}
+
 // meBlocks handles GET /api/v1/me/blocks. Unblocking reuses the existing
 // DELETE /api/v1/users/{handle}/block route.
 func (s *Server) meBlocks(w http.ResponseWriter, r *http.Request, tok *auth.APIToken) error {

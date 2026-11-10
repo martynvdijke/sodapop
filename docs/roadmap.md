@@ -49,6 +49,15 @@ Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`d
 - **Share cards**: revocable passport and streak capability links rendered as a public `noindex` page plus a server-generated 1200×630 PNG (`internal/sharecard`, `internal/sharelinks`, migration `0012_share_links.sql`). Owner-only creation is capped at 20 per hour; revocation is owner-scoped. Web-only, so OpenAPI is unchanged.
 - **Native Android push (FCM)**: `push_devices` plus `POST`/`DELETE /api/v1/me/push/devices`; notification fan-out queues `fcm` deliveries, and the worker exchanges the service-account key for an OAuth2 token and calls FCM HTTP v1. No credentials means a silent no-op, and rejected tokens are pruned. OpenAPI is `1.11.0`.
 
+## Shipped since v1.11
+
+These surfaces are implemented in the current tree after the docs last caught up at v1.11.
+
+- **Venue shelf**: members report a drink on a venue's shelf with an optional unitless price and a 140-character note; `venues.Service.Shelf` merges reports with check-ins from the last 30 days, computes fresh/stale bands at read time, and caps a venue at 40 entries. Web `/venues/{id}`, `GET|POST /api/v1/venues/{id}/shelf`, `DELETE /api/v1/venues/{id}/shelf/{report_id}`, and the Android venue screen.
+- **Wishlist availability alerts**: `wishlist_friend` and `wishlist_shelf` notifications, in-app only, off by default, deduplicated for seven days, with toggles on `/settings` and Android and `GET|PUT /api/v1/me/wishlist/alerts`.
+- **Year in soda**: `/recap/{year}` and `GET /api/v1/me/recap/{year}` aggregate the member's year on read, with rating buckets, an overall-rating year delta and a flavour fingerprint.
+- **Remaining gaps**: there is no Android recap screen; wishlist alerts are in-app only by design (no Web Push, FCM or outbox); the palate comparison has one overall-rating row because check-ins carry no per-taste rating column; shelf prices are unitless minor units with no currency or money-spent total; shelf alerts cover saved venues only because `@home` is a hidden venue that cannot carry reports.
+
 ## Next
 
 - Mobile admin surfaces: administration stays web-only.
@@ -158,7 +167,7 @@ P1 and P2 can run in parallel once P0 lands. P3 needs P2's catalog and a barcode
 - Server-side validation and idempotency keys; duplicate-submit protection; activity row in the same transaction.
 - Photo pipeline: multipart cap, MIME sniff + re-decode, resize 1600 px, WebP/JPEG, EXIF strip, deterministic placeholder.
 - Drink page personal history, friend ratings, average with `MIN_RATERS_FOR_AVG=3`, Bayesian top-rated list.
-- Profile stats and personal stats page; streak computation; money spent when prices exist.
+- Profile stats and personal stats page; streak computation.
 - Edit and delete flows with confirmation; recompute on read.
 
 **Exit criteria**

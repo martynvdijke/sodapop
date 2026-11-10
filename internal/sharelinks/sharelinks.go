@@ -19,15 +19,29 @@ var ErrNotFound = errors.New("share link not found")
 // ErrInvalidKind is returned when a caller asks for an unsupported card kind.
 var ErrInvalidKind = errors.New("invalid share link kind")
 
-// Kinds lists the card kinds a user may share.
-var Kinds = []string{"passport", "streak"}
+// ErrInvalidYear is returned when the year does not match the kind: a recap
+// card is scoped to one real calendar year, every other kind is year-less.
+var ErrInvalidYear = errors.New("invalid share link year")
 
-// Link is one share capability row.
+// Kinds lists the card kinds a user may share.
+var Kinds = []string{"passport", "streak", "recap", "fingerprint"}
+
+// MinRecapYear and MaxRecapYear bound the calendar years a recap card may
+// describe. The lower bound predates the project on purpose: it only has to
+// reject nonsense, not enforce a launch date.
+const (
+	MinRecapYear = 2000
+	MaxRecapYear = 2100
+)
+
+// Link is one share capability row. Year is the calendar year a recap card
+// describes and 0 for every other kind.
 type Link struct {
 	ID        string
 	UserID    string
 	Kind      string
 	Token     string
+	Year      int
 	CreatedAt string
 	RevokedAt *string
 }
@@ -45,14 +59,26 @@ func New(sqlDB *sql.DB) *Service {
 // maxActiveLinks caps how many unrevoked links one user may hold at once.
 const maxActiveLinks = 10
 
-// Create mints a new capability link for userID. The token is 32 random bytes
-// rendered as hex (64 characters) and the row id is 16 random bytes of hex.
-// After inserting, the oldest active links beyond maxActiveLinks are revoked in
-// the same transaction so a user cannot accumulate an unbounded set of live
-// capability URLs.
+// Create mints a year-less capability link for userID. It is CreateForYear
+// with year 0, which every kind except recap requires.
 func (s *Service) Create(ctx context.Context, userID, kind string) (*Link, error) {
+	return s.CreateForYear(ctx, userID, kind, 0)
+}
+
+// CreateForYear mints a new capability link for userID. The token is 32 random
+// bytes rendered as hex (64 characters) and the row id is 16 random bytes of
+// hex. After inserting, the oldest active links beyond maxActiveLinks are
+// revoked in the same transaction so a user cannot accumulate an unbounded set
+// of live capability URLs.
+//
+// A recap card is scoped to one calendar year; a non-zero year on any other
+// kind is rejected with ErrInvalidYear.
+func (s *Service) CreateForYear(ctx context.Context, userID, kind string, year int) (*Link, error) {
 	if !ValidKind(kind) {
 		return nil, ErrInvalidKind
+	}
+	if !ValidYearForKind(kind, year) {
+		return nil, ErrInvalidYear
 	}
 	id, err := randomHex(16)
 	if err != nil {
@@ -71,9 +97,9 @@ func (s *Service) Create(ctx context.Context, userID, kind string) (*Link, error
 	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO share_links (id, user_id, kind, token, created_at)
-		VALUES (?, ?, ?, ?, ?)`,
-		id, userID, kind, token, createdAt); err != nil {
+		INSERT INTO share_links (id, user_id, kind, token, year, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)`,
+		id, userID, kind, token, year, createdAt); err != nil {
 		return nil, fmt.Errorf("insert share link: %w", err)
 	}
 	rows, err := tx.QueryContext(ctx, `
@@ -111,7 +137,7 @@ func (s *Service) Create(ctx context.Context, userID, kind string) (*Link, error
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit share link: %w", err)
 	}
-	return &Link{ID: id, UserID: userID, Kind: kind, Token: token, CreatedAt: createdAt}, nil
+	return &Link{ID: id, UserID: userID, Kind: kind, Token: token, Year: year, CreatedAt: createdAt}, nil
 }
 
 // Resolve returns the active link for token. Revoked and unknown tokens are
@@ -123,10 +149,10 @@ func (s *Service) Resolve(ctx context.Context, token string) (*Link, error) {
 	var link Link
 	var revoked sql.NullString
 	err := s.SQL.QueryRowContext(ctx, `
-		SELECT id, user_id, kind, token, created_at, revoked_at
+		SELECT id, user_id, kind, token, year, created_at, revoked_at
 		FROM share_links
 		WHERE token = ? AND revoked_at IS NULL`, token).
-		Scan(&link.ID, &link.UserID, &link.Kind, &link.Token, &link.CreatedAt, &revoked)
+		Scan(&link.ID, &link.UserID, &link.Kind, &link.Token, &link.Year, &link.CreatedAt, &revoked)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -149,7 +175,7 @@ func (s *Service) ListForUser(ctx context.Context, userID string, limit int) ([]
 		limit = 50
 	}
 	rows, err := s.SQL.QueryContext(ctx, `
-		SELECT id, user_id, kind, token, created_at
+		SELECT id, user_id, kind, token, year, created_at
 		FROM share_links
 		WHERE user_id = ? AND revoked_at IS NULL
 		ORDER BY created_at DESC, id DESC
@@ -161,7 +187,7 @@ func (s *Service) ListForUser(ctx context.Context, userID string, limit int) ([]
 	out := []Link{}
 	for rows.Next() {
 		var link Link
-		if err := rows.Scan(&link.ID, &link.UserID, &link.Kind, &link.Token, &link.CreatedAt); err != nil {
+		if err := rows.Scan(&link.ID, &link.UserID, &link.Kind, &link.Token, &link.Year, &link.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, link)
@@ -195,6 +221,19 @@ func ValidKind(kind string) bool {
 		}
 	}
 	return false
+}
+
+// ValidYearForKind reports whether year is coherent with kind. A recap card
+// needs one real calendar year in [MinRecapYear, MaxRecapYear]; passport,
+// streak, and fingerprint cards are not year-scoped and must carry 0.
+func ValidYearForKind(kind string, year int) bool {
+	if !ValidKind(kind) {
+		return false
+	}
+	if kind != "recap" {
+		return year == 0
+	}
+	return year >= MinRecapYear && year <= MaxRecapYear
 }
 
 func randomHex(n int) (string, error) {

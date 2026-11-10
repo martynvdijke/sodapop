@@ -70,6 +70,7 @@ class _FakeSettingsApi extends ApiClient {
   AccountSettings current;
   List<SettingsSession> sessionRows;
   List<BlockedUser> blockedRows;
+  WishlistAlerts alerts = const WishlistAlerts();
 
   final List<Map<String, Object?>> updates = [];
   final List<int> revoked = [];
@@ -91,6 +92,12 @@ class _FakeSettingsApi extends ApiClient {
     if (settingsFails) throw ApiException('Cannot reach the server.');
     return current;
   }
+
+  @override
+  Future<WishlistAlerts> wishlistAlerts() async => alerts;
+
+  @override
+  Future<void> setWishlistAlerts(WishlistAlerts next) async => alerts = next;
 
   @override
   Future<AccountSettings> updateSettings({
@@ -244,7 +251,7 @@ Future<_FakeSettingsApi> _pump(
   WidgetTester tester, {
   _FakeSettingsApi? api,
 }) async {
-  tester.view.physicalSize = const Size(500, 3000);
+  tester.view.physicalSize = const Size(500, 3600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final fake = api ?? _FakeSettingsApi();

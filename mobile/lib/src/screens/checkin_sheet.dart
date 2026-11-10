@@ -575,7 +575,20 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
         photoMime: video != null ? _videoMime : _photoMime,
       );
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Check-in saved')));
+      final shelfVenueId = _venueId;
+      final shelfSlug = widget.drink.slug;
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Check-in saved'),
+          action: shelfVenueId != null && shelfSlug.isNotEmpty
+              ? SnackBarAction(
+                  label: 'Add to the shelf',
+                  onPressed: () =>
+                      _addToShelf(api, shelfVenueId, shelfSlug, messenger),
+                )
+              : null,
+        ),
+      );
       Navigator.of(context).pop(CheckinSave.saved(id));
     } catch (error) {
       if (!mounted) return;
@@ -595,6 +608,28 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
         return;
       }
       await _queue(rating, key);
+    }
+  }
+
+  /// Offered from the success snackbar: the check-in already proves the drink
+  /// is here, so this adds it to the venue's shelf without a price.
+  Future<void> _addToShelf(
+    ApiClient api,
+    int venueId,
+    String drinkSlug,
+    ScaffoldMessengerState messenger,
+  ) async {
+    try {
+      await api.reportVenueShelf(venueId, drinkSlug: drinkSlug);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Added to the shelf')));
+    } catch (error) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(ApiClient.describe(error).message)),
+        );
     }
   }
 
@@ -1799,8 +1834,7 @@ class _VenuePickerSheetState extends ConsumerState<_VenuePickerSheet> {
               ),
             ),
           ),
-        if (_includesExternal && _externalUnavailable)
-          _externalNotice(theme),
+        if (_includesExternal && _externalUnavailable) _externalNotice(theme),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(4, 0, 4, 20),

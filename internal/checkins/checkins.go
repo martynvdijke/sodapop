@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"log/slog"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -203,7 +206,153 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 			_ = s.Social.Notify(ctx, friendID, string(notification.KindMention), u.ID, c.ID, "tagged you in a check-in")
 		}
 	}
+	// Wishlist availability alerts are best effort and in-app only. They run
+	// after the commit so a notification error can never undo the check-in.
+	s.notifyWishlistFriends(ctx, u, c, visibility)
 	return c, true, nil
+}
+
+// wishlistFriendWindow is the per-(recipient, drink) cooldown for friend
+// check-in alerts. A second friend checking in the same drink within a week is
+// not a new reason to interrupt anyone.
+const wishlistFriendWindow = 7 * 24 * time.Hour
+
+// notifyWishlistFriends tells accepted friends who have this drink on their
+// wishlist. Only check-ins visible to friends qualify, and a recipient who has
+// since checked the drink in themselves is skipped because their wishlist entry
+// is stale. Every failure is logged and never returned: the check-in is already
+// committed and this is a convenience notification.
+func (s *Service) notifyWishlistFriends(ctx context.Context, actor *ent.User, c *ent.Checkin, visibility string) {
+	if s.Social == nil || actor == nil {
+		return
+	}
+	// Private check-ins are not visible to friends, so they cannot be a reason
+	// to send them anything.
+	if visibility == "private" {
+		return
+	}
+	friends, err := s.Social.FriendIDs(ctx, actor.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "wishlist friend alert: friend ids", "err", err, "user_id", actor.ID)
+		return
+	}
+	if len(friends) == 0 {
+		return
+	}
+	blocked, err := s.Social.BlockedUserIDs(ctx, actor.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "wishlist friend alert: blocked ids", "err", err, "user_id", actor.ID)
+		return
+	}
+	blockedSet := make(map[string]bool, len(blocked))
+	for _, id := range blocked {
+		blockedSet[id] = true
+	}
+	candidates := make([]any, 0, len(friends))
+	for _, id := range friends {
+		if id == actor.ID || blockedSet[id] {
+			continue
+		}
+		candidates = append(candidates, id)
+	}
+	if len(candidates) == 0 {
+		return
+	}
+
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(candidates)), ",")
+	query := `
+		SELECT DISTINCT l.user_id
+		FROM lists l
+		JOIN list_items li ON li.list_id = l.id
+		JOIN user_settings us ON us.user_id = l.user_id
+		WHERE l.is_system = 1 AND l.slug = 'wishlist'
+		  AND li.drink_id = ? AND us.wishlist_friend_alerts = 1
+		  AND l.user_id IN (` + placeholders + `)`
+	args := append([]any{c.DrinkID}, candidates...)
+	rows, err := s.SQL.QueryContext(ctx, query, args...)
+	if err != nil {
+		slog.ErrorContext(ctx, "wishlist friend alert: wishlist query", "err", err, "drink_id", c.DrinkID)
+		return
+	}
+	recipients := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			slog.ErrorContext(ctx, "wishlist friend alert: scan", "err", err)
+			return
+		}
+		recipients = append(recipients, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		slog.ErrorContext(ctx, "wishlist friend alert: rows", "err", err)
+		return
+	}
+	if len(recipients) == 0 {
+		return
+	}
+
+	// Drop anyone who has already logged this drink: a wishlist entry that
+	// predates their own check-in is no longer an open wish.
+	own, err := s.checkedInUsers(ctx, c.DrinkID, recipients)
+	if err != nil {
+		slog.ErrorContext(ctx, "wishlist friend alert: existing check-ins", "err", err, "drink_id", c.DrinkID)
+		return
+	}
+
+	var drinkName string
+	if err := s.SQL.QueryRowContext(ctx, `SELECT name FROM drinks WHERE id = ?`, c.DrinkID).Scan(&drinkName); err != nil {
+		slog.ErrorContext(ctx, "wishlist friend alert: drink name", "err", err, "drink_id", c.DrinkID)
+		return
+	}
+	text := fmt.Sprintf("%s checked in %s", displayName(actor), drinkName)
+	subject := strconv.Itoa(c.DrinkID)
+	for _, recipient := range recipients {
+		if own[recipient] {
+			continue
+		}
+		if _, err := s.Social.NotifyOnce(ctx, recipient, string(notification.KindWishlistFriend), actor.ID, subject, text, wishlistFriendWindow); err != nil {
+			slog.ErrorContext(ctx, "wishlist friend alert: notify", "err", err, "user_id", recipient)
+		}
+	}
+}
+
+// checkedInUsers reports which of recipients have a live check-in for drinkID.
+func (s *Service) checkedInUsers(ctx context.Context, drinkID int, recipients []string) (map[string]bool, error) {
+	out := make(map[string]bool, len(recipients))
+	if len(recipients) == 0 {
+		return out, nil
+	}
+	args := make([]any, 0, len(recipients)+1)
+	args = append(args, drinkID)
+	for _, id := range recipients {
+		args = append(args, id)
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(recipients)), ",")
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT DISTINCT user_id FROM checkins
+		WHERE drink_id = ? AND deleted_at IS NULL AND user_id IN (`+placeholders+`)`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}
+
+// displayName falls back to the handle so an alert never names someone blank.
+func displayName(u *ent.User) string {
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+	return u.Handle
 }
 
 // validateCoords enforces the all-or-nothing GPS contract. Absent coordinates

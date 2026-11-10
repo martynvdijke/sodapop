@@ -158,3 +158,6 @@ type VenueName func(*sql.Selector)
 
 // VenueSave is the predicate function for venuesave builders.
 type VenueSave func(*sql.Selector)
+
+// VenueStockReport is the predicate function for venuestockreport builders.
+type VenueStockReport func(*sql.Selector)

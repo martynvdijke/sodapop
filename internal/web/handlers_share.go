@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ type shareLinkView struct {
 	ID        string
 	Kind      string
 	KindLabel string
+	Year      int
 	URL       string
 	CreatedOn string
 }
@@ -50,14 +52,32 @@ type shareView struct {
 	KindDescriptor string
 }
 
-func shareKindLabel(kind string) string {
-	if kind == "streak" {
+func shareKindLabel(kind string, year int) string {
+	switch kind {
+	case "streak":
 		return "Streak card"
+	case "recap":
+		if year > 0 {
+			return strconv.Itoa(year) + " recap card"
+		}
+		return "Recap card"
+	case "fingerprint":
+		return "Flavour fingerprint card"
+	default:
+		return "Passport card"
 	}
-	return "Passport card"
 }
 
-func (s *Server) buildShareView(r *http.Request, link *sharelinks.Link, ownerHandle, ownerName string, passport *checkins.Passport, stats *checkins.Stats) shareView {
+// shareRecapYear resolves the calendar year a recap link describes, defaulting
+// to the current UTC year when the row predates year scoping.
+func shareRecapYear(link *sharelinks.Link) int {
+	if link != nil && link.Year > 0 {
+		return link.Year
+	}
+	return time.Now().UTC().Year()
+}
+
+func (s *Server) buildShareView(r *http.Request, link *sharelinks.Link, ownerHandle, ownerName string, passport *checkins.Passport, stats *checkins.Stats, recap *checkins.Recap) shareView {
 	handle := strings.TrimSpace(ownerHandle)
 	name := strings.TrimSpace(ownerName)
 	if name == "" {
@@ -69,10 +89,13 @@ func (s *Server) buildShareView(r *http.Request, link *sharelinks.Link, ownerHan
 	relative := "/share/" + link.Token
 	absolute := s.absoluteURL(r, relative)
 
-	kind := "passport"
-	if link.Kind == "streak" {
-		kind = "streak"
+	kind := link.Kind
+	switch kind {
+	case "streak", "recap", "fingerprint":
+	default:
+		kind = "passport"
 	}
+
 	headline := passport.Totals.Checkins
 	headlineLabel := "check-ins logged"
 	if headline == 1 {
@@ -86,48 +109,63 @@ func (s *Server) buildShareView(r *http.Request, link *sharelinks.Link, ownerHan
 		}
 	}
 
-	cells := []shareCell{
-		{Label: "Styles", Value: passport.Totals.Styles},
-		{Label: "Venue kinds", Value: passport.Totals.VenueKinds},
-		{Label: "Countries", Value: passport.Totals.Countries},
-		{Label: "Longest streak", Value: stats.LongestStreak},
-	}
-	visible := make([]shareCell, 0, 4)
-	for _, cell := range cells {
-		if cell.Value > 0 {
-			visible = append(visible, cell)
-		}
-	}
-	if kind == "streak" {
+	var cells []shareCell
+	switch kind {
+	case "streak":
 		// The headline is already the current streak; show totals instead of
 		// repeating the same number twice.
-		visible = []shareCell{
+		cells = []shareCell{
 			{Label: "Check-ins", Value: passport.Totals.Checkins},
 			{Label: "Styles", Value: passport.Totals.Styles},
 			{Label: "Venue kinds", Value: passport.Totals.VenueKinds},
 			{Label: "Countries", Value: passport.Totals.Countries},
 		}
-		filtered := make([]shareCell, 0, 4)
-		for _, cell := range visible {
-			if cell.Value > 0 {
-				filtered = append(filtered, cell)
+	case "recap":
+		headline = shareRecapYear(link)
+		headlineLabel = "in soda"
+		if recap != nil {
+			if recap.Year > 0 {
+				headline = recap.Year
+			}
+			cells = []shareCell{
+				{Label: "Drinks", Value: recap.Totals.UniqueDrinks},
+				{Label: "Check-ins", Value: recap.Totals.Checkins},
+				{Label: "Styles", Value: recap.Totals.Styles},
+				{Label: "Countries", Value: recap.Totals.Countries},
 			}
 		}
-		visible = filtered
+	default:
+		cells = []shareCell{
+			{Label: "Styles", Value: passport.Totals.Styles},
+			{Label: "Venue kinds", Value: passport.Totals.VenueKinds},
+			{Label: "Countries", Value: passport.Totals.Countries},
+			{Label: "Longest streak", Value: stats.LongestStreak},
+		}
+	}
+	visible := make([]shareCell, 0, len(cells))
+	for _, cell := range cells {
+		if cell.Value > 0 {
+			visible = append(visible, cell)
+		}
 	}
 	if len(visible) > 4 {
 		visible = visible[:4]
 	}
 
 	kindDescriptor := "soda passport"
-	if kind == "streak" {
+	switch kind {
+	case "streak":
 		kindDescriptor = "soda streak"
+	case "recap":
+		kindDescriptor = "year in soda"
+	case "fingerprint":
+		kindDescriptor = "flavour fingerprint"
 	}
 	return shareView{
 		URL:            absolute,
 		CardURL:        absolute + "/card.png",
 		Kind:           kind,
-		KindLabel:      shareKindLabel(kind),
+		KindLabel:      shareKindLabel(kind, link.Year),
 		DisplayName:    name,
 		Handle:         handle,
 		Initial:        initial(name),
@@ -167,7 +205,15 @@ func (s *Server) sharePage(w http.ResponseWriter, r *http.Request) {
 		s.shareNotFound(w, r, err)
 		return
 	}
-	view := s.buildShareView(r, link, owner.Handle, owner.DisplayName, passport, stats)
+	var recap *checkins.Recap
+	if link.Kind == "recap" {
+		recap, err = s.Checkins.Recap(r.Context(), owner.ID, shareRecapYear(link))
+		if err != nil {
+			s.shareNotFound(w, r, err)
+			return
+		}
+	}
+	view := s.buildShareView(r, link, owner.Handle, owner.DisplayName, passport, stats, recap)
 	description := shareDescription(view)
 	s.render(w, r, http.StatusOK, "share", map[string]any{
 		"Title":           view.DisplayName,
@@ -208,18 +254,12 @@ func (s *Server) shareCard(w http.ResponseWriter, r *http.Request) {
 		s.shareNotFound(w, r, err)
 		return
 	}
-	png, err := sharecard.Render(sharecard.Data{
-		Handle:        owner.Handle,
-		DisplayName:   owner.DisplayName,
-		Checkins:      passport.Totals.Checkins,
-		Styles:        passport.Totals.Styles,
-		Countries:     passport.Totals.Countries,
-		VenueKinds:    passport.Totals.VenueKinds,
-		CurrentStreak: stats.CurrentStreak,
-		LongestStreak: stats.LongestStreak,
-		Kind:          link.Kind,
-		GeneratedAt:   time.Now().UTC(),
-	})
+	data, err := s.shareCardData(r.Context(), link, owner, passport, stats)
+	if err != nil {
+		s.shareFail(w, r, err)
+		return
+	}
+	png, err := sharecard.Render(data)
 	if err != nil {
 		s.shareFail(w, r, err)
 		return
@@ -304,16 +344,105 @@ func (s *Server) shareStats(ctx context.Context, userID string) (*checkins.Passp
 	return passport, stats, nil
 }
 
+// shareCardData collects and maps the aggregates a card needs. The mapping
+// lives here so internal/sharecard never imports internal/checkins.
+func (s *Server) shareCardData(ctx context.Context, link *sharelinks.Link, owner *userView, passport *checkins.Passport, stats *checkins.Stats) (sharecard.Data, error) {
+	data := sharecard.Data{
+		Handle:        owner.Handle,
+		DisplayName:   owner.DisplayName,
+		Checkins:      passport.Totals.Checkins,
+		Styles:        passport.Totals.Styles,
+		Countries:     passport.Totals.Countries,
+		VenueKinds:    passport.Totals.VenueKinds,
+		CurrentStreak: stats.CurrentStreak,
+		LongestStreak: stats.LongestStreak,
+		UniqueDrinks:  stats.UniqueDrinks,
+		Badges:        stats.Badges,
+		Kind:          link.Kind,
+		GeneratedAt:   time.Now().UTC(),
+	}
+	switch link.Kind {
+	case "recap":
+		year := shareRecapYear(link)
+		data.Year = year
+		recap, err := s.Checkins.Recap(ctx, owner.ID, year)
+		if err != nil {
+			return sharecard.Data{}, err
+		}
+		if recap != nil {
+			if recap.Year > 0 {
+				data.Year = recap.Year
+			}
+			data.UniqueDrinks = recap.Totals.UniqueDrinks
+			data.Checkins = recap.Totals.Checkins
+			data.Styles = recap.Totals.Styles
+			data.Countries = recap.Totals.Countries
+			data.LongestStreak = recap.Totals.LongestStreak
+			if recap.TopVenue != nil {
+				data.TopVenue = recap.TopVenue.Name
+			}
+			if len(recap.TopStyles) > 0 {
+				data.TopStyle = recap.TopStyles[0].Name
+			}
+		}
+	case "fingerprint":
+		fingerprint, err := s.Checkins.Fingerprint(ctx, owner.ID)
+		if err != nil {
+			return sharecard.Data{}, err
+		}
+		if fingerprint != nil {
+			data.Axes = shareCardAxes(fingerprint.Axes)
+		}
+	}
+	return data, nil
+}
+
+// shareCardAxes maps the fingerprint onto at most five radar axes. A member
+// with more flavour categories keeps the five strongest, in the order the
+// service returned them so the pentagon stays stable between renders.
+func shareCardAxes(axes []checkins.FingerprintAxis) []sharecard.Axis {
+	if len(axes) > 5 {
+		order := make([]int, len(axes))
+		for i := range order {
+			order[i] = i
+		}
+		sort.SliceStable(order, func(a, b int) bool {
+			return axes[order[a]].Score > axes[order[b]].Score
+		})
+		keep := make([]bool, len(axes))
+		for _, i := range order[:5] {
+			keep[i] = true
+		}
+		kept := make([]checkins.FingerprintAxis, 0, 5)
+		for i, axis := range axes {
+			if keep[i] {
+				kept = append(kept, axis)
+			}
+		}
+		axes = kept
+	}
+	out := make([]sharecard.Axis, 0, len(axes))
+	for _, axis := range axes {
+		out = append(out, sharecard.Axis{Label: axis.Label, Score: axis.Score})
+	}
+	return out
+}
+
 func shareDescription(view shareView) string {
 	name := view.DisplayName
 	if view.Handle != "" {
 		name = "@" + view.Handle
 	}
-	if view.Kind == "streak" {
+	switch view.Kind {
+	case "streak":
 		if view.CurrentStreak == 1 {
 			return name + " is on a 1-day soda streak on Sodapop."
 		}
 		return name + " is on a " + strconv.Itoa(view.CurrentStreak) + "-day soda streak on Sodapop."
+	case "recap":
+		return name + "'s " + strconv.Itoa(view.HeadlineValue) + " in soda, recapped on Sodapop."
+	case "fingerprint":
+		return name + "'s flavour fingerprint, measured on Sodapop."
 	}
 	return name + " has logged " + strconv.Itoa(view.Checkins) + " soda check-ins on Sodapop."
 }
@@ -334,12 +463,28 @@ func (s *Server) shareCreate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, withQuery(back, "share_error", "invalid"), http.StatusFound)
 		return
 	}
+	year := 0
+	if raw := strings.TrimSpace(r.FormValue("year")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			http.Redirect(w, r, withQuery(back, "share_error", "invalid"), http.StatusFound)
+			return
+		}
+		year = parsed
+	}
+	if kind == "recap" && year == 0 {
+		year = time.Now().UTC().Year()
+	}
 	if s.Limiter != nil && !s.Limiter.Allow("share:"+u.ID, 20, time.Hour) {
 		http.Error(w, "too many share links; try again later", http.StatusTooManyRequests)
 		return
 	}
-	link, err := s.ShareLinks.Create(r.Context(), u.ID, kind)
+	link, err := s.ShareLinks.CreateForYear(r.Context(), u.ID, kind, year)
 	if err != nil {
+		if errors.Is(err, sharelinks.ErrInvalidYear) {
+			http.Redirect(w, r, withQuery(back, "share_error", "invalid"), http.StatusFound)
+			return
+		}
 		s.fail(w, r, err)
 		return
 	}
@@ -381,7 +526,8 @@ func (s *Server) shareLinkViews(r *http.Request, userID string) []shareLinkView 
 		views = append(views, shareLinkView{
 			ID:        link.ID,
 			Kind:      link.Kind,
-			KindLabel: shareKindLabel(link.Kind),
+			KindLabel: shareKindLabel(link.Kind, link.Year),
+			Year:      link.Year,
 			URL:       s.absoluteURL(r, "/share/"+link.Token),
 			CreatedOn: shareDate(link.CreatedAt),
 		})

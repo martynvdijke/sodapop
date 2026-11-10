@@ -1418,6 +1418,293 @@
           "longest_streak"
         ]
       },
+      "Recap": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/RecapTotals"
+          },
+          "top_drink": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecapDrink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "top_brand": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecapStyle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "top_styles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecapStyle"
+            }
+          },
+          "top_venue": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecapVenue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rating_buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecapRatingBucket"
+            }
+          },
+          "palate": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecapPalate"
+            }
+          },
+          "fingerprint": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Fingerprint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_data": {
+            "type": "boolean"
+          },
+          "sparse": {
+            "type": "boolean",
+            "description": "True for a year with fewer than five check-ins."
+          }
+        },
+        "required": [
+          "year",
+          "totals",
+          "top_styles",
+          "rating_buckets",
+          "palate",
+          "has_data",
+          "sparse"
+        ]
+      },
+      "RecapTotals": {
+        "type": "object",
+        "properties": {
+          "checkins": {
+            "type": "integer"
+          },
+          "unique_drinks": {
+            "type": "integer"
+          },
+          "styles": {
+            "type": "integer"
+          },
+          "new_styles": {
+            "type": "integer"
+          },
+          "venues": {
+            "type": "integer"
+          },
+          "cities": {
+            "type": "integer"
+          },
+          "countries": {
+            "type": "integer"
+          },
+          "longest_streak": {
+            "type": "integer"
+          },
+          "avg_rating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "checkins",
+          "unique_drinks",
+          "styles",
+          "new_styles",
+          "venues",
+          "cities",
+          "countries",
+          "longest_streak"
+        ]
+      },
+      "RecapDrink": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "brand",
+          "count"
+        ]
+      },
+      "RecapStyle": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "count"
+        ]
+      },
+      "RecapVenue": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "count"
+        ]
+      },
+      "RecapRatingBucket": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "low": {
+            "type": "integer"
+          },
+          "high": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "low",
+          "high",
+          "count"
+        ]
+      },
+      "RecapPalate": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "this_year": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "last_year": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
+      "Fingerprint": {
+        "type": "object",
+        "properties": {
+          "axes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FingerprintAxis"
+            }
+          },
+          "has_data": {
+            "type": "boolean"
+          },
+          "confident": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "axes",
+          "has_data",
+          "confident"
+        ]
+      },
+      "FingerprintAxis": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "description": "0–100, normalised to the member's own strongest category."
+          },
+          "samples": {
+            "type": "integer"
+          },
+          "confident": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "score",
+          "samples",
+          "confident"
+        ]
+      },
       "Activity": {
         "type": "object",
         "properties": {
@@ -3014,6 +3301,152 @@
           "serving",
           "visibility",
           "created_at"
+        ]
+      },
+      "VenueShelfEntry": {
+        "type": "object",
+        "description": "One drink on a venue's shelf, merged from member reports and recent check-ins.",
+        "properties": {
+          "drink_id": {
+            "type": "integer"
+          },
+          "drink_slug": {
+            "type": "string"
+          },
+          "drink_name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "price_cents": {
+            "description": "Amount in minor units. Sodapop has no currency concept; treat as unitless.",
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 140
+          },
+          "seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "age_days": {
+            "type": "integer"
+          },
+          "band": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale"
+            ]
+          },
+          "reporters": {
+            "type": "integer"
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "True when the caller has a live stock report for this drink at this venue."
+          },
+          "report_id": {
+            "description": "The caller's own report id, or null. Another member's id is never returned.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "report",
+              "checkin",
+              "both"
+            ]
+          }
+        },
+        "required": [
+          "drink_id",
+          "drink_slug",
+          "drink_name",
+          "brand",
+          "style",
+          "price_cents",
+          "note",
+          "seen_at",
+          "age_days",
+          "band",
+          "reporters",
+          "mine",
+          "report_id",
+          "source"
+        ]
+      },
+      "VenueShelfReport": {
+        "type": "object",
+        "description": "A member's report that a drink is on a venue's shelf.",
+        "properties": {
+          "drink_slug": {
+            "type": "string"
+          },
+          "price_cents": {
+            "description": "Amount in minor units. Sodapop has no currency concept; treat as unitless.",
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 140
+          },
+          "seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the drink was seen, RFC 3339. Omit to mean \"seen just now\"."
+          }
+        },
+        "required": [
+          "drink_slug"
+        ]
+      },
+      "WishlistAlerts": {
+        "type": "object",
+        "description": "In-app wishlist availability alerts.",
+        "properties": {
+          "friend_checkins": {
+            "type": "boolean",
+            "description": "Tell me when a friend checks in a wishlisted drink."
+          },
+          "venue_shelf": {
+            "type": "boolean",
+            "description": "Tell me when a saved venue reports a wishlisted drink in stock."
+          }
+        },
+        "required": [
+          "friend_checkins",
+          "venue_shelf"
         ]
       }
     },
@@ -4614,6 +5047,56 @@
         ]
       }
     },
+    "/api/v1/me/recap/{year}": {
+      "get": {
+        "summary": "Your year in soda",
+        "description": "One member's calendar-year aggregate: totals, leaders, rating distribution, palate shift and flavour fingerprint. The window is [1 January, 1 January next year) in UTC. A year with no check-ins returns 200 with has_data false; it is not a 404. Self only.",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The recap for that year",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Recap"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/stats/me/insights": {
       "get": {
         "summary": "Your sugar, caffeine and calorie insights",
@@ -6157,7 +6640,42 @@
         ],
         "responses": {
           "200": {
-            "description": "Venue"
+            "description": "Venue, the drinks recently seen there, and its current shelf",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "venue": {
+                          "type": "object",
+                          "description": "The venue record."
+                        },
+                        "drinks": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          },
+                          "description": "Drinks previously seen at this venue."
+                        },
+                        "shelf": {
+                          "type": "array",
+                          "description": "Merged member reports and recent check-ins from the last 30 days. Omitted when the shelf cannot be built; the rest of the response is unaffected.",
+                          "items": {
+                            "$ref": "#/components/schemas/VenueShelfEntry"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "404": {
             "description": "Not found"
@@ -6409,6 +6927,200 @@
           },
           "415": {
             "description": "Unsupported image type"
+          }
+        },
+        "tags": [
+          "venues"
+        ]
+      }
+    },
+    "/api/v1/venues/{id}/shelf": {
+      "get": {
+        "summary": "Read a venue's shelf",
+        "description": "Member stock reports and recent check-ins merged into one row per drink, fresh evidence first, capped at 40 rows. Scoped to the viewer: mine and report_id only ever describe the caller's own report, and no other member's report id is exposed.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The venue's current shelf",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/VenueShelfEntry"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "venues"
+        ]
+      },
+      "post": {
+        "summary": "Report a drink in stock at a venue",
+        "description": "Requires the write scope and a verified email. Upsert: reporting the same drink again refreshes the sighting, price and note. Saw it just now when seen_at is omitted.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VenueShelfReport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueShelfEntry"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, price out of range, note too long, or seen_at not RFC 3339 / in the future / older than the 30-day window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "404": {
+            "description": "Venue or drink not found"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "venues"
+        ]
+      }
+    },
+    "/api/v1/venues/{id}/shelf/{report_id}": {
+      "delete": {
+        "summary": "Retract your stock report",
+        "description": "Requires the write scope and a verified email. Only the caller's own live report can be retracted; an unknown, already retracted or another member's report id is a 404 so the endpoint never confirms that a report exists.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Retracted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing scope or unverified email"
+          },
+          "404": {
+            "description": "Report not found, already retracted, or owned by someone else"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "tags": [
@@ -9539,6 +10251,88 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/wishlist/alerts": {
+      "get": {
+        "summary": "Read your wishlist alert preferences",
+        "responses": {
+          "200": {
+            "description": "Wishlist alert preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WishlistAlerts"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "put": {
+        "summary": "Update your wishlist alert preferences",
+        "description": "Both fields are optional; only supplied values change.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "friend_checkins": {
+                    "type": "boolean"
+                  },
+                  "venue_shelf": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated wishlist alert preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WishlistAlerts"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"

@@ -58,6 +58,7 @@ import (
 	"sodapop/ent/venuemedia"
 	"sodapop/ent/venuename"
 	"sodapop/ent/venuesave"
+	"sodapop/ent/venuestockreport"
 	"sync"
 
 	"entgo.io/ent"
@@ -174,6 +175,7 @@ func checkColumn(t, c string) error {
 			venuemedia.Table:             venuemedia.ValidColumn,
 			venuename.Table:              venuename.ValidColumn,
 			venuesave.Table:              venuesave.ValidColumn,
+			venuestockreport.Table:       venuestockreport.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

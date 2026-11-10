@@ -774,7 +774,7 @@ var (
 	NotificationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
 		{Name: "user_id", Type: field.TypeString},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "mention", "badge", "system"}, Default: "system"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "system"}, Default: "system"},
 		{Name: "actor_id", Type: field.TypeString, Nullable: true},
 		{Name: "subject_id", Type: field.TypeString, Default: ""},
 		{Name: "text", Type: field.TypeString, Default: ""},
@@ -875,7 +875,7 @@ var (
 	// ReportsColumns holds the columns for the "reports" table.
 	ReportsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "entity", Type: field.TypeEnum, Enums: []string{"drink", "brand", "venue", "checkin", "user", "comment", "venue_media", "drink_image"}, Default: "drink"},
+		{Name: "entity", Type: field.TypeEnum, Enums: []string{"drink", "brand", "venue", "checkin", "user", "comment", "venue_media", "drink_image", "venue_shelf"}, Default: "drink"},
 		{Name: "entity_id", Type: field.TypeInt},
 		{Name: "entity_ref", Type: field.TypeString, Default: ""},
 		{Name: "user_id", Type: field.TypeString, Nullable: true},
@@ -1067,6 +1067,8 @@ var (
 		{Name: "email_friend_req", Type: field.TypeBool, Default: true},
 		{Name: "email_weekly", Type: field.TypeBool, Default: false},
 		{Name: "push_enabled", Type: field.TypeBool, Default: false},
+		{Name: "wishlist_friend_alerts", Type: field.TypeBool, Default: false},
+		{Name: "wishlist_shelf_alerts", Type: field.TypeBool, Default: false},
 		{Name: "theme", Type: field.TypeEnum, Enums: []string{"system", "light", "dark"}, Default: "system"},
 		{Name: "public_profile", Type: field.TypeBool, Default: false},
 		{Name: "units", Type: field.TypeEnum, Enums: []string{"metric", "imperial"}, Default: "metric"},
@@ -1190,6 +1192,42 @@ var (
 		Columns:    VenueSavesColumns,
 		PrimaryKey: []*schema.Column{VenueSavesColumns[0]},
 	}
+	// VenueStockReportsColumns holds the columns for the "venue_stock_reports" table.
+	VenueStockReportsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true},
+		{Name: "venue_id", Type: field.TypeInt},
+		{Name: "drink_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "price_cents", Type: field.TypeInt, Nullable: true},
+		{Name: "note", Type: field.TypeString, Nullable: true},
+		{Name: "seen_at", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeString},
+		{Name: "updated_at", Type: field.TypeString},
+		{Name: "removed_at", Type: field.TypeString, Nullable: true},
+	}
+	// VenueStockReportsTable holds the schema information for the "venue_stock_reports" table.
+	VenueStockReportsTable = &schema.Table{
+		Name:       "venue_stock_reports",
+		Columns:    VenueStockReportsColumns,
+		PrimaryKey: []*schema.Column{VenueStockReportsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "venuestockreport_venue_id_drink_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{VenueStockReportsColumns[1], VenueStockReportsColumns[2], VenueStockReportsColumns[3]},
+			},
+			{
+				Name:    "venuestockreport_venue_id_seen_at",
+				Unique:  false,
+				Columns: []*schema.Column{VenueStockReportsColumns[1], VenueStockReportsColumns[6]},
+			},
+			{
+				Name:    "venuestockreport_drink_id",
+				Unique:  false,
+				Columns: []*schema.Column{VenueStockReportsColumns[2]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AiDraftSessionsTable,
@@ -1243,6 +1281,7 @@ var (
 		VenueMediaTable,
 		VenueNamesTable,
 		VenueSavesTable,
+		VenueStockReportsTable,
 	}
 )
 

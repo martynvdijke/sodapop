@@ -252,7 +252,10 @@ class ApiClient {
   });
 
   Future<void> clearFavouriteDrink() => _guard(() async {
-    await _dio.delete<dynamic>('api/v1/me/favourite-drink', options: _options());
+    await _dio.delete<dynamic>(
+      'api/v1/me/favourite-drink',
+      options: _options(),
+    );
   });
 
   Future<String> passwordToken(String login, String password) async {
@@ -803,8 +806,7 @@ class ApiClient {
       form.fields.add(MapEntry('rating', '$ratingValue'));
     }
     if (noteText.isNotEmpty) form.fields.add(MapEntry('note', noteText));
-    if (prepMethodText != null &&
-        prepMethodText.toLowerCase() != 'none') {
+    if (prepMethodText != null && prepMethodText.toLowerCase() != 'none') {
       form.fields.add(MapEntry('prep_method', prepMethodText));
     }
     if (prepNoteText != null) {
@@ -1434,6 +1436,66 @@ class ApiClient {
         .whereType<Map>()
         .map((row) => VenueMedia.fromJson(row.cast<String, dynamic>()))
         .toList();
+  });
+
+  /// The drinks reported in stock at a venue, newest and freshest first.
+  Future<List<ShelfEntry>> venueShelf(int id) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/venues/$id/shelf',
+      options: _options(),
+    );
+    return _rows(_data(response))
+        .whereType<Map>()
+        .map((row) => ShelfEntry.fromJson(row.cast<String, dynamic>()))
+        .toList();
+  });
+
+  /// Reports seeing [drinkSlug] in stock at a venue. Passing no [priceCents]
+  /// leaves the price unreported, and no [seenAt] means "seen just now".
+  Future<ShelfEntry> reportVenueShelf(
+    int id, {
+    required String drinkSlug,
+    int? priceCents,
+    String? note,
+  }) => _guard(() async {
+    final trimmedNote = note?.trim() ?? '';
+    final response = await _dio.post<dynamic>(
+      'api/v1/venues/$id/shelf',
+      data: {
+        'drink_slug': drinkSlug,
+        'price_cents': ?priceCents,
+        if (trimmedNote.isNotEmpty) 'note': trimmedNote,
+      },
+      options: _options(),
+    );
+    return ShelfEntry.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<void> retractShelf(int venueId, String reportId) => _guard(() async {
+    await _dio.delete<dynamic>(
+      'api/v1/venues/$venueId/shelf/${Uri.encodeComponent(reportId)}',
+      options: _options(),
+    );
+  });
+
+  Future<WishlistAlerts> wishlistAlerts() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/wishlist/alerts',
+      options: _options(),
+    );
+    return WishlistAlerts.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  Future<void> setWishlistAlerts(WishlistAlerts alerts) => _guard(() async {
+    await _dio.put<dynamic>(
+      'api/v1/me/wishlist/alerts',
+      data: alerts.toJson(),
+      options: _options(),
+    );
   });
 
   Future<void> saveVenue(int id) => _guard(() async {

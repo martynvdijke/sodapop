@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"sodapop/ent"
+	"sodapop/ent/drink"
 	"sodapop/ent/user"
 	"sodapop/internal/checkins"
 	"sodapop/internal/comments"
@@ -56,6 +57,38 @@ func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Wishlist check-in alerts carry a numeric drink id in subject_id. Resolve
+	// those in one batch so the link can point at the drink page by slug; rows
+	// that cannot be resolved keep the helper's /drinks fallback.
+	wishlistSubject := map[string]string{}
+	drinkIDs := []int{}
+	for _, n := range rows {
+		if string(n.Kind) != "wishlist_friend" || n.SubjectID == "" {
+			continue
+		}
+		if _, ok := wishlistSubject[n.SubjectID]; ok {
+			continue
+		}
+		id, err := strconv.Atoi(n.SubjectID)
+		if err != nil {
+			continue
+		}
+		wishlistSubject[n.SubjectID] = ""
+		drinkIDs = append(drinkIDs, id)
+	}
+	if len(drinkIDs) > 0 {
+		drinks, err := s.Auth.Client.Drink.Query().
+			Where(drink.IDIn(drinkIDs...)).
+			All(r.Context())
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		for _, d := range drinks {
+			wishlistSubject[strconv.Itoa(d.ID)] = d.Slug
+		}
+	}
+
 	views := make([]notificationView, 0, len(rows))
 	pending, err := s.Social.IncomingPendingRequests(r.Context(), u.ID)
 	if err != nil {
@@ -70,6 +103,11 @@ func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
 			Href:      notificationHref(string(n.Kind), n.SubjectID),
 			CreatedAt: n.CreatedAt,
 			Read:      n.ReadAt != nil,
+		}
+		if string(n.Kind) == "wishlist_friend" {
+			if slug := wishlistSubject[n.SubjectID]; slug != "" {
+				v.Href = "/drinks/" + slug
+			}
 		}
 		if n.ActorID != nil {
 			if actor, ok := actors[*n.ActorID]; ok {
@@ -245,6 +283,16 @@ func notificationHref(kind, subjectID string) string {
 		return "/you"
 	case "friend_request", "friend_accept":
 		return "/friends"
+	case "wishlist_friend":
+		// The caller resolves subject_id (a numeric drink id) to a slug and
+		// overrides this. The pure helper has no database, so fall back to the
+		// drinks index rather than emitting an id-based URL that does not exist.
+		return "/drinks"
+	case "wishlist_shelf":
+		if subjectID != "" {
+			return "/venues/" + subjectID
+		}
+		return "/venues"
 	default:
 		return "/"
 	}

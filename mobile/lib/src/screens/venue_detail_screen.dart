@@ -37,17 +37,21 @@ class VenueDetailScreen extends ConsumerStatefulWidget {
 class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
   VenueDetail? _detail;
   List<VenueMedia> _media = const [];
+  List<ShelfEntry> _shelf = const [];
   bool _loading = true;
   bool _unavailable = false;
   bool _saved = false;
   bool _savedLoading = true;
   bool _saving = false;
+  bool _shelfLoading = true;
   bool _mediaLoading = true;
   bool _uploading = false;
   String _uploadKind = 'photo';
   String? _removingId;
+  String? _retractingId;
   String? _error;
   String? _mediaError;
+  String? _shelfError;
 
   @override
   void initState() {
@@ -63,6 +67,8 @@ class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
       _mediaLoading = true;
       _mediaError = null;
       _savedLoading = true;
+      _shelfLoading = true;
+      _shelfError = null;
     });
     try {
       final detail = await ref.read(apiProvider).venue(widget.venueId);
@@ -81,7 +87,46 @@ class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
       });
       return;
     }
-    await Future.wait([_loadMedia(), _loadSaved()]);
+    await Future.wait([_loadMedia(), _loadSaved(), _loadShelf()]);
+  }
+
+  Future<void> _loadShelf() async {
+    setState(() {
+      _shelfLoading = true;
+      _shelfError = null;
+    });
+    try {
+      final shelf = await ref.read(apiProvider).venueShelf(widget.venueId);
+      if (!mounted) return;
+      setState(() {
+        _shelf = shelf;
+        _shelfLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _shelfLoading = false;
+        _shelfError = ApiClient.describe(error).message;
+      });
+    }
+  }
+
+  Future<void> _retractShelf(ShelfEntry entry) async {
+    final reportId = entry.reportId;
+    if (reportId == null || _retractingId != null) return;
+    setState(() => _retractingId = reportId);
+    try {
+      await ref.read(apiProvider).retractShelf(widget.venueId, reportId);
+      if (!mounted) return;
+      setState(() => _retractingId = null);
+      await _loadShelf();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _retractingId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiClient.describe(error).message)),
+      );
+    }
   }
 
   Future<void> _loadMedia() async {
@@ -218,6 +263,15 @@ class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
           _saveButton(),
           const SizedBox(height: 26),
           SodaSectionTitle(
+            title: 'Shelf',
+            trailing: _shelf.isEmpty || _shelfLoading
+                ? null
+                : '${_shelf.length}',
+          ),
+          const SizedBox(height: 8),
+          _shelfSection(),
+          const SizedBox(height: 26),
+          SodaSectionTitle(
             title: 'Seen here',
             trailing: detail.drinks.isEmpty ? null : '${detail.drinks.length}',
           ),
@@ -329,6 +383,114 @@ class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
       onPressed: _saving ? null : _toggleSaved,
       icon: const Icon(Icons.bookmark_add_outlined, size: 18),
       label: Text(_saving ? 'Saving…' : 'Save venue'),
+    );
+  }
+
+  Widget _shelfSection() {
+    if (_shelfLoading) return const SodaLoadingView(dense: true);
+    if (_shelfError != null) {
+      return SodaStatusView(
+        dense: true,
+        icon: Icons.inventory_2_outlined,
+        title: 'The shelf did not load',
+        message: _shelfError,
+        actionLabel: 'Try again',
+        onAction: _loadShelf,
+      );
+    }
+    if (_shelf.isEmpty) {
+      return const SodaStatusView(
+        dense: true,
+        icon: Icons.inventory_2_outlined,
+        title: 'Nothing on the shelf yet',
+        message: 'Nobody has reported stock here yet.',
+      );
+    }
+    return Column(
+      children: [
+        for (final entry in _shelf) ...[
+          _shelfCard(entry),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  static String _price(int cents) => (cents / 100).toStringAsFixed(2);
+
+  static String _seenLabel(int ageDays) {
+    if (ageDays <= 0) return 'seen today';
+    if (ageDays == 1) return 'seen yesterday';
+    return 'seen $ageDays days ago';
+  }
+
+  Widget _shelfCard(ShelfEntry entry) {
+    final theme = Theme.of(context);
+    final subtitle = [
+      if (entry.brand.isNotEmpty) entry.brand,
+      if (entry.style.isNotEmpty) entry.style,
+    ].join(' · ');
+    final meta = [
+      if (entry.priceCents != null) _price(entry.priceCents!),
+      if (entry.seenAt.isNotEmpty) _seenLabel(entry.ageDays),
+      if (entry.reporters > 0) sodaCount(entry.reporters, 'member'),
+      if (entry.band.isNotEmpty) entry.band,
+    ].join(' · ');
+    final note = entry.note.trim();
+    final reportId = entry.reportId;
+    final retracting = reportId != null && _retractingId == reportId;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    entry.drinkName.isEmpty ? 'Soda' : entry.drinkName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (entry.mine && reportId != null) ...[
+                  const SizedBox(width: 8),
+                  TextButton(
+                    key: Key('shelf-retract-$reportId'),
+                    onPressed: retracting ? null : () => _retractShelf(entry),
+                    child: Text(retracting ? 'Retracting…' : 'Retract'),
+                  ),
+                ],
+              ],
+            ),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (meta.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                meta,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (note.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(note, style: theme.textTheme.bodyMedium),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

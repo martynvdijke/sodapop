@@ -55,6 +55,7 @@ import (
 	"sodapop/ent/venuemedia"
 	"sodapop/ent/venuename"
 	"sodapop/ent/venuesave"
+	"sodapop/ent/venuestockreport"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -1085,16 +1086,24 @@ func init() {
 	usersettingDescPushEnabled := usersettingFields[3].Descriptor()
 	// usersetting.DefaultPushEnabled holds the default value on creation for the push_enabled field.
 	usersetting.DefaultPushEnabled = usersettingDescPushEnabled.Default.(bool)
+	// usersettingDescWishlistFriendAlerts is the schema descriptor for wishlist_friend_alerts field.
+	usersettingDescWishlistFriendAlerts := usersettingFields[4].Descriptor()
+	// usersetting.DefaultWishlistFriendAlerts holds the default value on creation for the wishlist_friend_alerts field.
+	usersetting.DefaultWishlistFriendAlerts = usersettingDescWishlistFriendAlerts.Default.(bool)
+	// usersettingDescWishlistShelfAlerts is the schema descriptor for wishlist_shelf_alerts field.
+	usersettingDescWishlistShelfAlerts := usersettingFields[5].Descriptor()
+	// usersetting.DefaultWishlistShelfAlerts holds the default value on creation for the wishlist_shelf_alerts field.
+	usersetting.DefaultWishlistShelfAlerts = usersettingDescWishlistShelfAlerts.Default.(bool)
 	// usersettingDescPublicProfile is the schema descriptor for public_profile field.
-	usersettingDescPublicProfile := usersettingFields[5].Descriptor()
+	usersettingDescPublicProfile := usersettingFields[7].Descriptor()
 	// usersetting.DefaultPublicProfile holds the default value on creation for the public_profile field.
 	usersetting.DefaultPublicProfile = usersettingDescPublicProfile.Default.(bool)
 	// usersettingDescCaffeineBedtime is the schema descriptor for caffeine_bedtime field.
-	usersettingDescCaffeineBedtime := usersettingFields[7].Descriptor()
+	usersettingDescCaffeineBedtime := usersettingFields[9].Descriptor()
 	// usersetting.DefaultCaffeineBedtime holds the default value on creation for the caffeine_bedtime field.
 	usersetting.DefaultCaffeineBedtime = usersettingDescCaffeineBedtime.Default.(string)
 	// usersettingDescUpdatedAt is the schema descriptor for updated_at field.
-	usersettingDescUpdatedAt := usersettingFields[8].Descriptor()
+	usersettingDescUpdatedAt := usersettingFields[10].Descriptor()
 	// usersetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	usersetting.DefaultUpdatedAt = usersettingDescUpdatedAt.Default.(func() string)
 	venueFields := schema.Venue{}.Fields()
@@ -1191,4 +1200,30 @@ func init() {
 	venuesaveDescCreatedAt := venuesaveFields[2].Descriptor()
 	// venuesave.DefaultCreatedAt holds the default value on creation for the created_at field.
 	venuesave.DefaultCreatedAt = venuesaveDescCreatedAt.Default.(func() string)
+	venuestockreportFields := schema.VenueStockReport{}.Fields()
+	_ = venuestockreportFields
+	// venuestockreportDescUserID is the schema descriptor for user_id field.
+	venuestockreportDescUserID := venuestockreportFields[3].Descriptor()
+	// venuestockreport.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	venuestockreport.UserIDValidator = venuestockreportDescUserID.Validators[0].(func(string) error)
+	// venuestockreportDescPriceCents is the schema descriptor for price_cents field.
+	venuestockreportDescPriceCents := venuestockreportFields[4].Descriptor()
+	// venuestockreport.PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	venuestockreport.PriceCentsValidator = venuestockreportDescPriceCents.Validators[0].(func(int) error)
+	// venuestockreportDescSeenAt is the schema descriptor for seen_at field.
+	venuestockreportDescSeenAt := venuestockreportFields[6].Descriptor()
+	// venuestockreport.DefaultSeenAt holds the default value on creation for the seen_at field.
+	venuestockreport.DefaultSeenAt = venuestockreportDescSeenAt.Default.(func() string)
+	// venuestockreportDescCreatedAt is the schema descriptor for created_at field.
+	venuestockreportDescCreatedAt := venuestockreportFields[7].Descriptor()
+	// venuestockreport.DefaultCreatedAt holds the default value on creation for the created_at field.
+	venuestockreport.DefaultCreatedAt = venuestockreportDescCreatedAt.Default.(func() string)
+	// venuestockreportDescUpdatedAt is the schema descriptor for updated_at field.
+	venuestockreportDescUpdatedAt := venuestockreportFields[8].Descriptor()
+	// venuestockreport.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	venuestockreport.DefaultUpdatedAt = venuestockreportDescUpdatedAt.Default.(func() string)
+	// venuestockreportDescID is the schema descriptor for id field.
+	venuestockreportDescID := venuestockreportFields[0].Descriptor()
+	// venuestockreport.DefaultID holds the default value on creation for the id field.
+	venuestockreport.DefaultID = venuestockreportDescID.Default.(func() string)
 }

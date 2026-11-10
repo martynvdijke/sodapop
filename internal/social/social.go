@@ -777,6 +777,48 @@ func (s *Service) Notifications(ctx context.Context, userID string, limit int) (
 // Notifications between blocked pairs are silently dropped, in either
 // direction, so an existing block cannot be bypassed by writing an event.
 func (s *Service) Notify(ctx context.Context, userID, kind, actorID, subjectID, text string) error {
+	return s.notify(ctx, userID, kind, actorID, subjectID, text)
+}
+
+// NotifyOnce is Notify with a per-(recipient, kind, subject) cooldown. It
+// returns false without writing when a notification for that tuple already
+// exists within window; window <= 0 disables the check.
+//
+// The SELECT-then-INSERT is deliberately not atomic. Sodapop runs a single
+// process and a duplicate availability alert is harmless, so the extra locking
+// a unique index would require is not worth it here. Block filtering, kind
+// coercion and the push callback all happen in notify so the two entry points
+// cannot drift.
+func (s *Service) NotifyOnce(ctx context.Context, userID, kind, actorID, subjectID, text string, window time.Duration) (bool, error) {
+	if window > 0 {
+		k := notification.Kind(kind)
+		if notification.KindValidator(k) != nil {
+			k = notification.KindSystem
+		}
+		cutoff := time.Now().UTC().Add(-window).Format(time.RFC3339)
+		exists, err := s.Client.Notification.Query().
+			Where(
+				notification.UserID(userID),
+				notification.KindEQ(k),
+				notification.SubjectID(subjectID),
+				notification.CreatedAtGT(cutoff),
+			).
+			Exist(ctx)
+		if err != nil {
+			return false, err
+		}
+		if exists {
+			return false, nil
+		}
+	}
+	if err := s.notify(ctx, userID, kind, actorID, subjectID, text); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// notify is the single insert path shared by Notify and NotifyOnce.
+func (s *Service) notify(ctx context.Context, userID, kind, actorID, subjectID, text string) error {
 	if actorID != "" {
 		blocked, err := s.AreBlocked(ctx, userID, actorID)
 		if err != nil {

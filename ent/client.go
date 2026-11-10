@@ -62,6 +62,7 @@ import (
 	"sodapop/ent/venuemedia"
 	"sodapop/ent/venuename"
 	"sodapop/ent/venuesave"
+	"sodapop/ent/venuestockreport"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -176,6 +177,8 @@ type Client struct {
 	VenueName *VenueNameClient
 	// VenueSave is the client for interacting with the VenueSave builders.
 	VenueSave *VenueSaveClient
+	// VenueStockReport is the client for interacting with the VenueStockReport builders.
+	VenueStockReport *VenueStockReportClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -238,6 +241,7 @@ func (c *Client) init() {
 	c.VenueMedia = NewVenueMediaClient(c.config)
 	c.VenueName = NewVenueNameClient(c.config)
 	c.VenueSave = NewVenueSaveClient(c.config)
+	c.VenueStockReport = NewVenueStockReportClient(c.config)
 }
 
 type (
@@ -381,6 +385,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		VenueMedia:             NewVenueMediaClient(cfg),
 		VenueName:              NewVenueNameClient(cfg),
 		VenueSave:              NewVenueSaveClient(cfg),
+		VenueStockReport:       NewVenueStockReportClient(cfg),
 	}, nil
 }
 
@@ -451,6 +456,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		VenueMedia:             NewVenueMediaClient(cfg),
 		VenueName:              NewVenueNameClient(cfg),
 		VenueSave:              NewVenueSaveClient(cfg),
+		VenueStockReport:       NewVenueStockReportClient(cfg),
 	}, nil
 }
 
@@ -489,7 +495,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushDevice,
 		c.PushSubscription, c.Report, c.RuntimeSetting, c.SchedulerState, c.Session,
 		c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue,
-		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
+		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave, c.VenueStockReport,
 	} {
 		n.Use(hooks...)
 	}
@@ -508,7 +514,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushDevice,
 		c.PushSubscription, c.Report, c.RuntimeSetting, c.SchedulerState, c.Session,
 		c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue,
-		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
+		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave, c.VenueStockReport,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -619,6 +625,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.VenueName.mutate(ctx, m)
 	case *VenueSaveMutation:
 		return c.VenueSave.mutate(ctx, m)
+	case *VenueStockReportMutation:
+		return c.VenueStockReport.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -7951,6 +7959,139 @@ func (c *VenueSaveClient) mutate(ctx context.Context, m *VenueSaveMutation) (Val
 	}
 }
 
+// VenueStockReportClient is a client for the VenueStockReport schema.
+type VenueStockReportClient struct {
+	config
+}
+
+// NewVenueStockReportClient returns a client for the VenueStockReport from the given config.
+func NewVenueStockReportClient(c config) *VenueStockReportClient {
+	return &VenueStockReportClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `venuestockreport.Hooks(f(g(h())))`.
+func (c *VenueStockReportClient) Use(hooks ...Hook) {
+	c.hooks.VenueStockReport = append(c.hooks.VenueStockReport, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `venuestockreport.Intercept(f(g(h())))`.
+func (c *VenueStockReportClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VenueStockReport = append(c.inters.VenueStockReport, interceptors...)
+}
+
+// Create returns a builder for creating a VenueStockReport entity.
+func (c *VenueStockReportClient) Create() *VenueStockReportCreate {
+	mutation := newVenueStockReportMutation(c.config, OpCreate)
+	return &VenueStockReportCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VenueStockReport entities.
+func (c *VenueStockReportClient) CreateBulk(builders ...*VenueStockReportCreate) *VenueStockReportCreateBulk {
+	return &VenueStockReportCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VenueStockReportClient) MapCreateBulk(slice any, setFunc func(*VenueStockReportCreate, int)) *VenueStockReportCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VenueStockReportCreateBulk{err: fmt.Errorf("calling to VenueStockReportClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VenueStockReportCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VenueStockReportCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VenueStockReport.
+func (c *VenueStockReportClient) Update() *VenueStockReportUpdate {
+	mutation := newVenueStockReportMutation(c.config, OpUpdate)
+	return &VenueStockReportUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VenueStockReportClient) UpdateOne(_m *VenueStockReport) *VenueStockReportUpdateOne {
+	mutation := newVenueStockReportMutation(c.config, OpUpdateOne, withVenueStockReport(_m))
+	return &VenueStockReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VenueStockReportClient) UpdateOneID(id string) *VenueStockReportUpdateOne {
+	mutation := newVenueStockReportMutation(c.config, OpUpdateOne, withVenueStockReportID(id))
+	return &VenueStockReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VenueStockReport.
+func (c *VenueStockReportClient) Delete() *VenueStockReportDelete {
+	mutation := newVenueStockReportMutation(c.config, OpDelete)
+	return &VenueStockReportDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VenueStockReportClient) DeleteOne(_m *VenueStockReport) *VenueStockReportDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VenueStockReportClient) DeleteOneID(id string) *VenueStockReportDeleteOne {
+	builder := c.Delete().Where(venuestockreport.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VenueStockReportDeleteOne{builder}
+}
+
+// Query returns a query builder for VenueStockReport.
+func (c *VenueStockReportClient) Query() *VenueStockReportQuery {
+	return &VenueStockReportQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVenueStockReport},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VenueStockReport entity by its id.
+func (c *VenueStockReportClient) Get(ctx context.Context, id string) (*VenueStockReport, error) {
+	return c.Query().Where(venuestockreport.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VenueStockReportClient) GetX(ctx context.Context, id string) *VenueStockReport {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *VenueStockReportClient) Hooks() []Hook {
+	return c.hooks.VenueStockReport
+}
+
+// Interceptors returns the client interceptors.
+func (c *VenueStockReportClient) Interceptors() []Interceptor {
+	return c.inters.VenueStockReport
+}
+
+func (c *VenueStockReportClient) mutate(ctx context.Context, m *VenueStockReportMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VenueStockReportCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VenueStockReportUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VenueStockReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VenueStockReportDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VenueStockReport mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
@@ -7961,7 +8102,8 @@ type (
 		InboundToken, Integration, List, ListItem, LoginAttempt, Media, Notification,
 		OffProduct, PasswordResetToken, PushDevice, PushSubscription, Report,
 		RuntimeSetting, SchedulerState, Session, Style, User, UserBadge, UserIdentity,
-		UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave []ent.Hook
+		UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave,
+		VenueStockReport []ent.Hook
 	}
 	inters struct {
 		AIDraftSession, AIEndpoint, APIToken, Activity, AdminNote, AppSetting, Badge,
@@ -7971,7 +8113,7 @@ type (
 		InboundToken, Integration, List, ListItem, LoginAttempt, Media, Notification,
 		OffProduct, PasswordResetToken, PushDevice, PushSubscription, Report,
 		RuntimeSetting, SchedulerState, Session, Style, User, UserBadge, UserIdentity,
-		UserSetting, Venue, VenueDrink, VenueMedia, VenueName,
-		VenueSave []ent.Interceptor
+		UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave,
+		VenueStockReport []ent.Interceptor
 	}
 )
