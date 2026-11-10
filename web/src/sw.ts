@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE = 'sodapop-v4'
+const CACHE = 'sodapop-v5'
 const MEDIA_CACHE = 'sodapop-media-v1'
 const MEDIA_LIMIT = 240
 const MEDIA_TRIM = 40

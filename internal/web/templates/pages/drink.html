@@ -10,7 +10,7 @@
       <strong class="big-rating">{{printf "%.2f" (deref $d.Rating.Avg)}}</strong>
       <span>/ 5 from {{$d.Rating.RaterCount}} people</span>
     {{else}}
-      <strong class="big-rating">—</strong>
+      <strong class="big-rating is-empty">—</strong>
       <span>Not enough ratings yet ({{$d.Rating.RaterCount}} of 3)</span>
     {{end}}
   </div>

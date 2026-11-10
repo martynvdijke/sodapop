@@ -15,18 +15,18 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 0 .95rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface-raised);
+  padding: 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
   color: var(--text);
   font-size: .875rem;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
 }
 
-.browse-action:hover { background: var(--surface-sunken); }
+.browse-action:hover { border-color: var(--border-strong); background: var(--surface-sunken); }
 
 .browse-header h1,
 .brand-header h1,
@@ -63,8 +63,14 @@
 .browse-modes {
   display: flex;
   flex-wrap: wrap;
-  gap: .4rem;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
   margin: 1.25rem 0 0;
+  padding: 4px;
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-control);
+  background: var(--chip-bg);
 }
 
 .browse-modes a {
@@ -72,22 +78,21 @@
   align-items: center;
   min-height: 44px;
   padding: 0 .9rem;
-  border-radius: 999px;
+  border-radius: 10px;
   color: var(--text-muted);
-  font-size: .9rem;
-  font-weight: 600;
+  font-size: .875rem;
+  font-weight: 700;
   text-decoration: none;
 }
 
 .browse-modes a:hover {
-  background: var(--surface-sunken);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
   color: var(--text);
 }
 
 .browse-modes a[aria-current="page"] {
-  background: var(--primary-tint);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  background: var(--primary);
+  color: var(--primary-contrast);
   font-weight: 700;
 }
 
@@ -115,8 +120,9 @@
 
 .browse-field {
   display: grid;
-  gap: .35rem;
-  font-size: .85rem;
+  gap: .4rem;
+  color: var(--text-muted);
+  font-size: .8125rem;
   font-weight: 600;
 }
 
@@ -245,18 +251,19 @@
   align-items: center;
   min-height: 44px;
   padding: 0 1rem;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   color: var(--text);
   font-size: .9rem;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .browse-page-link:hover {
-  border-color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-sunken);
 }
 
 /* --- Empty states ------------------------------------------------------- */
@@ -266,7 +273,7 @@
 .style-empty {
   padding: 1.5rem 1.25rem;
   background: var(--surface);
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   text-align: center;
 }
@@ -325,11 +332,11 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  background: var(--primary-tint);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  background: var(--avatar-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-field);
   color: var(--text);
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .browse-brand-body {
@@ -409,9 +416,9 @@
   align-items: center;
   gap: .4rem;
   min-height: 44px;
-  padding: 0 .85rem;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
+  padding: 0 .9rem;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
   color: var(--text);
   font-size: .85rem;
@@ -420,7 +427,7 @@
 }
 
 .browse-child:hover {
-  background: var(--surface-sunken);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 .browse-child-count {
@@ -489,7 +496,7 @@
   padding: .65rem .9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-field);
   text-decoration: none;
 }
 
@@ -601,9 +608,9 @@
 .drops-status {
   display: inline-flex;
   align-items: center;
-  padding: .15rem .5rem;
-  background: var(--surface-sunken);
-  border: 1px solid var(--border-strong);
+  padding: .15rem .55rem;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
   color: var(--text);
   font-size: .72rem;
@@ -613,8 +620,9 @@
 
 .drops-empty {
   padding: 1.25rem;
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: var(--surface);
   color: var(--text-muted);
   font-size: .9rem;
 }
@@ -683,13 +691,9 @@
   }
 }
 
-/* Dark mode: the lime edge and inset rings are only needed on cream. */
+/* Dark mode: the soft chip fills carry the states; no extra rings needed. */
 
 @media (prefers-color-scheme: dark) {
-  .browse-modes a[aria-current="page"] {
-    box-shadow: none;
-  }
-
   .browse-brand-logo {
     border-color: var(--border);
   }
