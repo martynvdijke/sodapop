@@ -1,3 +1,15 @@
+# [1.28.0](https://github.com/martynvdijke/sodapop/compare/v1.27.0...v1.28.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **db:** keep SQLite views intact across Ent schema rebuilds ([9c9dd35](https://github.com/martynvdijke/sodapop/commit/9c9dd358b533bcaa5632fb97941b21ce4908fd78))
+
+
+### Features
+
+* **web:** restyle the web app to match the Android app ([261cf89](https://github.com/martynvdijke/sodapop/commit/261cf890d81def284a4ed924ac07a6746a0af8b2))
+
 # [1.27.0](https://github.com/martynvdijke/sodapop/compare/v1.26.2...v1.27.0) (2026-11-09)
 
 
