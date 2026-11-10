@@ -78,12 +78,13 @@ type recapStat struct {
 
 // recapBar is one labelled horizontal bar. Width is a CSS percentage keyed off
 // the largest value in its chart; Meta carries the number as text so the chart
-// still reads without seeing the bar.
+// still reads without seeing the bar. Flag marks a bar whose sample is too thin
+// to trust yet, in words rather than colour.
 type recapBar struct {
 	Label string
 	Meta  string
 	Width string
-	Note  string
+	Flag  bool
 }
 
 // recapPalateRow is one year of the palate comparison.
@@ -246,10 +247,10 @@ func newRecapView(rc *checkins.Recap, now time.Time) *recapView {
 		v.Summary = recapSummary(rc.Totals, rc.Year, v.InProgress)
 	}
 	if rc.Sparse {
-		v.SparseNote = fmt.Sprintf("%d %s %s. This page fills in as you log more.",
-			rc.Totals.Checkins,
-			plural(rc.Totals.Checkins, "check-in", "check-ins"),
-			recapWindow(rc.Year, v.InProgress))
+		v.SparseNote = "A thin year. Everything logged is still counted here."
+		if v.InProgress {
+			v.SparseNote = "A thin year so far. This page fills in as you log more."
+		}
 	}
 
 	rated, highest := recapBucketCounts(rc.RatingBuckets)
@@ -274,18 +275,18 @@ func newRecapView(rc *checkins.Recap, now time.Time) *recapView {
 // a wall of noughts; a longest streak of one day is not a streak worth a tile.
 func recapStats(t checkins.RecapTotals) []recapStat {
 	out := make([]recapStat, 0, 8)
-	add := func(n int, label string) {
+	add := func(n int, one, many string) {
 		if n > 0 {
-			out = append(out, recapStat{Value: strconv.Itoa(n), Label: label})
+			out = append(out, recapStat{Value: strconv.Itoa(n), Label: plural(n, one, many)})
 		}
 	}
-	add(t.Checkins, "check-ins")
-	add(t.UniqueDrinks, "different drinks")
-	add(t.Styles, "styles")
-	add(t.NewStyles, "new styles")
-	add(t.Venues, "venues")
-	add(t.Cities, "cities")
-	add(t.Countries, "countries")
+	add(t.Checkins, "check-in", "check-ins")
+	add(t.UniqueDrinks, "different drink", "different drinks")
+	add(t.Styles, "style", "styles")
+	add(t.NewStyles, "new style", "new styles")
+	add(t.Venues, "venue", "venues")
+	add(t.Cities, "city", "cities")
+	add(t.Countries, "country", "countries")
 	if t.LongestStreak > 1 {
 		out = append(out, recapStat{Value: fmt.Sprintf("%d days", t.LongestStreak), Label: "longest streak"})
 	}
@@ -409,24 +410,22 @@ func recapAxes(fp *checkins.Fingerprint) ([]recapBar, string) {
 		return nil, ""
 	}
 	bars := make([]recapBar, 0, len(fp.Axes))
-	thin := 0
+	thin := false
 	for _, axis := range fp.Axes {
-		bar := recapBar{
+		if !axis.Confident {
+			thin = true
+		}
+		bars = append(bars, recapBar{
 			Label: axis.Label,
 			Meta: fmt.Sprintf("%.0f · from %d %s",
 				axis.Score, axis.Samples, plural(axis.Samples, "check-in", "check-ins")),
 			Width: fmt.Sprintf("%.0f%%", axis.Score),
-		}
-		if !axis.Confident {
-			thin++
-			bar.Note = fmt.Sprintf("Early reading: built from %d %s.",
-				axis.Samples, plural(axis.Samples, "check-in", "check-ins"))
-		}
-		bars = append(bars, bar)
+			Flag:  !axis.Confident,
+		})
 	}
 	note := ""
-	if thin > 0 {
-		note = "A bar marked as an early reading rests on fewer than five drinks, so it may move as you log more."
+	if thin {
+		note = "A bar marked early rests on fewer than five check-ins, so it may move as you log more."
 	}
 	return bars, note
 }

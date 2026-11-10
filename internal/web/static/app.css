@@ -4087,7 +4087,15 @@ a.top-style-link:hover .top-style-name { text-decoration: underline; text-underl
   border-radius: inherit;
   background: var(--primary);
 }
-.recap-bar-note { margin: 0; color: var(--text-muted); font-size: .8125rem; }
+/* Low-confidence marker: a word, not a fade, so it survives greyscale. */
+.recap-bar-flag {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
 
 .recap-palate { display: grid; gap: 8px; }
 .recap-palate .clock-rows { margin: 0; }

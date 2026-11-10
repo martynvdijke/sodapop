@@ -182,6 +182,7 @@ func digestMessage(handle, baseURL string, items []digestItem) (string, string) 
 		}
 		b.WriteString("\n")
 	}
+	b.WriteString(recapDigestLine(baseURL, time.Now().UTC()))
 	b.WriteString("\nOpen Sodapop")
 	if baseURL != "" {
 		b.WriteString(": " + baseURL)

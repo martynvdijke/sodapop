@@ -16,7 +16,7 @@
   {{if not .Recap.HasData}}
     <div class="empty recap-empty">
       <p class="empty-title">Nothing logged in {{.Recap.Year}} yet</p>
-      <p>{{if .Recap.InProgress}}The year is still running. Log a soda and this page builds itself from your check-ins.{{else}}No check-ins are recorded for this year, so there is nothing to add up.{{end}}</p>
+      <p>{{if .Recap.InProgress}}The year is still running. Log a soda and this page builds itself from your check-ins.{{else}}No check-ins are recorded for this year. Log one and the page fills in.{{end}}</p>
       <p class="empty-actions">
         <a class="btn btn-primary" href="/scan">Scan a soda</a>
         <a class="btn" href="/drinks">Browse drinks</a>
@@ -34,16 +34,16 @@
       <div class="recap-split">
         {{if .Recap.TopDrink}}
           <div class="card recap-feature">
-            <p class="insight-label">Most logged</p>
+            <p class="insight-label">Most check-ins</p>
             <p class="recap-feature-name"><a href="/drinks/{{.Recap.TopDrink.Slug}}">{{.Recap.TopDrink.Name}}</a></p>
-            <p class="muted">{{if and .Recap.TopDrink.Brand (ne .Recap.TopDrink.Brand .Recap.TopDrink.Name)}}{{.Recap.TopDrink.Brand}} · {{end}}{{.Recap.TopDrink.Count}} check-ins</p>
+            <p class="muted">{{if and .Recap.TopDrink.Brand (ne .Recap.TopDrink.Brand .Recap.TopDrink.Name)}}{{.Recap.TopDrink.Brand}} · {{end}}{{.Recap.TopDrink.Count}} {{if eq .Recap.TopDrink.Count 1}}check-in{{else}}check-ins{{end}}</p>
           </div>
         {{end}}
         {{if .Recap.TopBrand}}
           <div class="card recap-feature">
             <p class="insight-label">Top brand</p>
             <p class="recap-feature-name"><a href="/brands/{{.Recap.TopBrand.Slug}}">{{.Recap.TopBrand.Name}}</a></p>
-            <p class="muted">{{.Recap.TopBrand.Count}} check-ins</p>
+            <p class="muted">{{.Recap.TopBrand.Count}} {{if eq .Recap.TopBrand.Count 1}}check-in{{else}}check-ins{{end}}</p>
           </div>
         {{end}}
       </div>
@@ -63,7 +63,7 @@
         <div class="card recap-feature">
           <p class="insight-label">Most visits</p>
           <p class="recap-feature-name"><a href="/venues/{{.Recap.TopVenue.ID}}">{{.Recap.TopVenue.Name}}</a></p>
-          <p class="muted">{{.Recap.TopVenue.Count}} check-ins</p>
+          <p class="muted">{{.Recap.TopVenue.Count}} {{if eq .Recap.TopVenue.Count 1}}check-in{{else}}check-ins{{end}}</p>
         </div>
       {{else}}
         <p class="muted">No check-ins at a venue in {{.Recap.Year}}.</p>
@@ -91,7 +91,7 @@
     </section>
 
     <section class="recap-block" aria-labelledby="recap-palate">
-      <h2 id="recap-palate">Palate shift</h2>
+      <h2 id="recap-palate">How your ratings moved</h2>
       {{if .Recap.Palate}}
         <div class="card recap-palate">
           <dl class="clock-rows">
@@ -109,16 +109,15 @@
     <section class="recap-block" aria-labelledby="recap-fingerprint">
       <h2 id="recap-fingerprint">Flavour fingerprint</h2>
       {{if .Recap.Axes}}
-        <p class="muted recap-intro">Built from all your check-ins, not just {{.Recap.Year}}. Each score weighs how often you drink a flavour against how you rated it, with your strongest at 100.</p>
+        <p class="muted recap-intro">Built from all your check-ins, not just {{.Recap.Year}}. A score rises with how often you drink a flavour and how highly you rate it. Your strongest scores 100.</p>
         <ul class="recap-bars">
           {{range .Recap.Axes}}
             <li class="recap-bar">
               <div class="recap-bar-head">
-                <span class="recap-bar-label">{{.Label}}</span>
+                <span class="recap-bar-label">{{.Label}}{{if .Flag}} <span class="recap-bar-flag">few check-ins</span>{{end}}</span>
                 <span class="recap-bar-meta">{{.Meta}}</span>
               </div>
               <div class="recap-bar-track" aria-hidden="true"><span class="recap-bar-fill" style="width:{{.Width}}"></span></div>
-              {{if .Note}}<p class="recap-bar-note">{{.Note}}</p>{{end}}
             </li>
           {{end}}
         </ul>

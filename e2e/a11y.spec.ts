@@ -52,6 +52,7 @@ test('no serious accessibility violations across signed-in member pages', async 
     '/settings/blocked',
     '/notifications',
     '/insights',
+    '/recap',
     '/drinks',
     '/drops',
     '/compare?drinks=coca-cola-355,fentimans-curiosity-cola-275',
