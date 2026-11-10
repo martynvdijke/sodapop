@@ -23,7 +23,7 @@ services:
   #   docker compose --profile observability up
   # and set OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 in .env.
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.163.0
+    image: otel/opentelemetry-collector-contrib:0.165.0
     profiles: ["observability"]
     restart: unless-stopped
     command: ["--config=/etc/otelcol/config.yaml"]
