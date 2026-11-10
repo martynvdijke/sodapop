@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/martynvdijke/sodapop/compare/v1.29.0...v1.30.0) (2026-11-10)
+
+
+### Features
+
+* **recap:** link the year recap from email digests ([7073586](https://github.com/martynvdijke/sodapop/commit/7073586966df5c67cba8b3ab948cc3ff6440c401))
+
 # [1.29.0](https://github.com/martynvdijke/sodapop/compare/v1.28.0...v1.29.0) (2026-11-10)
 
 
