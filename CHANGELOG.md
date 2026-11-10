@@ -1,3 +1,10 @@
+## [1.30.1](https://github.com/martynvdijke/sodapop/compare/v1.30.0...v1.30.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([eeff46a](https://github.com/martynvdijke/sodapop/commit/eeff46a4a0b671d6fe51355c7ba42a02f8c305a3))
+
 # [1.30.0](https://github.com/martynvdijke/sodapop/compare/v1.29.0...v1.30.0) (2026-11-10)
 
 
