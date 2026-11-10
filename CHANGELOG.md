@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/martynvdijke/sodapop/compare/v1.28.0...v1.29.0) (2026-11-10)
+
+
+### Features
+
+* add year recaps, venue shelves and wishlist alerts ([f8cab4f](https://github.com/martynvdijke/sodapop/commit/f8cab4fa12c3875cb021254710c5a2af61578364))
+
 # [1.28.0](https://github.com/martynvdijke/sodapop/compare/v1.27.0...v1.28.0) (2026-11-10)
 
 
