@@ -2,7 +2,7 @@
 
 Twelve phases, dependency-ordered. Estimates assume one experienced Go developer working alone, part-time at ~30 h/week. Each phase ends with a demoable slice, tests, and a green CI run — not a branch full of scaffolding.
 
-Status: P0–P11 shipped for v1.0. v1.1–v1.9 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work, the v1.5 Google Play release, the v1.6 post-interactions slice, the v1.7 operations slice, the v1.8 mobile-parity slice and the v1.9 account/nearby/public-read slice. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
+Status: P0–P11 shipped for v1.0. v1.1–v1.12 have shipped on top of that baseline, including the v1.3 Phase B–D surfaces, the v1.4 Phase E work, the v1.5 Google Play release, the v1.6 post-interactions slice, the v1.7 operations slice, the v1.8 mobile-parity slice, the v1.9 account/nearby/public-read slice, the v1.10–v1.11 social/ops slices and the v1.12 editing/spend/saved-search/barcode/follower slice. The build lists below remain the original plan; work delivered inside a phase is recorded here rather than by adding new phases.
 
 | Shipped surface | Phase |
 |---|---|
@@ -49,14 +49,24 @@ Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`d
 - **Share cards**: revocable passport and streak capability links rendered as a public `noindex` page plus a server-generated 1200×630 PNG (`internal/sharecard`, `internal/sharelinks`, migration `0012_share_links.sql`). Owner-only creation is capped at 20 per hour; revocation is owner-scoped. Web-only, so OpenAPI is unchanged.
 - **Native Android push (FCM)**: `push_devices` plus `POST`/`DELETE /api/v1/me/push/devices`; notification fan-out queues `fcm` deliveries, and the worker exchanges the service-account key for an OAuth2 token and calls FCM HTTP v1. No credentials means a silent no-op, and rejected tokens are pruned. OpenAPI is `1.11.0`.
 
-## Shipped since v1.11
+## Shipped in v1.12
 
-These surfaces are implemented in the current tree after the docs last caught up at v1.11.
+- **Check-in editing**: authors may edit rating, serving, preparation, note, venue, visibility, price and currency for 24 hours from creation. `POST /checkins/{id}/edit` on the web and `PATCH /api/v1/checkins/{id}` on the API; another member's row, a soft-deleted row and a missing id are all 404, an edit after the window is `400 edit_window_closed`, and a successful edit stamps `edited_at` (`internal/checkins/edit.go`).
+- **Comment editing**: authors may rewrite their own comment body within the same 1,000-character cap. `POST /comments/{id}/edit` and `PATCH /api/v1/comments/{id}`; `comments.Service.Edit` is author-only and stamps `edited_at`, and the comment DTO gains it.
+- **Price and currency on check-ins**: `price_cents` (0–100000 minor units) and an optional ISO-4217 `price_currency` on create and edit, in the composer, the edit form, the detail page and `POST /api/v1/checkins`. `/insights` and `GET /api/v1/stats/me/insights` add per-currency spend totals (`total_cents`, `count`) for the selected range, and venue shelf reports gain the same currency alongside their price.
+- **Saved searches with drop alerts**: `internal/savedsearch` owns a member's standing catalog queries (25 per member) and evaluates them when a drink becomes visible. `catalog.Service.Drops` is a narrow `Evaluate` hook called by `ActivateDrink`, `SetDrinkStatus` and `SetDrinkPublished` after their commit; a match writes one `drop_alert` notification per member per drink and debounces for 24 hours through `last_notified_at` plus the notification row. Web `/settings/searches`, `GET|POST /api/v1/me/searches` and `DELETE /api/v1/me/searches/{id}`.
+- **Crowdsourced barcode contribution**: verified members attach a barcode to an existing drink from the drink page (`POST /drinks/{slug}/barcodes`) or the API (`POST /api/v1/drinks/{slug}/barcodes`). `catalog.ContributeBarcode` reuses `NormalizeGTIN` (GTIN-8/12/13/14 with check digit), is idempotent for the same drink, names the owning drink in a `409` conflict, records a catalog revision with the contributor, stores `source=user`, and is capped at 20 contributions per member per hour.
+- **Follower and following lists**: `social.Followers`/`social.Following` return a keyset page of lightweight members with viewer-relative `followed_by_viewer` and `is_friend` flags, hiding deleted accounts and per-row blocks. Web `/u/{handle}/followers` and `/u/{handle}/following` (profile counts now link to them), `GET /api/v1/users/{handle}/followers|following`; a non-public profile is 404 unless the viewer is the owner or an accepted friend.
+- **Android recap**: the recap screen takes its year chips from `years_with_data` instead of probing year by year, reads the year's badges from the new `badges` array instead of calling `GET /api/v1/badges`, and describes the flavour fingerprint from `fingerprint.whole_history` instead of hardcoded prose. Venue shelf went currency-aware and "Year in soda" now also ships in the app.
+- OpenAPI is `1.12.0`.
 
-- **Venue shelf**: members report a drink on a venue's shelf with an optional unitless price and a 140-character note; `venues.Service.Shelf` merges reports with check-ins from the last 30 days, computes fresh/stale bands at read time, and caps a venue at 40 entries. Web `/venues/{id}`, `GET|POST /api/v1/venues/{id}/shelf`, `DELETE /api/v1/venues/{id}/shelf/{report_id}`, and the Android venue screen.
-- **Wishlist availability alerts**: `wishlist_friend` and `wishlist_shelf` notifications, in-app only, off by default, deduplicated for seven days, with toggles on `/settings` and Android and `GET|PUT /api/v1/me/wishlist/alerts`.
-- **Year in soda**: `/recap/{year}` and `GET /api/v1/me/recap/{year}` aggregate the member's year on read, with rating buckets, an overall-rating year delta and a flavour fingerprint.
-- **Remaining gaps**: there is no Android recap screen; wishlist alerts are in-app only by design (no Web Push, FCM or outbox); the palate comparison has one overall-rating row because check-ins carry no per-taste rating column; shelf prices are unitless minor units with no currency or money-spent total; shelf alerts cover saved venues only because `@home` is a hidden venue that cannot carry reports.
+### Remaining gaps after v1.12
+
+- **Mobile editing parity is not shipped**: the Android app can create check-ins but cannot edit a check-in or a comment, attach a barcode to a drink, manage saved searches, set a price/currency on a check-in, or browse follower/following lists. Those surfaces are web and API only. The app does not show spend totals either.
+- Wishlist alerts and catalog drop alerts are in-app only by design (no Web Push, FCM or outbox fan-out).
+- The palate comparison has one overall-rating row because check-ins carry no per-taste rating column.
+- Shelf alerts cover saved venues only because `@home` is a hidden venue that cannot carry reports.
+- Mobile admin surfaces, the iOS app and iOS push remain out of scope.
 
 ## Next
 

@@ -4,27 +4,35 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 )
 
 // Detail is the full read model for a single check-in. Visibility rules are
 // applied by Get: callers must treat a refused row exactly like a missing one.
 type Detail struct {
-	ID            string
-	UserID        string
-	UserHandle    string
-	UserName      string
-	UserInitial   string
-	DrinkID       int
-	DrinkSlug     string
-	DrinkName     string
-	Brand         string
-	Style         string
-	Rating        *int
-	PrepMethod    string
-	PrepNote      string
-	Note          string
-	CreatedAt     string
+	ID          string
+	UserID      string
+	UserHandle  string
+	UserName    string
+	UserInitial string
+	DrinkID     int
+	DrinkSlug   string
+	DrinkName   string
+	Brand       string
+	Style       string
+	Rating      *int
+	Serving     string
+	PrepMethod  string
+	PrepNote    string
+	Note        string
+	CreatedAt   string
+	EditedAt    string
+	// PriceCents and PriceCurrency are the recorded amount and its ISO-4217
+	// unit. PriceCurrency may be empty even when a price was recorded.
+	PriceCents    *int
+	PriceCurrency string
 	Visibility    string
 	VenueID       *int
 	VenueName     string
@@ -50,6 +58,49 @@ func (d *Detail) Initial() string {
 		return "?"
 	}
 	return d.UserInitial
+}
+
+// PriceLabel renders the recorded price as a neutral "2.50 EUR" string. An
+// empty currency code still shows the amount; a nil price shows nothing so the
+// template can drop the whole block.
+func (d *Detail) PriceLabel() string {
+	if d == nil || d.PriceCents == nil {
+		return ""
+	}
+	amount := fmt.Sprintf("%d.%02d", *d.PriceCents/100, *d.PriceCents%100)
+	if d.PriceCurrency == "" {
+		return amount
+	}
+	return amount + " " + d.PriceCurrency
+}
+
+// EditedLabel is the subtle "edited …" marker the detail page shows next to the
+// creation timestamp. It is empty when the check-in was never edited.
+func (d *Detail) EditedLabel() string {
+	if d == nil || d.EditedAt == "" {
+		return ""
+	}
+	at, err := time.Parse(time.RFC3339, d.EditedAt)
+	if err != nil {
+		return "edited"
+	}
+	return "edited " + relativeAgo(time.Since(at.UTC()))
+}
+
+// relativeAgo phrases a positive duration compactly: "just now", "5m ago",
+// "3h ago", "2d ago". Durations in the future collapse to "just now" so a clock
+// skew never renders "in -2m".
+func relativeAgo(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	}
 }
 
 // Get loads one check-in, scoped to what viewerID is allowed to see. An empty
@@ -93,16 +144,19 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		return nil, ErrNotFound
 	}
 	var (
-		d       Detail
-		rating  sql.NullInt64
-		venueID sql.NullInt64
-		toasted int
+		d        Detail
+		rating   sql.NullInt64
+		venueID  sql.NullInt64
+		price    sql.NullInt64
+		editedAt sql.NullString
+		toasted  int
 	)
 	err := s.SQL.QueryRowContext(ctx, `
 		SELECT c.id, c.user_id, u.handle, COALESCE(u.display_name,''),
 		       d.id, d.slug, d.name, COALESCE(b.name,''), COALESCE(st.name,''),
 		       c.rating, COALESCE(c.prep_method,''), COALESCE(c.prep_note,''),
-		       COALESCE(c.note,''), c.created_at, c.visibility,
+		       COALESCE(c.note,''), c.created_at, c.edited_at, c.visibility,
+		       c.serving, c.price_cents, COALESCE(c.price_currency,''),
 		       c.venue_id, COALESCE(v.name,''), COALESCE(v.hidden,0),
 		       COALESCE(c.photo_media_id,''), COALESCE(m.mime,''),
 		       (SELECT COUNT(*) FROM checkin_likes l WHERE l.checkin_id = c.id),
@@ -122,7 +176,8 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 		  AND u.deleted_at IS NULL AND u.status <> 'deleted'`, viewerID, id).Scan(
 		&d.ID, &d.UserID, &d.UserHandle, &d.UserName,
 		&d.DrinkID, &d.DrinkSlug, &d.DrinkName, &d.Brand, &d.Style,
-		&rating, &d.PrepMethod, &d.PrepNote, &d.Note, &d.CreatedAt, &d.Visibility,
+		&rating, &d.PrepMethod, &d.PrepNote, &d.Note, &d.CreatedAt, &editedAt, &d.Visibility,
+		&d.Serving, &price, &d.PriceCurrency,
 		&venueID, &d.VenueName, &d.AtHome,
 		&d.MediaID, &d.MediaMime,
 		&d.Toasts, &toasted, &d.CommentsCount,
@@ -140,6 +195,13 @@ func (s *Service) load(ctx context.Context, viewerID, id string) (*Detail, error
 	if venueID.Valid {
 		v := int(venueID.Int64)
 		d.VenueID = &v
+	}
+	if price.Valid {
+		v := int(price.Int64)
+		d.PriceCents = &v
+	}
+	if editedAt.Valid {
+		d.EditedAt = editedAt.String
 	}
 	tags, err := s.loadTags(ctx, d.ID)
 	if err != nil {

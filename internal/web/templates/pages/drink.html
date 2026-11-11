@@ -81,6 +81,57 @@
     <div><dt>Barcodes</dt><dd>{{$d.BarcodeNum}}</dd></div>
   </dl>
 
+  <section id="barcodes" class="drink-barcodes" aria-labelledby="barcodes-title">
+    <h2 id="barcodes-title">Barcodes</h2>
+    <p class="muted">The digits under the barcode on the package. Everyone can add one they have in hand.</p>
+
+    {{if .BarcodeNotice}}<p class="banner success" role="status">{{.BarcodeNotice}}</p>{{end}}
+    {{if .BarcodeError}}<p class="banner error" role="alert">{{.BarcodeError}}
+      {{with .BarcodeConflict}}<a href="/drinks/{{.Slug}}">{{if .Name}}{{.Name}}{{else}}{{.Slug}}{{end}}</a>.{{end}}
+    </p>{{end}}
+
+    {{if $d.Barcodes}}
+      <ul class="barcode-list">
+        {{range $d.Barcodes}}
+          <li class="barcode-row">
+            <code class="barcode-code">{{.Gtin14}}</code>
+            {{if .Symbology}}<span class="muted">{{.Symbology}}</span>{{end}}
+            {{if eq (printf "%s" .Source) "user"}}<span class="pill">Member</span>{{else if eq (printf "%s" .Source) "scan"}}<span class="pill">Scanned</span>{{else if eq (printf "%s" .Source) "brand"}}<span class="pill">Brand</span>{{else if eq (printf "%s" .Source) "off"}}<span class="pill">Open Food Facts</span>{{end}}
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <p class="muted">No barcodes yet.</p>
+    {{end}}
+
+    {{if .CanUpload}}
+    <details class="barcode-add">
+      <summary>Add a barcode</summary>
+      <form method="post" action="/drinks/{{$d.Drink.Slug}}/barcodes" class="barcode-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <label>Barcode digits
+          <input name="code" value="{{.BarcodeValue}}" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="32" placeholder="0123456789012" required aria-describedby="barcode-hint">
+        </label>
+        <label>Barcode type <span class="hint">optional</span>
+          <select name="symbology">
+            <option value="">Not sure</option>
+            <option value="ean13">EAN-13</option>
+            <option value="ean8">EAN-8</option>
+            <option value="upca">UPC-A</option>
+            <option value="gtin14">GTIN-14</option>
+          </select>
+        </label>
+        <p class="hint" id="barcode-hint">8 to 14 digits. The check digit is verified before it is saved.</p>
+        <div class="form-actions">
+          <button class="btn btn-small" type="submit">Add barcode</button>
+        </div>
+      </form>
+    </details>
+    {{else}}
+      <p class="hint">Verify your email address to add a barcode.</p>
+    {{end}}
+  </section>
+
   <section id="gallery" class="drink-gallery" aria-labelledby="gallery-title">
     <h2 id="gallery-title">Photos</h2>
     <p class="gallery-intro">Photos of this soda, added by people who have logged it.</p>

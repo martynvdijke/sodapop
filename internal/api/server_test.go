@@ -71,6 +71,8 @@ func newHarness(t *testing.T) *harness {
 	venueSvc := venues.New(database)
 	mediaSvc := media.New(database, cfg)
 	badgeSvc := badges.New(database)
+	// Mirror main.go: the recap reads awarded badges through the badge service.
+	checkinSvc.Badges = badgeSvc
 	tasteSvc := taste.New(database)
 	mixSvc := mix.New(database)
 	limiter := ratelimit.New()

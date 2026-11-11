@@ -90,6 +90,8 @@ type Tx struct {
 	Report *ReportClient
 	// RuntimeSetting is the client for interacting with the RuntimeSetting builders.
 	RuntimeSetting *RuntimeSettingClient
+	// SavedSearch is the client for interacting with the SavedSearch builders.
+	SavedSearch *SavedSearchClient
 	// SchedulerState is the client for interacting with the SchedulerState builders.
 	SchedulerState *SchedulerStateClient
 	// Session is the client for interacting with the Session builders.
@@ -286,6 +288,7 @@ func (tx *Tx) init() {
 	tx.PushSubscription = NewPushSubscriptionClient(tx.config)
 	tx.Report = NewReportClient(tx.config)
 	tx.RuntimeSetting = NewRuntimeSettingClient(tx.config)
+	tx.SavedSearch = NewSavedSearchClient(tx.config)
 	tx.SchedulerState = NewSchedulerStateClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Style = NewStyleClient(tx.config)

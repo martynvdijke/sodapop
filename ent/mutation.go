@@ -46,6 +46,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/savedsearch"
 	"sodapop/ent/schedulerstate"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
@@ -113,6 +114,7 @@ const (
 	TypePushSubscription       = "PushSubscription"
 	TypeReport                 = "Report"
 	TypeRuntimeSetting         = "RuntimeSetting"
+	TypeSavedSearch            = "SavedSearch"
 	TypeSchedulerState         = "SchedulerState"
 	TypeSession                = "Session"
 	TypeStyle                  = "Style"
@@ -6887,6 +6889,9 @@ type CheckinMutation struct {
 	id              *string
 	rating          *int
 	addrating       *int
+	price_cents     *int
+	addprice_cents  *int
+	price_currency  *string
 	serving         *checkin.Serving
 	prep_method     *checkin.PrepMethod
 	prep_note       *string
@@ -6900,6 +6905,7 @@ type CheckinMutation struct {
 	idempotency_key *string
 	created_at      *string
 	updated_at      *string
+	edited_at       *string
 	deleted_at      *string
 	clearedFields   map[string]struct{}
 	user            *string
@@ -7206,6 +7212,112 @@ func (m *CheckinMutation) ResetRating() {
 	m.rating = nil
 	m.addrating = nil
 	delete(m.clearedFields, checkin.FieldRating)
+}
+
+// SetPriceCents sets the "price_cents" field.
+func (m *CheckinMutation) SetPriceCents(i int) {
+	m.price_cents = &i
+	m.addprice_cents = nil
+}
+
+// PriceCents returns the value of the "price_cents" field in the mutation.
+func (m *CheckinMutation) PriceCents() (r int, exists bool) {
+	v := m.price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceCents returns the old "price_cents" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldPriceCents(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceCents: %w", err)
+	}
+	return oldValue.PriceCents, nil
+}
+
+// AddPriceCents adds i to the "price_cents" field.
+func (m *CheckinMutation) AddPriceCents(i int) {
+	if m.addprice_cents != nil {
+		*m.addprice_cents += i
+	} else {
+		m.addprice_cents = &i
+	}
+}
+
+// AddedPriceCents returns the value that was added to the "price_cents" field in this mutation.
+func (m *CheckinMutation) AddedPriceCents() (r int, exists bool) {
+	v := m.addprice_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPriceCents clears the value of the "price_cents" field.
+func (m *CheckinMutation) ClearPriceCents() {
+	m.price_cents = nil
+	m.addprice_cents = nil
+	m.clearedFields[checkin.FieldPriceCents] = struct{}{}
+}
+
+// PriceCentsCleared returns if the "price_cents" field was cleared in this mutation.
+func (m *CheckinMutation) PriceCentsCleared() bool {
+	_, ok := m.clearedFields[checkin.FieldPriceCents]
+	return ok
+}
+
+// ResetPriceCents resets all changes to the "price_cents" field.
+func (m *CheckinMutation) ResetPriceCents() {
+	m.price_cents = nil
+	m.addprice_cents = nil
+	delete(m.clearedFields, checkin.FieldPriceCents)
+}
+
+// SetPriceCurrency sets the "price_currency" field.
+func (m *CheckinMutation) SetPriceCurrency(s string) {
+	m.price_currency = &s
+}
+
+// PriceCurrency returns the value of the "price_currency" field in the mutation.
+func (m *CheckinMutation) PriceCurrency() (r string, exists bool) {
+	v := m.price_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceCurrency returns the old "price_currency" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldPriceCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceCurrency: %w", err)
+	}
+	return oldValue.PriceCurrency, nil
+}
+
+// ResetPriceCurrency resets all changes to the "price_currency" field.
+func (m *CheckinMutation) ResetPriceCurrency() {
+	m.price_currency = nil
 }
 
 // SetServing sets the "serving" field.
@@ -7698,6 +7810,55 @@ func (m *CheckinMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// SetEditedAt sets the "edited_at" field.
+func (m *CheckinMutation) SetEditedAt(s string) {
+	m.edited_at = &s
+}
+
+// EditedAt returns the value of the "edited_at" field in the mutation.
+func (m *CheckinMutation) EditedAt() (r string, exists bool) {
+	v := m.edited_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEditedAt returns the old "edited_at" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldEditedAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEditedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEditedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEditedAt: %w", err)
+	}
+	return oldValue.EditedAt, nil
+}
+
+// ClearEditedAt clears the value of the "edited_at" field.
+func (m *CheckinMutation) ClearEditedAt() {
+	m.edited_at = nil
+	m.clearedFields[checkin.FieldEditedAt] = struct{}{}
+}
+
+// EditedAtCleared returns if the "edited_at" field was cleared in this mutation.
+func (m *CheckinMutation) EditedAtCleared() bool {
+	_, ok := m.clearedFields[checkin.FieldEditedAt]
+	return ok
+}
+
+// ResetEditedAt resets all changes to the "edited_at" field.
+func (m *CheckinMutation) ResetEditedAt() {
+	m.edited_at = nil
+	delete(m.clearedFields, checkin.FieldEditedAt)
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (m *CheckinMutation) SetDeletedAt(s string) {
 	m.deleted_at = &s
@@ -7862,7 +8023,7 @@ func (m *CheckinMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CheckinMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 19)
 	if m.user != nil {
 		fields = append(fields, checkin.FieldUserID)
 	}
@@ -7874,6 +8035,12 @@ func (m *CheckinMutation) Fields() []string {
 	}
 	if m.rating != nil {
 		fields = append(fields, checkin.FieldRating)
+	}
+	if m.price_cents != nil {
+		fields = append(fields, checkin.FieldPriceCents)
+	}
+	if m.price_currency != nil {
+		fields = append(fields, checkin.FieldPriceCurrency)
 	}
 	if m.serving != nil {
 		fields = append(fields, checkin.FieldServing)
@@ -7908,6 +8075,9 @@ func (m *CheckinMutation) Fields() []string {
 	if m.updated_at != nil {
 		fields = append(fields, checkin.FieldUpdatedAt)
 	}
+	if m.edited_at != nil {
+		fields = append(fields, checkin.FieldEditedAt)
+	}
 	if m.deleted_at != nil {
 		fields = append(fields, checkin.FieldDeletedAt)
 	}
@@ -7927,6 +8097,10 @@ func (m *CheckinMutation) Field(name string) (ent.Value, bool) {
 		return m.VenueID()
 	case checkin.FieldRating:
 		return m.Rating()
+	case checkin.FieldPriceCents:
+		return m.PriceCents()
+	case checkin.FieldPriceCurrency:
+		return m.PriceCurrency()
 	case checkin.FieldServing:
 		return m.Serving()
 	case checkin.FieldPrepMethod:
@@ -7949,6 +8123,8 @@ func (m *CheckinMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case checkin.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case checkin.FieldEditedAt:
+		return m.EditedAt()
 	case checkin.FieldDeletedAt:
 		return m.DeletedAt()
 	}
@@ -7968,6 +8144,10 @@ func (m *CheckinMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldVenueID(ctx)
 	case checkin.FieldRating:
 		return m.OldRating(ctx)
+	case checkin.FieldPriceCents:
+		return m.OldPriceCents(ctx)
+	case checkin.FieldPriceCurrency:
+		return m.OldPriceCurrency(ctx)
 	case checkin.FieldServing:
 		return m.OldServing(ctx)
 	case checkin.FieldPrepMethod:
@@ -7990,6 +8170,8 @@ func (m *CheckinMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCreatedAt(ctx)
 	case checkin.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case checkin.FieldEditedAt:
+		return m.OldEditedAt(ctx)
 	case checkin.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
 	}
@@ -8028,6 +8210,20 @@ func (m *CheckinMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRating(v)
+		return nil
+	case checkin.FieldPriceCents:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceCents(v)
+		return nil
+	case checkin.FieldPriceCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceCurrency(v)
 		return nil
 	case checkin.FieldServing:
 		v, ok := value.(checkin.Serving)
@@ -8106,6 +8302,13 @@ func (m *CheckinMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdatedAt(v)
 		return nil
+	case checkin.FieldEditedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEditedAt(v)
+		return nil
 	case checkin.FieldDeletedAt:
 		v, ok := value.(string)
 		if !ok {
@@ -8124,6 +8327,9 @@ func (m *CheckinMutation) AddedFields() []string {
 	if m.addrating != nil {
 		fields = append(fields, checkin.FieldRating)
 	}
+	if m.addprice_cents != nil {
+		fields = append(fields, checkin.FieldPriceCents)
+	}
 	if m.addlat != nil {
 		fields = append(fields, checkin.FieldLat)
 	}
@@ -8140,6 +8346,8 @@ func (m *CheckinMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case checkin.FieldRating:
 		return m.AddedRating()
+	case checkin.FieldPriceCents:
+		return m.AddedPriceCents()
 	case checkin.FieldLat:
 		return m.AddedLat()
 	case checkin.FieldLng:
@@ -8159,6 +8367,13 @@ func (m *CheckinMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRating(v)
+		return nil
+	case checkin.FieldPriceCents:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriceCents(v)
 		return nil
 	case checkin.FieldLat:
 		v, ok := value.(float64)
@@ -8188,6 +8403,9 @@ func (m *CheckinMutation) ClearedFields() []string {
 	if m.FieldCleared(checkin.FieldRating) {
 		fields = append(fields, checkin.FieldRating)
 	}
+	if m.FieldCleared(checkin.FieldPriceCents) {
+		fields = append(fields, checkin.FieldPriceCents)
+	}
 	if m.FieldCleared(checkin.FieldPhotoMediaID) {
 		fields = append(fields, checkin.FieldPhotoMediaID)
 	}
@@ -8199,6 +8417,9 @@ func (m *CheckinMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(checkin.FieldIdempotencyKey) {
 		fields = append(fields, checkin.FieldIdempotencyKey)
+	}
+	if m.FieldCleared(checkin.FieldEditedAt) {
+		fields = append(fields, checkin.FieldEditedAt)
 	}
 	if m.FieldCleared(checkin.FieldDeletedAt) {
 		fields = append(fields, checkin.FieldDeletedAt)
@@ -8223,6 +8444,9 @@ func (m *CheckinMutation) ClearField(name string) error {
 	case checkin.FieldRating:
 		m.ClearRating()
 		return nil
+	case checkin.FieldPriceCents:
+		m.ClearPriceCents()
+		return nil
 	case checkin.FieldPhotoMediaID:
 		m.ClearPhotoMediaID()
 		return nil
@@ -8234,6 +8458,9 @@ func (m *CheckinMutation) ClearField(name string) error {
 		return nil
 	case checkin.FieldIdempotencyKey:
 		m.ClearIdempotencyKey()
+		return nil
+	case checkin.FieldEditedAt:
+		m.ClearEditedAt()
 		return nil
 	case checkin.FieldDeletedAt:
 		m.ClearDeletedAt()
@@ -8257,6 +8484,12 @@ func (m *CheckinMutation) ResetField(name string) error {
 		return nil
 	case checkin.FieldRating:
 		m.ResetRating()
+		return nil
+	case checkin.FieldPriceCents:
+		m.ResetPriceCents()
+		return nil
+	case checkin.FieldPriceCurrency:
+		m.ResetPriceCurrency()
 		return nil
 	case checkin.FieldServing:
 		m.ResetServing()
@@ -8290,6 +8523,9 @@ func (m *CheckinMutation) ResetField(name string) error {
 		return nil
 	case checkin.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case checkin.FieldEditedAt:
+		m.ResetEditedAt()
 		return nil
 	case checkin.FieldDeletedAt:
 		m.ResetDeletedAt()
@@ -9726,6 +9962,7 @@ type CommentMutation struct {
 	user_id       *string
 	body          *string
 	created_at    *string
+	edited_at     *string
 	deleted_at    *string
 	clearedFields map[string]struct{}
 	done          bool
@@ -9981,6 +10218,55 @@ func (m *CommentMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// SetEditedAt sets the "edited_at" field.
+func (m *CommentMutation) SetEditedAt(s string) {
+	m.edited_at = &s
+}
+
+// EditedAt returns the value of the "edited_at" field in the mutation.
+func (m *CommentMutation) EditedAt() (r string, exists bool) {
+	v := m.edited_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEditedAt returns the old "edited_at" field's value of the Comment entity.
+// If the Comment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CommentMutation) OldEditedAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEditedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEditedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEditedAt: %w", err)
+	}
+	return oldValue.EditedAt, nil
+}
+
+// ClearEditedAt clears the value of the "edited_at" field.
+func (m *CommentMutation) ClearEditedAt() {
+	m.edited_at = nil
+	m.clearedFields[comment.FieldEditedAt] = struct{}{}
+}
+
+// EditedAtCleared returns if the "edited_at" field was cleared in this mutation.
+func (m *CommentMutation) EditedAtCleared() bool {
+	_, ok := m.clearedFields[comment.FieldEditedAt]
+	return ok
+}
+
+// ResetEditedAt resets all changes to the "edited_at" field.
+func (m *CommentMutation) ResetEditedAt() {
+	m.edited_at = nil
+	delete(m.clearedFields, comment.FieldEditedAt)
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (m *CommentMutation) SetDeletedAt(s string) {
 	m.deleted_at = &s
@@ -10064,7 +10350,7 @@ func (m *CommentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CommentMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.checkin_id != nil {
 		fields = append(fields, comment.FieldCheckinID)
 	}
@@ -10076,6 +10362,9 @@ func (m *CommentMutation) Fields() []string {
 	}
 	if m.created_at != nil {
 		fields = append(fields, comment.FieldCreatedAt)
+	}
+	if m.edited_at != nil {
+		fields = append(fields, comment.FieldEditedAt)
 	}
 	if m.deleted_at != nil {
 		fields = append(fields, comment.FieldDeletedAt)
@@ -10096,6 +10385,8 @@ func (m *CommentMutation) Field(name string) (ent.Value, bool) {
 		return m.Body()
 	case comment.FieldCreatedAt:
 		return m.CreatedAt()
+	case comment.FieldEditedAt:
+		return m.EditedAt()
 	case comment.FieldDeletedAt:
 		return m.DeletedAt()
 	}
@@ -10115,6 +10406,8 @@ func (m *CommentMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldBody(ctx)
 	case comment.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case comment.FieldEditedAt:
+		return m.OldEditedAt(ctx)
 	case comment.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
 	}
@@ -10154,6 +10447,13 @@ func (m *CommentMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCreatedAt(v)
 		return nil
+	case comment.FieldEditedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEditedAt(v)
+		return nil
 	case comment.FieldDeletedAt:
 		v, ok := value.(string)
 		if !ok {
@@ -10191,6 +10491,9 @@ func (m *CommentMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *CommentMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(comment.FieldEditedAt) {
+		fields = append(fields, comment.FieldEditedAt)
+	}
 	if m.FieldCleared(comment.FieldDeletedAt) {
 		fields = append(fields, comment.FieldDeletedAt)
 	}
@@ -10208,6 +10511,9 @@ func (m *CommentMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *CommentMutation) ClearField(name string) error {
 	switch name {
+	case comment.FieldEditedAt:
+		m.ClearEditedAt()
+		return nil
 	case comment.FieldDeletedAt:
 		m.ClearDeletedAt()
 		return nil
@@ -10230,6 +10536,9 @@ func (m *CommentMutation) ResetField(name string) error {
 		return nil
 	case comment.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case comment.FieldEditedAt:
+		m.ResetEditedAt()
 		return nil
 	case comment.FieldDeletedAt:
 		m.ResetDeletedAt()
@@ -27753,6 +28062,1008 @@ func (m *RuntimeSettingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown RuntimeSetting edge %s", name)
 }
 
+// SavedSearchMutation represents an operation that mutates the SavedSearch nodes in the graph.
+type SavedSearchMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *string
+	user_id          *string
+	name             *string
+	query            *string
+	beverage_type    *string
+	style_slug       *string
+	brand_slug       *string
+	flavour_slug     *string
+	caffeine_free    *bool
+	sugar_free       *bool
+	notify_drops     *bool
+	last_notified_at *string
+	created_at       *string
+	updated_at       *string
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*SavedSearch, error)
+	predicates       []predicate.SavedSearch
+}
+
+var _ ent.Mutation = (*SavedSearchMutation)(nil)
+
+// savedsearchOption allows management of the mutation configuration using functional options.
+type savedsearchOption func(*SavedSearchMutation)
+
+// newSavedSearchMutation creates new mutation for the SavedSearch entity.
+func newSavedSearchMutation(c config, op Op, opts ...savedsearchOption) *SavedSearchMutation {
+	m := &SavedSearchMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSavedSearch,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSavedSearchID sets the ID field of the mutation.
+func withSavedSearchID(id string) savedsearchOption {
+	return func(m *SavedSearchMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SavedSearch
+		)
+		m.oldValue = func(ctx context.Context) (*SavedSearch, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SavedSearch.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSavedSearch sets the old SavedSearch of the mutation.
+func withSavedSearch(node *SavedSearch) savedsearchOption {
+	return func(m *SavedSearchMutation) {
+		m.oldValue = func(context.Context) (*SavedSearch, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SavedSearchMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SavedSearchMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SavedSearch entities.
+func (m *SavedSearchMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SavedSearchMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SavedSearchMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SavedSearch.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *SavedSearchMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *SavedSearchMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *SavedSearchMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *SavedSearchMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SavedSearchMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SavedSearchMutation) ResetName() {
+	m.name = nil
+}
+
+// SetQuery sets the "query" field.
+func (m *SavedSearchMutation) SetQuery(s string) {
+	m.query = &s
+}
+
+// Query returns the value of the "query" field in the mutation.
+func (m *SavedSearchMutation) Query() (r string, exists bool) {
+	v := m.query
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuery returns the old "query" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldQuery(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuery is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuery requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuery: %w", err)
+	}
+	return oldValue.Query, nil
+}
+
+// ResetQuery resets all changes to the "query" field.
+func (m *SavedSearchMutation) ResetQuery() {
+	m.query = nil
+}
+
+// SetBeverageType sets the "beverage_type" field.
+func (m *SavedSearchMutation) SetBeverageType(s string) {
+	m.beverage_type = &s
+}
+
+// BeverageType returns the value of the "beverage_type" field in the mutation.
+func (m *SavedSearchMutation) BeverageType() (r string, exists bool) {
+	v := m.beverage_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBeverageType returns the old "beverage_type" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldBeverageType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBeverageType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBeverageType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBeverageType: %w", err)
+	}
+	return oldValue.BeverageType, nil
+}
+
+// ResetBeverageType resets all changes to the "beverage_type" field.
+func (m *SavedSearchMutation) ResetBeverageType() {
+	m.beverage_type = nil
+}
+
+// SetStyleSlug sets the "style_slug" field.
+func (m *SavedSearchMutation) SetStyleSlug(s string) {
+	m.style_slug = &s
+}
+
+// StyleSlug returns the value of the "style_slug" field in the mutation.
+func (m *SavedSearchMutation) StyleSlug() (r string, exists bool) {
+	v := m.style_slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStyleSlug returns the old "style_slug" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldStyleSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStyleSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStyleSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStyleSlug: %w", err)
+	}
+	return oldValue.StyleSlug, nil
+}
+
+// ResetStyleSlug resets all changes to the "style_slug" field.
+func (m *SavedSearchMutation) ResetStyleSlug() {
+	m.style_slug = nil
+}
+
+// SetBrandSlug sets the "brand_slug" field.
+func (m *SavedSearchMutation) SetBrandSlug(s string) {
+	m.brand_slug = &s
+}
+
+// BrandSlug returns the value of the "brand_slug" field in the mutation.
+func (m *SavedSearchMutation) BrandSlug() (r string, exists bool) {
+	v := m.brand_slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBrandSlug returns the old "brand_slug" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldBrandSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBrandSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBrandSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBrandSlug: %w", err)
+	}
+	return oldValue.BrandSlug, nil
+}
+
+// ResetBrandSlug resets all changes to the "brand_slug" field.
+func (m *SavedSearchMutation) ResetBrandSlug() {
+	m.brand_slug = nil
+}
+
+// SetFlavourSlug sets the "flavour_slug" field.
+func (m *SavedSearchMutation) SetFlavourSlug(s string) {
+	m.flavour_slug = &s
+}
+
+// FlavourSlug returns the value of the "flavour_slug" field in the mutation.
+func (m *SavedSearchMutation) FlavourSlug() (r string, exists bool) {
+	v := m.flavour_slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFlavourSlug returns the old "flavour_slug" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldFlavourSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFlavourSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFlavourSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFlavourSlug: %w", err)
+	}
+	return oldValue.FlavourSlug, nil
+}
+
+// ResetFlavourSlug resets all changes to the "flavour_slug" field.
+func (m *SavedSearchMutation) ResetFlavourSlug() {
+	m.flavour_slug = nil
+}
+
+// SetCaffeineFree sets the "caffeine_free" field.
+func (m *SavedSearchMutation) SetCaffeineFree(b bool) {
+	m.caffeine_free = &b
+}
+
+// CaffeineFree returns the value of the "caffeine_free" field in the mutation.
+func (m *SavedSearchMutation) CaffeineFree() (r bool, exists bool) {
+	v := m.caffeine_free
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCaffeineFree returns the old "caffeine_free" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldCaffeineFree(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCaffeineFree is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCaffeineFree requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCaffeineFree: %w", err)
+	}
+	return oldValue.CaffeineFree, nil
+}
+
+// ResetCaffeineFree resets all changes to the "caffeine_free" field.
+func (m *SavedSearchMutation) ResetCaffeineFree() {
+	m.caffeine_free = nil
+}
+
+// SetSugarFree sets the "sugar_free" field.
+func (m *SavedSearchMutation) SetSugarFree(b bool) {
+	m.sugar_free = &b
+}
+
+// SugarFree returns the value of the "sugar_free" field in the mutation.
+func (m *SavedSearchMutation) SugarFree() (r bool, exists bool) {
+	v := m.sugar_free
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSugarFree returns the old "sugar_free" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldSugarFree(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSugarFree is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSugarFree requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSugarFree: %w", err)
+	}
+	return oldValue.SugarFree, nil
+}
+
+// ResetSugarFree resets all changes to the "sugar_free" field.
+func (m *SavedSearchMutation) ResetSugarFree() {
+	m.sugar_free = nil
+}
+
+// SetNotifyDrops sets the "notify_drops" field.
+func (m *SavedSearchMutation) SetNotifyDrops(b bool) {
+	m.notify_drops = &b
+}
+
+// NotifyDrops returns the value of the "notify_drops" field in the mutation.
+func (m *SavedSearchMutation) NotifyDrops() (r bool, exists bool) {
+	v := m.notify_drops
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotifyDrops returns the old "notify_drops" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldNotifyDrops(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotifyDrops is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotifyDrops requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotifyDrops: %w", err)
+	}
+	return oldValue.NotifyDrops, nil
+}
+
+// ResetNotifyDrops resets all changes to the "notify_drops" field.
+func (m *SavedSearchMutation) ResetNotifyDrops() {
+	m.notify_drops = nil
+}
+
+// SetLastNotifiedAt sets the "last_notified_at" field.
+func (m *SavedSearchMutation) SetLastNotifiedAt(s string) {
+	m.last_notified_at = &s
+}
+
+// LastNotifiedAt returns the value of the "last_notified_at" field in the mutation.
+func (m *SavedSearchMutation) LastNotifiedAt() (r string, exists bool) {
+	v := m.last_notified_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastNotifiedAt returns the old "last_notified_at" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldLastNotifiedAt(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastNotifiedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastNotifiedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastNotifiedAt: %w", err)
+	}
+	return oldValue.LastNotifiedAt, nil
+}
+
+// ClearLastNotifiedAt clears the value of the "last_notified_at" field.
+func (m *SavedSearchMutation) ClearLastNotifiedAt() {
+	m.last_notified_at = nil
+	m.clearedFields[savedsearch.FieldLastNotifiedAt] = struct{}{}
+}
+
+// LastNotifiedAtCleared returns if the "last_notified_at" field was cleared in this mutation.
+func (m *SavedSearchMutation) LastNotifiedAtCleared() bool {
+	_, ok := m.clearedFields[savedsearch.FieldLastNotifiedAt]
+	return ok
+}
+
+// ResetLastNotifiedAt resets all changes to the "last_notified_at" field.
+func (m *SavedSearchMutation) ResetLastNotifiedAt() {
+	m.last_notified_at = nil
+	delete(m.clearedFields, savedsearch.FieldLastNotifiedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SavedSearchMutation) SetCreatedAt(s string) {
+	m.created_at = &s
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SavedSearchMutation) CreatedAt() (r string, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldCreatedAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SavedSearchMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SavedSearchMutation) SetUpdatedAt(s string) {
+	m.updated_at = &s
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SavedSearchMutation) UpdatedAt() (r string, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SavedSearch entity.
+// If the SavedSearch object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedSearchMutation) OldUpdatedAt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SavedSearchMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the SavedSearchMutation builder.
+func (m *SavedSearchMutation) Where(ps ...predicate.SavedSearch) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SavedSearchMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SavedSearchMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SavedSearch, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SavedSearchMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SavedSearchMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SavedSearch).
+func (m *SavedSearchMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SavedSearchMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.user_id != nil {
+		fields = append(fields, savedsearch.FieldUserID)
+	}
+	if m.name != nil {
+		fields = append(fields, savedsearch.FieldName)
+	}
+	if m.query != nil {
+		fields = append(fields, savedsearch.FieldQuery)
+	}
+	if m.beverage_type != nil {
+		fields = append(fields, savedsearch.FieldBeverageType)
+	}
+	if m.style_slug != nil {
+		fields = append(fields, savedsearch.FieldStyleSlug)
+	}
+	if m.brand_slug != nil {
+		fields = append(fields, savedsearch.FieldBrandSlug)
+	}
+	if m.flavour_slug != nil {
+		fields = append(fields, savedsearch.FieldFlavourSlug)
+	}
+	if m.caffeine_free != nil {
+		fields = append(fields, savedsearch.FieldCaffeineFree)
+	}
+	if m.sugar_free != nil {
+		fields = append(fields, savedsearch.FieldSugarFree)
+	}
+	if m.notify_drops != nil {
+		fields = append(fields, savedsearch.FieldNotifyDrops)
+	}
+	if m.last_notified_at != nil {
+		fields = append(fields, savedsearch.FieldLastNotifiedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, savedsearch.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, savedsearch.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SavedSearchMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case savedsearch.FieldUserID:
+		return m.UserID()
+	case savedsearch.FieldName:
+		return m.Name()
+	case savedsearch.FieldQuery:
+		return m.Query()
+	case savedsearch.FieldBeverageType:
+		return m.BeverageType()
+	case savedsearch.FieldStyleSlug:
+		return m.StyleSlug()
+	case savedsearch.FieldBrandSlug:
+		return m.BrandSlug()
+	case savedsearch.FieldFlavourSlug:
+		return m.FlavourSlug()
+	case savedsearch.FieldCaffeineFree:
+		return m.CaffeineFree()
+	case savedsearch.FieldSugarFree:
+		return m.SugarFree()
+	case savedsearch.FieldNotifyDrops:
+		return m.NotifyDrops()
+	case savedsearch.FieldLastNotifiedAt:
+		return m.LastNotifiedAt()
+	case savedsearch.FieldCreatedAt:
+		return m.CreatedAt()
+	case savedsearch.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SavedSearchMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case savedsearch.FieldUserID:
+		return m.OldUserID(ctx)
+	case savedsearch.FieldName:
+		return m.OldName(ctx)
+	case savedsearch.FieldQuery:
+		return m.OldQuery(ctx)
+	case savedsearch.FieldBeverageType:
+		return m.OldBeverageType(ctx)
+	case savedsearch.FieldStyleSlug:
+		return m.OldStyleSlug(ctx)
+	case savedsearch.FieldBrandSlug:
+		return m.OldBrandSlug(ctx)
+	case savedsearch.FieldFlavourSlug:
+		return m.OldFlavourSlug(ctx)
+	case savedsearch.FieldCaffeineFree:
+		return m.OldCaffeineFree(ctx)
+	case savedsearch.FieldSugarFree:
+		return m.OldSugarFree(ctx)
+	case savedsearch.FieldNotifyDrops:
+		return m.OldNotifyDrops(ctx)
+	case savedsearch.FieldLastNotifiedAt:
+		return m.OldLastNotifiedAt(ctx)
+	case savedsearch.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case savedsearch.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SavedSearch field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SavedSearchMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case savedsearch.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case savedsearch.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case savedsearch.FieldQuery:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuery(v)
+		return nil
+	case savedsearch.FieldBeverageType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBeverageType(v)
+		return nil
+	case savedsearch.FieldStyleSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStyleSlug(v)
+		return nil
+	case savedsearch.FieldBrandSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBrandSlug(v)
+		return nil
+	case savedsearch.FieldFlavourSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFlavourSlug(v)
+		return nil
+	case savedsearch.FieldCaffeineFree:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCaffeineFree(v)
+		return nil
+	case savedsearch.FieldSugarFree:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSugarFree(v)
+		return nil
+	case savedsearch.FieldNotifyDrops:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotifyDrops(v)
+		return nil
+	case savedsearch.FieldLastNotifiedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastNotifiedAt(v)
+		return nil
+	case savedsearch.FieldCreatedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case savedsearch.FieldUpdatedAt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SavedSearch field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SavedSearchMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SavedSearchMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SavedSearchMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SavedSearch numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SavedSearchMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(savedsearch.FieldLastNotifiedAt) {
+		fields = append(fields, savedsearch.FieldLastNotifiedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SavedSearchMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SavedSearchMutation) ClearField(name string) error {
+	switch name {
+	case savedsearch.FieldLastNotifiedAt:
+		m.ClearLastNotifiedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SavedSearch nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SavedSearchMutation) ResetField(name string) error {
+	switch name {
+	case savedsearch.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case savedsearch.FieldName:
+		m.ResetName()
+		return nil
+	case savedsearch.FieldQuery:
+		m.ResetQuery()
+		return nil
+	case savedsearch.FieldBeverageType:
+		m.ResetBeverageType()
+		return nil
+	case savedsearch.FieldStyleSlug:
+		m.ResetStyleSlug()
+		return nil
+	case savedsearch.FieldBrandSlug:
+		m.ResetBrandSlug()
+		return nil
+	case savedsearch.FieldFlavourSlug:
+		m.ResetFlavourSlug()
+		return nil
+	case savedsearch.FieldCaffeineFree:
+		m.ResetCaffeineFree()
+		return nil
+	case savedsearch.FieldSugarFree:
+		m.ResetSugarFree()
+		return nil
+	case savedsearch.FieldNotifyDrops:
+		m.ResetNotifyDrops()
+		return nil
+	case savedsearch.FieldLastNotifiedAt:
+		m.ResetLastNotifiedAt()
+		return nil
+	case savedsearch.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case savedsearch.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SavedSearch field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SavedSearchMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SavedSearchMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SavedSearchMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SavedSearchMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SavedSearchMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SavedSearchMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SavedSearchMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SavedSearch unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SavedSearchMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SavedSearch edge %s", name)
+}
+
 // SchedulerStateMutation represents an operation that mutates the SchedulerState nodes in the graph.
 type SchedulerStateMutation struct {
 	config
@@ -37543,6 +38854,7 @@ type VenueStockReportMutation struct {
 	user_id        *string
 	price_cents    *int
 	addprice_cents *int
+	currency       *string
 	note           *string
 	seen_at        *string
 	created_at     *string
@@ -37876,6 +39188,42 @@ func (m *VenueStockReportMutation) ResetPriceCents() {
 	delete(m.clearedFields, venuestockreport.FieldPriceCents)
 }
 
+// SetCurrency sets the "currency" field.
+func (m *VenueStockReportMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *VenueStockReportMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the VenueStockReport entity.
+// If the VenueStockReport object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VenueStockReportMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *VenueStockReportMutation) ResetCurrency() {
+	m.currency = nil
+}
+
 // SetNote sets the "note" field.
 func (m *VenueStockReportMutation) SetNote(s string) {
 	m.note = &s
@@ -38116,7 +39464,7 @@ func (m *VenueStockReportMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *VenueStockReportMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.venue_id != nil {
 		fields = append(fields, venuestockreport.FieldVenueID)
 	}
@@ -38128,6 +39476,9 @@ func (m *VenueStockReportMutation) Fields() []string {
 	}
 	if m.price_cents != nil {
 		fields = append(fields, venuestockreport.FieldPriceCents)
+	}
+	if m.currency != nil {
+		fields = append(fields, venuestockreport.FieldCurrency)
 	}
 	if m.note != nil {
 		fields = append(fields, venuestockreport.FieldNote)
@@ -38160,6 +39511,8 @@ func (m *VenueStockReportMutation) Field(name string) (ent.Value, bool) {
 		return m.UserID()
 	case venuestockreport.FieldPriceCents:
 		return m.PriceCents()
+	case venuestockreport.FieldCurrency:
+		return m.Currency()
 	case venuestockreport.FieldNote:
 		return m.Note()
 	case venuestockreport.FieldSeenAt:
@@ -38187,6 +39540,8 @@ func (m *VenueStockReportMutation) OldField(ctx context.Context, name string) (e
 		return m.OldUserID(ctx)
 	case venuestockreport.FieldPriceCents:
 		return m.OldPriceCents(ctx)
+	case venuestockreport.FieldCurrency:
+		return m.OldCurrency(ctx)
 	case venuestockreport.FieldNote:
 		return m.OldNote(ctx)
 	case venuestockreport.FieldSeenAt:
@@ -38233,6 +39588,13 @@ func (m *VenueStockReportMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPriceCents(v)
+		return nil
+	case venuestockreport.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
 		return nil
 	case venuestockreport.FieldNote:
 		v, ok := value.(string)
@@ -38389,6 +39751,9 @@ func (m *VenueStockReportMutation) ResetField(name string) error {
 		return nil
 	case venuestockreport.FieldPriceCents:
 		m.ResetPriceCents()
+		return nil
+	case venuestockreport.FieldCurrency:
+		m.ResetCurrency()
 		return nil
 	case venuestockreport.FieldNote:
 		m.ResetNote()

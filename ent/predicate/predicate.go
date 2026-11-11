@@ -123,6 +123,9 @@ type Report func(*sql.Selector)
 // RuntimeSetting is the predicate function for runtimesetting builders.
 type RuntimeSetting func(*sql.Selector)
 
+// SavedSearch is the predicate function for savedsearch builders.
+type SavedSearch func(*sql.Selector)
+
 // SchedulerState is the predicate function for schedulerstate builders.
 type SchedulerState func(*sql.Selector)
 

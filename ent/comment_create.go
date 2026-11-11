@@ -51,6 +51,20 @@ func (_c *CommentCreate) SetNillableCreatedAt(v *string) *CommentCreate {
 	return _c
 }
 
+// SetEditedAt sets the "edited_at" field.
+func (_c *CommentCreate) SetEditedAt(v string) *CommentCreate {
+	_c.mutation.SetEditedAt(v)
+	return _c
+}
+
+// SetNillableEditedAt sets the "edited_at" field if the given value is not nil.
+func (_c *CommentCreate) SetNillableEditedAt(v *string) *CommentCreate {
+	if v != nil {
+		_c.SetEditedAt(*v)
+	}
+	return _c
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_c *CommentCreate) SetDeletedAt(v string) *CommentCreate {
 	_c.mutation.SetDeletedAt(v)
@@ -203,6 +217,10 @@ func (_c *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(comment.FieldCreatedAt, field.TypeString, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.EditedAt(); ok {
+		_spec.SetField(comment.FieldEditedAt, field.TypeString, value)
+		_node.EditedAt = &value
 	}
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(comment.FieldDeletedAt, field.TypeString, value)

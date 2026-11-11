@@ -62,6 +62,8 @@ func newV12Harness(t *testing.T) *v12Harness {
 	authSvc := auth.New(cfg, database)
 	socialSvc := social.New(database)
 	checkinSvc := checkins.New(database, socialSvc)
+	badgeSvc := badges.New(database)
+	checkinSvc.Badges = badgeSvc
 	srv := &Server{
 		Cfg:      cfg,
 		Auth:     authSvc,
@@ -70,7 +72,7 @@ func newV12Harness(t *testing.T) *v12Harness {
 		Saves:    saves.New(database, checkinSvc),
 		Social:   socialSvc,
 		Venues:   venues.New(database),
-		Badges:   badges.New(database),
+		Badges:   badgeSvc,
 		Taste:    taste.New(database),
 		DB:       database,
 		Log:      log,

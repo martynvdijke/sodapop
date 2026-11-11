@@ -105,6 +105,47 @@ func (_u *CheckinUpdate) ClearRating() *CheckinUpdate {
 	return _u
 }
 
+// SetPriceCents sets the "price_cents" field.
+func (_u *CheckinUpdate) SetPriceCents(v int) *CheckinUpdate {
+	_u.mutation.ResetPriceCents()
+	_u.mutation.SetPriceCents(v)
+	return _u
+}
+
+// SetNillablePriceCents sets the "price_cents" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillablePriceCents(v *int) *CheckinUpdate {
+	if v != nil {
+		_u.SetPriceCents(*v)
+	}
+	return _u
+}
+
+// AddPriceCents adds value to the "price_cents" field.
+func (_u *CheckinUpdate) AddPriceCents(v int) *CheckinUpdate {
+	_u.mutation.AddPriceCents(v)
+	return _u
+}
+
+// ClearPriceCents clears the value of the "price_cents" field.
+func (_u *CheckinUpdate) ClearPriceCents() *CheckinUpdate {
+	_u.mutation.ClearPriceCents()
+	return _u
+}
+
+// SetPriceCurrency sets the "price_currency" field.
+func (_u *CheckinUpdate) SetPriceCurrency(v string) *CheckinUpdate {
+	_u.mutation.SetPriceCurrency(v)
+	return _u
+}
+
+// SetNillablePriceCurrency sets the "price_currency" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillablePriceCurrency(v *string) *CheckinUpdate {
+	if v != nil {
+		_u.SetPriceCurrency(*v)
+	}
+	return _u
+}
+
 // SetServing sets the "serving" field.
 func (_u *CheckinUpdate) SetServing(v checkin.Serving) *CheckinUpdate {
 	_u.mutation.SetServing(v)
@@ -297,6 +338,26 @@ func (_u *CheckinUpdate) SetNillableUpdatedAt(v *string) *CheckinUpdate {
 	return _u
 }
 
+// SetEditedAt sets the "edited_at" field.
+func (_u *CheckinUpdate) SetEditedAt(v string) *CheckinUpdate {
+	_u.mutation.SetEditedAt(v)
+	return _u
+}
+
+// SetNillableEditedAt sets the "edited_at" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillableEditedAt(v *string) *CheckinUpdate {
+	if v != nil {
+		_u.SetEditedAt(*v)
+	}
+	return _u
+}
+
+// ClearEditedAt clears the value of the "edited_at" field.
+func (_u *CheckinUpdate) ClearEditedAt() *CheckinUpdate {
+	_u.mutation.ClearEditedAt()
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *CheckinUpdate) SetDeletedAt(v string) *CheckinUpdate {
 	_u.mutation.SetDeletedAt(v)
@@ -394,6 +455,11 @@ func (_u *CheckinUpdate) check() error {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Checkin.rating": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PriceCents(); ok {
+		if err := checkin.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "Checkin.price_cents": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Serving(); ok {
 		if err := checkin.ServingValidator(v); err != nil {
 			return &ValidationError{Name: "serving", err: fmt.Errorf(`ent: validator failed for field "Checkin.serving": %w`, err)}
@@ -438,6 +504,18 @@ func (_u *CheckinUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.RatingCleared() {
 		_spec.ClearField(checkin.FieldRating, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PriceCents(); ok {
+		_spec.SetField(checkin.FieldPriceCents, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPriceCents(); ok {
+		_spec.AddField(checkin.FieldPriceCents, field.TypeInt, value)
+	}
+	if _u.mutation.PriceCentsCleared() {
+		_spec.ClearField(checkin.FieldPriceCents, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PriceCurrency(); ok {
+		_spec.SetField(checkin.FieldPriceCurrency, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Serving(); ok {
 		_spec.SetField(checkin.FieldServing, field.TypeEnum, value)
@@ -489,6 +567,12 @@ func (_u *CheckinUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(checkin.FieldUpdatedAt, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EditedAt(); ok {
+		_spec.SetField(checkin.FieldEditedAt, field.TypeString, value)
+	}
+	if _u.mutation.EditedAtCleared() {
+		_spec.ClearField(checkin.FieldEditedAt, field.TypeString)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(checkin.FieldDeletedAt, field.TypeString, value)
@@ -675,6 +759,47 @@ func (_u *CheckinUpdateOne) AddRating(v int) *CheckinUpdateOne {
 // ClearRating clears the value of the "rating" field.
 func (_u *CheckinUpdateOne) ClearRating() *CheckinUpdateOne {
 	_u.mutation.ClearRating()
+	return _u
+}
+
+// SetPriceCents sets the "price_cents" field.
+func (_u *CheckinUpdateOne) SetPriceCents(v int) *CheckinUpdateOne {
+	_u.mutation.ResetPriceCents()
+	_u.mutation.SetPriceCents(v)
+	return _u
+}
+
+// SetNillablePriceCents sets the "price_cents" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillablePriceCents(v *int) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetPriceCents(*v)
+	}
+	return _u
+}
+
+// AddPriceCents adds value to the "price_cents" field.
+func (_u *CheckinUpdateOne) AddPriceCents(v int) *CheckinUpdateOne {
+	_u.mutation.AddPriceCents(v)
+	return _u
+}
+
+// ClearPriceCents clears the value of the "price_cents" field.
+func (_u *CheckinUpdateOne) ClearPriceCents() *CheckinUpdateOne {
+	_u.mutation.ClearPriceCents()
+	return _u
+}
+
+// SetPriceCurrency sets the "price_currency" field.
+func (_u *CheckinUpdateOne) SetPriceCurrency(v string) *CheckinUpdateOne {
+	_u.mutation.SetPriceCurrency(v)
+	return _u
+}
+
+// SetNillablePriceCurrency sets the "price_currency" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillablePriceCurrency(v *string) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetPriceCurrency(*v)
+	}
 	return _u
 }
 
@@ -870,6 +995,26 @@ func (_u *CheckinUpdateOne) SetNillableUpdatedAt(v *string) *CheckinUpdateOne {
 	return _u
 }
 
+// SetEditedAt sets the "edited_at" field.
+func (_u *CheckinUpdateOne) SetEditedAt(v string) *CheckinUpdateOne {
+	_u.mutation.SetEditedAt(v)
+	return _u
+}
+
+// SetNillableEditedAt sets the "edited_at" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillableEditedAt(v *string) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetEditedAt(*v)
+	}
+	return _u
+}
+
+// ClearEditedAt clears the value of the "edited_at" field.
+func (_u *CheckinUpdateOne) ClearEditedAt() *CheckinUpdateOne {
+	_u.mutation.ClearEditedAt()
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *CheckinUpdateOne) SetDeletedAt(v string) *CheckinUpdateOne {
 	_u.mutation.SetDeletedAt(v)
@@ -980,6 +1125,11 @@ func (_u *CheckinUpdateOne) check() error {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Checkin.rating": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PriceCents(); ok {
+		if err := checkin.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "Checkin.price_cents": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Serving(); ok {
 		if err := checkin.ServingValidator(v); err != nil {
 			return &ValidationError{Name: "serving", err: fmt.Errorf(`ent: validator failed for field "Checkin.serving": %w`, err)}
@@ -1042,6 +1192,18 @@ func (_u *CheckinUpdateOne) sqlSave(ctx context.Context) (_node *Checkin, err er
 	if _u.mutation.RatingCleared() {
 		_spec.ClearField(checkin.FieldRating, field.TypeInt)
 	}
+	if value, ok := _u.mutation.PriceCents(); ok {
+		_spec.SetField(checkin.FieldPriceCents, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPriceCents(); ok {
+		_spec.AddField(checkin.FieldPriceCents, field.TypeInt, value)
+	}
+	if _u.mutation.PriceCentsCleared() {
+		_spec.ClearField(checkin.FieldPriceCents, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PriceCurrency(); ok {
+		_spec.SetField(checkin.FieldPriceCurrency, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Serving(); ok {
 		_spec.SetField(checkin.FieldServing, field.TypeEnum, value)
 	}
@@ -1092,6 +1254,12 @@ func (_u *CheckinUpdateOne) sqlSave(ctx context.Context) (_node *Checkin, err er
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(checkin.FieldUpdatedAt, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EditedAt(); ok {
+		_spec.SetField(checkin.FieldEditedAt, field.TypeString, value)
+	}
+	if _u.mutation.EditedAtCleared() {
+		_spec.ClearField(checkin.FieldEditedAt, field.TypeString)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(checkin.FieldDeletedAt, field.TypeString, value)

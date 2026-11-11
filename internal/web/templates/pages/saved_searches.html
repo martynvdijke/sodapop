@@ -1,0 +1,96 @@
+{{define "content"}}
+<section class="narrow settings-page">
+  <p class="eyebrow">Settings</p>
+  <h1>Saved searches</h1>
+  <p class="lede">Standing catalog queries. When a drink that matches one drops into the catalog, you get a notification.</p>
+
+  {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+  {{if .Notice}}<p class="banner success" role="status">{{.Notice}}</p>{{end}}
+
+  <section class="settings-section" aria-labelledby="saved-searches-existing">
+    <h2 id="saved-searches-existing">Your searches</h2>
+    <p class="settings-intro">{{.Count}} of {{.Max}} used. Alerts are sent at most once a day per search.</p>
+
+    {{if .Searches}}
+      <ul class="saved-searches">
+        {{range .Searches}}
+          <li class="saved-search">
+            <div class="saved-search-body">
+              <p class="saved-search-name">
+                <strong>{{.Name}}</strong>
+                {{if not .Notify}}<span class="pill">Alerts off</span>{{end}}
+              </p>
+              <p class="saved-search-pills">{{range .Filters}}<span class="pill">{{.}}</span> {{end}}</p>
+              <p class="hint">Saved {{.Created}}</p>
+            </div>
+            <form method="post" action="/settings/searches/{{.ID}}/delete" class="saved-search-delete">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <button class="btn btn-small" type="submit" aria-label="Delete saved search {{.Name}}">Delete</button>
+            </form>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <div class="empty">
+        <p><strong>No saved searches yet</strong></p>
+        <p>A search can be as loose as a beverage type or as tight as a brand, a style and caffeine-free together.</p>
+      </div>
+    {{end}}
+  </section>
+
+  <section class="settings-section" aria-labelledby="saved-searches-new">
+    <h2 id="saved-searches-new">New saved search</h2>
+    <p class="settings-intro">Leave a filter empty to accept any value. At least one filter is required.</p>
+
+    <form class="settings-form saved-search-form" method="post" action="/settings/searches">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+      <label>Name <span class="hint">optional</span>
+        <input name="name" value="{{.Form.Name}}" maxlength="80" autocomplete="off" placeholder="Cold brew drops">
+      </label>
+
+      <label>Words <span class="hint">optional · matches the drink name, brand or description</span>
+        <input name="query" value="{{.Form.Query}}" maxlength="120" autocomplete="off" placeholder="cherry">
+      </label>
+
+      <label>Beverage type
+        <select name="beverage_type">
+          {{$selected := .Form.BeverageType}}
+          {{range .BeverageTypes}}<option value="{{.Value}}"{{if eq .Value $selected}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+      </label>
+
+      <div class="field-row">
+        <label>Style slug <span class="hint">optional</span>
+          <input name="style_slug" value="{{.Form.StyleSlug}}" maxlength="80" autocomplete="off" placeholder="cola">
+        </label>
+        <label>Brand slug <span class="hint">optional</span>
+          <input name="brand_slug" value="{{.Form.BrandSlug}}" maxlength="80" autocomplete="off" placeholder="fanta">
+        </label>
+      </div>
+      <label>Flavour slug <span class="hint">optional</span>
+        <input name="flavour_slug" value="{{.Form.FlavourSlug}}" maxlength="80" autocomplete="off" placeholder="cherry" list="saved-search-flavours">
+      </label>
+      {{if .Flavours}}
+        <datalist id="saved-search-flavours">
+          {{range .Flavours}}<option value="{{.Slug}}">{{.Name}}</option>{{end}}
+        </datalist>
+      {{end}}
+      <p class="hint">Slugs are the lowercase names used in catalog URLs, e.g. <code>cold-brew</code>.</p>
+
+      <fieldset class="saved-search-flags">
+        <legend>Flags</legend>
+        <label class="inline"><input type="checkbox" name="caffeine_free" value="1"{{if .Form.CaffeineFree}} checked{{end}}> Caffeine-free only</label>
+        <label class="inline"><input type="checkbox" name="sugar_free" value="1"{{if .Form.SugarFree}} checked{{end}}> Sugar-free only</label>
+        <label class="inline"><input type="checkbox" name="notify_drops" value="1"{{if .Form.NotifyDrops}} checked{{end}}> Notify me when a match drops</label>
+      </fieldset>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Save search</button>
+      </div>
+    </form>
+  </section>
+
+  <p class="settings-note"><a href="/settings">Back to settings</a></p>
+</section>
+{{end}}

@@ -24,6 +24,8 @@ type VenueStockReport struct {
 	UserID string `json:"user_id,omitempty"`
 	// PriceCents holds the value of the "price_cents" field.
 	PriceCents *int `json:"price_cents,omitempty"`
+	// Currency holds the value of the "currency" field.
+	Currency string `json:"currency,omitempty"`
 	// Note holds the value of the "note" field.
 	Note *string `json:"note,omitempty"`
 	// SeenAt holds the value of the "seen_at" field.
@@ -44,7 +46,7 @@ func (*VenueStockReport) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case venuestockreport.FieldVenueID, venuestockreport.FieldDrinkID, venuestockreport.FieldPriceCents:
 			values[i] = new(sql.NullInt64)
-		case venuestockreport.FieldID, venuestockreport.FieldUserID, venuestockreport.FieldNote, venuestockreport.FieldSeenAt, venuestockreport.FieldCreatedAt, venuestockreport.FieldUpdatedAt, venuestockreport.FieldRemovedAt:
+		case venuestockreport.FieldID, venuestockreport.FieldUserID, venuestockreport.FieldCurrency, venuestockreport.FieldNote, venuestockreport.FieldSeenAt, venuestockreport.FieldCreatedAt, venuestockreport.FieldUpdatedAt, venuestockreport.FieldRemovedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -91,6 +93,12 @@ func (_m *VenueStockReport) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PriceCents = new(int)
 				*_m.PriceCents = int(value.Int64)
+			}
+		case venuestockreport.FieldCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field currency", values[i])
+			} else if value.Valid {
+				_m.Currency = value.String
 			}
 		case venuestockreport.FieldNote:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -173,6 +181,9 @@ func (_m *VenueStockReport) String() string {
 		builder.WriteString("price_cents=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("currency=")
+	builder.WriteString(_m.Currency)
 	builder.WriteString(", ")
 	if v := _m.Note; v != nil {
 		builder.WriteString("note=")

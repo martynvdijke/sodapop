@@ -24,6 +24,8 @@ type Comment struct {
 	Body string `json:"body,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt string `json:"created_at,omitempty"`
+	// EditedAt holds the value of the "edited_at" field.
+	EditedAt *string `json:"edited_at,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
 	DeletedAt    *string `json:"deleted_at,omitempty"`
 	selectValues sql.SelectValues
@@ -34,7 +36,7 @@ func (*Comment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case comment.FieldID, comment.FieldCheckinID, comment.FieldUserID, comment.FieldBody, comment.FieldCreatedAt, comment.FieldDeletedAt:
+		case comment.FieldID, comment.FieldCheckinID, comment.FieldUserID, comment.FieldBody, comment.FieldCreatedAt, comment.FieldEditedAt, comment.FieldDeletedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -80,6 +82,13 @@ func (_m *Comment) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.String
+			}
+		case comment.FieldEditedAt:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field edited_at", values[i])
+			} else if value.Valid {
+				_m.EditedAt = new(string)
+				*_m.EditedAt = value.String
 			}
 		case comment.FieldDeletedAt:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -135,6 +144,11 @@ func (_m *Comment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt)
+	builder.WriteString(", ")
+	if v := _m.EditedAt; v != nil {
+		builder.WriteString("edited_at=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.DeletedAt; v != nil {
 		builder.WriteString("deleted_at=")

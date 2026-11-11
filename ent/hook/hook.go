@@ -476,6 +476,18 @@ func (f RuntimeSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RuntimeSettingMutation", m)
 }
 
+// The SavedSearchFunc type is an adapter to allow the use of ordinary
+// function as SavedSearch mutator.
+type SavedSearchFunc func(context.Context, *ent.SavedSearchMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SavedSearchFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SavedSearchMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SavedSearchMutation", m)
+}
+
 // The SchedulerStateFunc type is an adapter to allow the use of ordinary
 // function as SchedulerState mutator.
 type SchedulerStateFunc func(context.Context, *ent.SchedulerStateMutation) (ent.Value, error)

@@ -31,6 +31,7 @@ import (
 	"sodapop/internal/mix"
 	"sodapop/internal/pairings"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/savedsearch"
 	"sodapop/internal/saves"
 	"sodapop/internal/settings"
 	"sodapop/internal/setup"
@@ -164,6 +165,10 @@ func run() error {
 		log.Info("demo account ready", "handle", cfg.DemoUserHandle)
 	}
 	savesSvc := saves.New(database, checkinSvc)
+	savedSearchSvc := savedsearch.New(database, socialSvc)
+	// A drink that becomes visible is a catalog drop for matching saved
+	// searches. The catalog only needs the narrow Evaluate hook.
+	catalogSvc.Drops = savedSearchSvc
 	commentSvc := comments.New(database, checkinSvc)
 	venueSvc := venues.New(database)
 	mediaSvc := media.New(database, cfg)
@@ -205,6 +210,9 @@ func run() error {
 		return int64(n), err
 	})
 	badgeSvc := badges.New(database)
+	// The recap filters awarded badges by year; it reads them through the same
+	// list the badge endpoint serves.
+	checkinSvc.Badges = badgeSvc
 	tasteSvc := taste.New(database)
 	mixSvc := mix.New(database)
 	pairingSvc := pairings.New(cfg.SandwitchesBaseURL)

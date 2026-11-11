@@ -404,6 +404,8 @@ type checkinRequest struct {
 	Lng            *float64
 	FriendIDs      []string
 	AtHome         bool
+	PriceCents     *int
+	PriceCurrency  string
 }
 
 // createCheckin accepts JSON, or multipart/form-data with an optional `image`
@@ -427,6 +429,8 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 		Lng            *float64 `json:"lng"`
 		FriendIDs      []string `json:"friend_ids"`
 		AtHome         bool     `json:"at_home"`
+		PriceCents     *int     `json:"price_cents"`
+		PriceCurrency  string   `json:"price_currency"`
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
@@ -436,6 +440,7 @@ func (s *Server) createCheckin(w http.ResponseWriter, r *http.Request, tok *auth
 		PrepMethod: in.PrepMethod, PrepNote: in.PrepNote,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
 		Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs, AtHome: in.AtHome,
+		PriceCents: in.PriceCents, PriceCurrency: in.PriceCurrency,
 	}, nil)
 }
 
@@ -463,12 +468,20 @@ func (s *Server) createCheckinMultipart(w http.ResponseWriter, r *http.Request, 
 		Visibility:     strings.TrimSpace(r.FormValue("visibility")),
 		IdempotencyKey: strings.TrimSpace(r.FormValue("idempotency_key")),
 		AtHome:         parseBoolish(r.FormValue("at_home")),
+		PriceCurrency:  strings.TrimSpace(r.FormValue("price_currency")),
 	}
 	drinkID, err := strconv.Atoi(strings.TrimSpace(r.FormValue("drink_id")))
 	if err != nil || drinkID <= 0 {
 		return bad("drink_id is required")
 	}
 	in.DrinkID = drinkID
+	if raw := strings.TrimSpace(r.FormValue("price_cents")); raw != "" {
+		cents, err := strconv.Atoi(raw)
+		if err != nil {
+			return bad("invalid price_cents")
+		}
+		in.PriceCents = &cents
+	}
 	if raw := strings.TrimSpace(r.FormValue("venue_id")); raw != "" {
 		venueID, err := strconv.Atoi(raw)
 		if err != nil || venueID <= 0 {
@@ -549,7 +562,7 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 		PrepMethod: in.PrepMethod, PrepNote: in.PrepNote,
 		Note: in.Note, Visibility: in.Visibility, IdempotencyKey: in.IdempotencyKey,
 		PhotoMediaID: photoMediaID, Lat: in.Lat, Lng: in.Lng, FriendIDs: in.FriendIDs,
-		AtHome: in.AtHome,
+		AtHome: in.AtHome, PriceCents: in.PriceCents, PriceCurrency: in.PriceCurrency,
 	})
 	if err != nil {
 		s.discardCheckinMedia(r.Context(), stored)
@@ -584,6 +597,7 @@ func (s *Server) saveCheckin(w http.ResponseWriter, r *http.Request, tok *auth.A
 		"serving": c.Serving, "prep_method": c.PrepMethod, "prep_note": c.PrepNote,
 		"created_at": c.CreatedAt, "created": created,
 		"venue_id": c.VenueID, "at_home": in.AtHome, "tagged_friends": tags,
+		"price_cents": c.PriceCents, "price_currency": c.PriceCurrency,
 	}
 	if c.PhotoMediaID != nil && *c.PhotoMediaID != "" {
 		data["photo_media_id"] = *c.PhotoMediaID

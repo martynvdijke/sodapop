@@ -27,8 +27,9 @@ import (
 
 type shelfEntryView struct {
 	venues.ShelfEntry
-	Price string
-	Seen  string
+	Price    string
+	Currency string
+	Seen     string
 }
 
 type listView struct {
@@ -945,6 +946,7 @@ func (s *Server) renderVenue(w http.ResponseWriter, r *http.Request, status, id 
 		view := shelfEntryView{ShelfEntry: entry}
 		if entry.PriceCents != nil {
 			view.Price = fmt.Sprintf("%d.%02d", *entry.PriceCents/100, *entry.PriceCents%100)
+			view.Currency = entry.Currency
 		}
 		switch entry.AgeDays {
 		case 0:
@@ -956,7 +958,7 @@ func (s *Server) renderVenue(w http.ResponseWriter, r *http.Request, status, id 
 		}
 		shelfViews = append(shelfViews, view)
 	}
-	shelfForm := map[string]string{"drink": "", "drink_slug": "", "price": "", "note": "", "seen_now": ""}
+	shelfForm := map[string]string{"drink": "", "drink_slug": "", "price": "", "currency": "", "note": "", "seen_now": ""}
 
 	data := map[string]any{
 		"Title":      v.Name,
@@ -1013,6 +1015,7 @@ func (s *Server) venueShelfReport(w http.ResponseWriter, r *http.Request) {
 		"drink":      strings.TrimSpace(r.FormValue("drink")),
 		"drink_slug": strings.TrimSpace(r.FormValue("drink_slug")),
 		"price":      strings.TrimSpace(r.FormValue("price")),
+		"currency":   strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
 		"note":       r.FormValue("note"),
 		"seen_now":   "",
 	}
@@ -1049,6 +1052,7 @@ func (s *Server) venueShelfReport(w http.ResponseWriter, r *http.Request) {
 	_, err = s.Venues.ReportShelf(r.Context(), u.ID, id, venues.ShelfReportInput{
 		DrinkSlug:  slug,
 		PriceCents: price,
+		Currency:   form["currency"],
 		Note:       form["note"],
 		SeenNow:    form["seen_now"] == "1",
 	})

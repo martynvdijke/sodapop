@@ -27,13 +27,15 @@ test.describe('v1.2 comments, compare, and venue media', () => {
     await page.getByLabel('Add a comment').fill(body);
     await page.getByRole('button', { name: 'Post comment' }).click();
 
-    await expect(page.getByText(body)).toBeVisible();
+    // The edit affordance pre-fills a textarea with the same body, so the
+    // assertion targets the rendered comment text rather than any match.
+    await expect(page.locator('.comment-text').filter({ hasText: body })).toBeVisible();
     await expect(page.getByRole('heading', { name: '1 comment' })).toBeVisible();
 
     const comment = page.locator('.comment').filter({ hasText: body });
     await comment.getByRole('button', { name: 'Delete' }).click();
 
-    await expect(page.getByText(body)).toBeHidden();
+    await expect(page.locator('.comment-text').filter({ hasText: body })).toHaveCount(0);
     await expect(page.getByText('No comments yet.')).toBeVisible();
   });
 

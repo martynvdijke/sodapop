@@ -62,6 +62,34 @@ func (_c *CheckinCreate) SetNillableRating(v *int) *CheckinCreate {
 	return _c
 }
 
+// SetPriceCents sets the "price_cents" field.
+func (_c *CheckinCreate) SetPriceCents(v int) *CheckinCreate {
+	_c.mutation.SetPriceCents(v)
+	return _c
+}
+
+// SetNillablePriceCents sets the "price_cents" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillablePriceCents(v *int) *CheckinCreate {
+	if v != nil {
+		_c.SetPriceCents(*v)
+	}
+	return _c
+}
+
+// SetPriceCurrency sets the "price_currency" field.
+func (_c *CheckinCreate) SetPriceCurrency(v string) *CheckinCreate {
+	_c.mutation.SetPriceCurrency(v)
+	return _c
+}
+
+// SetNillablePriceCurrency sets the "price_currency" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillablePriceCurrency(v *string) *CheckinCreate {
+	if v != nil {
+		_c.SetPriceCurrency(*v)
+	}
+	return _c
+}
+
 // SetServing sets the "serving" field.
 func (_c *CheckinCreate) SetServing(v checkin.Serving) *CheckinCreate {
 	_c.mutation.SetServing(v)
@@ -216,6 +244,20 @@ func (_c *CheckinCreate) SetNillableUpdatedAt(v *string) *CheckinCreate {
 	return _c
 }
 
+// SetEditedAt sets the "edited_at" field.
+func (_c *CheckinCreate) SetEditedAt(v string) *CheckinCreate {
+	_c.mutation.SetEditedAt(v)
+	return _c
+}
+
+// SetNillableEditedAt sets the "edited_at" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillableEditedAt(v *string) *CheckinCreate {
+	if v != nil {
+		_c.SetEditedAt(*v)
+	}
+	return _c
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_c *CheckinCreate) SetDeletedAt(v string) *CheckinCreate {
 	_c.mutation.SetDeletedAt(v)
@@ -294,6 +336,10 @@ func (_c *CheckinCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CheckinCreate) defaults() {
+	if _, ok := _c.mutation.PriceCurrency(); !ok {
+		v := checkin.DefaultPriceCurrency
+		_c.mutation.SetPriceCurrency(v)
+	}
 	if _, ok := _c.mutation.Serving(); !ok {
 		v := checkin.DefaultServing
 		_c.mutation.SetServing(v)
@@ -345,6 +391,14 @@ func (_c *CheckinCreate) check() error {
 		if err := checkin.RatingValidator(v); err != nil {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Checkin.rating": %w`, err)}
 		}
+	}
+	if v, ok := _c.mutation.PriceCents(); ok {
+		if err := checkin.PriceCentsValidator(v); err != nil {
+			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "Checkin.price_cents": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PriceCurrency(); !ok {
+		return &ValidationError{Name: "price_currency", err: errors.New(`ent: missing required field "Checkin.price_currency"`)}
 	}
 	if _, ok := _c.mutation.Serving(); !ok {
 		return &ValidationError{Name: "serving", err: errors.New(`ent: missing required field "Checkin.serving"`)}
@@ -427,6 +481,14 @@ func (_c *CheckinCreate) createSpec() (*Checkin, *sqlgraph.CreateSpec) {
 		_spec.SetField(checkin.FieldRating, field.TypeInt, value)
 		_node.Rating = &value
 	}
+	if value, ok := _c.mutation.PriceCents(); ok {
+		_spec.SetField(checkin.FieldPriceCents, field.TypeInt, value)
+		_node.PriceCents = &value
+	}
+	if value, ok := _c.mutation.PriceCurrency(); ok {
+		_spec.SetField(checkin.FieldPriceCurrency, field.TypeString, value)
+		_node.PriceCurrency = value
+	}
 	if value, ok := _c.mutation.Serving(); ok {
 		_spec.SetField(checkin.FieldServing, field.TypeEnum, value)
 		_node.Serving = value
@@ -470,6 +532,10 @@ func (_c *CheckinCreate) createSpec() (*Checkin, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(checkin.FieldUpdatedAt, field.TypeString, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.EditedAt(); ok {
+		_spec.SetField(checkin.FieldEditedAt, field.TypeString, value)
+		_node.EditedAt = &value
 	}
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(checkin.FieldDeletedAt, field.TypeString, value)

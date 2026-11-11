@@ -7,7 +7,7 @@
     {{if $c.Initial}}<span class="avatar" aria-hidden="true">{{$c.Initial}}</span>{{end}}
     <div>
       <strong>{{if $c.UserName}}{{$c.UserName}}{{else}}@{{$c.UserHandle}}{{end}}</strong>
-      <div class="muted">{{if $c.UserHandle}}@{{$c.UserHandle}} · {{end}}{{$c.CreatedAt}}</div>
+      <div class="muted">{{if $c.UserHandle}}@{{$c.UserHandle}} · {{end}}{{$c.CreatedAt}}{{if $c.EditedLabel}} · <span class="edited-marker" title="{{$c.EditedAt}}">{{$c.EditedLabel}}</span>{{end}}</div>
     </div>
   </header>
 
@@ -24,6 +24,7 @@
 
   <h1 class="detail-title"><a href="/drinks/{{$c.DrinkSlug}}">{{$c.DrinkName}}</a></h1>
   <p class="detail-brand">{{$c.Brand}}{{if $c.Style}} · {{$c.Style}}{{end}}</p>
+  {{if $c.PriceLabel}}<p class="detail-price"><span class="pill">{{$c.PriceLabel}}</span></p>{{end}}
 
   <div class="detail-rating{{if not $c.Rating}} unrated{{end}}">
     <span class="detail-rating-label">Rating</span>
@@ -71,6 +72,7 @@
       <p class="detail-signin">Sign in to toast this check-in. <a href="/login?next=/checkins/{{$c.ID}}">Sign in</a>.</p>
     {{end}}
     <p class="detail-toasts muted">{{if $c.Toasts}}{{if eq $c.Toasts 1}}1 toast{{else}}{{$c.Toasts}} toasts{{end}}{{else}}No toasts yet{{end}}</p>
+    {{if .CanEdit}}<a class="btn btn-small" href="/checkins/{{$c.ID}}/edit">Edit</a>{{end}}
     {{if .CanSave}}
       <form method="post" action="/checkins/{{$c.ID}}/{{if .Saved}}unsave{{else}}save{{end}}" class="save-form">
         <input type="hidden" name="csrf_token" value="{{.CSRF}}">
@@ -129,13 +131,25 @@
             <div class="comment-body">
               <p class="comment-meta">
                 <strong>{{if .DisplayName}}{{.DisplayName}}{{else}}@{{.Handle}}{{end}}</strong>
-                <span class="comment-date">{{.CreatedAt}}</span>
+                <span class="comment-date">{{.CreatedAt}}{{if .EditedLabel}} · <span class="edited-marker">{{.EditedLabel}}</span>{{end}}</span>
               </p>
               <div class="comment-text">{{.BodyHTML}}</div>
-              {{if or .CanDelete .CanReport $.CanComment}}
+              {{if or .CanDelete .CanReport .CanEdit $.CanComment}}
                 <div class="comment-actions">
                   {{if $.CanComment}}
                     <button class="btn btn-small comment-reply" type="button" data-reply-to="{{.Handle}}">Reply</button>
+                  {{end}}
+                  {{if .CanEdit}}
+                    <details class="comment-edit">
+                      <summary class="btn btn-small">Edit</summary>
+                      <form class="comment-edit-form" method="post" action="/comments/{{.ID}}/edit">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                        <input type="hidden" name="checkin_id" value="{{$c.ID}}">
+                        <label for="comment-edit-{{.ID}}">Edit comment</label>
+                        <textarea id="comment-edit-{{.ID}}" name="body" rows="3" maxlength="1000" required>{{.Body}}</textarea>
+                        <button class="btn btn-small" type="submit">Save</button>
+                      </form>
+                    </details>
                   {{end}}
                   {{if .CanDelete}}
                     <form class="comment-delete" method="post" action="/comments/{{.ID}}/delete">

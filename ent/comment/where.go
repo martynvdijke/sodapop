@@ -83,6 +83,11 @@ func CreatedAt(v string) predicate.Comment {
 	return predicate.Comment(sql.FieldEQ(FieldCreatedAt, v))
 }
 
+// EditedAt applies equality check predicate on the "edited_at" field. It's identical to EditedAtEQ.
+func EditedAt(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldEditedAt, v))
+}
+
 // DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
 func DeletedAt(v string) predicate.Comment {
 	return predicate.Comment(sql.FieldEQ(FieldDeletedAt, v))
@@ -346,6 +351,81 @@ func CreatedAtEqualFold(v string) predicate.Comment {
 // CreatedAtContainsFold applies the ContainsFold predicate on the "created_at" field.
 func CreatedAtContainsFold(v string) predicate.Comment {
 	return predicate.Comment(sql.FieldContainsFold(FieldCreatedAt, v))
+}
+
+// EditedAtEQ applies the EQ predicate on the "edited_at" field.
+func EditedAtEQ(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldEditedAt, v))
+}
+
+// EditedAtNEQ applies the NEQ predicate on the "edited_at" field.
+func EditedAtNEQ(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldNEQ(FieldEditedAt, v))
+}
+
+// EditedAtIn applies the In predicate on the "edited_at" field.
+func EditedAtIn(vs ...string) predicate.Comment {
+	return predicate.Comment(sql.FieldIn(FieldEditedAt, vs...))
+}
+
+// EditedAtNotIn applies the NotIn predicate on the "edited_at" field.
+func EditedAtNotIn(vs ...string) predicate.Comment {
+	return predicate.Comment(sql.FieldNotIn(FieldEditedAt, vs...))
+}
+
+// EditedAtGT applies the GT predicate on the "edited_at" field.
+func EditedAtGT(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldGT(FieldEditedAt, v))
+}
+
+// EditedAtGTE applies the GTE predicate on the "edited_at" field.
+func EditedAtGTE(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldGTE(FieldEditedAt, v))
+}
+
+// EditedAtLT applies the LT predicate on the "edited_at" field.
+func EditedAtLT(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldLT(FieldEditedAt, v))
+}
+
+// EditedAtLTE applies the LTE predicate on the "edited_at" field.
+func EditedAtLTE(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldLTE(FieldEditedAt, v))
+}
+
+// EditedAtContains applies the Contains predicate on the "edited_at" field.
+func EditedAtContains(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldContains(FieldEditedAt, v))
+}
+
+// EditedAtHasPrefix applies the HasPrefix predicate on the "edited_at" field.
+func EditedAtHasPrefix(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldHasPrefix(FieldEditedAt, v))
+}
+
+// EditedAtHasSuffix applies the HasSuffix predicate on the "edited_at" field.
+func EditedAtHasSuffix(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldHasSuffix(FieldEditedAt, v))
+}
+
+// EditedAtIsNil applies the IsNil predicate on the "edited_at" field.
+func EditedAtIsNil() predicate.Comment {
+	return predicate.Comment(sql.FieldIsNull(FieldEditedAt))
+}
+
+// EditedAtNotNil applies the NotNil predicate on the "edited_at" field.
+func EditedAtNotNil() predicate.Comment {
+	return predicate.Comment(sql.FieldNotNull(FieldEditedAt))
+}
+
+// EditedAtEqualFold applies the EqualFold predicate on the "edited_at" field.
+func EditedAtEqualFold(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEqualFold(FieldEditedAt, v))
+}
+
+// EditedAtContainsFold applies the ContainsFold predicate on the "edited_at" field.
+func EditedAtContainsFold(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldContainsFold(FieldEditedAt, v))
 }
 
 // DeletedAtEQ applies the EQ predicate on the "deleted_at" field.

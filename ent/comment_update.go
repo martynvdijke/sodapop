@@ -83,6 +83,26 @@ func (_u *CommentUpdate) SetNillableCreatedAt(v *string) *CommentUpdate {
 	return _u
 }
 
+// SetEditedAt sets the "edited_at" field.
+func (_u *CommentUpdate) SetEditedAt(v string) *CommentUpdate {
+	_u.mutation.SetEditedAt(v)
+	return _u
+}
+
+// SetNillableEditedAt sets the "edited_at" field if the given value is not nil.
+func (_u *CommentUpdate) SetNillableEditedAt(v *string) *CommentUpdate {
+	if v != nil {
+		_u.SetEditedAt(*v)
+	}
+	return _u
+}
+
+// ClearEditedAt clears the value of the "edited_at" field.
+func (_u *CommentUpdate) ClearEditedAt() *CommentUpdate {
+	_u.mutation.ClearEditedAt()
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *CommentUpdate) SetDeletedAt(v string) *CommentUpdate {
 	_u.mutation.SetDeletedAt(v)
@@ -179,6 +199,12 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(comment.FieldCreatedAt, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.EditedAt(); ok {
+		_spec.SetField(comment.FieldEditedAt, field.TypeString, value)
+	}
+	if _u.mutation.EditedAtCleared() {
+		_spec.ClearField(comment.FieldEditedAt, field.TypeString)
+	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(comment.FieldDeletedAt, field.TypeString, value)
 	}
@@ -258,6 +284,26 @@ func (_u *CommentUpdateOne) SetNillableCreatedAt(v *string) *CommentUpdateOne {
 	if v != nil {
 		_u.SetCreatedAt(*v)
 	}
+	return _u
+}
+
+// SetEditedAt sets the "edited_at" field.
+func (_u *CommentUpdateOne) SetEditedAt(v string) *CommentUpdateOne {
+	_u.mutation.SetEditedAt(v)
+	return _u
+}
+
+// SetNillableEditedAt sets the "edited_at" field if the given value is not nil.
+func (_u *CommentUpdateOne) SetNillableEditedAt(v *string) *CommentUpdateOne {
+	if v != nil {
+		_u.SetEditedAt(*v)
+	}
+	return _u
+}
+
+// ClearEditedAt clears the value of the "edited_at" field.
+func (_u *CommentUpdateOne) ClearEditedAt() *CommentUpdateOne {
+	_u.mutation.ClearEditedAt()
 	return _u
 }
 
@@ -386,6 +432,12 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(comment.FieldCreatedAt, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EditedAt(); ok {
+		_spec.SetField(comment.FieldEditedAt, field.TypeString, value)
+	}
+	if _u.mutation.EditedAtCleared() {
+		_spec.ClearField(comment.FieldEditedAt, field.TypeString)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(comment.FieldDeletedAt, field.TypeString, value)

@@ -51,6 +51,20 @@ func (_c *VenueStockReportCreate) SetNillablePriceCents(v *int) *VenueStockRepor
 	return _c
 }
 
+// SetCurrency sets the "currency" field.
+func (_c *VenueStockReportCreate) SetCurrency(v string) *VenueStockReportCreate {
+	_c.mutation.SetCurrency(v)
+	return _c
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_c *VenueStockReportCreate) SetNillableCurrency(v *string) *VenueStockReportCreate {
+	if v != nil {
+		_c.SetCurrency(*v)
+	}
+	return _c
+}
+
 // SetNote sets the "note" field.
 func (_c *VenueStockReportCreate) SetNote(v string) *VenueStockReportCreate {
 	_c.mutation.SetNote(v)
@@ -170,6 +184,10 @@ func (_c *VenueStockReportCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *VenueStockReportCreate) defaults() {
+	if _, ok := _c.mutation.Currency(); !ok {
+		v := venuestockreport.DefaultCurrency
+		_c.mutation.SetCurrency(v)
+	}
 	if _, ok := _c.mutation.SeenAt(); !ok {
 		v := venuestockreport.DefaultSeenAt()
 		_c.mutation.SetSeenAt(v)
@@ -208,6 +226,9 @@ func (_c *VenueStockReportCreate) check() error {
 		if err := venuestockreport.PriceCentsValidator(v); err != nil {
 			return &ValidationError{Name: "price_cents", err: fmt.Errorf(`ent: validator failed for field "VenueStockReport.price_cents": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Currency(); !ok {
+		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "VenueStockReport.currency"`)}
 	}
 	if _, ok := _c.mutation.SeenAt(); !ok {
 		return &ValidationError{Name: "seen_at", err: errors.New(`ent: missing required field "VenueStockReport.seen_at"`)}
@@ -268,6 +289,10 @@ func (_c *VenueStockReportCreate) createSpec() (*VenueStockReport, *sqlgraph.Cre
 	if value, ok := _c.mutation.PriceCents(); ok {
 		_spec.SetField(venuestockreport.FieldPriceCents, field.TypeInt, value)
 		_node.PriceCents = &value
+	}
+	if value, ok := _c.mutation.Currency(); ok {
+		_spec.SetField(venuestockreport.FieldCurrency, field.TypeString, value)
+		_node.Currency = value
 	}
 	if value, ok := _c.mutation.Note(); ok {
 		_spec.SetField(venuestockreport.FieldNote, field.TypeString, value)

@@ -19,6 +19,8 @@ const (
 	FieldUserID = "user_id"
 	// FieldPriceCents holds the string denoting the price_cents field in the database.
 	FieldPriceCents = "price_cents"
+	// FieldCurrency holds the string denoting the currency field in the database.
+	FieldCurrency = "currency"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
 	// FieldSeenAt holds the string denoting the seen_at field in the database.
@@ -40,6 +42,7 @@ var Columns = []string{
 	FieldDrinkID,
 	FieldUserID,
 	FieldPriceCents,
+	FieldCurrency,
 	FieldNote,
 	FieldSeenAt,
 	FieldCreatedAt,
@@ -62,6 +65,8 @@ var (
 	UserIDValidator func(string) error
 	// PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
 	PriceCentsValidator func(int) error
+	// DefaultCurrency holds the default value on creation for the "currency" field.
+	DefaultCurrency string
 	// DefaultSeenAt holds the default value on creation for the "seen_at" field.
 	DefaultSeenAt func() string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -98,6 +103,11 @@ func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 // ByPriceCents orders the results by the price_cents field.
 func ByPriceCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPriceCents, opts...).ToFunc()
+}
+
+// ByCurrency orders the results by the currency field.
+func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
 }
 
 // ByNote orders the results by the note field.

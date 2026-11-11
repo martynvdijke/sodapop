@@ -205,6 +205,8 @@ var (
 	CheckinsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
 		{Name: "rating", Type: field.TypeInt, Nullable: true},
+		{Name: "price_cents", Type: field.TypeInt, Nullable: true},
+		{Name: "price_currency", Type: field.TypeString, Default: ""},
 		{Name: "serving", Type: field.TypeEnum, Enums: []string{"can", "bottle", "glass", "fountain", "other"}, Default: "can"},
 		{Name: "prep_method", Type: field.TypeEnum, Enums: []string{"none", "tea_bag", "loose_leaf", "cold_brew", "matcha", "espresso", "pour_over", "french_press", "aeropress", "moka", "drip", "other"}, Default: "none"},
 		{Name: "prep_note", Type: field.TypeString, Default: ""},
@@ -216,6 +218,7 @@ var (
 		{Name: "idempotency_key", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeString},
 		{Name: "updated_at", Type: field.TypeString},
+		{Name: "edited_at", Type: field.TypeString, Nullable: true},
 		{Name: "deleted_at", Type: field.TypeString, Nullable: true},
 		{Name: "drink_id", Type: field.TypeInt},
 		{Name: "user_id", Type: field.TypeString},
@@ -229,19 +232,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "checkins_drinks_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[14]},
+				Columns:    []*schema.Column{CheckinsColumns[17]},
 				RefColumns: []*schema.Column{DrinksColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "checkins_users_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[15]},
+				Columns:    []*schema.Column{CheckinsColumns[18]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "checkins_venues_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[16]},
+				Columns:    []*schema.Column{CheckinsColumns[19]},
 				RefColumns: []*schema.Column{VenuesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -250,17 +253,17 @@ var (
 			{
 				Name:    "checkin_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinsColumns[15], CheckinsColumns[11]},
+				Columns: []*schema.Column{CheckinsColumns[18], CheckinsColumns[13]},
 			},
 			{
 				Name:    "checkin_drink_id",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinsColumns[14]},
+				Columns: []*schema.Column{CheckinsColumns[17]},
 			},
 			{
 				Name:    "checkin_idempotency_key",
 				Unique:  true,
-				Columns: []*schema.Column{CheckinsColumns[10]},
+				Columns: []*schema.Column{CheckinsColumns[12]},
 			},
 		},
 	}
@@ -341,6 +344,7 @@ var (
 		{Name: "user_id", Type: field.TypeString},
 		{Name: "body", Type: field.TypeString, Size: 1000},
 		{Name: "created_at", Type: field.TypeString},
+		{Name: "edited_at", Type: field.TypeString, Nullable: true},
 		{Name: "deleted_at", Type: field.TypeString, Nullable: true},
 	}
 	// CommentsTable holds the schema information for the "comments" table.
@@ -774,7 +778,7 @@ var (
 	NotificationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
 		{Name: "user_id", Type: field.TypeString},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "system"}, Default: "system"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "drop_alert", "system"}, Default: "system"},
 		{Name: "actor_id", Type: field.TypeString, Nullable: true},
 		{Name: "subject_id", Type: field.TypeString, Default: ""},
 		{Name: "text", Type: field.TypeString, Default: ""},
@@ -913,6 +917,36 @@ var (
 		Name:       "runtime_settings",
 		Columns:    RuntimeSettingsColumns,
 		PrimaryKey: []*schema.Column{RuntimeSettingsColumns[0]},
+	}
+	// SavedSearchesColumns holds the columns for the "saved_searches" table.
+	SavedSearchesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString, Default: ""},
+		{Name: "query", Type: field.TypeString, Default: ""},
+		{Name: "beverage_type", Type: field.TypeString, Default: ""},
+		{Name: "style_slug", Type: field.TypeString, Default: ""},
+		{Name: "brand_slug", Type: field.TypeString, Default: ""},
+		{Name: "flavour_slug", Type: field.TypeString, Default: ""},
+		{Name: "caffeine_free", Type: field.TypeBool, Default: false},
+		{Name: "sugar_free", Type: field.TypeBool, Default: false},
+		{Name: "notify_drops", Type: field.TypeBool, Default: true},
+		{Name: "last_notified_at", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeString},
+		{Name: "updated_at", Type: field.TypeString},
+	}
+	// SavedSearchesTable holds the schema information for the "saved_searches" table.
+	SavedSearchesTable = &schema.Table{
+		Name:       "saved_searches",
+		Columns:    SavedSearchesColumns,
+		PrimaryKey: []*schema.Column{SavedSearchesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "savedsearch_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SavedSearchesColumns[1], SavedSearchesColumns[12]},
+			},
+		},
 	}
 	// SchedulerStateColumns holds the columns for the "scheduler_state" table.
 	SchedulerStateColumns = []*schema.Column{
@@ -1199,6 +1233,7 @@ var (
 		{Name: "drink_id", Type: field.TypeInt},
 		{Name: "user_id", Type: field.TypeString},
 		{Name: "price_cents", Type: field.TypeInt, Nullable: true},
+		{Name: "currency", Type: field.TypeString, Default: ""},
 		{Name: "note", Type: field.TypeString, Nullable: true},
 		{Name: "seen_at", Type: field.TypeString},
 		{Name: "created_at", Type: field.TypeString},
@@ -1219,7 +1254,7 @@ var (
 			{
 				Name:    "venuestockreport_venue_id_seen_at",
 				Unique:  false,
-				Columns: []*schema.Column{VenueStockReportsColumns[1], VenueStockReportsColumns[6]},
+				Columns: []*schema.Column{VenueStockReportsColumns[1], VenueStockReportsColumns[7]},
 			},
 			{
 				Name:    "venuestockreport_drink_id",
@@ -1269,6 +1304,7 @@ var (
 		PushSubscriptionsTable,
 		ReportsTable,
 		RuntimeSettingsTable,
+		SavedSearchesTable,
 		SchedulerStateTable,
 		SessionsTable,
 		StylesTable,

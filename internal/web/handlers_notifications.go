@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"sodapop/ent"
 	"sodapop/ent/drink"
@@ -57,23 +58,29 @@ func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Wishlist check-in alerts carry a numeric drink id in subject_id. Resolve
-	// those in one batch so the link can point at the drink page by slug; rows
-	// that cannot be resolved keep the helper's /drinks fallback.
-	wishlistSubject := map[string]string{}
+	// Wishlist check-in and catalog-drop alerts carry a numeric drink id in
+	// subject_id. Resolve those in one batch so the link can point at the drink
+	// page by slug; rows that cannot be resolved keep the helper's /drinks
+	// fallback.
+	drinkSubject := map[string]string{}
 	drinkIDs := []int{}
 	for _, n := range rows {
-		if string(n.Kind) != "wishlist_friend" || n.SubjectID == "" {
+		switch string(n.Kind) {
+		case "wishlist_friend", "drop_alert":
+		default:
 			continue
 		}
-		if _, ok := wishlistSubject[n.SubjectID]; ok {
+		if n.SubjectID == "" {
+			continue
+		}
+		if _, ok := drinkSubject[n.SubjectID]; ok {
 			continue
 		}
 		id, err := strconv.Atoi(n.SubjectID)
 		if err != nil {
 			continue
 		}
-		wishlistSubject[n.SubjectID] = ""
+		drinkSubject[n.SubjectID] = ""
 		drinkIDs = append(drinkIDs, id)
 	}
 	if len(drinkIDs) > 0 {
@@ -85,7 +92,7 @@ func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, d := range drinks {
-			wishlistSubject[strconv.Itoa(d.ID)] = d.Slug
+			drinkSubject[strconv.Itoa(d.ID)] = d.Slug
 		}
 	}
 
@@ -104,8 +111,8 @@ func (s *Server) notificationsPage(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: n.CreatedAt,
 			Read:      n.ReadAt != nil,
 		}
-		if string(n.Kind) == "wishlist_friend" {
-			if slug := wishlistSubject[n.SubjectID]; slug != "" {
+		if string(n.Kind) == "wishlist_friend" || string(n.Kind) == "drop_alert" {
+			if slug := drinkSubject[n.SubjectID]; slug != "" {
 				v.Href = "/drinks/" + slug
 			}
 		}
@@ -206,6 +213,7 @@ func (s *Server) renderCheckinDetail(w http.ResponseWriter, r *http.Request, sta
 	admin := u != nil && (u.Role == user.RoleAdmin || u.Role == user.RoleModerator)
 	for i := range list {
 		list[i].CanDelete = admin || (u != nil && list[i].UserID == u.ID)
+		list[i].CanEdit = u != nil && list[i].UserID == u.ID
 		list[i].CanReport = u != nil && u.EmailVerifiedAt != nil && list[i].UserID != u.ID
 	}
 
@@ -224,6 +232,7 @@ func (s *Server) renderCheckinDetail(w http.ResponseWriter, r *http.Request, sta
 		"Checkin":        detail,
 		"Authenticated":  u != nil,
 		"CanDelete":      u != nil && u.ID == detail.UserID,
+		"CanEdit":        u != nil && u.ID == detail.UserID && checkins.CanEdit(detail.CreatedAt, time.Now()),
 		"CanToast":       u != nil && u.ID != detail.UserID,
 		"CanReport":      u != nil && u.EmailVerifiedAt != nil && u.ID != detail.UserID,
 		"CanSave":        u != nil,
@@ -293,6 +302,10 @@ func notificationHref(kind, subjectID string) string {
 			return "/venues/" + subjectID
 		}
 		return "/venues"
+	case "drop_alert":
+		// subject_id is a numeric drink id. The caller resolves it to a slug and
+		// overrides this; the pure helper only has the drinks index to offer.
+		return "/drinks"
 	default:
 		return "/"
 	}

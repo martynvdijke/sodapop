@@ -39,6 +39,16 @@ type Service struct {
 	Client *ent.Client
 	SQL    *sql.DB
 	OFF    *OFFClient
+	// Drops is the saved-search drop-alert hook. It is optional so tests and
+	// embedders can build a Service without it; nil disables drop evaluation.
+	Drops DropNotifier
+}
+
+// DropNotifier is the narrow contract the catalog needs to raise saved-search
+// drop alerts. Declaring it here keeps the catalog free of a dependency on the
+// savedsearch package, which can evolve without touching catalog code.
+type DropNotifier interface {
+	Evaluate(ctx context.Context, d *ent.Drink) (int, error)
 }
 
 func New(cfg *config.Config, database *db.DB) *Service {
@@ -77,7 +87,10 @@ type DrinkDetail struct {
 	Aliases    []string
 	Flavours   []FlavourInfo
 	BarcodeNum int
-	Rating     Rating
+	// Barcodes lists the GTINs attached to the drink, newest first, so the drink
+	// page can show them and offer a contribution form.
+	Barcodes []*ent.DrinkBarcode
+	Rating   Rating
 }
 
 type FlavourInfo struct {
@@ -208,7 +221,16 @@ func (s *Service) detail(ctx context.Context, d *ent.Drink) (*DrinkDetail, error
 			}
 		}
 	}
-	out.BarcodeNum, _ = s.Client.DrinkBarcode.Query().Where(drinkbarcode.DrinkID(d.ID)).Count(ctx)
+	// Barcode counts and rows come from one query; a failure leaves both empty,
+	// which is the same best-effort treatment the count had before.
+	barcodes, err := s.Client.DrinkBarcode.Query().
+		Where(drinkbarcode.DrinkID(d.ID)).
+		Order(ent.Desc(drinkbarcode.FieldCreatedAt), ent.Desc(drinkbarcode.FieldID)).
+		All(ctx)
+	if err == nil {
+		out.Barcodes = barcodes
+		out.BarcodeNum = len(barcodes)
+	}
 	out.Rating = s.rating(ctx, d.ID)
 	return out, nil
 }

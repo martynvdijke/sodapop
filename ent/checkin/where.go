@@ -84,6 +84,16 @@ func Rating(v int) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldRating, v))
 }
 
+// PriceCents applies equality check predicate on the "price_cents" field. It's identical to PriceCentsEQ.
+func PriceCents(v int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldPriceCents, v))
+}
+
+// PriceCurrency applies equality check predicate on the "price_currency" field. It's identical to PriceCurrencyEQ.
+func PriceCurrency(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldPriceCurrency, v))
+}
+
 // PrepNote applies equality check predicate on the "prep_note" field. It's identical to PrepNoteEQ.
 func PrepNote(v string) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldPrepNote, v))
@@ -122,6 +132,11 @@ func CreatedAt(v string) predicate.Checkin {
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v string) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// EditedAt applies equality check predicate on the "edited_at" field. It's identical to EditedAtEQ.
+func EditedAt(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldEditedAt, v))
 }
 
 // DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
@@ -292,6 +307,121 @@ func RatingIsNil() predicate.Checkin {
 // RatingNotNil applies the NotNil predicate on the "rating" field.
 func RatingNotNil() predicate.Checkin {
 	return predicate.Checkin(sql.FieldNotNull(FieldRating))
+}
+
+// PriceCentsEQ applies the EQ predicate on the "price_cents" field.
+func PriceCentsEQ(v int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldPriceCents, v))
+}
+
+// PriceCentsNEQ applies the NEQ predicate on the "price_cents" field.
+func PriceCentsNEQ(v int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldPriceCents, v))
+}
+
+// PriceCentsIn applies the In predicate on the "price_cents" field.
+func PriceCentsIn(vs ...int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldPriceCents, vs...))
+}
+
+// PriceCentsNotIn applies the NotIn predicate on the "price_cents" field.
+func PriceCentsNotIn(vs ...int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldPriceCents, vs...))
+}
+
+// PriceCentsGT applies the GT predicate on the "price_cents" field.
+func PriceCentsGT(v int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldPriceCents, v))
+}
+
+// PriceCentsGTE applies the GTE predicate on the "price_cents" field.
+func PriceCentsGTE(v int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldPriceCents, v))
+}
+
+// PriceCentsLT applies the LT predicate on the "price_cents" field.
+func PriceCentsLT(v int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldPriceCents, v))
+}
+
+// PriceCentsLTE applies the LTE predicate on the "price_cents" field.
+func PriceCentsLTE(v int) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldPriceCents, v))
+}
+
+// PriceCentsIsNil applies the IsNil predicate on the "price_cents" field.
+func PriceCentsIsNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldIsNull(FieldPriceCents))
+}
+
+// PriceCentsNotNil applies the NotNil predicate on the "price_cents" field.
+func PriceCentsNotNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotNull(FieldPriceCents))
+}
+
+// PriceCurrencyEQ applies the EQ predicate on the "price_currency" field.
+func PriceCurrencyEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyNEQ applies the NEQ predicate on the "price_currency" field.
+func PriceCurrencyNEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyIn applies the In predicate on the "price_currency" field.
+func PriceCurrencyIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldPriceCurrency, vs...))
+}
+
+// PriceCurrencyNotIn applies the NotIn predicate on the "price_currency" field.
+func PriceCurrencyNotIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldPriceCurrency, vs...))
+}
+
+// PriceCurrencyGT applies the GT predicate on the "price_currency" field.
+func PriceCurrencyGT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyGTE applies the GTE predicate on the "price_currency" field.
+func PriceCurrencyGTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyLT applies the LT predicate on the "price_currency" field.
+func PriceCurrencyLT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyLTE applies the LTE predicate on the "price_currency" field.
+func PriceCurrencyLTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyContains applies the Contains predicate on the "price_currency" field.
+func PriceCurrencyContains(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContains(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyHasPrefix applies the HasPrefix predicate on the "price_currency" field.
+func PriceCurrencyHasPrefix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasPrefix(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyHasSuffix applies the HasSuffix predicate on the "price_currency" field.
+func PriceCurrencyHasSuffix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasSuffix(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyEqualFold applies the EqualFold predicate on the "price_currency" field.
+func PriceCurrencyEqualFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEqualFold(FieldPriceCurrency, v))
+}
+
+// PriceCurrencyContainsFold applies the ContainsFold predicate on the "price_currency" field.
+func PriceCurrencyContainsFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContainsFold(FieldPriceCurrency, v))
 }
 
 // ServingEQ applies the EQ predicate on the "serving" field.
@@ -862,6 +992,81 @@ func UpdatedAtEqualFold(v string) predicate.Checkin {
 // UpdatedAtContainsFold applies the ContainsFold predicate on the "updated_at" field.
 func UpdatedAtContainsFold(v string) predicate.Checkin {
 	return predicate.Checkin(sql.FieldContainsFold(FieldUpdatedAt, v))
+}
+
+// EditedAtEQ applies the EQ predicate on the "edited_at" field.
+func EditedAtEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldEditedAt, v))
+}
+
+// EditedAtNEQ applies the NEQ predicate on the "edited_at" field.
+func EditedAtNEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldEditedAt, v))
+}
+
+// EditedAtIn applies the In predicate on the "edited_at" field.
+func EditedAtIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldEditedAt, vs...))
+}
+
+// EditedAtNotIn applies the NotIn predicate on the "edited_at" field.
+func EditedAtNotIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldEditedAt, vs...))
+}
+
+// EditedAtGT applies the GT predicate on the "edited_at" field.
+func EditedAtGT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldEditedAt, v))
+}
+
+// EditedAtGTE applies the GTE predicate on the "edited_at" field.
+func EditedAtGTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldEditedAt, v))
+}
+
+// EditedAtLT applies the LT predicate on the "edited_at" field.
+func EditedAtLT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldEditedAt, v))
+}
+
+// EditedAtLTE applies the LTE predicate on the "edited_at" field.
+func EditedAtLTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldEditedAt, v))
+}
+
+// EditedAtContains applies the Contains predicate on the "edited_at" field.
+func EditedAtContains(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContains(FieldEditedAt, v))
+}
+
+// EditedAtHasPrefix applies the HasPrefix predicate on the "edited_at" field.
+func EditedAtHasPrefix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasPrefix(FieldEditedAt, v))
+}
+
+// EditedAtHasSuffix applies the HasSuffix predicate on the "edited_at" field.
+func EditedAtHasSuffix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasSuffix(FieldEditedAt, v))
+}
+
+// EditedAtIsNil applies the IsNil predicate on the "edited_at" field.
+func EditedAtIsNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldIsNull(FieldEditedAt))
+}
+
+// EditedAtNotNil applies the NotNil predicate on the "edited_at" field.
+func EditedAtNotNil() predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotNull(FieldEditedAt))
+}
+
+// EditedAtEqualFold applies the EqualFold predicate on the "edited_at" field.
+func EditedAtEqualFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEqualFold(FieldEditedAt, v))
+}
+
+// EditedAtContainsFold applies the ContainsFold predicate on the "edited_at" field.
+func EditedAtContainsFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContainsFold(FieldEditedAt, v))
 }
 
 // DeletedAtEQ applies the EQ predicate on the "deleted_at" field.

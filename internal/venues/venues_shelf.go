@@ -54,6 +54,7 @@ type ShelfEntry struct {
 	Brand      string  `json:"brand"`
 	Style      string  `json:"style"`
 	PriceCents *int    `json:"price_cents"`
+	Currency   string  `json:"currency"`
 	Note       string  `json:"note"`
 	SeenAt     string  `json:"seen_at"`
 	AgeDays    int     `json:"age_days"`
@@ -70,6 +71,7 @@ type ShelfEntry struct {
 type ShelfReportInput struct {
 	DrinkSlug  string
 	PriceCents *int
+	Currency   string
 	Note       string
 	SeenNow    bool
 	SeenAt     string
@@ -92,6 +94,7 @@ type shelfEvidenceRow struct {
 	userID   string
 	seenAt   time.Time
 	price    *int
+	currency string
 	note     string
 	source   string
 	reportID string
@@ -107,7 +110,7 @@ func (s *Service) Shelf(ctx context.Context, venueID int, viewerID string, now t
 
 	rows, err := s.SQL.QueryContext(ctx, `
 		SELECT r.drink_id, d.slug, d.name, COALESCE(b.name,''), COALESCE(st.name,''),
-		       r.user_id, r.seen_at, r.price_cents, COALESCE(r.note,''), 'report', r.id
+		       r.user_id, r.seen_at, r.price_cents, COALESCE(r.currency,''), COALESCE(r.note,''), 'report', r.id
 		FROM venue_stock_reports r
 		JOIN drinks d ON d.id = r.drink_id
 		LEFT JOIN brands b ON b.id = d.brand_id
@@ -115,7 +118,7 @@ func (s *Service) Shelf(ctx context.Context, venueID int, viewerID string, now t
 		WHERE r.venue_id = ? AND r.removed_at IS NULL AND r.seen_at >= ? AND d.status != 'merged'
 		UNION ALL
 		SELECT c.drink_id, d.slug, d.name, COALESCE(b.name,''), COALESCE(st.name,''),
-		       c.user_id, c.created_at, NULL, '', 'checkin', NULL
+		       c.user_id, c.created_at, NULL, '', '', 'checkin', NULL
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
 		LEFT JOIN brands b ON b.id = d.brand_id
@@ -134,7 +137,7 @@ func (s *Service) Shelf(ctx context.Context, venueID int, viewerID string, now t
 		var price sql.NullInt64
 		var reportID sql.NullString
 		if err := rows.Scan(&r.drinkID, &r.slug, &r.name, &r.brand, &r.style,
-			&r.userID, &seenAt, &price, &r.note, &r.source, &reportID); err != nil {
+			&r.userID, &seenAt, &price, &r.currency, &r.note, &r.source, &reportID); err != nil {
 			return nil, err
 		}
 		at, err := time.Parse(time.RFC3339, seenAt)
@@ -196,6 +199,7 @@ func mergeShelf(evidence []shelfEvidenceRow, viewerID string, now time.Time) []S
 			if g.entry.PriceCents == nil && row.price != nil {
 				v := *row.price
 				g.entry.PriceCents = &v
+				g.entry.Currency = row.currency
 			}
 			if g.entry.Note == "" && strings.TrimSpace(row.note) != "" {
 				g.entry.Note = row.note
@@ -284,6 +288,10 @@ func (s *Service) ReportShelf(ctx context.Context, userID string, venueID int, i
 	if in.PriceCents != nil && (*in.PriceCents < 0 || *in.PriceCents > shelfMaxPriceCents) {
 		return nil, fmt.Errorf("%w: price must be between 0 and 1000", ErrInvalid)
 	}
+	currency, err := normalizeShelfCurrency(in.Currency)
+	if err != nil {
+		return nil, err
+	}
 	note, err := validateShelfNote(in.Note)
 	if err != nil {
 		return nil, err
@@ -313,8 +321,10 @@ func (s *Service) ReportShelf(ctx context.Context, userID string, venueID int, i
 		}
 		if in.PriceCents != nil {
 			upd.SetPriceCents(*in.PriceCents)
+			upd.SetCurrency(currency)
 		} else {
 			upd.ClearPriceCents()
+			upd.SetCurrency("")
 		}
 		if note != "" {
 			upd.SetNote(note)
@@ -334,6 +344,7 @@ func (s *Service) ReportShelf(ctx context.Context, userID string, venueID int, i
 			SetUpdatedAt(nowStr)
 		if in.PriceCents != nil {
 			create.SetPriceCents(*in.PriceCents)
+			create.SetCurrency(currency)
 		}
 		if note != "" {
 			create.SetNote(note)
@@ -645,6 +656,26 @@ func validateShelfNote(raw string) (string, error) {
 		return "", fmt.Errorf("%w: note is longer than %d characters", ErrInvalid, shelfNoteMaxRunes)
 	}
 	return note, nil
+}
+
+// normalizeShelfCurrency upper-cases a currency code and requires the ISO-4217
+// shape: empty or exactly three ASCII letters. The check-ins package keeps the
+// same rule for check-in prices; it cannot be shared because checkins already
+// imports venues.
+func normalizeShelfCurrency(raw string) (string, error) {
+	code := strings.ToUpper(strings.TrimSpace(raw))
+	if code == "" {
+		return "", nil
+	}
+	if len(code) != 3 {
+		return "", fmt.Errorf("%w: currency must be a three-letter ISO-4217 code", ErrInvalid)
+	}
+	for i := 0; i < len(code); i++ {
+		if code[i] < 'A' || code[i] > 'Z' {
+			return "", fmt.Errorf("%w: currency must be a three-letter ISO-4217 code", ErrInvalid)
+		}
+	}
+	return code, nil
 }
 
 // roundShelfCoord rounds a coordinate to three decimal places.

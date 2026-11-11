@@ -141,6 +141,9 @@ func (VenueStockReport) Fields() []ent.Field {
 		field.Int("drink_id"),
 		field.String("user_id").NotEmpty(),
 		field.Int("price_cents").Optional().Nillable().Range(0, 100000),
+		// ISO-4217 currency for price_cents; empty means the reporter did not
+		// state one, which the shelf view renders as a bare amount.
+		field.String("currency").Default(""),
 		field.String("note").Optional().Nillable(),
 		field.String("seen_at").DefaultFunc(now),
 		field.String("created_at").DefaultFunc(now),

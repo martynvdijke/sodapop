@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"sodapop/ent"
+	"sodapop/internal/badges"
 )
 
 // recapDrinkFor inserts a drink with an optional brand and style.
@@ -394,5 +395,99 @@ func TestRecapRejectsOutOfRangeYear(t *testing.T) {
 	}
 	if _, err := e.svc.Recap(e.ctx, e.alice.ID, 2100); err != nil {
 		t.Fatalf("year 2100 should be accepted: %v", err)
+	}
+}
+
+func TestRecapYearsWithData(t *testing.T) {
+	e := newTestEnv(t)
+	ctx := e.ctx
+	d := e.drink
+
+	recapCheckin(t, ctx, e.db.Client, e.alice, d, nil, nil, time.Date(2023, 5, 1, 12, 0, 0, 0, time.UTC))
+	recapCheckin(t, ctx, e.db.Client, e.alice, d, nil, nil, time.Date(2025, 5, 1, 12, 0, 0, 0, time.UTC))
+
+	// A soft-deleted row and a merged drink are not recap data, so their years
+	// must not appear either.
+	deleted := recapCheckin(t, ctx, e.db.Client, e.alice, d, nil, nil, time.Date(2024, 5, 1, 12, 0, 0, 0, time.UTC))
+	if err := e.db.Client.Checkin.UpdateOneID(deleted.ID).SetDeletedAt("2024-05-02T00:00:00Z").Exec(ctx); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	merged := recapDrinkFor(t, ctx, e.db.Client, "merged-recap", "Merged Recap", nil, nil)
+	if err := e.db.Client.Drink.UpdateOneID(merged.ID).SetStatus("merged").Exec(ctx); err != nil {
+		t.Fatalf("merge: %v", err)
+	}
+	recapCheckin(t, ctx, e.db.Client, e.alice, merged, nil, nil, time.Date(2022, 5, 1, 12, 0, 0, 0, time.UTC))
+
+	got, err := e.svc.Recap(ctx, e.alice.ID, 2025)
+	if err != nil {
+		t.Fatalf("recap: %v", err)
+	}
+	if len(got.YearsWithData) != 2 || got.YearsWithData[0] != 2023 || got.YearsWithData[1] != 2025 {
+		t.Fatalf("years_with_data = %v, want [2023 2025]", got.YearsWithData)
+	}
+	if got.Fingerprint == nil || !got.Fingerprint.WholeHistory {
+		t.Fatalf("fingerprint.whole_history = %+v, want true", got.Fingerprint)
+	}
+
+	// Another member's history is never mixed in.
+	bobRecap, err := e.svc.Recap(ctx, e.bob.ID, 2025)
+	if err != nil {
+		t.Fatalf("bob recap: %v", err)
+	}
+	if len(bobRecap.YearsWithData) != 0 {
+		t.Fatalf("bob years_with_data = %v, want empty", bobRecap.YearsWithData)
+	}
+}
+
+func TestRecapBadgesFilterByAwardYear(t *testing.T) {
+	e := newTestEnv(t)
+	ctx := e.ctx
+	client := e.db.Client
+
+	mkBadge := func(slug, name string) *ent.Badge {
+		t.Helper()
+		b, err := client.Badge.Create().SetSlug(slug).SetName(name).Save(ctx)
+		if err != nil {
+			t.Fatalf("badge %s: %v", slug, err)
+		}
+		return b
+	}
+	// Two earned badges, one inside the year and one outside, plus one that was
+	// never earned. Slug order is the badge endpoint's order.
+	inYear := mkBadge("recap-in", "Recap In")
+	outside := mkBadge("recap-out", "Recap Out")
+	mkBadge("recap-locked", "Recap Locked")
+
+	award := func(b *ent.Badge, at string) {
+		t.Helper()
+		if _, err := client.UserBadge.Create().
+			SetUserID(e.alice.ID).SetBadgeID(b.ID).SetLevel(1).
+			SetAwardedAt(at).Save(ctx); err != nil {
+			t.Fatalf("award %s: %v", b.Slug, err)
+		}
+	}
+	award(inYear, "2025-03-02T09:00:00Z")
+	award(outside, "2024-03-02T09:00:00Z")
+
+	e.svc.Badges = badges.New(e.db)
+	got, err := e.svc.Recap(ctx, e.alice.ID, 2025)
+	if err != nil {
+		t.Fatalf("recap: %v", err)
+	}
+	if len(got.Badges) != 1 {
+		t.Fatalf("badges = %+v, want the one awarded in 2025", got.Badges)
+	}
+	badge := got.Badges[0]
+	if badge.Slug != "recap-in" || badge.Name != "Recap In" || badge.AwardedAt != "2025-03-02T09:00:00Z" {
+		t.Fatalf("badge = %+v", badge)
+	}
+
+	// A recap for a year with no awards carries an empty list, not null.
+	empty, err := e.svc.Recap(ctx, e.alice.ID, 2023)
+	if err != nil {
+		t.Fatalf("recap 2023: %v", err)
+	}
+	if empty.Badges == nil || len(empty.Badges) != 0 {
+		t.Fatalf("badges for 2023 = %+v, want an empty slice", empty.Badges)
 	}
 }

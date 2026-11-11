@@ -166,6 +166,19 @@
       <label>Note <span class="hint">optional</span>
         <textarea name="note" rows="3" maxlength="1000" placeholder="Sharp ginger, low sweetness, would buy again." data-ai-note></textarea>
       </label>
+
+      <fieldset class="checkin-price">
+        <legend>Price <span class="hint">optional</span></legend>
+        <div class="checkin-price-row">
+          <label>Amount paid
+            <input name="price" inputmode="decimal" autocomplete="off" placeholder="2.50">
+          </label>
+          <label>Currency
+            <input name="currency" maxlength="3" autocomplete="off" placeholder="EUR">
+          </label>
+        </div>
+        <p class="hint">A three-letter currency code. Used only for your own spend totals.</p>
+      </fieldset>
       <button class="btn btn-small" type="button" data-ai-polish data-csrf="{{.CSRF}}">Polish note with AI</button>
 
       <label>Who can see this?

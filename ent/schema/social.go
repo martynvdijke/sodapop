@@ -99,7 +99,7 @@ func (Notification) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").DefaultFunc(newID).Immutable(),
 		field.String("user_id").NotEmpty(),
-		field.Enum("kind").Values("friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "system").Default("system"),
+		field.Enum("kind").Values("friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "drop_alert", "system").Default("system"),
 		field.String("actor_id").Optional().Nillable(),
 		field.String("subject_id").Default(""),
 		field.String("text").Default(""),
@@ -127,6 +127,9 @@ func (Comment) Fields() []ent.Field {
 		field.String("user_id").NotEmpty(),
 		field.String("body").NotEmpty().MaxLen(1000),
 		field.String("created_at").DefaultFunc(now),
+		// edited_at records the last author edit of a comment. Empty means the
+		// body still reads as it was posted.
+		field.String("edited_at").Optional().Nillable(),
 		field.String("deleted_at").Optional().Nillable(),
 	}
 }

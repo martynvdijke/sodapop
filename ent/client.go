@@ -50,6 +50,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/savedsearch"
 	"sodapop/ent/schedulerstate"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
@@ -153,6 +154,8 @@ type Client struct {
 	Report *ReportClient
 	// RuntimeSetting is the client for interacting with the RuntimeSetting builders.
 	RuntimeSetting *RuntimeSettingClient
+	// SavedSearch is the client for interacting with the SavedSearch builders.
+	SavedSearch *SavedSearchClient
 	// SchedulerState is the client for interacting with the SchedulerState builders.
 	SchedulerState *SchedulerStateClient
 	// Session is the client for interacting with the Session builders.
@@ -229,6 +232,7 @@ func (c *Client) init() {
 	c.PushSubscription = NewPushSubscriptionClient(c.config)
 	c.Report = NewReportClient(c.config)
 	c.RuntimeSetting = NewRuntimeSettingClient(c.config)
+	c.SavedSearch = NewSavedSearchClient(c.config)
 	c.SchedulerState = NewSchedulerStateClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.Style = NewStyleClient(c.config)
@@ -373,6 +377,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PushSubscription:       NewPushSubscriptionClient(cfg),
 		Report:                 NewReportClient(cfg),
 		RuntimeSetting:         NewRuntimeSettingClient(cfg),
+		SavedSearch:            NewSavedSearchClient(cfg),
 		SchedulerState:         NewSchedulerStateClient(cfg),
 		Session:                NewSessionClient(cfg),
 		Style:                  NewStyleClient(cfg),
@@ -444,6 +449,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PushSubscription:       NewPushSubscriptionClient(cfg),
 		Report:                 NewReportClient(cfg),
 		RuntimeSetting:         NewRuntimeSettingClient(cfg),
+		SavedSearch:            NewSavedSearchClient(cfg),
 		SchedulerState:         NewSchedulerStateClient(cfg),
 		Session:                NewSessionClient(cfg),
 		Style:                  NewStyleClient(cfg),
@@ -493,9 +499,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship,
 		c.InboundToken, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
 		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushDevice,
-		c.PushSubscription, c.Report, c.RuntimeSetting, c.SchedulerState, c.Session,
-		c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue,
-		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave, c.VenueStockReport,
+		c.PushSubscription, c.Report, c.RuntimeSetting, c.SavedSearch,
+		c.SchedulerState, c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity,
+		c.UserSetting, c.Venue, c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
+		c.VenueStockReport,
 	} {
 		n.Use(hooks...)
 	}
@@ -512,9 +519,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EmailOutbox, c.EmailVerificationToken, c.Flavour, c.Follow, c.Friendship,
 		c.InboundToken, c.Integration, c.List, c.ListItem, c.LoginAttempt, c.Media,
 		c.Notification, c.OffProduct, c.PasswordResetToken, c.PushDevice,
-		c.PushSubscription, c.Report, c.RuntimeSetting, c.SchedulerState, c.Session,
-		c.Style, c.User, c.UserBadge, c.UserIdentity, c.UserSetting, c.Venue,
-		c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave, c.VenueStockReport,
+		c.PushSubscription, c.Report, c.RuntimeSetting, c.SavedSearch,
+		c.SchedulerState, c.Session, c.Style, c.User, c.UserBadge, c.UserIdentity,
+		c.UserSetting, c.Venue, c.VenueDrink, c.VenueMedia, c.VenueName, c.VenueSave,
+		c.VenueStockReport,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -601,6 +609,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Report.mutate(ctx, m)
 	case *RuntimeSettingMutation:
 		return c.RuntimeSetting.mutate(ctx, m)
+	case *SavedSearchMutation:
+		return c.SavedSearch.mutate(ctx, m)
 	case *SchedulerStateMutation:
 		return c.SchedulerState.mutate(ctx, m)
 	case *SessionMutation:
@@ -6155,6 +6165,139 @@ func (c *RuntimeSettingClient) mutate(ctx context.Context, m *RuntimeSettingMuta
 	}
 }
 
+// SavedSearchClient is a client for the SavedSearch schema.
+type SavedSearchClient struct {
+	config
+}
+
+// NewSavedSearchClient returns a client for the SavedSearch from the given config.
+func NewSavedSearchClient(c config) *SavedSearchClient {
+	return &SavedSearchClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `savedsearch.Hooks(f(g(h())))`.
+func (c *SavedSearchClient) Use(hooks ...Hook) {
+	c.hooks.SavedSearch = append(c.hooks.SavedSearch, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `savedsearch.Intercept(f(g(h())))`.
+func (c *SavedSearchClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SavedSearch = append(c.inters.SavedSearch, interceptors...)
+}
+
+// Create returns a builder for creating a SavedSearch entity.
+func (c *SavedSearchClient) Create() *SavedSearchCreate {
+	mutation := newSavedSearchMutation(c.config, OpCreate)
+	return &SavedSearchCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SavedSearch entities.
+func (c *SavedSearchClient) CreateBulk(builders ...*SavedSearchCreate) *SavedSearchCreateBulk {
+	return &SavedSearchCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SavedSearchClient) MapCreateBulk(slice any, setFunc func(*SavedSearchCreate, int)) *SavedSearchCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SavedSearchCreateBulk{err: fmt.Errorf("calling to SavedSearchClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SavedSearchCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SavedSearchCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SavedSearch.
+func (c *SavedSearchClient) Update() *SavedSearchUpdate {
+	mutation := newSavedSearchMutation(c.config, OpUpdate)
+	return &SavedSearchUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SavedSearchClient) UpdateOne(_m *SavedSearch) *SavedSearchUpdateOne {
+	mutation := newSavedSearchMutation(c.config, OpUpdateOne, withSavedSearch(_m))
+	return &SavedSearchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SavedSearchClient) UpdateOneID(id string) *SavedSearchUpdateOne {
+	mutation := newSavedSearchMutation(c.config, OpUpdateOne, withSavedSearchID(id))
+	return &SavedSearchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SavedSearch.
+func (c *SavedSearchClient) Delete() *SavedSearchDelete {
+	mutation := newSavedSearchMutation(c.config, OpDelete)
+	return &SavedSearchDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SavedSearchClient) DeleteOne(_m *SavedSearch) *SavedSearchDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SavedSearchClient) DeleteOneID(id string) *SavedSearchDeleteOne {
+	builder := c.Delete().Where(savedsearch.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SavedSearchDeleteOne{builder}
+}
+
+// Query returns a query builder for SavedSearch.
+func (c *SavedSearchClient) Query() *SavedSearchQuery {
+	return &SavedSearchQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSavedSearch},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SavedSearch entity by its id.
+func (c *SavedSearchClient) Get(ctx context.Context, id string) (*SavedSearch, error) {
+	return c.Query().Where(savedsearch.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SavedSearchClient) GetX(ctx context.Context, id string) *SavedSearch {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SavedSearchClient) Hooks() []Hook {
+	return c.hooks.SavedSearch
+}
+
+// Interceptors returns the client interceptors.
+func (c *SavedSearchClient) Interceptors() []Interceptor {
+	return c.inters.SavedSearch
+}
+
+func (c *SavedSearchClient) mutate(ctx context.Context, m *SavedSearchMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SavedSearchCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SavedSearchUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SavedSearchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SavedSearchDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SavedSearch mutation op: %q", m.Op())
+	}
+}
+
 // SchedulerStateClient is a client for the SchedulerState schema.
 type SchedulerStateClient struct {
 	config
@@ -8101,8 +8244,8 @@ type (
 		DrinkImage, EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship,
 		InboundToken, Integration, List, ListItem, LoginAttempt, Media, Notification,
 		OffProduct, PasswordResetToken, PushDevice, PushSubscription, Report,
-		RuntimeSetting, SchedulerState, Session, Style, User, UserBadge, UserIdentity,
-		UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave,
+		RuntimeSetting, SavedSearch, SchedulerState, Session, Style, User, UserBadge,
+		UserIdentity, UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave,
 		VenueStockReport []ent.Hook
 	}
 	inters struct {
@@ -8112,8 +8255,8 @@ type (
 		DrinkImage, EmailOutbox, EmailVerificationToken, Flavour, Follow, Friendship,
 		InboundToken, Integration, List, ListItem, LoginAttempt, Media, Notification,
 		OffProduct, PasswordResetToken, PushDevice, PushSubscription, Report,
-		RuntimeSetting, SchedulerState, Session, Style, User, UserBadge, UserIdentity,
-		UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave,
+		RuntimeSetting, SavedSearch, SchedulerState, Session, Style, User, UserBadge,
+		UserIdentity, UserSetting, Venue, VenueDrink, VenueMedia, VenueName, VenueSave,
 		VenueStockReport []ent.Interceptor
 	}
 )

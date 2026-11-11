@@ -35,6 +35,17 @@
       </article>
     </section>
 
+    {{if .Spend}}
+      <section class="insights-section insights-spend" aria-labelledby="spend-title">
+        <h2 id="spend-title" class="section-heading">Spend</h2>
+        <ul class="spend-list">
+          {{range .Spend}}
+            <li class="spend-row">{{.Label}} <span class="muted">· {{.Count}} {{if eq .Count 1}}check-in{{else}}check-ins{{end}}</span></li>
+          {{end}}
+        </ul>
+      </section>
+    {{end}}
+
     <section class="caffeine-clock" aria-labelledby="caffeine-clock-title">
       <h2 id="caffeine-clock-title" class="caffeine-clock-title">
         <svg class="caffeine-clock-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">

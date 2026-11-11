@@ -110,6 +110,20 @@ func (_u *VenueStockReportUpdate) ClearPriceCents() *VenueStockReportUpdate {
 	return _u
 }
 
+// SetCurrency sets the "currency" field.
+func (_u *VenueStockReportUpdate) SetCurrency(v string) *VenueStockReportUpdate {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *VenueStockReportUpdate) SetNillableCurrency(v *string) *VenueStockReportUpdate {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
+	return _u
+}
+
 // SetNote sets the "note" field.
 func (_u *VenueStockReportUpdate) SetNote(v string) *VenueStockReportUpdate {
 	_u.mutation.SetNote(v)
@@ -275,6 +289,9 @@ func (_u *VenueStockReportUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.PriceCentsCleared() {
 		_spec.ClearField(venuestockreport.FieldPriceCents, field.TypeInt)
 	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(venuestockreport.FieldCurrency, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(venuestockreport.FieldNote, field.TypeString, value)
 	}
@@ -396,6 +413,20 @@ func (_u *VenueStockReportUpdateOne) AddPriceCents(v int) *VenueStockReportUpdat
 // ClearPriceCents clears the value of the "price_cents" field.
 func (_u *VenueStockReportUpdateOne) ClearPriceCents() *VenueStockReportUpdateOne {
 	_u.mutation.ClearPriceCents()
+	return _u
+}
+
+// SetCurrency sets the "currency" field.
+func (_u *VenueStockReportUpdateOne) SetCurrency(v string) *VenueStockReportUpdateOne {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *VenueStockReportUpdateOne) SetNillableCurrency(v *string) *VenueStockReportUpdateOne {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
 	return _u
 }
 
@@ -593,6 +624,9 @@ func (_u *VenueStockReportUpdateOne) sqlSave(ctx context.Context) (_node *VenueS
 	}
 	if _u.mutation.PriceCentsCleared() {
 		_spec.ClearField(venuestockreport.FieldPriceCents, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(venuestockreport.FieldCurrency, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(venuestockreport.FieldNote, field.TypeString, value)

@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"html"
 	"html/template"
 	"regexp"
@@ -96,8 +97,33 @@ type Comment struct {
 	Body        string
 	BodyHTML    template.HTML
 	CreatedAt   string
+	EditedAt    string
 	CanDelete   bool
 	CanReport   bool
+	CanEdit     bool
+}
+
+// EditedLabel is the inline "edited" marker the thread shows next to the
+// timestamp. It is empty when the comment was never edited.
+func (c Comment) EditedLabel() string {
+	if c.EditedAt == "" {
+		return ""
+	}
+	at, err := time.Parse(time.RFC3339, c.EditedAt)
+	if err != nil {
+		return "edited"
+	}
+	d := time.Since(at.UTC())
+	switch {
+	case d < time.Minute:
+		return "edited just now"
+	case d < time.Hour:
+		return fmt.Sprintf("edited %dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("edited %dh ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf("edited %dd ago", int(d.Hours()/24))
+	}
 }
 
 // MentionHandles returns the distinct handles mentioned in body, lowercased,
@@ -342,7 +368,7 @@ func (s *Service) ListPage(ctx context.Context, viewerID, checkinID, before stri
 	}
 
 	query := `
-		SELECT cm.id, cm.user_id, u.handle, COALESCE(u.display_name,''), cm.body, cm.created_at
+		SELECT cm.id, cm.user_id, u.handle, COALESCE(u.display_name,''), cm.body, cm.created_at, cm.edited_at
 		FROM comments cm
 		JOIN users u ON u.id = cm.user_id
 		WHERE cm.checkin_id = ? AND ` + visibleCommentScope
@@ -377,8 +403,12 @@ func (s *Service) ListPage(ctx context.Context, viewerID, checkinID, before stri
 	out := []Comment{}
 	for rows.Next() {
 		var c Comment
-		if err := rows.Scan(&c.ID, &c.UserID, &c.Handle, &c.DisplayName, &c.Body, &c.CreatedAt); err != nil {
+		var editedAt sql.NullString
+		if err := rows.Scan(&c.ID, &c.UserID, &c.Handle, &c.DisplayName, &c.Body, &c.CreatedAt, &editedAt); err != nil {
 			return nil, 0, false, err
+		}
+		if editedAt.Valid {
+			c.EditedAt = editedAt.String
 		}
 		c.BodyHTML = RenderBody(c.Body)
 		out = append(out, c)
@@ -426,6 +456,43 @@ func (s *Service) Delete(ctx context.Context, userID string, admin bool, comment
 	return s.Client.Comment.UpdateOneID(c.ID).SetDeletedAt(db.Now()).Exec(ctx)
 }
 
+// Edit replaces the body of a comment the caller authored. A comment that is
+// missing, soft-deleted, authored by someone else, or attached to a check-in the
+// caller can no longer see is reported as ErrNotFound so the edit surface never
+// reveals someone else's row.
+func (s *Service) Edit(ctx context.Context, userID, commentID, body string) error {
+	body = strings.TrimSpace(body)
+	if n := utf8.RuneCountInString(body); n < 1 || n > maxBodyRunes {
+		return ErrInvalid
+	}
+	c, err := s.Client.Comment.Query().
+		Where(comment.ID(commentID), comment.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if c.UserID != userID {
+		return ErrNotFound
+	}
+	// The parent must still be visible: editing a comment on a check-in that has
+	// since become unreadable would be a blind write.
+	if _, err := s.Checkins.Get(ctx, userID, c.CheckinID); err != nil {
+		if errors.Is(err, checkins.ErrNotFound) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if _, err := s.SQL.ExecContext(ctx,
+		`UPDATE comments SET body = ?, edited_at = ? WHERE id = ? AND deleted_at IS NULL`,
+		body, db.Now(), c.ID); err != nil {
+		return err
+	}
+	return nil
+}
+
 // EditAsModerator replaces the body of any live comment. Moderation happens
 // outside the ownership and visibility rules the author path enforces, so the
 // body is re-validated here instead of trusting the form.
@@ -443,7 +510,10 @@ func (s *Service) EditAsModerator(ctx context.Context, commentID, body string) e
 		}
 		return err
 	}
-	return s.Client.Comment.UpdateOneID(c.ID).SetBody(body).Exec(ctx)
+	return s.Client.Comment.UpdateOneID(c.ID).
+		SetBody(body).
+		SetEditedAt(db.Now()).
+		Exec(ctx)
 }
 
 // newID mirrors the schema's random 16-byte hex identifier.

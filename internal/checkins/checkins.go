@@ -18,6 +18,7 @@ import (
 	"sodapop/ent/user"
 	"sodapop/ent/userbadge"
 	"sodapop/ent/venuedrink"
+	"sodapop/internal/badges"
 	"sodapop/internal/db"
 	"sodapop/internal/social"
 	"sodapop/internal/streak"
@@ -55,6 +56,16 @@ type Service struct {
 	Client *ent.Client
 	SQL    *sql.DB
 	Social *social.Service
+	// Badges is the recap's badge read. It is optional so a Service can be
+	// built without it in tests; nil means the recap carries no badges.
+	Badges BadgeLister
+}
+
+// BadgeLister is the narrow badge read the recap needs: the same list the badge
+// endpoint serves, so the recap can filter by award year without a second
+// definition of "earned".
+type BadgeLister interface {
+	ListForUser(ctx context.Context, userID string) ([]badges.Status, error)
 }
 
 func New(database *db.DB, soc *social.Service) *Service {
@@ -71,10 +82,15 @@ type CreateInput struct {
 	Note           string
 	Visibility     string
 	IdempotencyKey string
-	PhotoMediaID   string
-	Lat            *float64
-	Lng            *float64
-	FriendIDs      []string
+	// PriceCents is the optional amount paid in minor units, with an
+	// ISO-4217 PriceCurrency. Currency normalization happens here so both
+	// entry points store the same shape.
+	PriceCents    *int
+	PriceCurrency string
+	PhotoMediaID  string
+	Lat           *float64
+	Lng           *float64
+	FriendIDs     []string
 	// AtHome marks a check-in at the shared hidden @home venue. It is mutually
 	// exclusive with VenueID; coordinates are withheld so a home fix is never
 	// stored.
@@ -92,6 +108,13 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	}
 	if len(in.Note) > maxNoteLength {
 		return nil, false, errors.New("note is too long")
+	}
+	priceCurrency, err := NormalizeCurrency(in.PriceCurrency)
+	if err != nil {
+		return nil, false, err
+	}
+	if in.PriceCents != nil && (*in.PriceCents < 0 || *in.PriceCents > 100000) {
+		return nil, false, ErrInvalidPrice
 	}
 	if in.AtHome && in.VenueID != nil {
 		return nil, false, ErrAtHomeConflict
@@ -159,9 +182,13 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 		SetPrepMethod(prepMethodEnum(in.PrepMethod)).
 		SetPrepNote(in.PrepNote).
 		SetNote(in.Note).
-		SetVisibility(visibilityEnum(visibility))
+		SetVisibility(visibilityEnum(visibility)).
+		SetPriceCurrency(priceCurrency)
 	if in.Rating != nil {
 		builder.SetRating(*in.Rating)
+	}
+	if in.PriceCents != nil {
+		builder.SetPriceCents(*in.PriceCents)
 	}
 	if in.VenueID != nil {
 		builder.SetVenueID(*in.VenueID)

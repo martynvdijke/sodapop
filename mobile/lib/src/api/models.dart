@@ -2570,3 +2570,300 @@ class AdminOverviewCounts {
         pendingDrinks: _int(json['pending_drinks']) ?? 0,
       );
 }
+
+/// The year-scoped counters in a recap. [avgRating] is on the quarter-star
+/// scale (0–20) and is null when nothing that year was rated.
+class RecapTotals {
+  const RecapTotals({
+    this.checkins = 0,
+    this.uniqueDrinks = 0,
+    this.styles = 0,
+    this.newStyles = 0,
+    this.venues = 0,
+    this.cities = 0,
+    this.countries = 0,
+    this.longestStreak = 0,
+    this.avgRating,
+  });
+
+  final int checkins;
+  final int uniqueDrinks;
+  final int styles;
+  final int newStyles;
+  final int venues;
+  final int cities;
+  final int countries;
+  final int longestStreak;
+  final double? avgRating;
+
+  factory RecapTotals.fromJson(Map<String, dynamic> json) => RecapTotals(
+    checkins: _int(json['checkins']) ?? 0,
+    uniqueDrinks:
+        _int(_firstValue([json['unique_drinks'], json['uniqueDrinks']])) ?? 0,
+    styles: _int(json['styles']) ?? 0,
+    newStyles: _int(_firstValue([json['new_styles'], json['newStyles']])) ?? 0,
+    venues: _int(json['venues']) ?? 0,
+    cities: _int(json['cities']) ?? 0,
+    countries: _int(json['countries']) ?? 0,
+    longestStreak:
+        _int(_firstValue([json['longest_streak'], json['longestStreak']])) ?? 0,
+    avgRating: _double(_firstValue([json['avg_rating'], json['avgRating']])),
+  );
+}
+
+/// One drink on the recap leaderboard.
+class RecapDrink {
+  const RecapDrink({
+    this.name = '',
+    this.slug = '',
+    this.brand = '',
+    this.count = 0,
+  });
+
+  final String name;
+  final String slug;
+  final String brand;
+  final int count;
+
+  factory RecapDrink.fromJson(Map<String, dynamic> json) => RecapDrink(
+    name: _string(json['name']),
+    slug: _string(json['slug']),
+    brand: _string(json['brand']),
+    count: _int(json['count']) ?? 0,
+  );
+}
+
+/// A style or brand on the recap leaderboard. Both carry the same three
+/// fields, exactly as the Go type reuses one row for each.
+class RecapRow {
+  const RecapRow({this.name = '', this.slug = '', this.count = 0});
+
+  final String name;
+  final String slug;
+  final int count;
+
+  factory RecapRow.fromJson(Map<String, dynamic> json) => RecapRow(
+    name: _firstString([json['name'], json['style']]),
+    slug: _string(json['slug']),
+    count: _int(json['count']) ?? 0,
+  );
+}
+
+/// The venue with the most check-ins that year.
+class RecapVenue {
+  const RecapVenue({this.id = 0, this.name = '', this.count = 0});
+
+  final int id;
+  final String name;
+  final int count;
+
+  factory RecapVenue.fromJson(Map<String, dynamic> json) => RecapVenue(
+    id: _int(json['id']) ?? 0,
+    name: _string(json['name']),
+    count: _int(json['count']) ?? 0,
+  );
+}
+
+/// One band of the five-band quarter-star rating histogram.
+class RecapBucket {
+  const RecapBucket({
+    this.label = '',
+    this.low = 0,
+    this.high = 0,
+    this.count = 0,
+  });
+
+  final String label;
+  final int low;
+  final int high;
+  final int count;
+
+  factory RecapBucket.fromJson(Map<String, dynamic> json) => RecapBucket(
+    label: _string(json['label']),
+    low: _int(json['low']) ?? 0,
+    high: _int(json['high']) ?? 0,
+    count: _int(json['count']) ?? 0,
+  );
+}
+
+/// One average-rating signal compared across two years.
+class RecapPalate {
+  const RecapPalate({this.label = '', this.thisYear, this.lastYear});
+
+  final String label;
+
+  /// Quarter-star averages (0–20); null when that year has no rated rows.
+  final double? thisYear;
+  final double? lastYear;
+
+  factory RecapPalate.fromJson(Map<String, dynamic> json) => RecapPalate(
+    label: _string(json['label']),
+    thisYear: _double(_firstValue([json['this_year'], json['thisYear']])),
+    lastYear: _double(_firstValue([json['last_year'], json['lastYear']])),
+  );
+}
+
+/// One flavour axis of the fingerprint. [score] is normalised so the strongest
+/// axis is 100; [confident] is false under five contributing check-ins.
+class RecapAxis {
+  const RecapAxis({
+    this.key = '',
+    this.label = '',
+    this.score = 0,
+    this.samples = 0,
+    this.confident = false,
+  });
+
+  final String key;
+  final String label;
+  final double score;
+  final int samples;
+  final bool confident;
+
+  factory RecapAxis.fromJson(Map<String, dynamic> json) => RecapAxis(
+    key: _string(json['key']),
+    label: _string(json['label']),
+    score: _double(json['score']) ?? 0,
+    samples: _int(json['samples']) ?? 0,
+    confident: _bool(json['confident']),
+  );
+}
+
+/// The flavour fingerprint, built from the whole history rather than one year.
+class RecapFingerprint {
+  const RecapFingerprint({
+    this.axes = const [],
+    this.hasData = false,
+    this.confident = false,
+    this.wholeHistory = true,
+  });
+
+  final List<RecapAxis> axes;
+  final bool hasData;
+  final bool confident;
+
+  /// True when the axes cover every check-in, not just the recap year. Older
+  /// servers omit the field and always computed it from the whole history, so
+  /// the fallback stays true rather than claiming a year scope that was never
+  /// there.
+  final bool wholeHistory;
+
+  factory RecapFingerprint.fromJson(Map<String, dynamic> json) =>
+      RecapFingerprint(
+        axes: _list(json['axes'])
+            .whereType<Map>()
+            .map((row) => RecapAxis.fromJson(row.cast<String, dynamic>()))
+            .toList(),
+        hasData: _bool(json['has_data']),
+        confident: _bool(json['confident']),
+        wholeHistory: json['whole_history'] == null
+            ? true
+            : _bool(json['whole_history']),
+      );
+}
+
+/// One badge awarded inside a recap year, as the recap payload lists it. The
+/// server has already filtered by award year and ordered by badge slug, so the
+/// app renders the list as given.
+class RecapBadge {
+  const RecapBadge({this.slug = '', this.name = '', this.awardedAt = ''});
+
+  final String slug;
+  final String name;
+  final String awardedAt;
+
+  factory RecapBadge.fromJson(Map<String, dynamic> json) => RecapBadge(
+    slug: _string(json['slug']),
+    name: _string(json['name']),
+    awardedAt: _string(_firstValue([json['awarded_at'], json['awardedAt']])),
+  );
+}
+
+/// One member's year in soda, as `/api/v1/me/recap/{year}` returns it.
+///
+/// A year with no check-ins is still a 200 with [hasData] false, so an empty
+/// recap is a normal state rather than an error.
+class YearRecap {
+  const YearRecap({
+    this.year = 0,
+    this.totals = const RecapTotals(),
+    this.topDrink,
+    this.topBrand,
+    this.topStyles = const [],
+    this.topVenue,
+    this.ratingBuckets = const [],
+    this.palate = const [],
+    this.fingerprint,
+    this.hasData = false,
+    this.sparse = false,
+    this.yearsWithData = const [],
+    this.badges = const [],
+  });
+
+  final int year;
+  final RecapTotals totals;
+  final RecapDrink? topDrink;
+  final RecapRow? topBrand;
+  final List<RecapRow> topStyles;
+  final RecapVenue? topVenue;
+  final List<RecapBucket> ratingBuckets;
+  final List<RecapPalate> palate;
+  final RecapFingerprint? fingerprint;
+
+  /// False for a year with nothing logged; [sparse] then says whether the
+  /// little that is there is enough to draw conclusions from.
+  final bool hasData;
+  final bool sparse;
+
+  /// Every year with at least one countable check-in, ascending. The year
+  /// switcher reads this instead of probing year by year.
+  final List<int> yearsWithData;
+
+  /// Badges awarded inside this year, already filtered and ordered by the
+  /// server, so no separate badge request is needed.
+  final List<RecapBadge> badges;
+
+  /// How many check-ins that year carry a rating, which is the sample the
+  /// histogram is drawn from.
+  int get ratedCount =>
+      ratingBuckets.fold(0, (sum, bucket) => sum + bucket.count);
+
+  factory YearRecap.fromJson(Map<String, dynamic> json) => YearRecap(
+    year: _int(json['year']) ?? 0,
+    totals: RecapTotals.fromJson(_map(json['totals'])),
+    topDrink: json['top_drink'] is Map
+        ? RecapDrink.fromJson(_map(json['top_drink']))
+        : null,
+    topBrand: json['top_brand'] is Map
+        ? RecapRow.fromJson(_map(json['top_brand']))
+        : null,
+    topStyles: _list(json['top_styles'])
+        .whereType<Map>()
+        .map((row) => RecapRow.fromJson(row.cast<String, dynamic>()))
+        .toList(),
+    topVenue: json['top_venue'] is Map
+        ? RecapVenue.fromJson(_map(json['top_venue']))
+        : null,
+    ratingBuckets:
+        _list(_firstValue([json['rating_buckets'], json['ratingBuckets']]))
+            .whereType<Map>()
+            .map((row) => RecapBucket.fromJson(row.cast<String, dynamic>()))
+            .toList(),
+    palate: _list(json['palate'])
+        .whereType<Map>()
+        .map((row) => RecapPalate.fromJson(row.cast<String, dynamic>()))
+        .toList(),
+    fingerprint: json['fingerprint'] is Map
+        ? RecapFingerprint.fromJson(_map(json['fingerprint']))
+        : null,
+    hasData: _bool(json['has_data']),
+    sparse: _bool(json['sparse']),
+    yearsWithData: _list(
+      _firstValue([json['years_with_data'], json['yearsWithData']]),
+    ).map(_int).whereType<int>().toList(),
+    badges: _list(json['badges'])
+        .whereType<Map>()
+        .map((row) => RecapBadge.fromJson(row.cast<String, dynamic>()))
+        .toList(),
+  );
+}

@@ -22,6 +22,10 @@ const (
 	FieldVenueID = "venue_id"
 	// FieldRating holds the string denoting the rating field in the database.
 	FieldRating = "rating"
+	// FieldPriceCents holds the string denoting the price_cents field in the database.
+	FieldPriceCents = "price_cents"
+	// FieldPriceCurrency holds the string denoting the price_currency field in the database.
+	FieldPriceCurrency = "price_currency"
 	// FieldServing holds the string denoting the serving field in the database.
 	FieldServing = "serving"
 	// FieldPrepMethod holds the string denoting the prep_method field in the database.
@@ -44,6 +48,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldEditedAt holds the string denoting the edited_at field in the database.
+	FieldEditedAt = "edited_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -84,6 +90,8 @@ var Columns = []string{
 	FieldDrinkID,
 	FieldVenueID,
 	FieldRating,
+	FieldPriceCents,
+	FieldPriceCurrency,
 	FieldServing,
 	FieldPrepMethod,
 	FieldPrepNote,
@@ -95,6 +103,7 @@ var Columns = []string{
 	FieldIdempotencyKey,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldEditedAt,
 	FieldDeletedAt,
 }
 
@@ -113,6 +122,10 @@ var (
 	UserIDValidator func(string) error
 	// RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	RatingValidator func(int) error
+	// PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	PriceCentsValidator func(int) error
+	// DefaultPriceCurrency holds the default value on creation for the "price_currency" field.
+	DefaultPriceCurrency string
 	// DefaultPrepNote holds the default value on creation for the "prep_note" field.
 	DefaultPrepNote string
 	// DefaultNote holds the default value on creation for the "note" field.
@@ -245,6 +258,16 @@ func ByRating(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRating, opts...).ToFunc()
 }
 
+// ByPriceCents orders the results by the price_cents field.
+func ByPriceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceCents, opts...).ToFunc()
+}
+
+// ByPriceCurrency orders the results by the price_currency field.
+func ByPriceCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceCurrency, opts...).ToFunc()
+}
+
 // ByServing orders the results by the serving field.
 func ByServing(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldServing, opts...).ToFunc()
@@ -298,6 +321,11 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByEditedAt orders the results by the edited_at field.
+func ByEditedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEditedAt, opts...).ToFunc()
 }
 
 // ByDeletedAt orders the results by the deleted_at field.

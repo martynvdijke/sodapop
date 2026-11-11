@@ -83,6 +83,11 @@ func PriceCents(v int) predicate.VenueStockReport {
 	return predicate.VenueStockReport(sql.FieldEQ(FieldPriceCents, v))
 }
 
+// Currency applies equality check predicate on the "currency" field. It's identical to CurrencyEQ.
+func Currency(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldEQ(FieldCurrency, v))
+}
+
 // Note applies equality check predicate on the "note" field. It's identical to NoteEQ.
 func Note(v string) predicate.VenueStockReport {
 	return predicate.VenueStockReport(sql.FieldEQ(FieldNote, v))
@@ -301,6 +306,71 @@ func PriceCentsIsNil() predicate.VenueStockReport {
 // PriceCentsNotNil applies the NotNil predicate on the "price_cents" field.
 func PriceCentsNotNil() predicate.VenueStockReport {
 	return predicate.VenueStockReport(sql.FieldNotNull(FieldPriceCents))
+}
+
+// CurrencyEQ applies the EQ predicate on the "currency" field.
+func CurrencyEQ(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldEQ(FieldCurrency, v))
+}
+
+// CurrencyNEQ applies the NEQ predicate on the "currency" field.
+func CurrencyNEQ(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldNEQ(FieldCurrency, v))
+}
+
+// CurrencyIn applies the In predicate on the "currency" field.
+func CurrencyIn(vs ...string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldIn(FieldCurrency, vs...))
+}
+
+// CurrencyNotIn applies the NotIn predicate on the "currency" field.
+func CurrencyNotIn(vs ...string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldNotIn(FieldCurrency, vs...))
+}
+
+// CurrencyGT applies the GT predicate on the "currency" field.
+func CurrencyGT(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldGT(FieldCurrency, v))
+}
+
+// CurrencyGTE applies the GTE predicate on the "currency" field.
+func CurrencyGTE(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldGTE(FieldCurrency, v))
+}
+
+// CurrencyLT applies the LT predicate on the "currency" field.
+func CurrencyLT(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldLT(FieldCurrency, v))
+}
+
+// CurrencyLTE applies the LTE predicate on the "currency" field.
+func CurrencyLTE(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldLTE(FieldCurrency, v))
+}
+
+// CurrencyContains applies the Contains predicate on the "currency" field.
+func CurrencyContains(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldContains(FieldCurrency, v))
+}
+
+// CurrencyHasPrefix applies the HasPrefix predicate on the "currency" field.
+func CurrencyHasPrefix(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldHasPrefix(FieldCurrency, v))
+}
+
+// CurrencyHasSuffix applies the HasSuffix predicate on the "currency" field.
+func CurrencyHasSuffix(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldHasSuffix(FieldCurrency, v))
+}
+
+// CurrencyEqualFold applies the EqualFold predicate on the "currency" field.
+func CurrencyEqualFold(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldEqualFold(FieldCurrency, v))
+}
+
+// CurrencyContainsFold applies the ContainsFold predicate on the "currency" field.
+func CurrencyContainsFold(v string) predicate.VenueStockReport {
+	return predicate.VenueStockReport(sql.FieldContainsFold(FieldCurrency, v))
 }
 
 // NoteEQ applies the EQ predicate on the "note" field.

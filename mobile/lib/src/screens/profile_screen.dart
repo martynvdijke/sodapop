@@ -18,6 +18,7 @@ import 'lists_screen.dart';
 import 'mix_screen.dart';
 import 'notifications_screen.dart';
 import 'passport_screen.dart';
+import 'recap_screen.dart';
 import 'saved_posts_screen.dart';
 import 'saved_venues_screen.dart';
 import 'settings_screen.dart';
@@ -212,6 +213,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             const SizedBox(height: 20),
             _statsSection(theme),
+            const SizedBox(height: 12),
+            _recapCard(theme),
             const SizedBox(height: 26),
             _checkinsSection(theme),
             const SizedBox(height: 28),
@@ -376,6 +379,66 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       width: 1,
       height: 34,
       color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+    );
+  }
+
+  /// The one year-shaped thing on this tab. It sits under the counters it
+  /// summarises, so "Year in Soda" reads as those numbers told as a story.
+  Widget _recapCard(ThemeData theme) {
+    final year = DateTime.now().year;
+    return Semantics(
+      button: true,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => RecapScreen.open(context),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 20,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Year in Soda',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Your $year so far: totals, top styles and badges.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

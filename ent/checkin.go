@@ -27,6 +27,10 @@ type Checkin struct {
 	VenueID *int `json:"venue_id,omitempty"`
 	// Rating holds the value of the "rating" field.
 	Rating *int `json:"rating,omitempty"`
+	// PriceCents holds the value of the "price_cents" field.
+	PriceCents *int `json:"price_cents,omitempty"`
+	// PriceCurrency holds the value of the "price_currency" field.
+	PriceCurrency string `json:"price_currency,omitempty"`
 	// Serving holds the value of the "serving" field.
 	Serving checkin.Serving `json:"serving,omitempty"`
 	// PrepMethod holds the value of the "prep_method" field.
@@ -49,6 +53,8 @@ type Checkin struct {
 	CreatedAt string `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt string `json:"updated_at,omitempty"`
+	// EditedAt holds the value of the "edited_at" field.
+	EditedAt *string `json:"edited_at,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
 	DeletedAt *string `json:"deleted_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -110,9 +116,9 @@ func (*Checkin) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case checkin.FieldLat, checkin.FieldLng:
 			values[i] = new(sql.NullFloat64)
-		case checkin.FieldDrinkID, checkin.FieldVenueID, checkin.FieldRating:
+		case checkin.FieldDrinkID, checkin.FieldVenueID, checkin.FieldRating, checkin.FieldPriceCents:
 			values[i] = new(sql.NullInt64)
-		case checkin.FieldID, checkin.FieldUserID, checkin.FieldServing, checkin.FieldPrepMethod, checkin.FieldPrepNote, checkin.FieldNote, checkin.FieldPhotoMediaID, checkin.FieldVisibility, checkin.FieldIdempotencyKey, checkin.FieldCreatedAt, checkin.FieldUpdatedAt, checkin.FieldDeletedAt:
+		case checkin.FieldID, checkin.FieldUserID, checkin.FieldPriceCurrency, checkin.FieldServing, checkin.FieldPrepMethod, checkin.FieldPrepNote, checkin.FieldNote, checkin.FieldPhotoMediaID, checkin.FieldVisibility, checkin.FieldIdempotencyKey, checkin.FieldCreatedAt, checkin.FieldUpdatedAt, checkin.FieldEditedAt, checkin.FieldDeletedAt:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -160,6 +166,19 @@ func (_m *Checkin) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Rating = new(int)
 				*_m.Rating = int(value.Int64)
+			}
+		case checkin.FieldPriceCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field price_cents", values[i])
+			} else if value.Valid {
+				_m.PriceCents = new(int)
+				*_m.PriceCents = int(value.Int64)
+			}
+		case checkin.FieldPriceCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field price_currency", values[i])
+			} else if value.Valid {
+				_m.PriceCurrency = value.String
 			}
 		case checkin.FieldServing:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -230,6 +249,13 @@ func (_m *Checkin) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.String
+			}
+		case checkin.FieldEditedAt:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field edited_at", values[i])
+			} else if value.Valid {
+				_m.EditedAt = new(string)
+				*_m.EditedAt = value.String
 			}
 		case checkin.FieldDeletedAt:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -305,6 +331,14 @@ func (_m *Checkin) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
+	if v := _m.PriceCents; v != nil {
+		builder.WriteString("price_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("price_currency=")
+	builder.WriteString(_m.PriceCurrency)
+	builder.WriteString(", ")
 	builder.WriteString("serving=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Serving))
 	builder.WriteString(", ")
@@ -345,6 +379,11 @@ func (_m *Checkin) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt)
+	builder.WriteString(", ")
+	if v := _m.EditedAt; v != nil {
+		builder.WriteString("edited_at=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.DeletedAt; v != nil {
 		builder.WriteString("deleted_at=")

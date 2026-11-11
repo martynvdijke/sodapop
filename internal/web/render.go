@@ -32,9 +32,9 @@ func NewRenderer() (*Renderer, error) {
 	names := []string{"home", "login", "register", "verify", "search", "drink", "checkin", "friends", "tokens", "newdrink", "error",
 		"you", "lists", "list", "passport", "taste", "mix", "mix_detail", "integrations", "admin", "venues", "venue",
 		"notifications", "checkin_detail", "settings", "forgot", "reset",
-		"browse", "brand", "style", "profile", "insights", "drops", "venues_saved", "saved", "nearby", "compare", "settings_blocked", "setup", "admin_settings",
+		"checkin_edit", "browse", "brand", "style", "profile", "insights", "drops", "venues_saved", "saved", "nearby", "compare", "settings_blocked", "setup", "admin_settings",
 		"admin_system", "admin_badges", "admin_venues", "admin_digest", "share", "admin_deliveries",
-		"admin_activity", "privacy", "terms", "account_delete", "people", "recap"}
+		"admin_activity", "privacy", "terms", "account_delete", "people", "recap", "saved_searches", "follow_list"}
 	r := &Renderer{
 		pages:         map[string]*template.Template{},
 		imperialPages: map[string]*template.Template{},

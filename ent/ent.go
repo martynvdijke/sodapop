@@ -46,6 +46,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/savedsearch"
 	"sodapop/ent/schedulerstate"
 	"sodapop/ent/session"
 	"sodapop/ent/style"
@@ -163,6 +164,7 @@ func checkColumn(t, c string) error {
 			pushsubscription.Table:       pushsubscription.ValidColumn,
 			report.Table:                 report.ValidColumn,
 			runtimesetting.Table:         runtimesetting.ValidColumn,
+			savedsearch.Table:            savedsearch.ValidColumn,
 			schedulerstate.Table:         schedulerstate.ValidColumn,
 			session.Table:                session.ValidColumn,
 			style.Table:                  style.ValidColumn,

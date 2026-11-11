@@ -39,6 +39,15 @@ func (s *Server) myInsights(w http.ResponseWriter, r *http.Request, tok *auth.AP
 		})
 	}
 
+	spend := make([]map[string]any, 0, len(ins.Spend))
+	for _, s := range ins.Spend {
+		spend = append(spend, map[string]any{
+			"currency":    s.Currency,
+			"total_cents": s.TotalCents,
+			"count":       s.Count,
+		})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
 		"range_days":              ins.Days,
 		"from":                    ins.From,
@@ -55,6 +64,7 @@ func (s *Server) myInsights(w http.ResponseWriter, r *http.Request, tok *auth.AP
 		"last_caffeine_at":        ins.LastCaffeineAt,
 		"caffeine_clear_by":       ins.CaffeineClearBy,
 		"late_caffeine":           ins.LateCaffeine,
+		"spend":                   spend,
 	}})
 	return nil
 }

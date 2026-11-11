@@ -135,6 +135,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "GET /api/v1/me/wishlist/alerts", s.protect("read", false, s.meWishlistAlertsGet))
 	s.route(mux, "PUT /api/v1/me/wishlist/alerts", s.protect("write", true, s.meWishlistAlertsPut))
 	s.route(mux, "GET /api/v1/me/blocks", s.protect("read", false, s.meBlocks))
+	s.route(mux, "GET /api/v1/me/searches", s.protect("read", false, s.listSavedSearches))
+	s.route(mux, "POST /api/v1/me/searches", s.protect("write", true, s.createSavedSearch))
+	s.route(mux, "DELETE /api/v1/me/searches/{id}", s.protect("write", true, s.deleteSavedSearch))
 	s.route(mux, "GET /api/v1/me/checkins", s.protect("read", false, s.myCheckins))
 	s.route(mux, "GET /api/v1/me/activity", s.protect("read", false, s.myActivity))
 	s.route(mux, "GET /api/v1/stats/me", s.protect("read", false, s.myStats))
@@ -156,6 +159,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 
 	s.route(mux, "POST /api/v1/checkins", s.protect("write", true, s.createCheckin))
 	s.route(mux, "DELETE /api/v1/checkins/{id}", s.protect("write", true, s.deleteCheckin))
+	s.route(mux, "PATCH /api/v1/checkins/{id}", s.protect("write", true, s.updateCheckin))
 	s.route(mux, "POST /api/v1/checkins/{id}/toast", s.protect("write", true, s.toast))
 	s.route(mux, "DELETE /api/v1/checkins/{id}/toast", s.protect("write", true, s.untoast))
 	s.route(mux, "POST /api/v1/checkins/{id}/save", s.protect("write", true, s.bookmarkCheckin))
@@ -164,6 +168,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "GET /api/v1/checkins/{id}/comments", s.protect("read", false, s.listComments))
 	s.route(mux, "POST /api/v1/checkins/{id}/comments", s.protect("write", true, s.createComment))
 	s.route(mux, "DELETE /api/v1/comments/{id}", s.protect("write", true, s.deleteComment))
+	s.route(mux, "PATCH /api/v1/comments/{id}", s.protect("write", true, s.updateComment))
 
 	s.route(mux, "POST /api/v1/reports", s.protect("write", true, s.createReport))
 	s.route(mux, "POST /api/v1/users/{handle}/block", s.protect("write", true, s.blockUser))
@@ -172,6 +177,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "DELETE /api/v1/users/{handle}/follow", s.protect("write", true, s.unfollowUser))
 	s.route(mux, "GET /api/v1/users/{handle}", s.protect("read", false, s.userProfile))
 	s.route(mux, "GET /api/v1/users/{handle}/checkins", s.protect("feed", false, s.userCheckins))
+	s.route(mux, "GET /api/v1/users/{handle}/followers", s.protect("read", false, s.userFollowers))
+	s.route(mux, "GET /api/v1/users/{handle}/following", s.protect("read", false, s.userFollowing))
 
 	s.route(mux, "GET /api/v1/me/lists", s.protect("read", false, s.myLists))
 	s.route(mux, "GET /api/v1/lists/{id}", s.protect("read", false, s.getList))
@@ -196,6 +203,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "POST /api/v1/ai/tasting-note", s.protectStrict("write", true, s.aiTastingNote))
 	s.route(mux, "POST /api/v1/ai/recommend", s.protectStrict("read", false, s.aiRecommend))
 	s.route(mux, "POST /api/v1/drinks", s.protectStrict("write", true, s.createDrink))
+	s.route(mux, "POST /api/v1/drinks/{slug}/barcodes", s.protectStrict("write", true, s.contributeBarcode))
 
 	s.route(mux, "GET /api/v1/venues/search", s.protectStrict("read", false, s.searchVenues))
 	s.route(mux, "GET /api/v1/venues/saved", s.protect("read", false, s.savedVenues))

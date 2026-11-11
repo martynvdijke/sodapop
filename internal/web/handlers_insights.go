@@ -49,6 +49,17 @@ func (s *Server) insightsPage(w http.ResponseWriter, r *http.Request) {
 		clearBy = t.Local().Format("Mon 2 Jan, 15:04")
 	}
 
+	// Spend is rendered per currency; cents from different units are never
+	// added together.
+	spend := make([]map[string]any, 0, len(ins.Spend))
+	for _, s := range ins.Spend {
+		label := fmt.Sprintf("%d.%02d", s.TotalCents/100, s.TotalCents%100)
+		if s.Currency != "" {
+			label += " " + s.Currency
+		}
+		spend = append(spend, map[string]any{"Label": label, "Count": s.Count})
+	}
+
 	s.render(w, r, http.StatusOK, "insights", map[string]any{
 		"Title":  "Insights",
 		"Range":  ins.Days,
@@ -70,6 +81,7 @@ func (s *Server) insightsPage(w http.ResponseWriter, r *http.Request) {
 			"TotalKcal": ins.CaloriesKcal,
 		},
 		"TopDrinks": ins.TopDrinks,
+		"Spend":     spend,
 		"Empty":     ins.Pours == 0,
 		"Pours":     ins.Pours,
 	})

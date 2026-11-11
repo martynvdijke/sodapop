@@ -1280,4 +1280,128 @@ void main() {
       expect(empty.page, 1);
     });
   });
+
+  group('YearRecap', () {
+    test('reads the whole recap payload', () {
+      final recap = YearRecap.fromJson({
+        'year': 2026,
+        'has_data': true,
+        'sparse': false,
+        'totals': {
+          'checkins': 34,
+          'unique_drinks': 12,
+          'styles': 8,
+          'new_styles': 3,
+          'venues': 5,
+          'cities': 2,
+          'countries': 1,
+          'longest_streak': 6,
+          'avg_rating': 17,
+        },
+        'top_drink': {
+          'name': 'Cherry Cola',
+          'slug': 'cherry-cola',
+          'brand': 'Soda Co',
+          'count': 9,
+        },
+        'top_brand': {'name': 'Soda Co', 'slug': 'soda-co', 'count': 14},
+        'top_styles': [
+          {'name': 'Cola', 'slug': 'cola', 'count': 12},
+        ],
+        'top_venue': {'id': 3, 'name': 'Corner Shop', 'count': 7},
+        'rating_buckets': [
+          {'label': '17–20', 'low': 17, 'high': 20, 'count': 9},
+        ],
+        'palate': [
+          {'label': 'Overall', 'this_year': 17, 'last_year': 14},
+        ],
+        'years_with_data': [2024, 2025, 2026],
+        'badges': [
+          {'slug': 'first-pour', 'name': 'First Pour', 'awarded_at': '2026-03-02T09:00:00Z'},
+        ],
+        'fingerprint': {
+          'has_data': true,
+          'confident': false,
+          'whole_history': true,
+          'axes': [
+            {
+              'key': 'fruit',
+              'label': 'Fruit',
+              'score': 100,
+              'samples': 22,
+              'confident': true,
+            },
+          ],
+        },
+      });
+
+      expect(recap.year, 2026);
+      expect(recap.hasData, isTrue);
+      expect(recap.sparse, isFalse);
+      expect(recap.totals.checkins, 34);
+      expect(recap.totals.uniqueDrinks, 12);
+      expect(recap.totals.newStyles, 3);
+      expect(recap.totals.longestStreak, 6);
+      expect(recap.totals.avgRating, 17);
+      expect(recap.topDrink?.name, 'Cherry Cola');
+      expect(recap.topBrand?.name, 'Soda Co');
+      expect(recap.topStyles.single.count, 12);
+      expect(recap.topVenue?.name, 'Corner Shop');
+      expect(recap.ratedCount, 9);
+      expect(recap.palate.single.thisYear, 17);
+      expect(recap.palate.single.lastYear, 14);
+      expect(recap.fingerprint?.hasData, isTrue);
+      expect(recap.fingerprint?.confident, isFalse);
+      expect(recap.fingerprint?.axes.single.label, 'Fruit');
+      expect(recap.fingerprint?.axes.single.samples, 22);
+      expect(recap.fingerprint?.wholeHistory, isTrue);
+      expect(recap.yearsWithData, [2024, 2025, 2026]);
+      expect(recap.badges.single.slug, 'first-pour');
+      expect(recap.badges.single.name, 'First Pour');
+      expect(recap.badges.single.awardedAt, '2026-03-02T09:00:00Z');
+    });
+
+    test('a fingerprint without a scope flag is treated as whole history', () {
+      final recap = YearRecap.fromJson({
+        'year': 2026,
+        'fingerprint': {'has_data': false, 'confident': false},
+      });
+
+      // Older servers never scoped the fingerprint to a year, so the fallback
+      // must not claim it did.
+      expect(recap.fingerprint?.wholeHistory, isTrue);
+      expect(recap.yearsWithData, isEmpty);
+      expect(recap.badges, isEmpty);
+    });
+
+    test('an explicitly year-scoped fingerprint is kept', () {
+      final recap = YearRecap.fromJson({
+        'year': 2026,
+        'fingerprint': {
+          'has_data': true,
+          'confident': true,
+          'whole_history': false,
+          'axes': [],
+        },
+      });
+
+      expect(recap.fingerprint?.wholeHistory, isFalse);
+    });
+
+    test('a year with no check-ins has no leaderboards and no average', () {
+      final recap = YearRecap.fromJson({'year': 2019, 'has_data': false});
+
+      expect(recap.hasData, isFalse);
+      expect(recap.sparse, isFalse);
+      expect(recap.topDrink, isNull);
+      expect(recap.topBrand, isNull);
+      expect(recap.topVenue, isNull);
+      expect(recap.topStyles, isEmpty);
+      expect(recap.ratingBuckets, isEmpty);
+      expect(recap.palate, isEmpty);
+      expect(recap.fingerprint, isNull);
+      expect(recap.totals.avgRating, isNull);
+      expect(recap.ratedCount, 0);
+    });
+  });
 }

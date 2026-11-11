@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"reflect"
 	"sort"
 	"strings"
@@ -256,6 +257,9 @@ func (s *Service) ActivateDrink(ctx context.Context, userID *string, drinkID int
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	// Activation is the usual way a provisional drink enters the catalog, so it
+	// is also when most drop alerts fire. Best effort, after the commit.
+	s.notifyDrop(ctx, d)
 	return d, nil
 }
 
@@ -331,7 +335,12 @@ func (s *Service) SetDrinkStatus(ctx context.Context, userID *string, drinkID in
 		_ = tx.Rollback()
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	// Moving a published drink to active/limited/seasonal makes it droppable.
+	s.notifyDrop(ctx, updated)
+	return nil
 }
 
 // SetDrinkPublished toggles a drink's public API visibility and records the
@@ -373,5 +382,45 @@ func (s *Service) SetDrinkPublished(ctx context.Context, userID *string, drinkID
 		_ = tx.Rollback()
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	// Publishing is the moment a drink becomes visible, so it can be a drop for
+	// a drink that was already active.
+	if published {
+		if updated, err := s.Client.Drink.Get(ctx, drinkID); err == nil {
+			s.notifyDrop(ctx, updated)
+		}
+	}
+	return nil
+}
+
+// notifyDrop raises saved-search alerts for a drink that has just become
+// visible. It is best effort on purpose: an alert failure must never turn a
+// successful admin action into an error, so the caller only ever sees the
+// action's own result and the failure is logged.
+func (s *Service) notifyDrop(ctx context.Context, d *ent.Drink) {
+	if s.Drops == nil || d == nil {
+		return
+	}
+	if !dropCandidate(d) {
+		return
+	}
+	if _, err := s.Drops.Evaluate(ctx, d); err != nil {
+		slog.ErrorContext(ctx, "drop alert evaluation failed", "err", err, "drink_id", d.ID)
+	}
+}
+
+// dropCandidate mirrors the visibility rule the savedsearch package documents:
+// only a published, non-retired drink is a catalog drop.
+func dropCandidate(d *ent.Drink) bool {
+	if d == nil || !d.Published {
+		return false
+	}
+	switch d.Status {
+	case drink.StatusActive, drink.StatusLimited, drink.StatusSeasonal:
+		return true
+	default:
+		return false
+	}
 }

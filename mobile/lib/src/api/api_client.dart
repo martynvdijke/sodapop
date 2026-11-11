@@ -1388,6 +1388,17 @@ class ApiClient {
         .toList();
   });
 
+  /// One year of the caller's own history. The route is rooted at `/me`, so
+  /// there is no handle and no way to read another member's recap. A year with
+  /// no check-ins is a normal 200 with `has_data` false.
+  Future<YearRecap> recap(int year) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/recap/$year',
+      options: _options(),
+    );
+    return YearRecap.fromJson((_data(response) as Map).cast<String, dynamic>());
+  });
+
   Future<MixRecipe> getMix(String idOrSlug) => _guard(() async {
     final response = await _dio.get<dynamic>(
       'api/v1/mix/${Uri.encodeComponent(idOrSlug)}',

@@ -19,6 +19,8 @@ const (
 	FieldBody = "body"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldEditedAt holds the string denoting the edited_at field in the database.
+	FieldEditedAt = "edited_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
 	// Table holds the table name of the comment in the database.
@@ -32,6 +34,7 @@ var Columns = []string{
 	FieldUserID,
 	FieldBody,
 	FieldCreatedAt,
+	FieldEditedAt,
 	FieldDeletedAt,
 }
 
@@ -84,6 +87,11 @@ func ByBody(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByEditedAt orders the results by the edited_at field.
+func ByEditedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEditedAt, opts...).ToFunc()
 }
 
 // ByDeletedAt orders the results by the deleted_at field.

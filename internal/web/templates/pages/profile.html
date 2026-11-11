@@ -16,8 +16,8 @@
         <p class="profile-joined">Joined {{if ge (len .) 10}}{{slice . 0 10}}{{else}}{{.}}{{end}}</p>
       {{end}}
       <p class="profile-counts">
-        <span><strong>{{.FollowerCount}}</strong> {{if eq .FollowerCount 1}}follower{{else}}followers{{end}}</span>
-        <span><strong>{{.FollowingCount}}</strong> following</span>
+        <span><a href="/u/{{.Profile.Handle}}/followers"><strong>{{.FollowerCount}}</strong> {{if eq .FollowerCount 1}}follower{{else}}followers{{end}}</a></span>
+        <span><a href="/u/{{.Profile.Handle}}/following"><strong>{{.FollowingCount}}</strong> following</a></span>
       </p>
     </div>
   </header>

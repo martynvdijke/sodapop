@@ -69,7 +69,7 @@ func (s *Server) deleteComment(w http.ResponseWriter, r *http.Request, tok *auth
 }
 
 func commentDTO(c comments.Comment, canDelete bool) map[string]any {
-	return map[string]any{
+	data := map[string]any{
 		"id":         c.ID,
 		"user":       map[string]any{"handle": c.Handle, "display_name": c.DisplayName},
 		"body":       c.Body,
@@ -77,4 +77,8 @@ func commentDTO(c comments.Comment, canDelete bool) map[string]any {
 		"can_delete": canDelete,
 		"user_id":    c.UserID,
 	}
+	if c.EditedAt != "" {
+		data["edited_at"] = c.EditedAt
+	}
+	return data
 }

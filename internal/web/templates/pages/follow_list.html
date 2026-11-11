@@ -1,0 +1,64 @@
+{{define "content"}}
+<section class="narrow follow-page">
+  <p class="eyebrow"><a href="/u/{{.Handle}}">@{{.Handle}}</a></p>
+  <h1>{{.Heading}}</h1>
+  <p class="lede">{{if eq .Mode "followers"}}People who follow {{.DisplayName}}.{{else}}People {{.DisplayName}} follows.{{end}}</p>
+
+  <nav class="follow-tabs" aria-label="Follow lists">
+    <a class="follow-tab{{if eq .Mode "followers"}} active{{end}}" href="/u/{{.Handle}}/followers"{{if eq .Mode "followers"}} aria-current="page"{{end}}>Followers</a>
+    <a class="follow-tab{{if eq .Mode "following"}} active{{end}}" href="/u/{{.Handle}}/following"{{if eq .Mode "following"}} aria-current="page"{{end}}>Following</a>
+  </nav>
+
+  {{if .Users}}
+    <ul class="follow-list">
+      {{range .Users}}
+        <li class="follow-row">
+          <a class="follow-person" href="/u/{{.Handle}}">
+            {{if .AvatarID}}
+              <img class="avatar" src="/media/{{.AvatarID}}" alt="" width="44" height="44" loading="lazy" decoding="async">
+            {{else}}
+              <span class="avatar" aria-hidden="true">{{initial .Handle}}</span>
+            {{end}}
+            <span class="follow-identity">
+              <strong>{{.DisplayName}}</strong>
+              <span class="muted">@{{.Handle}}</span>
+              {{if .Bio}}<span class="follow-bio">{{truncate .Bio 100}}</span>{{end}}
+            </span>
+          </a>
+          <div class="follow-actions">
+            {{if .IsFriend}}<span class="pill follow-friend">Friend</span>{{end}}
+            {{if .IsViewer}}
+              <span class="pill">You</span>
+            {{else if .FollowedByViewer}}
+              <form method="post" action="/u/{{.Handle}}/unfollow" class="inline">
+                <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                <button class="btn btn-small btn-following" type="submit" aria-pressed="true" aria-label="Unfollow @{{.Handle}}"><span aria-hidden="true">✓</span> Following</button>
+              </form>
+            {{else}}
+              <form method="post" action="/u/{{.Handle}}/follow" class="inline">
+                <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+                <button class="btn btn-small btn-primary" type="submit" aria-label="Follow @{{.Handle}}">Follow</button>
+              </form>
+            {{end}}
+          </div>
+        </li>
+      {{end}}
+    </ul>
+
+    {{if or .HasMore .ShowingEarlier}}
+      <nav class="follow-pagination" aria-label="More people">
+        {{if .HasMore}}<a class="btn" href="/u/{{.Handle}}/{{.Mode}}?before={{.NextCursor}}">Next page</a>{{end}}
+        {{if .ShowingEarlier}}<a class="btn" href="/u/{{.Handle}}/{{.Mode}}">Back to the newest</a>{{end}}
+      </nav>
+    {{end}}
+  {{else}}
+    <div class="empty">
+      <p><strong>{{if eq .Mode "followers"}}No followers yet{{else}}Not following anyone yet{{end}}</strong></p>
+      <p>{{.EmptyText}}</p>
+      <p class="empty-actions"><a class="btn btn-primary" href="/people">Find people</a></p>
+    </div>
+  {{end}}
+
+  <p class="follow-back"><a href="/u/{{.Handle}}">Back to @{{.Handle}}'s profile</a></p>
+</section>
+{{end}}

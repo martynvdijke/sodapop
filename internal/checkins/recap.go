@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -75,6 +76,20 @@ type Recap struct {
 	// Sparse is true for a year with fewer than five check-ins, so the UI can
 	// soften its claims instead of drawing conclusions from almost nothing.
 	Sparse bool `json:"sparse"`
+	// YearsWithData lists every year the member has at least one countable
+	// check-in, ascending. It is the year switcher's source of truth: a client
+	// never has to probe year by year to find them.
+	YearsWithData []int `json:"years_with_data"`
+	// Badges are the badges awarded inside this recap year, in the same order
+	// the badge list endpoint returns them (badge slug).
+	Badges []RecapBadge `json:"badges"`
+}
+
+// RecapBadge is one badge awarded during the recap year.
+type RecapBadge struct {
+	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	AwardedAt string `json:"awarded_at"`
 }
 
 // FingerprintAxis is one flavour category's share of a member's palate.
@@ -91,6 +106,11 @@ type Fingerprint struct {
 	Axes      []FingerprintAxis `json:"axes"`
 	HasData   bool              `json:"has_data"`
 	Confident bool              `json:"confident"`
+	// WholeHistory reports whether the axes cover every check-in rather than
+	// just the recap year. It is always true today: Fingerprint has no year
+	// window, and saying so lets the UI describe the chart honestly without
+	// hardcoding the claim.
+	WholeHistory bool `json:"whole_history"`
 }
 
 // recapMinYear and recapMaxYear bound the accepted year window. A recap outside
@@ -140,6 +160,8 @@ func (s *Service) Recap(ctx context.Context, userID string, year int) (*Recap, e
 		TopStyles:     []RecapStyle{},
 		RatingBuckets: make([]RecapRatingBucket, len(ratingBuckets)),
 		Palate:        []RecapPalate{},
+		YearsWithData: []int{},
+		Badges:        []RecapBadge{},
 	}
 	copy(out.RatingBuckets, ratingBuckets)
 
@@ -178,6 +200,71 @@ func (s *Service) Recap(ctx context.Context, userID string, year int) (*Recap, e
 	}
 	if out.Fingerprint, err = s.Fingerprint(ctx, userID); err != nil {
 		return nil, err
+	}
+	if out.YearsWithData, err = s.RecapYears(ctx, userID); err != nil {
+		return nil, err
+	}
+	if out.Badges, err = s.recapBadges(ctx, userID, year); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// RecapYears lists every year the member has at least one countable check-in,
+// ascending. It reads the same rows the recap aggregates do (live check-ins of
+// non-merged drinks), so a year returned here always has something to show.
+func (s *Service) RecapYears(ctx context.Context, userID string) ([]int, error) {
+	rows, err := s.SQL.QueryContext(ctx, `
+		SELECT DISTINCT substr(c.created_at, 1, 4)
+		FROM checkins c
+		JOIN drinks d ON d.id = c.drink_id
+		WHERE c.user_id = ? AND c.deleted_at IS NULL AND d.status <> 'merged'
+		ORDER BY 1 ASC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	years := []int{}
+	for rows.Next() {
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
+			return nil, err
+		}
+		year, perr := strconv.Atoi(raw)
+		if perr != nil {
+			continue
+		}
+		years = append(years, year)
+	}
+	return years, rows.Err()
+}
+
+// recapBadges returns the badges awarded inside the recap year, ordered by badge
+// slug like the badge list endpoint. A service without a badge reader simply
+// carries no badges rather than failing the recap.
+func (s *Service) recapBadges(ctx context.Context, userID string, year int) ([]RecapBadge, error) {
+	out := []RecapBadge{}
+	if s.Badges == nil {
+		return out, nil
+	}
+	statuses, err := s.Badges.ListForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, st := range statuses {
+		if !st.Earned || strings.TrimSpace(st.AwardedAt) == "" {
+			continue
+		}
+		at, perr := time.Parse(time.RFC3339, st.AwardedAt)
+		if perr != nil {
+			continue
+		}
+		// The recap window is a UTC year, so the award year is read in UTC too.
+		if at.UTC().Year() != year {
+			continue
+		}
+		out = append(out, RecapBadge{Slug: st.Slug, Name: st.Name, AwardedAt: st.AwardedAt})
 	}
 	return out, nil
 }
@@ -430,7 +517,7 @@ func (s *Service) yearAvgRating(ctx context.Context, userID string, year int) (f
 // (unrated counts as the mid-point 10) times the flavour intensity, then every
 // category is normalised so the member's strongest category is 100.
 func (s *Service) Fingerprint(ctx context.Context, userID string) (*Fingerprint, error) {
-	out := &Fingerprint{Axes: []FingerprintAxis{}}
+	out := &Fingerprint{Axes: []FingerprintAxis{}, WholeHistory: true}
 
 	rows, err := s.SQL.QueryContext(ctx, `
 		SELECT f.category,

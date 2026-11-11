@@ -23,7 +23,7 @@
       <div class="card shelf-entry">
         <div>
           <strong>{{.DrinkName}}</strong>
-          <div class="muted">{{if .Brand}}{{.Brand}}{{end}}{{if .Style}} · {{.Style}}{{end}}{{if .Price}} · {{.Price}}{{end}}</div>
+          <div class="muted">{{if .Brand}}{{.Brand}}{{end}}{{if .Style}} · {{.Style}}{{end}}{{if .Price}} · {{.Price}}{{if .Currency}} {{.Currency}}{{end}}{{end}}</div>
           <div class="muted">{{.Seen}} · {{.Band}}{{if eq .Reporters 1}} · 1 member{{else}} · {{.Reporters}} members{{end}}</div>
           {{if .Note}}<p>{{.Note}}</p>{{end}}
         </div>
@@ -52,6 +52,9 @@
       </label>
       <label>Price <span class="hint">optional, like 1.50</span>
         <input type="text" name="price" value="{{.ShelfForm.price}}" inputmode="decimal" autocomplete="off">
+      </label>
+      <label>Currency <span class="hint">optional, like EUR</span>
+        <input type="text" name="currency" value="{{.ShelfForm.currency}}" maxlength="3" autocomplete="off">
       </label>
       <label>Note <span class="hint">optional, up to 140 characters</span>
         <input type="text" name="note" value="{{.ShelfForm.note}}" maxlength="140" autocomplete="off">

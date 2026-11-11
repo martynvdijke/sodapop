@@ -2,6 +2,7 @@ package checkins
 
 import (
 	"context"
+	"database/sql"
 	"math"
 	"sort"
 	"time"
@@ -45,6 +46,16 @@ type DrinkInsight struct {
 	CaffeineMg float64 `json:"caffeine_mg"`
 }
 
+// CurrencySpend is the money spent in one currency inside the window. Totals are
+// kept per currency because adding cents from different units would be
+// meaningless. A check-in with a price but no currency code is reported under
+// the empty currency.
+type CurrencySpend struct {
+	Currency   string `json:"currency"`
+	TotalCents int    `json:"total_cents"`
+	Count      int    `json:"count"`
+}
+
 // Insights summarises a user's sugar, caffeine and calorie intake. Values are
 // unrounded; formatting happens at the web/API response layer.
 type Insights struct {
@@ -68,6 +79,10 @@ type Insights struct {
 	LateCaffeine    bool   `json:"late_caffeine"`
 
 	TopDrinks []DrinkInsight `json:"top_drinks"`
+
+	// Spend totals the recorded prices per currency. It is empty when the range
+	// holds no priced check-in, so the UI can drop the block entirely.
+	Spend []CurrencySpend `json:"spend"`
 }
 
 // NormalizeInsightsDays accepts only the supported sparkline windows and falls
@@ -90,6 +105,8 @@ type insightRow struct {
 	sugarG     float64
 	caffeineMg float64
 	kcal       float64
+	priceCents *int
+	currency   string
 }
 
 // Insights aggregates nutrition for the user's check-ins in the window. It uses
@@ -120,7 +137,7 @@ func (s *Service) Insights(ctx context.Context, userID string, opts InsightsOpti
 	rows, err := s.SQL.QueryContext(ctx, `
 		SELECT c.created_at, d.slug, d.name, COALESCE(b.name,''), d.status,
 		       d.volume_ml, d.sugar_g_per_100ml, d.caffeine_mg_per_100ml,
-		       d.calories_kcal_per_100ml
+		       d.calories_kcal_per_100ml, c.price_cents, COALESCE(c.price_currency,'')
 		FROM checkins c
 		JOIN drinks d ON d.id = c.drink_id
 		LEFT JOIN brands b ON b.id = d.brand_id
@@ -141,14 +158,19 @@ func (s *Service) Insights(ctx context.Context, userID string, opts InsightsOpti
 			sugarPer  float64
 			caffPer   int
 			kcalPer   int
+			price     sql.NullInt64
 		)
 		if err := rows.Scan(&createdAt, &row.slug, &row.name, &row.brand, &row.status,
-			&volumeML, &sugarPer, &caffPer, &kcalPer); err != nil {
+			&volumeML, &sugarPer, &caffPer, &kcalPer, &price, &row.currency); err != nil {
 			return nil, err
 		}
 		ts, perr := time.Parse(time.RFC3339, createdAt)
 		if perr != nil {
 			continue
+		}
+		if price.Valid {
+			v := int(price.Int64)
+			row.priceCents = &v
 		}
 		row.createdAt = ts.UTC()
 		frac := float64(volumeML) / 100
@@ -175,6 +197,7 @@ func (s *Service) Insights(ctx context.Context, userID string, opts InsightsOpti
 	}
 
 	byDrink := make(map[string]*DrinkInsight)
+	spendByCurrency := make(map[string]*CurrencySpend)
 	var totalKcal float64
 
 	var lastCaffeine time.Time
@@ -193,6 +216,16 @@ func (s *Service) Insights(ctx context.Context, userID string, opts InsightsOpti
 		out.CaffeineMg += row.caffeineMg
 		totalKcal += row.kcal
 		out.Pours++
+
+		if row.priceCents != nil {
+			agg := spendByCurrency[row.currency]
+			if agg == nil {
+				agg = &CurrencySpend{Currency: row.currency}
+				spendByCurrency[row.currency] = agg
+			}
+			agg.TotalCents += *row.priceCents
+			agg.Count++
+		}
 
 		if row.caffeineMg > 0 {
 			doses = append(doses, caffeineDose{at: row.createdAt, mg: row.caffeineMg})
@@ -252,6 +285,17 @@ func (s *Service) Insights(ctx context.Context, userID string, opts InsightsOpti
 		top = top[:5]
 	}
 	out.TopDrinks = top
+
+	out.Spend = make([]CurrencySpend, 0, len(spendByCurrency))
+	for _, agg := range spendByCurrency {
+		out.Spend = append(out.Spend, *agg)
+	}
+	sort.Slice(out.Spend, func(i, j int) bool {
+		if out.Spend[i].TotalCents != out.Spend[j].TotalCents {
+			return out.Spend[i].TotalCents > out.Spend[j].TotalCents
+		}
+		return out.Spend[i].Currency < out.Spend[j].Currency
+	})
 
 	return out, nil
 }

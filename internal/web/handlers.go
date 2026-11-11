@@ -356,6 +356,13 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 		s.drinkNotFound(w, r)
 		return
 	}
+	s.renderDrinkPage(w, r, http.StatusOK, d, nil)
+}
+
+// renderDrinkPage renders the drink detail. extra lets a POST handler re-render
+// the same page with its own validation message and submitted values instead of
+// duplicating the load logic.
+func (s *Server) renderDrinkPage(w http.ResponseWriter, r *http.Request, status int, d *catalog.DrinkDetail, extra map[string]any) {
 	lists, _ := s.Auth.Client.List.Query().
 		Where(list.UserID(UserFromContext(r).ID)).
 		Order(ent.Asc(list.FieldName)).All(r.Context())
@@ -367,7 +374,7 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 		favouriteID = *u.FavouriteDrinkID
 		isFavourite = favouriteID == d.Drink.ID
 	}
-	s.render(w, r, http.StatusOK, "drink", map[string]any{
+	data := map[string]any{
 		"Title": d.Drink.Name, "Drink": d, "Lists": lists,
 		"CanManage":        u != nil && (u.Role == "admin" || u.Role == "moderator"),
 		"Images":           gallery.Images,
@@ -378,7 +385,25 @@ func (s *Server) drinkPage(w http.ResponseWriter, r *http.Request) {
 		"FavouriteDrinkID": favouriteID,
 		"Pairings":         s.Pairings.ForDrink(r.Context(), d.Drink.Slug),
 		"PairingsBase":     s.Pairings.Base(),
-	})
+		"BarcodeNotice":    barcodeNoticeFromQuery(r.URL.Query().Get("barcode")),
+	}
+	for k, v := range extra {
+		data[k] = v
+	}
+	s.render(w, r, status, "drink", data)
+}
+
+// barcodeNoticeFromQuery phrases the post-redirect notice for a contributed
+// barcode. Unknown values render nothing rather than a stray banner.
+func barcodeNoticeFromQuery(value string) string {
+	switch value {
+	case "added":
+		return "Barcode added. Thanks for the help."
+	case "present":
+		return "That barcode was already on this soda."
+	default:
+		return ""
+	}
 }
 
 // drinkFavourite pins the drink to the signed-in member's profile. It requires
@@ -476,6 +501,12 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		scaled := int(math.Round(f * 4))
 		rating = &scaled
 	}
+	price, err := parseShelfPrice(r.FormValue("price"))
+	if err != nil {
+		http.Error(w, "enter a price like 1.50, or leave it blank.", http.StatusBadRequest)
+		return
+	}
+	currency := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
 	lat, lng, err := optionalCoordinates(r.FormValue("lat"), r.FormValue("lng"))
 	if err != nil {
 		http.Error(w, "that location could not be read. Turn on location and try again.", http.StatusBadRequest)
@@ -543,6 +574,8 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 		Note:           strings.TrimSpace(r.FormValue("note")),
 		Visibility:     r.FormValue("visibility"),
 		IdempotencyKey: r.FormValue("idempotency_key"),
+		PriceCents:     price,
+		PriceCurrency:  currency,
 		PhotoMediaID:   photoID,
 		Lat:            lat,
 		Lng:            lng,
@@ -560,6 +593,10 @@ func (s *Server) checkinSubmit(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "you can only tag people you are friends with.", http.StatusBadRequest)
 		case errors.Is(err, checkins.ErrTooManyFriends):
 			http.Error(w, "tag up to 10 friends on one check-in.", http.StatusBadRequest)
+		case errors.Is(err, checkins.ErrInvalidPrice):
+			http.Error(w, "enter a price like 1.50, or leave it blank.", http.StatusBadRequest)
+		case errors.Is(err, checkins.ErrInvalidCurrency):
+			http.Error(w, "currency must be a three-letter code such as EUR, or blank.", http.StatusBadRequest)
 		default:
 			http.Error(w, "could not save check-in", http.StatusBadRequest)
 		}

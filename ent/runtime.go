@@ -42,6 +42,7 @@ import (
 	"sodapop/ent/pushsubscription"
 	"sodapop/ent/report"
 	"sodapop/ent/runtimesetting"
+	"sodapop/ent/savedsearch"
 	"sodapop/ent/schedulerstate"
 	"sodapop/ent/schema"
 	"sodapop/ent/session"
@@ -288,20 +289,28 @@ func init() {
 	checkinDescRating := checkinFields[4].Descriptor()
 	// checkin.RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	checkin.RatingValidator = checkinDescRating.Validators[0].(func(int) error)
+	// checkinDescPriceCents is the schema descriptor for price_cents field.
+	checkinDescPriceCents := checkinFields[5].Descriptor()
+	// checkin.PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	checkin.PriceCentsValidator = checkinDescPriceCents.Validators[0].(func(int) error)
+	// checkinDescPriceCurrency is the schema descriptor for price_currency field.
+	checkinDescPriceCurrency := checkinFields[6].Descriptor()
+	// checkin.DefaultPriceCurrency holds the default value on creation for the price_currency field.
+	checkin.DefaultPriceCurrency = checkinDescPriceCurrency.Default.(string)
 	// checkinDescPrepNote is the schema descriptor for prep_note field.
-	checkinDescPrepNote := checkinFields[7].Descriptor()
+	checkinDescPrepNote := checkinFields[9].Descriptor()
 	// checkin.DefaultPrepNote holds the default value on creation for the prep_note field.
 	checkin.DefaultPrepNote = checkinDescPrepNote.Default.(string)
 	// checkinDescNote is the schema descriptor for note field.
-	checkinDescNote := checkinFields[8].Descriptor()
+	checkinDescNote := checkinFields[10].Descriptor()
 	// checkin.DefaultNote holds the default value on creation for the note field.
 	checkin.DefaultNote = checkinDescNote.Default.(string)
 	// checkinDescCreatedAt is the schema descriptor for created_at field.
-	checkinDescCreatedAt := checkinFields[14].Descriptor()
+	checkinDescCreatedAt := checkinFields[16].Descriptor()
 	// checkin.DefaultCreatedAt holds the default value on creation for the created_at field.
 	checkin.DefaultCreatedAt = checkinDescCreatedAt.Default.(func() string)
 	// checkinDescUpdatedAt is the schema descriptor for updated_at field.
-	checkinDescUpdatedAt := checkinFields[15].Descriptor()
+	checkinDescUpdatedAt := checkinFields[17].Descriptor()
 	// checkin.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	checkin.DefaultUpdatedAt = checkinDescUpdatedAt.Default.(func() string)
 	// checkinDescID is the schema descriptor for id field.
@@ -940,6 +949,60 @@ func init() {
 	runtimesettingDescUpdatedAt := runtimesettingFields[6].Descriptor()
 	// runtimesetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	runtimesetting.DefaultUpdatedAt = runtimesettingDescUpdatedAt.Default.(func() string)
+	savedsearchFields := schema.SavedSearch{}.Fields()
+	_ = savedsearchFields
+	// savedsearchDescUserID is the schema descriptor for user_id field.
+	savedsearchDescUserID := savedsearchFields[1].Descriptor()
+	// savedsearch.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	savedsearch.UserIDValidator = savedsearchDescUserID.Validators[0].(func(string) error)
+	// savedsearchDescName is the schema descriptor for name field.
+	savedsearchDescName := savedsearchFields[2].Descriptor()
+	// savedsearch.DefaultName holds the default value on creation for the name field.
+	savedsearch.DefaultName = savedsearchDescName.Default.(string)
+	// savedsearchDescQuery is the schema descriptor for query field.
+	savedsearchDescQuery := savedsearchFields[3].Descriptor()
+	// savedsearch.DefaultQuery holds the default value on creation for the query field.
+	savedsearch.DefaultQuery = savedsearchDescQuery.Default.(string)
+	// savedsearchDescBeverageType is the schema descriptor for beverage_type field.
+	savedsearchDescBeverageType := savedsearchFields[4].Descriptor()
+	// savedsearch.DefaultBeverageType holds the default value on creation for the beverage_type field.
+	savedsearch.DefaultBeverageType = savedsearchDescBeverageType.Default.(string)
+	// savedsearchDescStyleSlug is the schema descriptor for style_slug field.
+	savedsearchDescStyleSlug := savedsearchFields[5].Descriptor()
+	// savedsearch.DefaultStyleSlug holds the default value on creation for the style_slug field.
+	savedsearch.DefaultStyleSlug = savedsearchDescStyleSlug.Default.(string)
+	// savedsearchDescBrandSlug is the schema descriptor for brand_slug field.
+	savedsearchDescBrandSlug := savedsearchFields[6].Descriptor()
+	// savedsearch.DefaultBrandSlug holds the default value on creation for the brand_slug field.
+	savedsearch.DefaultBrandSlug = savedsearchDescBrandSlug.Default.(string)
+	// savedsearchDescFlavourSlug is the schema descriptor for flavour_slug field.
+	savedsearchDescFlavourSlug := savedsearchFields[7].Descriptor()
+	// savedsearch.DefaultFlavourSlug holds the default value on creation for the flavour_slug field.
+	savedsearch.DefaultFlavourSlug = savedsearchDescFlavourSlug.Default.(string)
+	// savedsearchDescCaffeineFree is the schema descriptor for caffeine_free field.
+	savedsearchDescCaffeineFree := savedsearchFields[8].Descriptor()
+	// savedsearch.DefaultCaffeineFree holds the default value on creation for the caffeine_free field.
+	savedsearch.DefaultCaffeineFree = savedsearchDescCaffeineFree.Default.(bool)
+	// savedsearchDescSugarFree is the schema descriptor for sugar_free field.
+	savedsearchDescSugarFree := savedsearchFields[9].Descriptor()
+	// savedsearch.DefaultSugarFree holds the default value on creation for the sugar_free field.
+	savedsearch.DefaultSugarFree = savedsearchDescSugarFree.Default.(bool)
+	// savedsearchDescNotifyDrops is the schema descriptor for notify_drops field.
+	savedsearchDescNotifyDrops := savedsearchFields[10].Descriptor()
+	// savedsearch.DefaultNotifyDrops holds the default value on creation for the notify_drops field.
+	savedsearch.DefaultNotifyDrops = savedsearchDescNotifyDrops.Default.(bool)
+	// savedsearchDescCreatedAt is the schema descriptor for created_at field.
+	savedsearchDescCreatedAt := savedsearchFields[12].Descriptor()
+	// savedsearch.DefaultCreatedAt holds the default value on creation for the created_at field.
+	savedsearch.DefaultCreatedAt = savedsearchDescCreatedAt.Default.(func() string)
+	// savedsearchDescUpdatedAt is the schema descriptor for updated_at field.
+	savedsearchDescUpdatedAt := savedsearchFields[13].Descriptor()
+	// savedsearch.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	savedsearch.DefaultUpdatedAt = savedsearchDescUpdatedAt.Default.(func() string)
+	// savedsearchDescID is the schema descriptor for id field.
+	savedsearchDescID := savedsearchFields[0].Descriptor()
+	// savedsearch.DefaultID holds the default value on creation for the id field.
+	savedsearch.DefaultID = savedsearchDescID.Default.(func() string)
 	schedulerstateFields := schema.SchedulerState{}.Fields()
 	_ = schedulerstateFields
 	// schedulerstateDescName is the schema descriptor for name field.
@@ -1210,16 +1273,20 @@ func init() {
 	venuestockreportDescPriceCents := venuestockreportFields[4].Descriptor()
 	// venuestockreport.PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
 	venuestockreport.PriceCentsValidator = venuestockreportDescPriceCents.Validators[0].(func(int) error)
+	// venuestockreportDescCurrency is the schema descriptor for currency field.
+	venuestockreportDescCurrency := venuestockreportFields[5].Descriptor()
+	// venuestockreport.DefaultCurrency holds the default value on creation for the currency field.
+	venuestockreport.DefaultCurrency = venuestockreportDescCurrency.Default.(string)
 	// venuestockreportDescSeenAt is the schema descriptor for seen_at field.
-	venuestockreportDescSeenAt := venuestockreportFields[6].Descriptor()
+	venuestockreportDescSeenAt := venuestockreportFields[7].Descriptor()
 	// venuestockreport.DefaultSeenAt holds the default value on creation for the seen_at field.
 	venuestockreport.DefaultSeenAt = venuestockreportDescSeenAt.Default.(func() string)
 	// venuestockreportDescCreatedAt is the schema descriptor for created_at field.
-	venuestockreportDescCreatedAt := venuestockreportFields[7].Descriptor()
+	venuestockreportDescCreatedAt := venuestockreportFields[8].Descriptor()
 	// venuestockreport.DefaultCreatedAt holds the default value on creation for the created_at field.
 	venuestockreport.DefaultCreatedAt = venuestockreportDescCreatedAt.Default.(func() string)
 	// venuestockreportDescUpdatedAt is the schema descriptor for updated_at field.
-	venuestockreportDescUpdatedAt := venuestockreportFields[8].Descriptor()
+	venuestockreportDescUpdatedAt := venuestockreportFields[9].Descriptor()
 	// venuestockreport.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	venuestockreport.DefaultUpdatedAt = venuestockreportDescUpdatedAt.Default.(func() string)
 	// venuestockreportDescID is the schema descriptor for id field.

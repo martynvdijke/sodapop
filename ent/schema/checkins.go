@@ -20,6 +20,10 @@ func (Checkin) Fields() []ent.Field {
 		field.Int("drink_id"),
 		field.Int("venue_id").Optional().Nillable(),
 		field.Int("rating").Optional().Nillable().Range(0, 20),
+		// Optional price the member paid, in minor units, with an ISO-4217
+		// currency so spend totals never have to guess the unit.
+		field.Int("price_cents").Optional().Nillable().Range(0, 100000),
+		field.String("price_currency").Default(""),
 		field.Enum("serving").Values("can", "bottle", "glass", "fountain", "other").Default("can"),
 		field.Enum("prep_method").Values("none", "tea_bag", "loose_leaf", "cold_brew", "matcha", "espresso", "pour_over", "french_press", "aeropress", "moka", "drip", "other").Default("none"),
 		field.String("prep_note").Default(""),
@@ -33,6 +37,9 @@ func (Checkin) Fields() []ent.Field {
 		field.String("idempotency_key").Optional().Nillable(),
 		field.String("created_at").DefaultFunc(now),
 		field.String("updated_at").DefaultFunc(now),
+		// edited_at records the last author edit of a check-in. Empty means the
+		// row still reads exactly as it was created.
+		field.String("edited_at").Optional().Nillable(),
 		field.String("deleted_at").Optional().Nillable(),
 	}
 }

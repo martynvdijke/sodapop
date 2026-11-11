@@ -869,6 +869,11 @@
           "can_delete": {
             "type": "boolean",
             "description": "True when the viewer authored the comment or is a moderator."
+          },
+          "edited_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last author edit of the body. Omitted when the comment was never edited."
           }
         }
       },
@@ -1359,6 +1364,24 @@
           "at_home": {
             "type": "boolean",
             "description": "True for the shared hidden @home marker."
+          },
+          "price_cents": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Amount paid in minor units, or null when no price was recorded."
+          },
+          "price_currency": {
+            "type": "string",
+            "description": "ISO-4217 code for price_cents; empty when the unit is unknown."
+          },
+          "edited_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last author edit of the check-in. Omitted when it was never edited."
           }
         },
         "required": [
@@ -1491,6 +1514,20 @@
           "sparse": {
             "type": "boolean",
             "description": "True for a year with fewer than five check-ins."
+          },
+          "years_with_data": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Every year the member has at least one countable check-in, ascending. Soft-deleted check-ins and merged drinks do not count, so each year here has something to show."
+          },
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecapBadge"
+            },
+            "description": "Badges awarded inside this recap year (UTC), ordered by badge slug like the badge list endpoint."
           }
         },
         "required": [
@@ -1500,7 +1537,9 @@
           "rating_buckets",
           "palate",
           "has_data",
-          "sparse"
+          "sparse",
+          "years_with_data",
+          "badges"
         ]
       },
       "RecapTotals": {
@@ -1669,12 +1708,17 @@
           },
           "confident": {
             "type": "boolean"
+          },
+          "whole_history": {
+            "type": "boolean",
+            "description": "True when the axes cover the member's whole history rather than the recap year. Always true today: the fingerprint has no year window."
           }
         },
         "required": [
           "axes",
           "has_data",
-          "confident"
+          "confident",
+          "whole_history"
         ]
       },
       "FingerprintAxis": {
@@ -3447,6 +3491,266 @@
         "required": [
           "friend_checkins",
           "venue_shelf"
+        ]
+      },
+      "CheckinUpdateInput": {
+        "type": "object",
+        "description": "Any subset of the editable fields. An absent field is left untouched; sending null for rating, venue_id or price_cents clears it. Unknown fields are rejected. Only the author may edit, and only while the check-in is inside its 24-hour edit window.",
+        "properties": {
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 20,
+            "description": "Quarter-star rating, 0..20. Null clears it."
+          },
+          "serving": {
+            "type": "string",
+            "enum": [
+              "can",
+              "bottle",
+              "glass",
+              "fountain",
+              "other"
+            ]
+          },
+          "prep_method": {
+            "type": "string",
+            "enum": [
+              "none",
+              "tea_bag",
+              "loose_leaf",
+              "cold_brew",
+              "matcha",
+              "espresso",
+              "pour_over",
+              "french_press",
+              "aeropress",
+              "moka",
+              "drip",
+              "other"
+            ]
+          },
+          "prep_note": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "venue_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Venue id. Null clears the venue; omit to keep it."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "friends",
+              "private"
+            ]
+          },
+          "price_cents": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Amount paid in minor units. Null clears the price."
+          },
+          "price_currency": {
+            "type": "string",
+            "maxLength": 3,
+            "pattern": "^[A-Z]{3}$|^$",
+            "description": "ISO-4217 code, upper-cased on write. Empty means the unit is unknown. Cleared with the price when price_cents is null and no currency is sent."
+          }
+        }
+      },
+      "SavedSearch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "beverage_type": {
+            "type": "string"
+          },
+          "style_slug": {
+            "type": "string"
+          },
+          "brand_slug": {
+            "type": "string"
+          },
+          "flavour_slug": {
+            "type": "string"
+          },
+          "caffeine_free": {
+            "type": "boolean"
+          },
+          "sugar_free": {
+            "type": "boolean"
+          },
+          "notify_drops": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_notified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a drop alert last fired for this search; null until the first one."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "query",
+          "beverage_type",
+          "style_slug",
+          "brand_slug",
+          "flavour_slug",
+          "caffeine_free",
+          "sugar_free",
+          "notify_drops",
+          "created_at",
+          "last_notified_at"
+        ]
+      },
+      "SavedSearchInput": {
+        "type": "object",
+        "description": "At least one filter must be set: an unfiltered search would alert on every catalog drop. Empty strings mean \"any\".",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Optional label. Derived from the filters when blank."
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Free text matched, case-insensitively, against the drink name, brand and description. Empty means any."
+          },
+          "beverage_type": {
+            "type": "string",
+            "enum": [
+              "",
+              "soda",
+              "water",
+              "tea",
+              "coffee",
+              "na_beer",
+              "na_wine",
+              "na_spirit",
+              "other"
+            ],
+            "description": "Empty means any."
+          },
+          "style_slug": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9_-]*$",
+            "description": "Catalog style slug. Empty means any. Existence is not checked, so a search can be saved before the style has a drink."
+          },
+          "brand_slug": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9_-]*$",
+            "description": "Catalog brand slug. Empty means any."
+          },
+          "flavour_slug": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9_-]*$",
+            "description": "Catalog flavour slug, matched against the drink's flavours. Empty means any."
+          },
+          "caffeine_free": {
+            "type": "boolean",
+            "description": "Only drinks with 0 mg caffeine per 100 ml."
+          },
+          "sugar_free": {
+            "type": "boolean",
+            "description": "Only drinks with 0 g sugar per 100 ml."
+          },
+          "notify_drops": {
+            "type": "boolean",
+            "default": true,
+            "description": "Send a drop alert when a matching drink enters the catalog. Defaults to true when omitted."
+          }
+        }
+      },
+      "FollowUser": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Authenticated media route for the avatar, or null when the member has none."
+          },
+          "bio": {
+            "type": "string"
+          },
+          "followed_by_viewer": {
+            "type": "boolean",
+            "description": "True when the authenticated viewer follows this member."
+          },
+          "is_friend": {
+            "type": "boolean",
+            "description": "True when the viewer and this member are accepted friends."
+          }
+        },
+        "required": [
+          "handle",
+          "display_name",
+          "avatar_url",
+          "bio",
+          "followed_by_viewer",
+          "is_friend"
+        ]
+      },
+      "RecapBadge": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "awarded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "awarded_at"
         ]
       }
     },
@@ -5646,6 +5950,80 @@
         "tags": [
           "checkins"
         ]
+      },
+      "patch": {
+        "summary": "Edit your check-in",
+        "description": "Author-only edit of the editable fields, allowed for 24 hours from created_at. Another member's row, a soft-deleted row and a missing id are all 404. An edit after the window is a 400 with code `edit_window_closed`. Values are validated exactly as creation validates them. A successful edit stamps `edited_at`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckinUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated check-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CheckinDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failure, or the 24-hour edit window has closed (`edit_window_closed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "Missing, deleted, or not yours"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "checkins"
+        ]
       }
     },
     "/api/v1/media/{id}": {
@@ -5993,6 +6371,73 @@
           },
           "404": {
             "description": "Missing or not yours"
+          }
+        },
+        "tags": [
+          "checkins"
+        ]
+      },
+      "patch": {
+        "summary": "Edit your comment",
+        "description": "Author-only rewrite of a live comment body. Trimmed, 1–1000 characters. A comment that is missing, soft-deleted or authored by someone else is a 404. The edit stamps `edited_at`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated comment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Comment"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "Missing or not yours"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "tags": [
@@ -10340,6 +10785,533 @@
         },
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/api/v1/me/searches": {
+      "get": {
+        "summary": "List your saved searches",
+        "description": "Newest first. Personal: there is no way to read another member's searches.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Your saved searches.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SavedSearch"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "max": {
+                          "type": "integer",
+                          "description": "Per-member cap (25)."
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "max"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      },
+      "post": {
+        "summary": "Save a catalog search",
+        "description": "Stores a standing catalog query. At least one filter is required. The per-member cap is 25 searches; exceeding it is a 400 with code `limit_reached`. Filters are validated before anything is written.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedSearchInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created. The Location header points at the new search.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SavedSearch"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filters, no filters at all, or the per-member cap was reached (`limit_reached`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/searches/{id}": {
+      "delete": {
+        "summary": "Delete your saved search",
+        "description": "Another member's search and a missing id are both 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "Missing or not yours"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/drinks/{slug}/barcodes": {
+      "post": {
+        "summary": "Attach a barcode to a drink",
+        "description": "Member contribution: attaches a GTIN to an existing drink. The code is normalized to GTIN-14 (GTIN-8/12/13/14 accepted, spaces and hyphens ignored) and its GS1 check digit is verified. A code that already points at this drink is 200 with created false and writes nothing; a code that belongs to another drink is 409 and the message names that drink. New rows are stored with source `user`. Limited to 20 contributions per member per hour. The response is deliberately flat rather than wrapped in `data`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gtin"
+                ],
+                "properties": {
+                  "gtin": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Digits under the barcode. 8–14 digits; spaces and hyphens are ignored."
+                  },
+                  "symbology": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "description": "Optional hint such as `ean13`. Lower-cased; anything that is not a plain identifier is dropped."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Barcode attached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "gtin": {
+                      "type": "string",
+                      "description": "Normalized GTIN-14."
+                    },
+                    "created": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "gtin",
+                    "created"
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "The barcode already belonged to this drink; nothing was written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "gtin": {
+                      "type": "string"
+                    },
+                    "created": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "gtin",
+                    "created"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid gtin, an unknown field, or a bad check digit (`invalid_barcode`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Missing write scope or unverified email"
+          },
+          "404": {
+            "description": "Drink not found"
+          },
+          "409": {
+            "description": "The barcode already belongs to another drink (`barcode_taken`); the message names it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-minute request limit or the 20/hour contribution cap.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "drinks"
+        ]
+      }
+    },
+    "/api/v1/users/{handle}/followers": {
+      "get": {
+        "summary": "List a member's followers",
+        "description": "Members following the profile in the path, newest follow first. Only accounts the viewer may see are returned: a missing, deleted, blocked or non-public profile is a 404 unless the viewer is the owner or an accepted friend, and a member blocked across the viewer is hidden from that viewer's page. Each row carries viewer-relative flags.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Opaque cursor from meta.next_cursor.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One keyset page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FollowUser"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        },
+                        "next_cursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Opaque cursor for the next page; null when there are no more rows."
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "has_more",
+                        "next_cursor"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The `before` cursor is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Missing, deleted, blocked, or not visible to you"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{handle}/following": {
+      "get": {
+        "summary": "List who a member follows",
+        "description": "Members the profile in the path follows, newest follow first. Same visibility and per-row block rules as the followers list.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Opaque cursor from meta.next_cursor.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One keyset page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FollowUser"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        },
+                        "next_cursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Opaque cursor for the next page; null when there are no more rows."
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "has_more",
+                        "next_cursor"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The `before` cursor is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Missing, deleted, blocked, or not visible to you"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "tags": [
+          "users"
         ]
       }
     }

@@ -18,7 +18,7 @@ import (
 const shelfNoteMaxRunes = 140
 
 // shelfMaxPriceCents mirrors the venues service's price ceiling. Prices are
-// plain minor units; Sodapop has no currency concept.
+// plain minor units; the optional currency code says which unit they are in.
 const shelfMaxPriceCents = 100000
 
 // venueShelfGet returns the merged shelf for one venue: member stock reports and
@@ -50,6 +50,7 @@ func (s *Server) venueShelfPost(w http.ResponseWriter, r *http.Request, tok *aut
 	var in struct {
 		DrinkSlug  string `json:"drink_slug"`
 		PriceCents *int   `json:"price_cents"`
+		Currency   string `json:"currency"`
 		Note       string `json:"note"`
 		SeenAt     string `json:"seen_at"`
 	}
@@ -78,6 +79,7 @@ func (s *Server) venueShelfPost(w http.ResponseWriter, r *http.Request, tok *aut
 	entry, err := s.Venues.ReportShelf(r.Context(), tok.User.ID, id, venues.ShelfReportInput{
 		DrinkSlug:  slug,
 		PriceCents: in.PriceCents,
+		Currency:   in.Currency,
 		Note:       note,
 		// An omitted seen_at means "seen just now", which is what the app means
 		// when it does not ask the member for a time.

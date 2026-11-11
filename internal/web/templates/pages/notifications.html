@@ -21,7 +21,7 @@
           {{if .ActorInitial}}<span class="avatar" aria-hidden="true">{{.ActorInitial}}</span>{{else}}<span class="avatar avatar-system" aria-hidden="true">S</span>{{end}}
           <div class="notif-body">
             <p class="notif-kicker">
-              <span>{{if eq .Kind "friend_request"}}Friend request{{else if eq .Kind "friend_accept"}}New friend{{else if eq .Kind "toast"}}Toast{{else if eq .Kind "badge"}}Badge{{else if eq .Kind "comment"}}Comment{{else}}Notification{{end}}</span>
+              <span>{{if eq .Kind "friend_request"}}Friend request{{else if eq .Kind "friend_accept"}}New friend{{else if eq .Kind "toast"}}Toast{{else if eq .Kind "badge"}}Badge{{else if eq .Kind "comment"}}Comment{{else if eq .Kind "drop_alert"}}Catalog drop{{else}}Notification{{end}}</span>
               {{if not .Read}}<span class="unread-flag">Unread</span>{{end}}
             </p>
             <p class="notif-line">{{if .ActorName}}<strong>{{.ActorName}}</strong> {{end}}{{.Text}}</p>

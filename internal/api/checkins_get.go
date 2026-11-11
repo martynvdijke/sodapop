@@ -59,6 +59,11 @@ func checkinDTO(detail *checkins.Detail, tok *auth.APIToken) map[string]any {
 		"can_toast":      tok.User.ID != detail.UserID && !detail.Toasted && tok.HasScope("write") && tok.User.EmailVerifiedAt != nil,
 		"can_comment":    tok.HasScope("write") && tok.User.EmailVerifiedAt != nil,
 		"created_at":     detail.CreatedAt,
+		"price_cents":    detail.PriceCents,
+		"price_currency": detail.PriceCurrency,
+	}
+	if detail.EditedAt != "" {
+		data["edited_at"] = detail.EditedAt
 	}
 	if detail.VenueID != nil {
 		data["venue"] = map[string]any{"id": *detail.VenueID, "name": detail.VenueName}

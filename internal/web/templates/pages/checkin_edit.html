@@ -1,0 +1,99 @@
+{{define "content"}}
+{{$c := .Checkin}}
+<section class="narrow checkin-page">
+  <p class="eyebrow">Edit check-in</p>
+  <h1>{{$c.DrinkName}}</h1>
+  <p class="muted">{{$c.Brand}}{{if $c.Style}} · {{$c.Style}}{{end}} · {{$c.CreatedAt}}</p>
+  <p class="hint">Editing is only possible for 24 hours after a check-in is logged. The photo is unchanged.</p>
+
+  {{if .Error}}<p class="banner error" role="alert">{{.Error}}</p>{{end}}
+
+  <form method="post" action="/checkins/{{$c.ID}}/edit" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+    <label>Rating
+      <select name="rating">
+        <option value=""{{if eq .Form.Rating ""}} selected{{end}}>Not rated</option>
+        {{range .Ratings}}<option value="{{.}}"{{if eq $.Form.Rating .}} selected{{end}}>{{.}} / 5</option>{{end}}
+      </select>
+    </label>
+
+    <label>Serving
+      <select name="serving">
+        <option value="can"{{if eq .Form.Serving "can"}} selected{{end}}>Can</option>
+        <option value="bottle"{{if eq .Form.Serving "bottle"}} selected{{end}}>Bottle</option>
+        <option value="glass"{{if eq .Form.Serving "glass"}} selected{{end}}>Glass</option>
+        <option value="fountain"{{if eq .Form.Serving "fountain"}} selected{{end}}>Fountain</option>
+        <option value="other"{{if eq .Form.Serving "other"}} selected{{end}}>Other</option>
+      </select>
+    </label>
+
+    <fieldset class="checkin-prep">
+      <legend>Preparation <span class="hint">optional · for tea and coffee</span></legend>
+      <label>Method
+        <select name="prep_method">
+          <option value="none"{{if eq .Form.PrepMethod "none"}} selected{{end}}>Not specified</option>
+          <optgroup label="Tea">
+            <option value="tea_bag"{{if eq .Form.PrepMethod "tea_bag"}} selected{{end}}>Tea bag</option>
+            <option value="loose_leaf"{{if eq .Form.PrepMethod "loose_leaf"}} selected{{end}}>Loose leaf</option>
+            <option value="cold_brew"{{if eq .Form.PrepMethod "cold_brew"}} selected{{end}}>Cold brew</option>
+            <option value="matcha"{{if eq .Form.PrepMethod "matcha"}} selected{{end}}>Matcha</option>
+          </optgroup>
+          <optgroup label="Coffee">
+            <option value="espresso"{{if eq .Form.PrepMethod "espresso"}} selected{{end}}>Espresso</option>
+            <option value="pour_over"{{if eq .Form.PrepMethod "pour_over"}} selected{{end}}>Pour-over</option>
+            <option value="french_press"{{if eq .Form.PrepMethod "french_press"}} selected{{end}}>French press</option>
+            <option value="aeropress"{{if eq .Form.PrepMethod "aeropress"}} selected{{end}}>AeroPress</option>
+            <option value="moka"{{if eq .Form.PrepMethod "moka"}} selected{{end}}>Moka pot</option>
+            <option value="drip"{{if eq .Form.PrepMethod "drip"}} selected{{end}}>Drip</option>
+          </optgroup>
+          <option value="other"{{if eq .Form.PrepMethod "other"}} selected{{end}}>Other</option>
+        </select>
+      </label>
+      <label>Details <span class="hint">optional · grind, dose, steep time</span>
+        <input name="prep_note" maxlength="280" value="{{.Form.PrepNote}}" placeholder="18g / 300ml, 3 min steep">
+      </label>
+    </fieldset>
+
+    <fieldset class="checkin-venue">
+      <legend>Where? <span class="hint">optional</span></legend>
+      <label for="venue-select">Venue</label>
+      <select id="venue-select" name="venue_id">
+        <option value="">No venue</option>
+        {{range .Venues}}<option value="{{.ID}}"{{if eq .ID $.Form.VenueID}} selected{{end}}>{{.Name}}{{if .City}} · {{.City}}{{end}}</option>{{end}}
+      </select>
+      {{if $c.AtHome}}<p class="hint">This check-in is marked <strong>@home</strong>; leaving the venue empty keeps it there.</p>{{else}}<p class="hint">Pick from the venues you have used recently, or clear it.</p>{{end}}
+    </fieldset>
+
+    <fieldset class="checkin-price">
+      <legend>Price <span class="hint">optional</span></legend>
+      <div class="checkin-price-row">
+        <label>Amount paid
+          <input name="price" value="{{.Form.PriceAmount}}" inputmode="decimal" autocomplete="off" placeholder="2.50">
+        </label>
+        <label>Currency
+          <input name="currency" value="{{.Form.Currency}}" maxlength="3" autocomplete="off" placeholder="EUR">
+        </label>
+      </div>
+      <p class="hint">Three-letter currency code. Used only for your own spend totals.</p>
+    </fieldset>
+
+    <label>Note <span class="hint">optional</span>
+      <textarea name="note" rows="3" maxlength="1000">{{.Form.Note}}</textarea>
+    </label>
+
+    <label>Who can see this?
+      <select name="visibility">
+        <option value="public"{{if eq .Form.Visibility "public"}} selected{{end}}>Anyone (still only visible in friends' feeds)</option>
+        <option value="friends"{{if eq .Form.Visibility "friends"}} selected{{end}}>Friends</option>
+        <option value="private"{{if eq .Form.Visibility "private"}} selected{{end}}>Private</option>
+      </select>
+    </label>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Save changes</button>
+      <a class="btn" href="/checkins/{{$c.ID}}">Cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}
