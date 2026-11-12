@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/martynvdijke/sodapop/compare/v1.33.0...v1.34.0) (2026-11-12)
+
+
+### Features
+
+* manage Firebase Cloud Messaging from the admin panel ([2011d62](https://github.com/martynvdijke/sodapop/commit/2011d629d17b6f1d8dbb10bebd2a6bbafbd96351))
+
 # [1.33.0](https://github.com/martynvdijke/sodapop/compare/v1.32.0...v1.33.0) (2026-11-12)
 
 
