@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/martynvdijke/sodapop/compare/v1.31.0...v1.32.0) (2026-11-12)
+
+
+### Features
+
+* stream notifications to the Android app ([14a7508](https://github.com/martynvdijke/sodapop/commit/14a7508ae5b4e40893aa096a470afa53e1f0bd95))
+
 # [1.31.0](https://github.com/martynvdijke/sodapop/compare/v1.30.2...v1.31.0) (2026-11-12)
 
 
