@@ -16,8 +16,8 @@ changes.
    `POST /api/v1/me/push/devices`. Sign-out sends `DELETE` and unregisters the
    token at Firebase.
 2. When a push-worthy notification is written (`friend_request`,
-   `friend_accept`, `toast`, `comment`, `mention`), the outbox queues one `fcm`
-   row per registered device.
+   `friend_accept`, `friend_checkin`, `toast`, `comment`, `mention`), the outbox
+   queues one `fcm` row per registered device.
 3. The worker mints a Google OAuth2 token from the service-account key
    (RS256 JWT assertion, cached until shortly before expiry) and posts to
    `https://fcm.googleapis.com/v1/projects/<project>/messages:send`.

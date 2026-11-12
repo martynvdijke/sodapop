@@ -208,6 +208,11 @@ func run() error {
 			if subjectID != "" {
 				target = "/checkins/" + subjectID + "#comments"
 			}
+		case "friend_checkin":
+			eventKind, target = integrations.EventCheckin, "/"
+			if subjectID != "" {
+				target = "/checkins/" + subjectID
+			}
 		default:
 			return
 		}

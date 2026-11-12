@@ -22,6 +22,9 @@ func (Follow) Fields() []ent.Field {
 func (Follow) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("follower_id", "followee_id").Unique(),
+		// Reverse lookups (who follows this member) drive follower fan-out on
+		// every new check-in.
+		index.Fields("followee_id"),
 	}
 }
 
@@ -99,7 +102,7 @@ func (Notification) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").DefaultFunc(newID).Immutable(),
 		field.String("user_id").NotEmpty(),
-		field.Enum("kind").Values("friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "drop_alert", "system").Default("system"),
+		field.Enum("kind").Values("friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "drop_alert", "friend_checkin", "system").Default("system"),
 		field.String("actor_id").Optional().Nillable(),
 		field.String("subject_id").Default(""),
 		field.String("text").Default(""),

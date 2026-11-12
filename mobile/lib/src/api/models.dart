@@ -2155,6 +2155,7 @@ class SettingsPrefs {
     this.emailWeekly = false,
     this.emailFriendReq = false,
     this.pushEnabled = false,
+    this.friendCheckinAlerts = true,
     this.publicProfile = false,
     this.analyticsOptOut = false,
     this.caffeineBedtime = '',
@@ -2166,6 +2167,7 @@ class SettingsPrefs {
   final bool emailWeekly;
   final bool emailFriendReq;
   final bool pushEnabled;
+  final bool friendCheckinAlerts;
   final bool publicProfile;
   final bool analyticsOptOut;
   final String caffeineBedtime;
@@ -2177,6 +2179,9 @@ class SettingsPrefs {
     emailWeekly: _bool(json['email_weekly']),
     emailFriendReq: _bool(json['email_friend_req']),
     pushEnabled: _bool(json['push_enabled']),
+    friendCheckinAlerts: json['friend_checkin_alerts'] == null
+        ? true
+        : _bool(json['friend_checkin_alerts']),
     publicProfile: _bool(json['public_profile']),
     analyticsOptOut: _bool(json['analytics_opt_out']),
     caffeineBedtime: _string(json['caffeine_bedtime']),

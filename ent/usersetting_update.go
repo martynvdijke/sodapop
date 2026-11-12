@@ -83,6 +83,20 @@ func (_u *UserSettingUpdate) SetNillablePushEnabled(v *bool) *UserSettingUpdate 
 	return _u
 }
 
+// SetFriendCheckinAlerts sets the "friend_checkin_alerts" field.
+func (_u *UserSettingUpdate) SetFriendCheckinAlerts(v bool) *UserSettingUpdate {
+	_u.mutation.SetFriendCheckinAlerts(v)
+	return _u
+}
+
+// SetNillableFriendCheckinAlerts sets the "friend_checkin_alerts" field if the given value is not nil.
+func (_u *UserSettingUpdate) SetNillableFriendCheckinAlerts(v *bool) *UserSettingUpdate {
+	if v != nil {
+		_u.SetFriendCheckinAlerts(*v)
+	}
+	return _u
+}
+
 // SetWishlistFriendAlerts sets the "wishlist_friend_alerts" field.
 func (_u *UserSettingUpdate) SetWishlistFriendAlerts(v bool) *UserSettingUpdate {
 	_u.mutation.SetWishlistFriendAlerts(v)
@@ -257,6 +271,9 @@ func (_u *UserSettingUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.PushEnabled(); ok {
 		_spec.SetField(usersetting.FieldPushEnabled, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.FriendCheckinAlerts(); ok {
+		_spec.SetField(usersetting.FieldFriendCheckinAlerts, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.WishlistFriendAlerts(); ok {
 		_spec.SetField(usersetting.FieldWishlistFriendAlerts, field.TypeBool, value)
 	}
@@ -350,6 +367,20 @@ func (_u *UserSettingUpdateOne) SetPushEnabled(v bool) *UserSettingUpdateOne {
 func (_u *UserSettingUpdateOne) SetNillablePushEnabled(v *bool) *UserSettingUpdateOne {
 	if v != nil {
 		_u.SetPushEnabled(*v)
+	}
+	return _u
+}
+
+// SetFriendCheckinAlerts sets the "friend_checkin_alerts" field.
+func (_u *UserSettingUpdateOne) SetFriendCheckinAlerts(v bool) *UserSettingUpdateOne {
+	_u.mutation.SetFriendCheckinAlerts(v)
+	return _u
+}
+
+// SetNillableFriendCheckinAlerts sets the "friend_checkin_alerts" field if the given value is not nil.
+func (_u *UserSettingUpdateOne) SetNillableFriendCheckinAlerts(v *bool) *UserSettingUpdateOne {
+	if v != nil {
+		_u.SetFriendCheckinAlerts(*v)
 	}
 	return _u
 }
@@ -557,6 +588,9 @@ func (_u *UserSettingUpdateOne) sqlSave(ctx context.Context) (_node *UserSetting
 	}
 	if value, ok := _u.mutation.PushEnabled(); ok {
 		_spec.SetField(usersetting.FieldPushEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.FriendCheckinAlerts(); ok {
+		_spec.SetField(usersetting.FieldFriendCheckinAlerts, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.WishlistFriendAlerts(); ok {
 		_spec.SetField(usersetting.FieldWishlistFriendAlerts, field.TypeBool, value)

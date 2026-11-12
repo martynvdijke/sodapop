@@ -2681,6 +2681,9 @@
           "push_enabled": {
             "type": "boolean"
           },
+          "friend_checkin_alerts": {
+            "type": "boolean"
+          },
           "public_profile": {
             "type": "boolean"
           },
@@ -2706,6 +2709,7 @@
           "email_weekly",
           "email_friend_req",
           "push_enabled",
+          "friend_checkin_alerts",
           "public_profile",
           "analytics_opt_out",
           "caffeine_bedtime",
@@ -4805,6 +4809,9 @@
                     "type": "boolean"
                   },
                   "push_enabled": {
+                    "type": "boolean"
+                  },
+                  "friend_checkin_alerts": {
                     "type": "boolean"
                   },
                   "public_profile": {

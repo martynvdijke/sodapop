@@ -236,7 +236,79 @@ func (s *Service) Create(ctx context.Context, u *ent.User, in CreateInput) (*ent
 	// Wishlist availability alerts are best effort and in-app only. They run
 	// after the commit so a notification error can never undo the check-in.
 	s.notifyWishlistFriends(ctx, u, c, visibility)
+	// Followers hear about new check-ins they are allowed to see. Also best
+	// effort: the check-in is already committed.
+	s.notifyFollowers(ctx, u, c, visibility)
 	return c, true, nil
+}
+
+// notifyFollowers tells the author's followers about a new check-in they can
+// see. Followers who opted out via friend_checkin_alerts receive nothing, and
+// a missing settings row means the preference is on. Block filtering happens
+// inside social.Notify. Every failure is logged and never returned: the
+// check-in is already committed and this is a convenience notification.
+func (s *Service) notifyFollowers(ctx context.Context, actor *ent.User, c *ent.Checkin, visibility string) {
+	if s.Social == nil || actor == nil || c == nil {
+		return
+	}
+	if visibility == "private" {
+		return
+	}
+	query := `
+		SELECT f.follower_id
+		FROM follows f
+		LEFT JOIN user_settings us ON us.user_id = f.follower_id
+		WHERE f.followee_id = ? AND f.follower_id <> ?
+		  AND COALESCE(us.friend_checkin_alerts, 1) = 1`
+	args := []any{actor.ID, actor.ID}
+	if visibility == "friends" {
+		query += `
+		  AND EXISTS (
+		    SELECT 1 FROM friendships fr
+		    WHERE fr.status = 'accepted'
+		      AND ((fr.user_a = ? AND fr.user_b = f.follower_id)
+		        OR (fr.user_b = ? AND fr.user_a = f.follower_id))
+		  )`
+		args = append(args, actor.ID, actor.ID)
+	}
+	rows, err := s.SQL.QueryContext(ctx, query, args...)
+	if err != nil {
+		slog.ErrorContext(ctx, "friend check-in alert: followers query", "err", err, "user_id", actor.ID)
+		return
+	}
+	recipients := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			slog.ErrorContext(ctx, "friend check-in alert: scan", "err", err)
+			return
+		}
+		recipients = append(recipients, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		slog.ErrorContext(ctx, "friend check-in alert: rows", "err", err)
+		return
+	}
+	if len(recipients) == 0 {
+		return
+	}
+
+	var drinkName string
+	if err := s.SQL.QueryRowContext(ctx, `SELECT name FROM drinks WHERE id = ?`, c.DrinkID).Scan(&drinkName); err != nil {
+		slog.ErrorContext(ctx, "friend check-in alert: drink name", "err", err, "drink_id", c.DrinkID)
+		return
+	}
+	text := fmt.Sprintf("%s checked in %s", displayName(actor), drinkName)
+	for _, recipient := range recipients {
+		if recipient == actor.ID {
+			continue
+		}
+		if err := s.Social.Notify(ctx, recipient, string(notification.KindFriendCheckin), actor.ID, c.ID, text); err != nil {
+			slog.ErrorContext(ctx, "friend check-in alert: notify", "err", err, "user_id", recipient)
+		}
+	}
 }
 
 // wishlistFriendWindow is the per-(recipient, drink) cooldown for friend

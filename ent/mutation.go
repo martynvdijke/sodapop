@@ -34118,6 +34118,7 @@ type UserSettingMutation struct {
 	email_friend_req       *bool
 	email_weekly           *bool
 	push_enabled           *bool
+	friend_checkin_alerts  *bool
 	wishlist_friend_alerts *bool
 	wishlist_shelf_alerts  *bool
 	theme                  *usersetting.Theme
@@ -34371,6 +34372,42 @@ func (m *UserSettingMutation) OldPushEnabled(ctx context.Context) (v bool, err e
 // ResetPushEnabled resets all changes to the "push_enabled" field.
 func (m *UserSettingMutation) ResetPushEnabled() {
 	m.push_enabled = nil
+}
+
+// SetFriendCheckinAlerts sets the "friend_checkin_alerts" field.
+func (m *UserSettingMutation) SetFriendCheckinAlerts(b bool) {
+	m.friend_checkin_alerts = &b
+}
+
+// FriendCheckinAlerts returns the value of the "friend_checkin_alerts" field in the mutation.
+func (m *UserSettingMutation) FriendCheckinAlerts() (r bool, exists bool) {
+	v := m.friend_checkin_alerts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFriendCheckinAlerts returns the old "friend_checkin_alerts" field's value of the UserSetting entity.
+// If the UserSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSettingMutation) OldFriendCheckinAlerts(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFriendCheckinAlerts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFriendCheckinAlerts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFriendCheckinAlerts: %w", err)
+	}
+	return oldValue.FriendCheckinAlerts, nil
+}
+
+// ResetFriendCheckinAlerts resets all changes to the "friend_checkin_alerts" field.
+func (m *UserSettingMutation) ResetFriendCheckinAlerts() {
+	m.friend_checkin_alerts = nil
 }
 
 // SetWishlistFriendAlerts sets the "wishlist_friend_alerts" field.
@@ -34659,7 +34696,7 @@ func (m *UserSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSettingMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.user_id != nil {
 		fields = append(fields, usersetting.FieldUserID)
 	}
@@ -34671,6 +34708,9 @@ func (m *UserSettingMutation) Fields() []string {
 	}
 	if m.push_enabled != nil {
 		fields = append(fields, usersetting.FieldPushEnabled)
+	}
+	if m.friend_checkin_alerts != nil {
+		fields = append(fields, usersetting.FieldFriendCheckinAlerts)
 	}
 	if m.wishlist_friend_alerts != nil {
 		fields = append(fields, usersetting.FieldWishlistFriendAlerts)
@@ -34709,6 +34749,8 @@ func (m *UserSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.EmailWeekly()
 	case usersetting.FieldPushEnabled:
 		return m.PushEnabled()
+	case usersetting.FieldFriendCheckinAlerts:
+		return m.FriendCheckinAlerts()
 	case usersetting.FieldWishlistFriendAlerts:
 		return m.WishlistFriendAlerts()
 	case usersetting.FieldWishlistShelfAlerts:
@@ -34740,6 +34782,8 @@ func (m *UserSettingMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldEmailWeekly(ctx)
 	case usersetting.FieldPushEnabled:
 		return m.OldPushEnabled(ctx)
+	case usersetting.FieldFriendCheckinAlerts:
+		return m.OldFriendCheckinAlerts(ctx)
 	case usersetting.FieldWishlistFriendAlerts:
 		return m.OldWishlistFriendAlerts(ctx)
 	case usersetting.FieldWishlistShelfAlerts:
@@ -34790,6 +34834,13 @@ func (m *UserSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPushEnabled(v)
+		return nil
+	case usersetting.FieldFriendCheckinAlerts:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFriendCheckinAlerts(v)
 		return nil
 	case usersetting.FieldWishlistFriendAlerts:
 		v, ok := value.(bool)
@@ -34900,6 +34951,9 @@ func (m *UserSettingMutation) ResetField(name string) error {
 		return nil
 	case usersetting.FieldPushEnabled:
 		m.ResetPushEnabled()
+		return nil
+	case usersetting.FieldFriendCheckinAlerts:
+		m.ResetFriendCheckinAlerts()
 		return nil
 	case usersetting.FieldWishlistFriendAlerts:
 		m.ResetWishlistFriendAlerts()

@@ -104,6 +104,7 @@ func TestOnNotifyCommentAndMention(t *testing.T) {
 	}{
 		{"comment", string(notification.KindComment), "commented on your check-in"},
 		{"mention", string(notification.KindMention), "mentioned you in a comment"},
+		{"friend_checkin", string(notification.KindFriendCheckin), "Alice checked in Ginger Beer"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

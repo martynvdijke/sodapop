@@ -50,6 +50,7 @@ var pushKinds = map[string]bool{
 	"toast":          true,
 	"comment":        true,
 	"mention":        true,
+	"friend_checkin": true,
 }
 
 // afterNotify invokes OnNotify for push-worthy kinds. Callers invoke it only

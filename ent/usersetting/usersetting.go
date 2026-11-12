@@ -21,6 +21,8 @@ const (
 	FieldEmailWeekly = "email_weekly"
 	// FieldPushEnabled holds the string denoting the push_enabled field in the database.
 	FieldPushEnabled = "push_enabled"
+	// FieldFriendCheckinAlerts holds the string denoting the friend_checkin_alerts field in the database.
+	FieldFriendCheckinAlerts = "friend_checkin_alerts"
 	// FieldWishlistFriendAlerts holds the string denoting the wishlist_friend_alerts field in the database.
 	FieldWishlistFriendAlerts = "wishlist_friend_alerts"
 	// FieldWishlistShelfAlerts holds the string denoting the wishlist_shelf_alerts field in the database.
@@ -46,6 +48,7 @@ var Columns = []string{
 	FieldEmailFriendReq,
 	FieldEmailWeekly,
 	FieldPushEnabled,
+	FieldFriendCheckinAlerts,
 	FieldWishlistFriendAlerts,
 	FieldWishlistShelfAlerts,
 	FieldTheme,
@@ -74,6 +77,8 @@ var (
 	DefaultEmailWeekly bool
 	// DefaultPushEnabled holds the default value on creation for the "push_enabled" field.
 	DefaultPushEnabled bool
+	// DefaultFriendCheckinAlerts holds the default value on creation for the "friend_checkin_alerts" field.
+	DefaultFriendCheckinAlerts bool
 	// DefaultWishlistFriendAlerts holds the default value on creation for the "wishlist_friend_alerts" field.
 	DefaultWishlistFriendAlerts bool
 	// DefaultWishlistShelfAlerts holds the default value on creation for the "wishlist_shelf_alerts" field.
@@ -165,6 +170,11 @@ func ByEmailWeekly(opts ...sql.OrderTermOption) OrderOption {
 // ByPushEnabled orders the results by the push_enabled field.
 func ByPushEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPushEnabled, opts...).ToFunc()
+}
+
+// ByFriendCheckinAlerts orders the results by the friend_checkin_alerts field.
+func ByFriendCheckinAlerts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFriendCheckinAlerts, opts...).ToFunc()
 }
 
 // ByWishlistFriendAlerts orders the results by the wishlist_friend_alerts field.

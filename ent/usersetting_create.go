@@ -67,6 +67,20 @@ func (_c *UserSettingCreate) SetNillablePushEnabled(v *bool) *UserSettingCreate 
 	return _c
 }
 
+// SetFriendCheckinAlerts sets the "friend_checkin_alerts" field.
+func (_c *UserSettingCreate) SetFriendCheckinAlerts(v bool) *UserSettingCreate {
+	_c.mutation.SetFriendCheckinAlerts(v)
+	return _c
+}
+
+// SetNillableFriendCheckinAlerts sets the "friend_checkin_alerts" field if the given value is not nil.
+func (_c *UserSettingCreate) SetNillableFriendCheckinAlerts(v *bool) *UserSettingCreate {
+	if v != nil {
+		_c.SetFriendCheckinAlerts(*v)
+	}
+	return _c
+}
+
 // SetWishlistFriendAlerts sets the "wishlist_friend_alerts" field.
 func (_c *UserSettingCreate) SetWishlistFriendAlerts(v bool) *UserSettingCreate {
 	_c.mutation.SetWishlistFriendAlerts(v)
@@ -212,6 +226,10 @@ func (_c *UserSettingCreate) defaults() {
 		v := usersetting.DefaultPushEnabled
 		_c.mutation.SetPushEnabled(v)
 	}
+	if _, ok := _c.mutation.FriendCheckinAlerts(); !ok {
+		v := usersetting.DefaultFriendCheckinAlerts
+		_c.mutation.SetFriendCheckinAlerts(v)
+	}
 	if _, ok := _c.mutation.WishlistFriendAlerts(); !ok {
 		v := usersetting.DefaultWishlistFriendAlerts
 		_c.mutation.SetWishlistFriendAlerts(v)
@@ -260,6 +278,9 @@ func (_c *UserSettingCreate) check() error {
 	}
 	if _, ok := _c.mutation.PushEnabled(); !ok {
 		return &ValidationError{Name: "push_enabled", err: errors.New(`ent: missing required field "UserSetting.push_enabled"`)}
+	}
+	if _, ok := _c.mutation.FriendCheckinAlerts(); !ok {
+		return &ValidationError{Name: "friend_checkin_alerts", err: errors.New(`ent: missing required field "UserSetting.friend_checkin_alerts"`)}
 	}
 	if _, ok := _c.mutation.WishlistFriendAlerts(); !ok {
 		return &ValidationError{Name: "wishlist_friend_alerts", err: errors.New(`ent: missing required field "UserSetting.wishlist_friend_alerts"`)}
@@ -333,6 +354,10 @@ func (_c *UserSettingCreate) createSpec() (*UserSetting, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PushEnabled(); ok {
 		_spec.SetField(usersetting.FieldPushEnabled, field.TypeBool, value)
 		_node.PushEnabled = value
+	}
+	if value, ok := _c.mutation.FriendCheckinAlerts(); ok {
+		_spec.SetField(usersetting.FieldFriendCheckinAlerts, field.TypeBool, value)
+		_node.FriendCheckinAlerts = value
 	}
 	if value, ok := _c.mutation.WishlistFriendAlerts(); ok {
 		_spec.SetField(usersetting.FieldWishlistFriendAlerts, field.TypeBool, value)

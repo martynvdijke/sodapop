@@ -1149,24 +1149,28 @@ func init() {
 	usersettingDescPushEnabled := usersettingFields[3].Descriptor()
 	// usersetting.DefaultPushEnabled holds the default value on creation for the push_enabled field.
 	usersetting.DefaultPushEnabled = usersettingDescPushEnabled.Default.(bool)
+	// usersettingDescFriendCheckinAlerts is the schema descriptor for friend_checkin_alerts field.
+	usersettingDescFriendCheckinAlerts := usersettingFields[4].Descriptor()
+	// usersetting.DefaultFriendCheckinAlerts holds the default value on creation for the friend_checkin_alerts field.
+	usersetting.DefaultFriendCheckinAlerts = usersettingDescFriendCheckinAlerts.Default.(bool)
 	// usersettingDescWishlistFriendAlerts is the schema descriptor for wishlist_friend_alerts field.
-	usersettingDescWishlistFriendAlerts := usersettingFields[4].Descriptor()
+	usersettingDescWishlistFriendAlerts := usersettingFields[5].Descriptor()
 	// usersetting.DefaultWishlistFriendAlerts holds the default value on creation for the wishlist_friend_alerts field.
 	usersetting.DefaultWishlistFriendAlerts = usersettingDescWishlistFriendAlerts.Default.(bool)
 	// usersettingDescWishlistShelfAlerts is the schema descriptor for wishlist_shelf_alerts field.
-	usersettingDescWishlistShelfAlerts := usersettingFields[5].Descriptor()
+	usersettingDescWishlistShelfAlerts := usersettingFields[6].Descriptor()
 	// usersetting.DefaultWishlistShelfAlerts holds the default value on creation for the wishlist_shelf_alerts field.
 	usersetting.DefaultWishlistShelfAlerts = usersettingDescWishlistShelfAlerts.Default.(bool)
 	// usersettingDescPublicProfile is the schema descriptor for public_profile field.
-	usersettingDescPublicProfile := usersettingFields[7].Descriptor()
+	usersettingDescPublicProfile := usersettingFields[8].Descriptor()
 	// usersetting.DefaultPublicProfile holds the default value on creation for the public_profile field.
 	usersetting.DefaultPublicProfile = usersettingDescPublicProfile.Default.(bool)
 	// usersettingDescCaffeineBedtime is the schema descriptor for caffeine_bedtime field.
-	usersettingDescCaffeineBedtime := usersettingFields[9].Descriptor()
+	usersettingDescCaffeineBedtime := usersettingFields[10].Descriptor()
 	// usersetting.DefaultCaffeineBedtime holds the default value on creation for the caffeine_bedtime field.
 	usersetting.DefaultCaffeineBedtime = usersettingDescCaffeineBedtime.Default.(string)
 	// usersettingDescUpdatedAt is the schema descriptor for updated_at field.
-	usersettingDescUpdatedAt := usersettingFields[10].Descriptor()
+	usersettingDescUpdatedAt := usersettingFields[11].Descriptor()
 	// usersetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	usersetting.DefaultUpdatedAt = usersettingDescUpdatedAt.Default.(func() string)
 	venueFields := schema.Venue{}.Fields()

@@ -30,15 +30,16 @@ type settingsProfileDTO struct {
 // settingsPrefsDTO mirrors the editable preference fields plus the user-level
 // privacy fields that live on the user row rather than user_settings.
 type settingsPrefsDTO struct {
-	Theme             string `json:"theme"`
-	Units             string `json:"units"`
-	EmailWeekly       bool   `json:"email_weekly"`
-	EmailFriendReq    bool   `json:"email_friend_req"`
-	PushEnabled       bool   `json:"push_enabled"`
-	PublicProfile     bool   `json:"public_profile"`
-	AnalyticsOptOut   bool   `json:"analytics_opt_out"`
-	CaffeineBedtime   string `json:"caffeine_bedtime"`
-	DefaultVisibility string `json:"default_visibility"`
+	Theme               string `json:"theme"`
+	Units               string `json:"units"`
+	EmailWeekly         bool   `json:"email_weekly"`
+	EmailFriendReq      bool   `json:"email_friend_req"`
+	PushEnabled         bool   `json:"push_enabled"`
+	FriendCheckinAlerts bool   `json:"friend_checkin_alerts"`
+	PublicProfile       bool   `json:"public_profile"`
+	AnalyticsOptOut     bool   `json:"analytics_opt_out"`
+	CaffeineBedtime     string `json:"caffeine_bedtime"`
+	DefaultVisibility   string `json:"default_visibility"`
 }
 
 // settingsSessionDTO is one browser session. Token-authenticated API requests
@@ -73,17 +74,18 @@ func (s *Server) meSettingsGet(w http.ResponseWriter, r *http.Request, tok *auth
 // settingsPatchInput uses pointers so an absent field is distinguishable from
 // an explicitly falsy value. Clients may send any subset of the fields.
 type settingsPatchInput struct {
-	DisplayName       *string `json:"display_name"`
-	Bio               *string `json:"bio"`
-	Theme             *string `json:"theme"`
-	Units             *string `json:"units"`
-	EmailWeekly       *bool   `json:"email_weekly"`
-	EmailFriendReq    *bool   `json:"email_friend_req"`
-	PushEnabled       *bool   `json:"push_enabled"`
-	PublicProfile     *bool   `json:"public_profile"`
-	AnalyticsOptOut   *bool   `json:"analytics_opt_out"`
-	CaffeineBedtime   *string `json:"caffeine_bedtime"`
-	DefaultVisibility *string `json:"default_visibility"`
+	DisplayName         *string `json:"display_name"`
+	Bio                 *string `json:"bio"`
+	Theme               *string `json:"theme"`
+	Units               *string `json:"units"`
+	EmailWeekly         *bool   `json:"email_weekly"`
+	EmailFriendReq      *bool   `json:"email_friend_req"`
+	PushEnabled         *bool   `json:"push_enabled"`
+	FriendCheckinAlerts *bool   `json:"friend_checkin_alerts"`
+	PublicProfile       *bool   `json:"public_profile"`
+	AnalyticsOptOut     *bool   `json:"analytics_opt_out"`
+	CaffeineBedtime     *string `json:"caffeine_bedtime"`
+	DefaultVisibility   *string `json:"default_visibility"`
 }
 
 // meSettingsPatch handles PATCH /api/v1/me/settings. It validates every supplied
@@ -171,6 +173,10 @@ func (s *Server) meSettingsPatch(w http.ResponseWriter, r *http.Request, tok *au
 		prefUpdate.SetPushEnabled(*in.PushEnabled)
 		prefChanged = true
 	}
+	if in.FriendCheckinAlerts != nil {
+		prefUpdate.SetFriendCheckinAlerts(*in.FriendCheckinAlerts)
+		prefChanged = true
+	}
 	if in.PublicProfile != nil {
 		prefUpdate.SetPublicProfile(*in.PublicProfile)
 		prefChanged = true
@@ -242,15 +248,16 @@ func (s *Server) settingsPayload(ctx context.Context, r *http.Request, userID st
 			AvatarURL:     avatarURL(u.AvatarMediaID),
 		},
 		Prefs: settingsPrefsDTO{
-			Theme:             string(prefs.Theme),
-			Units:             string(prefs.Units),
-			EmailWeekly:       prefs.EmailWeekly,
-			EmailFriendReq:    prefs.EmailFriendReq,
-			PushEnabled:       prefs.PushEnabled,
-			PublicProfile:     prefs.PublicProfile,
-			AnalyticsOptOut:   u.AnalyticsOptOut,
-			CaffeineBedtime:   prefs.CaffeineBedtime,
-			DefaultVisibility: string(u.DefaultVisibility),
+			Theme:               string(prefs.Theme),
+			Units:               string(prefs.Units),
+			EmailWeekly:         prefs.EmailWeekly,
+			EmailFriendReq:      prefs.EmailFriendReq,
+			PushEnabled:         prefs.PushEnabled,
+			FriendCheckinAlerts: prefs.FriendCheckinAlerts,
+			PublicProfile:       prefs.PublicProfile,
+			AnalyticsOptOut:     u.AnalyticsOptOut,
+			CaffeineBedtime:     prefs.CaffeineBedtime,
+			DefaultVisibility:   string(u.DefaultVisibility),
 		},
 		Sessions:     sessions,
 		TokenCount:   tokenCount,

@@ -43,6 +43,9 @@ func TestSettingsGetShape(t *testing.T) {
 	if data.Prefs.DefaultVisibility != "public" {
 		t.Errorf("default visibility = %q, want public", data.Prefs.DefaultVisibility)
 	}
+	if !data.Prefs.FriendCheckinAlerts {
+		t.Errorf("friend_checkin_alerts default = false, want true")
+	}
 	if data.TokenCount != 1 {
 		t.Errorf("token count = %d, want 1", data.TokenCount)
 	}
@@ -77,7 +80,8 @@ func TestSettingsPatchPartialUpdate(t *testing.T) {
 	rec = h.do(t, http.MethodPatch, "/api/v1/me/settings",
 		`{"bio":"new bio","theme":"dark","units":"imperial","email_weekly":true,`+
 			`"email_friend_req":false,"push_enabled":true,"public_profile":true,`+
-			`"analytics_opt_out":true,"caffeine_bedtime":"21:30","default_visibility":"friends"}`, true)
+			`"analytics_opt_out":true,"caffeine_bedtime":"21:30","default_visibility":"friends",`+
+			`"friend_checkin_alerts":false}`, true)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("prefs patch = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -88,7 +92,7 @@ func TestSettingsPatchPartialUpdate(t *testing.T) {
 	p := data.Prefs
 	if p.Theme != "dark" || p.Units != "imperial" || !p.EmailWeekly || p.EmailFriendReq ||
 		!p.PushEnabled || !p.PublicProfile || !p.AnalyticsOptOut || p.CaffeineBedtime != "21:30" ||
-		p.DefaultVisibility != "friends" {
+		p.DefaultVisibility != "friends" || p.FriendCheckinAlerts {
 		t.Errorf("prefs not applied: %+v", p)
 	}
 
@@ -99,6 +103,9 @@ func TestSettingsPatchPartialUpdate(t *testing.T) {
 	}
 	if prefs.Theme != usersetting.ThemeDark || prefs.Units != usersetting.UnitsImperial {
 		t.Errorf("persisted prefs = %+v", prefs)
+	}
+	if prefs.FriendCheckinAlerts {
+		t.Errorf("persisted friend_checkin_alerts = true, want false")
 	}
 	u, err := h.server.DB.Client.User.Get(ctx, h.alice)
 	if err != nil {

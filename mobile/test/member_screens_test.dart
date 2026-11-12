@@ -97,6 +97,17 @@ class _NotificationsApi extends ApiClient {
           read: false,
           createdAt: '2026-10-25T10:00:00Z',
         ),
+        NotificationItem(
+          id: 'n3',
+          kind: 'friend_checkin',
+          actorHandle: 'linus',
+          actorDisplayName: 'Linus Soda',
+          actorInitial: 'L',
+          body: 'checked in Cherry Cola.',
+          href: '/checkins/c2',
+          read: false,
+          createdAt: '2026-10-26T10:00:00Z',
+        ),
       ];
 
   @override
@@ -227,6 +238,7 @@ void main() {
     );
     expect(find.text('Accept'), findsOneWidget);
     expect(find.text('Decline'), findsOneWidget);
+    expect(find.text('NEW CHECK-IN'), findsOneWidget);
 
     await tester.tap(find.text('Accept'));
     await tester.pumpAndSettle();

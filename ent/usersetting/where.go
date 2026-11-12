@@ -73,6 +73,11 @@ func PushEnabled(v bool) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldEQ(FieldPushEnabled, v))
 }
 
+// FriendCheckinAlerts applies equality check predicate on the "friend_checkin_alerts" field. It's identical to FriendCheckinAlertsEQ.
+func FriendCheckinAlerts(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldFriendCheckinAlerts, v))
+}
+
 // WishlistFriendAlerts applies equality check predicate on the "wishlist_friend_alerts" field. It's identical to WishlistFriendAlertsEQ.
 func WishlistFriendAlerts(v bool) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldEQ(FieldWishlistFriendAlerts, v))
@@ -191,6 +196,16 @@ func PushEnabledEQ(v bool) predicate.UserSetting {
 // PushEnabledNEQ applies the NEQ predicate on the "push_enabled" field.
 func PushEnabledNEQ(v bool) predicate.UserSetting {
 	return predicate.UserSetting(sql.FieldNEQ(FieldPushEnabled, v))
+}
+
+// FriendCheckinAlertsEQ applies the EQ predicate on the "friend_checkin_alerts" field.
+func FriendCheckinAlertsEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldEQ(FieldFriendCheckinAlerts, v))
+}
+
+// FriendCheckinAlertsNEQ applies the NEQ predicate on the "friend_checkin_alerts" field.
+func FriendCheckinAlertsNEQ(v bool) predicate.UserSetting {
+	return predicate.UserSetting(sql.FieldNEQ(FieldFriendCheckinAlerts, v))
 }
 
 // WishlistFriendAlertsEQ applies the EQ predicate on the "wishlist_friend_alerts" field.

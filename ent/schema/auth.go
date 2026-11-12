@@ -155,6 +155,7 @@ func (UserSetting) Fields() []ent.Field {
 		field.Bool("email_friend_req").Default(true),
 		field.Bool("email_weekly").Default(false),
 		field.Bool("push_enabled").Default(false),
+		field.Bool("friend_checkin_alerts").Default(true),
 		field.Bool("wishlist_friend_alerts").Default(false),
 		field.Bool("wishlist_shelf_alerts").Default(false),
 		field.Enum("theme").Values("system", "light", "dark").Default("system"),

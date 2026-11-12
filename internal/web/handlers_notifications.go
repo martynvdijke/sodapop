@@ -288,6 +288,11 @@ func notificationHref(kind, subjectID string) string {
 			return "/checkins/" + subjectID
 		}
 		return "/"
+	case "friend_checkin":
+		if subjectID != "" {
+			return "/checkins/" + subjectID
+		}
+		return "/"
 	case "badge":
 		return "/you"
 	case "friend_request", "friend_accept":

@@ -394,6 +394,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         return 'FRIEND REQUEST';
       case 'friend_accept':
         return 'NEW FRIEND';
+      case 'friend_checkin':
+        return 'NEW CHECK-IN';
       case 'toast':
         return 'TOAST';
       case 'badge':

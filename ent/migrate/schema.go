@@ -606,6 +606,11 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{FollowsColumns[1], FollowsColumns[2]},
 			},
+			{
+				Name:    "follow_followee_id",
+				Unique:  false,
+				Columns: []*schema.Column{FollowsColumns[2]},
+			},
 		},
 	}
 	// FriendshipsColumns holds the columns for the "friendships" table.
@@ -778,7 +783,7 @@ var (
 	NotificationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
 		{Name: "user_id", Type: field.TypeString},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "drop_alert", "system"}, Default: "system"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"friend_request", "friend_accept", "toast", "comment", "mention", "badge", "wishlist_friend", "wishlist_shelf", "drop_alert", "friend_checkin", "system"}, Default: "system"},
 		{Name: "actor_id", Type: field.TypeString, Nullable: true},
 		{Name: "subject_id", Type: field.TypeString, Default: ""},
 		{Name: "text", Type: field.TypeString, Default: ""},
@@ -1101,6 +1106,7 @@ var (
 		{Name: "email_friend_req", Type: field.TypeBool, Default: true},
 		{Name: "email_weekly", Type: field.TypeBool, Default: false},
 		{Name: "push_enabled", Type: field.TypeBool, Default: false},
+		{Name: "friend_checkin_alerts", Type: field.TypeBool, Default: true},
 		{Name: "wishlist_friend_alerts", Type: field.TypeBool, Default: false},
 		{Name: "wishlist_shelf_alerts", Type: field.TypeBool, Default: false},
 		{Name: "theme", Type: field.TypeEnum, Enums: []string{"system", "light", "dark"}, Default: "system"},

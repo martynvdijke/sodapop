@@ -92,6 +92,7 @@ func (s *Server) settingsData(ctx context.Context, r *http.Request) (map[string]
 			"EmailWeekly":     prefs.EmailWeekly,
 			"EmailFriendReq":  prefs.EmailFriendReq,
 			"PushEnabled":     prefs.PushEnabled,
+			"FriendCheckin":   prefs.FriendCheckinAlerts,
 			"WishlistFriend":  prefs.WishlistFriendAlerts,
 			"WishlistShelf":   prefs.WishlistShelfAlerts,
 			"PublicProfile":   prefs.PublicProfile,
@@ -232,6 +233,7 @@ func (s *Server) settingsPreferences(w http.ResponseWriter, r *http.Request) {
 		upd.SetEmailWeekly(r.Form.Has("email_weekly")).
 			SetEmailFriendReq(r.Form.Has("email_friend_req")).
 			SetPushEnabled(r.Form.Has("push_enabled")).
+			SetFriendCheckinAlerts(r.Form.Has("friend_checkin_alerts")).
 			SetWishlistFriendAlerts(r.Form.Has("wishlist_friend_alerts")).
 			SetWishlistShelfAlerts(r.Form.Has("wishlist_shelf_alerts"))
 	}

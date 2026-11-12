@@ -143,6 +143,13 @@
         </span>
       </label>
       <label class="check-row">
+        <input type="checkbox" name="friend_checkin_alerts" value="1"{{if .Prefs.FriendCheckin}} checked{{end}}>
+        <span class="check-copy">
+          <strong>Check-ins from people you follow</strong>
+          <span class="hint">In-app, web push and Android push when someone you follow posts a new check-in.</span>
+        </span>
+      </label>
+      <label class="check-row">
         <input type="checkbox" name="wishlist_friend_alerts" value="1"{{if .Prefs.WishlistFriend}} checked{{end}}>
         <span class="check-copy">
           <strong>Wishlist friend check-ins</strong>

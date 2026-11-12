@@ -104,6 +104,7 @@ Future<(_FakeAccountApi, _FakeAuth)> _pump(
 Future<void> _openExport(WidgetTester tester) async {
   final tile = find.byKey(const Key('settings-export'));
   await tester.ensureVisible(tile);
+  await tester.pumpAndSettle();
   await tester.tap(tile);
   await tester.pumpAndSettle();
 }
@@ -111,6 +112,7 @@ Future<void> _openExport(WidgetTester tester) async {
 Future<void> _openClose(WidgetTester tester) async {
   final tile = find.byKey(const Key('settings-close-account'));
   await tester.ensureVisible(tile);
+  await tester.pumpAndSettle();
   await tester.tap(tile);
   await tester.pumpAndSettle();
 }

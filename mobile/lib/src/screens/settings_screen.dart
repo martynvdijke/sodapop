@@ -372,6 +372,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     bool? emailWeekly,
     bool? emailFriendReq,
     bool? pushEnabled,
+    bool? friendCheckinAlerts,
   }) async {
     if (_savingNotifications) return;
     setState(() => _savingNotifications = true);
@@ -380,6 +381,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         emailWeekly: emailWeekly,
         emailFriendReq: emailFriendReq,
         pushEnabled: pushEnabled,
+        friendCheckinAlerts: friendCheckinAlerts,
       ),
     );
     if (mounted) setState(() => _savingNotifications = false);
@@ -1045,6 +1047,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onChanged: busy || !pushConfigured
                     ? null
                     : (value) => _togglePush(value),
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              _switchRow(
+                key: const Key('settings-friend-checkin'),
+                icon: Icons.people_alt_outlined,
+                title: 'Check-ins from people you follow',
+                subtitle: 'When someone you follow posts a new check-in.',
+                value: prefs.friendCheckinAlerts,
+                onChanged: busy
+                    ? null
+                    : (value) => _saveNotifications(friendCheckinAlerts: value),
               ),
               if (busy)
                 Padding(
