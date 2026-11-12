@@ -1,3 +1,11 @@
+# [1.31.0](https://github.com/martynvdijke/sodapop/compare/v1.30.2...v1.31.0) (2026-11-12)
+
+
+### Features
+
+* push new notifications over an in-process bus ([0d5f347](https://github.com/martynvdijke/sodapop/commit/0d5f3477cf737eece987194bf594e9143a0049f1))
+* tier 1 social, catalog and mobile features (v1.12) ([9c15183](https://github.com/martynvdijke/sodapop/commit/9c151832d5f37ae86763cc652d7fd21414ef1d73))
+
 ## [1.30.2](https://github.com/martynvdijke/sodapop/compare/v1.30.1...v1.30.2) (2026-11-10)
 
 
