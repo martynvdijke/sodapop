@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/martynvdijke/sodapop/compare/v1.34.0...v1.35.0) (2026-11-12)
+
+
+### Features
+
+* **notifications:** alert followers about new check-ins ([7120726](https://github.com/martynvdijke/sodapop/commit/7120726c2636b642b84dc022201fe873ebea1ff5))
+
 # [1.34.0](https://github.com/martynvdijke/sodapop/compare/v1.33.0...v1.34.0) (2026-11-12)
 
 
