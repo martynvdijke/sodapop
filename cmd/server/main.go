@@ -31,6 +31,7 @@ import (
 	"sodapop/internal/mix"
 	"sodapop/internal/pairings"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/realtime"
 	"sodapop/internal/savedsearch"
 	"sodapop/internal/saves"
 	"sodapop/internal/settings"
@@ -158,6 +159,14 @@ func run() error {
 	mailer := email.New(cfg, database, log, settingsSvc)
 	catalogSvc := catalog.New(cfg, database)
 	socialSvc := social.New(database)
+	// Every notification row, including the in-app-only kinds, wakes the
+	// viewer's open web streams. In-process by design: Sodapop is a single
+	// binary against SQLite, so a shared broker would add a dependency without
+	// adding correctness.
+	realtimeBus := realtime.New()
+	socialSvc.OnInsert = func(_ context.Context, userID, notificationID string) {
+		realtimeBus.Publish(realtime.Event{UserID: userID, NotificationID: notificationID})
+	}
 	checkinSvc := checkins.New(database, socialSvc)
 	if err := demo.Ensure(context.Background(), database.Client, cfg, checkinSvc); err != nil {
 		log.Error("demo account could not be provisioned", "err", err)
@@ -227,7 +236,7 @@ func run() error {
 	webSrv := &web.Server{
 		Cfg: cfg, Auth: authSvc, Catalog: catalogSvc, Checkins: checkinSvc,
 		Saves:  savesSvc,
-		Social: socialSvc, Venues: venueSvc, Mailer: mailer, Log: log,
+		Social: socialSvc, Realtime: realtimeBus, Venues: venueSvc, Mailer: mailer, Log: log,
 		Badges: badgeSvc, Taste: tasteSvc, Mix: mixSvc,
 		DB: database, Media: mediaSvc, AI: aiSvc, Integrations: integrationSvc,
 		Account: accountSvc,

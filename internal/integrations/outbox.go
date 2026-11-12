@@ -116,11 +116,32 @@ func (s *Service) Dispatch(ctx context.Context, e Event) error {
 	if _, err := s.Client.DeliveryOutbox.CreateBulk(builders...).Save(ctx); err != nil {
 		return fmt.Errorf("enqueue outbox rows: %w", err)
 	}
+	// Deliver now rather than waiting for the next tick. The ticker stays as the
+	// retry and backoff clock.
+	s.signalWake()
 	return nil
 }
 
-// RunOutbox polls the durable delivery queue until the context is cancelled.
-// It processes an initial batch immediately, then once per outboxTick.
+// wakeChan is created lazily so a Service built as a struct literal (tests,
+// tooling) still works and never blocks a send on a nil channel.
+func (s *Service) wakeChan() chan struct{} {
+	s.wakeOnce.Do(func() { s.wake = make(chan struct{}, 1) })
+	return s.wake
+}
+
+// signalWake asks RunOutbox to drain immediately. A pending wake already covers
+// this event, so the send is dropped instead of queued.
+func (s *Service) signalWake() {
+	select {
+	case s.wakeChan() <- struct{}{}:
+	default:
+	}
+}
+
+// RunOutbox delivers the durable queue until the context is cancelled. It
+// drains an initial batch immediately, then wakes on every Dispatch so new work
+// is delivered without waiting, and still ticks once per outboxTick as the
+// retry and backoff clock.
 func (s *Service) RunOutbox(ctx context.Context) {
 	if s == nil || s.Client == nil {
 		return
@@ -132,6 +153,7 @@ func (s *Service) RunOutbox(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case <-s.wakeChan():
 		case <-ticker.C:
 		}
 	}

@@ -51,6 +51,11 @@ type Service struct {
 	fcmMu       sync.Mutex
 	fcmToken    string
 	fcmTokenExp time.Time
+
+	// wake lets Dispatch nudge RunOutbox so a queued delivery does not wait for
+	// the next tick. Lazily created so a zero-value Service is still usable.
+	wakeOnce sync.Once
+	wake     chan struct{}
 }
 
 // New wires the service to the shared database, configuration and logger.

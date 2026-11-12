@@ -87,6 +87,20 @@ function connect(): void {
 
   next.addEventListener('unread', onUnread)
 
+  // A row was written for this user. The badge follows the `unread` frame; this
+  // frame carries {id, kind, text, href, created_at, read} so a server-rendered
+  // page can react (announce, prepend, refetch) without a SPA data layer.
+  next.addEventListener('notification', (event) => {
+    const data = (event as MessageEvent<unknown>).data
+    if (typeof data !== 'string') return
+    try {
+      const detail: unknown = JSON.parse(data)
+      document.dispatchEvent(new CustomEvent('sodapop:notification', { detail }))
+    } catch {
+      // Ignore malformed frames; the unread frame still carries the count.
+    }
+  })
+
   // The server sends a named close event before ending a long-lived stream.
   next.addEventListener('close', () => {
     if (source === next) closeSource()

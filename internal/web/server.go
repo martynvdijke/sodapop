@@ -26,6 +26,7 @@ import (
 	"sodapop/internal/mix"
 	"sodapop/internal/pairings"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/realtime"
 	"sodapop/internal/saves"
 	"sodapop/internal/settings"
 	"sodapop/internal/setup"
@@ -77,6 +78,9 @@ type Server struct {
 	ShareLinks   *sharelinks.Service
 	Pairings     *pairings.Client
 	Nearby       *geocode.Client
+	// Realtime carries notification writes to the SSE stream. It is optional:
+	// when nil the stream falls back to its reconciliation tick.
+	Realtime *realtime.Bus
 }
 
 // Register wires HTML routes and the OIDC redirect endpoints.

@@ -34,6 +34,12 @@ type Service struct {
 	// accepts, toasts, comments and mentions). It is nil-safe. The callback owns
 	// logging; this package never inspects or reports its failures.
 	OnNotify func(ctx context.Context, userID, kind, actorID, subjectID, text string)
+
+	// OnInsert, when set, is called synchronously after any notification row is
+	// saved, including the in-app-only kinds. It receives the new row id so live
+	// consumers can re-read the row rather than trust a payload. Nil-safe; this
+	// package never inspects or reports its failures.
+	OnInsert func(ctx context.Context, userID, notificationID string)
 }
 
 // pushKinds are the notification kinds that should also fan out to Web Push.
@@ -759,6 +765,19 @@ func (s *Service) Notifications(ctx context.Context, userID string, limit int) (
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
+	q, err := s.visibleNotifications(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return q.Order(ent.Desc(notification.FieldCreatedAt)).
+		Limit(limit).All(ctx)
+}
+
+// visibleNotifications scopes a notification query to userID and hides rows
+// whose actor is blocked. Every read path (the inbox, the unread counter and
+// the single row the live stream announces) goes through here so they cannot
+// disagree about what the viewer is allowed to see.
+func (s *Service) visibleNotifications(ctx context.Context, userID string) (*ent.NotificationQuery, error) {
 	blockedIDs, err := s.BlockedUserIDs(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -769,8 +788,26 @@ func (s *Service) Notifications(ctx context.Context, userID string, limit int) (
 		// Notifications without an actor (system/badge) stay visible.
 		q = q.Where(notification.Not(notification.ActorIDIn(blockedIDs...)))
 	}
-	return q.Order(ent.Desc(notification.FieldCreatedAt)).
-		Limit(limit).All(ctx)
+	return q, nil
+}
+
+// NotificationForViewer loads one notification owned by userID under the same
+// visibility rules as Notifications. It returns (nil, nil) when the row is
+// missing, belongs to someone else, or was hidden by a block, so the live
+// stream never reveals an event the inbox would not list.
+func (s *Service) NotificationForViewer(ctx context.Context, userID, id string) (*ent.Notification, error) {
+	if userID == "" || id == "" {
+		return nil, nil
+	}
+	q, err := s.visibleNotifications(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := q.Where(notification.ID(id)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	return row, err
 }
 
 // Notify records a notification for userID. actorID/subjectID may be empty.
@@ -840,8 +877,14 @@ func (s *Service) notify(ctx context.Context, userID, kind, actorID, subjectID, 
 	if actorID != "" {
 		b = b.SetActorID(actorID)
 	}
-	if _, err := b.Save(ctx); err != nil {
+	row, err := b.Save(ctx)
+	if err != nil {
 		return err
+	}
+	// Only a committed row is announced. NotifyOnce's cooldown returns before
+	// this point, so a suppressed duplicate never wakes a live connection.
+	if s.OnInsert != nil {
+		s.OnInsert(ctx, userID, row.ID)
 	}
 	s.afterNotify(ctx, userID, string(k), actorID, subjectID, text)
 	return nil
@@ -851,16 +894,11 @@ func (s *Service) notify(ctx context.Context, userID, kind, actorID, subjectID, 
 // visible list would also show. Notifications from blocked actors are excluded
 // so nav and API counters cannot disagree with Notifications.
 func (s *Service) UnreadCount(ctx context.Context, userID string) (int, error) {
-	blockedIDs, err := s.BlockedUserIDs(ctx, userID)
+	q, err := s.visibleNotifications(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
-	q := s.Client.Notification.Query().
-		Where(notification.UserID(userID), notification.ReadAtIsNil())
-	if len(blockedIDs) > 0 {
-		q = q.Where(notification.Not(notification.ActorIDIn(blockedIDs...)))
-	}
-	return q.Count(ctx)
+	return q.Where(notification.ReadAtIsNil()).Count(ctx)
 }
 
 // MarkRead marks one notification (owned by userID) as read; empty id marks all.

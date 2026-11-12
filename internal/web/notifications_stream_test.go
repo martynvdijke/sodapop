@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"sodapop/ent"
+	"sodapop/internal/realtime"
 )
 
 // startNotificationStream exposes the stream handler with a signed-in user and
@@ -148,5 +149,46 @@ func TestNotificationsStreamPushesCountChange(t *testing.T) {
 	}
 	if !strings.Contains(second, `"count":2`) {
 		t.Fatalf("second event = %q, want count 2", second)
+	}
+}
+
+func TestNotificationsStreamPushesRowOverBus(t *testing.T) {
+	// Prove the bus delivered the frame: push the reconcile tick far into the
+	// future so only the subscription can produce a second event.
+	previous := streamPollInterval
+	streamPollInterval = time.Hour
+	t.Cleanup(func() { streamPollInterval = previous })
+
+	h := newV12Harness(t)
+	bus := realtime.New()
+	h.srv.Realtime = bus
+	u := h.user(t, "stream-live")
+	h.srv.Social.OnInsert = func(_ context.Context, userID, notificationID string) {
+		bus.Publish(realtime.Event{UserID: userID, NotificationID: notificationID})
+	}
+
+	br := startNotificationStream(t, h, u)
+	first := readSSEEvent(t, br, 5*time.Second)
+	if !strings.Contains(first, `"count":0`) {
+		t.Fatalf("initial event = %q, want count 0", first)
+	}
+
+	if err := h.srv.Social.Notify(context.Background(), u.ID, "comment", "", "", "commented on your check-in"); err != nil {
+		t.Fatalf("insert notification: %v", err)
+	}
+
+	row := readSSEEvent(t, br, 5*time.Second)
+	if !strings.Contains(row, "event: notification") {
+		t.Fatalf("event = %q, want event: notification", row)
+	}
+	for _, want := range []string{`"kind":"comment"`, `"text":"commented on your check-in"`, `"href":"/"`} {
+		if !strings.Contains(row, want) {
+			t.Fatalf("event = %q, want %s", row, want)
+		}
+	}
+
+	count := readSSEEvent(t, br, 5*time.Second)
+	if !strings.Contains(count, `"count":1`) {
+		t.Fatalf("follow-up event = %q, want count 1", count)
 	}
 }
