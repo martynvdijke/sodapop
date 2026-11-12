@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'auth/auth_controller.dart';
+import 'api/notification_stream.dart';
 import 'offline/checkin_outbox.dart';
 import 'screens/home_shell.dart';
 import 'screens/onboarding_screen.dart';
@@ -42,13 +43,23 @@ class _SodapopAppState extends ConsumerState<SodapopApp>
           _signedIn = true;
           unawaited(_loadTheme());
         }
+        _startNotificationStream(next);
         return;
       }
       if (_signedIn) {
         _signedIn = false;
+        NotificationCenter.instance.stop();
         ref.read(themeModeProvider.notifier).apply(ThemeMode.system);
       }
     }, fireImmediately: true);
+  }
+
+  /// The live stream is token-scoped, so it follows the signed-in account and
+  /// stops the moment the account changes.
+  void _startNotificationStream(AuthState auth) {
+    final server = auth.serverUrl;
+    if (server.isEmpty || auth.token.isEmpty) return;
+    NotificationCenter.instance.start(serverUrl: server, token: auth.token);
   }
 
   Future<void> _loadTheme() async {
@@ -82,13 +93,24 @@ class _SodapopAppState extends ConsumerState<SodapopApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _flushOutbox();
+    if (state == AppLifecycleState.resumed) {
+      _flushOutbox();
+      // FCM covers the background; the live stream only earns its keep while
+      // the app is open.
+      final auth = ref.read(authProvider);
+      if (auth.signedIn) _startNotificationStream(auth);
+      return;
+    }
+    if (state == AppLifecycleState.paused) {
+      NotificationCenter.instance.stop();
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivity?.cancel();
+    NotificationCenter.instance.stop();
     super.dispose();
   }
 

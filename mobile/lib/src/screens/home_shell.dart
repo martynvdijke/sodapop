@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../api/notification_stream.dart';
 import '../push/push_service.dart';
 import 'discover_screen.dart';
 import 'feed_screen.dart';
@@ -19,6 +20,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   StreamSubscription<void>? _pushSub;
+  StreamSubscription<NotificationStreamEvent>? _liveSub;
 
   @override
   void initState() {
@@ -26,11 +28,17 @@ class _HomeShellState extends State<HomeShell> {
     // Foreground notification messages are not drawn by Android; surface one
     // while the shell is alive and let the notifications screen refresh itself.
     _pushSub = PushService.instance.onMessage.listen((_) => _announce());
+    // The live stream is the foreground path: it fires as soon as the row is
+    // written rather than on FCM's delivery schedule.
+    _liveSub = NotificationCenter.instance.events.listen((event) {
+      if (event.type == 'notification') _announce();
+    });
   }
 
   @override
   void dispose() {
     _pushSub?.cancel();
+    _liveSub?.cancel();
     super.dispose();
   }
 

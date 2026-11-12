@@ -28,6 +28,7 @@ import (
 	"sodapop/internal/media"
 	"sodapop/internal/mix"
 	"sodapop/internal/ratelimit"
+	"sodapop/internal/realtime"
 	"sodapop/internal/saves"
 	"sodapop/internal/social"
 	"sodapop/internal/taste"
@@ -56,6 +57,9 @@ type Server struct {
 	Mix          *mix.Service
 	Account      *account.Service
 	Nearby       *geocode.Client
+	// Realtime feeds the notification stream. When nil the stream falls back to
+	// its reconciliation tick.
+	Realtime *realtime.Bus
 
 	routes []string
 }
@@ -143,6 +147,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.route(mux, "GET /api/v1/stats/me", s.protect("read", false, s.myStats))
 	s.route(mux, "GET /api/v1/me/recap/{year}", s.protect("read", false, s.meRecapGet))
 	s.route(mux, "GET /api/v1/notifications", s.protect("read", false, s.notifications))
+	s.route(mux, "GET /api/v1/notifications/stream", s.protect("read", false, s.notificationsStream))
 	s.route(mux, "POST /api/v1/notifications/read", s.protect("write", false, s.notificationsRead))
 	s.route(mux, "GET /api/v1/checkins/{id}", s.protect("read", false, s.getCheckin))
 	s.route(mux, "GET /api/v1/media/{id}", s.protect("read", false, s.mediaFull))

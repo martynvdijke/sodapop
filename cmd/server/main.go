@@ -254,7 +254,8 @@ func run() error {
 		Limiter: limiter, DB: database, Media: mediaSvc, AI: aiSvc,
 		Integrations: integrationSvc, Badges: badgeSvc,
 		Taste: tasteSvc, Mix: mixSvc, Account: accountSvc,
-		Nearby: geocode.New(cfg.NearbyGeocoderEnabled, cfg.NearbyGeocoderURL, cfg.NearbyGeocoderUserAgent, cfg.NearbyGeocoderTimeout),
+		Nearby:   geocode.New(cfg.NearbyGeocoderEnabled, cfg.NearbyGeocoderURL, cfg.NearbyGeocoderUserAgent, cfg.NearbyGeocoderTimeout),
+		Realtime: realtimeBus,
 	}
 
 	mux := http.NewServeMux()

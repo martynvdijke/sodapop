@@ -5485,6 +5485,30 @@
         ]
       }
     },
+    "/api/v1/notifications/stream": {
+      "get": {
+        "summary": "Live notifications",
+        "description": "Server-sent events for the token owner, the mobile counterpart of the web `/notifications/stream`. The stream opens with an `unread` event carrying `{\"count\":N}`, forwards each visible notification as a `notification` event with the same `id`, `kind`, `text`, `href`, `subject_id`, `created_at` and `read` fields as the inbox, and sends `close` roughly every 30 minutes so the client reconnects. Blocked actors and deleted rows are never announced; a `: keep-alive` comment keeps idle connections open. Deliveries are pushed from an in-process bus, with a periodic reconciliation read as a fallback.",
+        "responses": {
+          "200": {
+            "description": "An SSE stream of `unread`, `notification` and `close` events",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          }
+        },
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
     "/api/v1/notifications/read": {
       "post": {
         "summary": "Mark notifications read",

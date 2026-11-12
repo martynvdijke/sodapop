@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
+import '../api/notification_stream.dart';
 import '../auth/auth_controller.dart';
 import '../push/push_service.dart';
 import '../theme/soda_theme.dart';
@@ -38,6 +39,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   String? _busyId;
   String? _error;
   StreamSubscription<void>? _pushSub;
+  StreamSubscription<NotificationStreamEvent>? _liveSub;
 
   @override
   void initState() {
@@ -45,30 +47,39 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     _load();
     // A foreground push means there is at least one new row; reload quietly.
     _pushSub = PushService.instance.onMessage.listen((_) {
-      if (mounted) _load();
+      if (mounted) _load(quiet: true);
+    });
+    // The live stream is faster than FCM and also fires for in-app-only kinds.
+    _liveSub = NotificationCenter.instance.events.listen((event) {
+      if (event.type == 'notification' && mounted) _load(quiet: true);
     });
   }
 
   @override
   void dispose() {
     _pushSub?.cancel();
+    _liveSub?.cancel();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final items = await ref.read(apiProvider).notifications();
       if (!mounted) return;
       setState(() {
         _items = items;
         _loading = false;
+        _error = null;
       });
     } catch (error) {
       if (!mounted) return;
+      if (quiet) return; // Keep the rows already on screen.
       setState(() {
         _loading = false;
         _error = ApiClient.describe(error).message;
