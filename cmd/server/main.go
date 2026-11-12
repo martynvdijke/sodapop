@@ -183,6 +183,13 @@ func run() error {
 	mediaSvc := media.New(database, cfg)
 	aiSvc := ai.New(database, cfg, cfg.Version, log, settingsSvc)
 	integrationSvc := integrations.New(database, cfg, log, settingsSvc)
+	// Surface the FCM verdict once at startup. Without it a typo in the
+	// service-account value only shows up as a notification that never arrives.
+	if ready, detail := integrationSvc.FCMReady(); ready {
+		log.Info("fcm native push enabled", "detail", detail)
+	} else {
+		log.Info("fcm native push disabled", "reason", detail)
+	}
 	// Mirror push-worthy in-app notifications to Web Push/outbound integrations.
 	// Badge and system notifications stay in-app only (badge push is dispatched
 	// elsewhere).

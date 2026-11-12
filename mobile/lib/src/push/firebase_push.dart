@@ -79,5 +79,17 @@ class _FirebasePushMessaging implements PushMessaging {
   Stream<void> get onMessage => FirebaseMessaging.onMessage.map((_) {});
 
   @override
+  Stream<String> get onOpen => FirebaseMessaging.onMessageOpenedApp
+      .map<String>((message) => '${message.data['url'] ?? ''}')
+      .where((url) => url.isNotEmpty);
+
+  @override
+  Future<String?> initialLink() async {
+    final message = await FirebaseMessaging.instance.getInitialMessage();
+    final url = '${message?.data['url'] ?? ''}';
+    return url.isEmpty ? null : url;
+  }
+
+  @override
   Future<void> invalidateToken() => _messaging.unregister();
 }

@@ -67,6 +67,13 @@ abstract class PushMessaging {
   Stream<String> get onTokenRefresh;
   Stream<void> get onMessage;
 
+  /// Hrefs of notifications the user tapped while the app was running.
+  Stream<String> get onOpen;
+
+  /// Href of the notification that cold-started the app, if any. A tap that
+  /// launches the process is not replayed on [onOpen].
+  Future<String?> initialLink();
+
   /// Invalidates the device registration at Firebase so Google stops
   /// delivering to the old token even if the server DELETE was lost.
   Future<void> invalidateToken();
@@ -80,15 +87,20 @@ class PushRegistrar {
 
   final PushMessaging _messaging;
   final StreamController<void> _messages = StreamController<void>.broadcast();
+  final StreamController<String> _opens = StreamController<String>.broadcast();
 
   StreamSubscription<String>? _refresh;
   StreamSubscription<void>? _messageSub;
+  StreamSubscription<String>? _openSub;
   ApiClient? _api;
   String? _lastToken;
   bool _active = false;
 
   /// Foreground message events, forwarded to the UI.
   Stream<void> get messages => _messages.stream;
+
+  /// Taps on a delivered notification, as the href the server attached.
+  Stream<String> get opens => _opens.stream;
 
   /// The token most recently sent to the server, used for sign-out cleanup.
   String? get lastToken => _lastToken;
@@ -105,7 +117,13 @@ class PushRegistrar {
     _messageSub ??= _messaging.onMessage.listen((_) {
       if (!_messages.isClosed) _messages.add(null);
     });
+    _openSub ??= _messaging.onOpen.listen((href) {
+      if (!_opens.isClosed) _opens.add(href);
+    });
   }
+
+  /// The href of a notification that launched the process, if any.
+  Future<String?> initialLink() => _messaging.initialLink();
 
   void _onTokenRefresh(String token) {
     final api = _api;
@@ -181,7 +199,9 @@ class PushRegistrar {
     _active = false;
     await _refresh?.cancel();
     await _messageSub?.cancel();
+    await _openSub?.cancel();
     await _messages.close();
+    await _opens.close();
   }
 }
 
@@ -196,18 +216,29 @@ class PushService {
   static final PushService instance = PushService();
 
   final StreamController<void> _messages = StreamController<void>.broadcast();
+  final StreamController<String> _opens = StreamController<String>.broadcast();
   PushRegistrar? _registrar;
   StreamSubscription<void>? _forward;
+  StreamSubscription<String>? _openForward;
 
   bool get enabled => _registrar != null;
 
   /// Foreground push events. The stream exists even when push is disabled.
   Stream<void> get onMessage => _messages.stream;
 
+  /// Hrefs of notifications the user tapped; empty when push is disabled.
+  Stream<String> get onOpen => _opens.stream;
+
+  /// Href of the notification that cold-started the app, if any.
+  Future<String?> initialLink() async => _registrar?.initialLink();
+
   void attach(PushRegistrar registrar) {
     _registrar = registrar;
     _forward ??= registrar.messages.listen((_) {
       if (!_messages.isClosed) _messages.add(null);
+    });
+    _openForward ??= registrar.opens.listen((href) {
+      if (!_opens.isClosed) _opens.add(href);
     });
   }
 

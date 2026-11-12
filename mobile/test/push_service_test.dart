@@ -36,6 +36,14 @@ class _FakeMessaging implements PushMessaging {
   @override
   Stream<void> get onMessage => _messages.stream;
 
+  final StreamController<String> _opens = StreamController<String>.broadcast();
+
+  @override
+  Stream<String> get onOpen => _opens.stream;
+
+  @override
+  Future<String?> initialLink() async => null;
+
   @override
   Future<void> invalidateToken() async {
     invalidations++;
@@ -47,6 +55,7 @@ class _FakeMessaging implements PushMessaging {
   Future<void> close() async {
     await _refresh.close();
     await _messages.close();
+    await _opens.close();
   }
 }
 

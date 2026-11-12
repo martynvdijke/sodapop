@@ -374,6 +374,21 @@ func (s *Service) fcmEnabled() bool {
 	return err == nil && account != nil
 }
 
+// FCMReady reports whether native push credentials are present and parseable,
+// plus a short reason either way. It is the operator-facing companion to
+// fcmEnabled: startup logs the verdict instead of leaving a misconfiguration
+// to fail silently at delivery time.
+func (s *Service) FCMReady() (bool, string) {
+	account, err := s.fcmAccount()
+	if err != nil {
+		return false, err.Error()
+	}
+	if account == nil {
+		return false, "FCM_SERVICE_ACCOUNT_JSON is not set"
+	}
+	return true, "project " + account.ProjectID
+}
+
 func (s *Service) fcmAccount() (*fcmServiceAccount, error) {
 	if s == nil || s.Cfg == nil || strings.TrimSpace(s.Cfg.FCMServiceAccountJSON) == "" {
 		return nil, nil

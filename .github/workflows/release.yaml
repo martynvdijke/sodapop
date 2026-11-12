@@ -185,16 +185,31 @@ jobs:
         working-directory: mobile
         env:
           VERSION: ${{ needs.release.outputs.new_release_version }}
+          FCM_API_KEY: ${{ secrets.FCM_API_KEY }}
+          FCM_APP_ID: ${{ secrets.FCM_APP_ID }}
+          FCM_MESSAGING_SENDER_ID: ${{ secrets.FCM_MESSAGING_SENDER_ID }}
+          FCM_PROJECT_ID: ${{ secrets.FCM_PROJECT_ID }}
+          FCM_STORAGE_BUCKET: ${{ secrets.FCM_STORAGE_BUCKET }}
         run: |
           flutter build apk --release \
             --build-name="$VERSION" \
             --build-number="${{ steps.version_code.outputs.code }}" \
-            --dart-define=APP_VERSION="$VERSION"
+            --dart-define=APP_VERSION="$VERSION" \
+            --dart-define=FCM_API_KEY="$FCM_API_KEY" \
+            --dart-define=FCM_APP_ID="$FCM_APP_ID" \
+            --dart-define=FCM_MESSAGING_SENDER_ID="$FCM_MESSAGING_SENDER_ID" \
+            --dart-define=FCM_PROJECT_ID="$FCM_PROJECT_ID" \
+            --dart-define=FCM_STORAGE_BUCKET="$FCM_STORAGE_BUCKET"
 
       - name: Build App Bundle
         working-directory: mobile
         env:
           VERSION: ${{ needs.release.outputs.new_release_version }}
+          FCM_API_KEY: ${{ secrets.FCM_API_KEY }}
+          FCM_APP_ID: ${{ secrets.FCM_APP_ID }}
+          FCM_MESSAGING_SENDER_ID: ${{ secrets.FCM_MESSAGING_SENDER_ID }}
+          FCM_PROJECT_ID: ${{ secrets.FCM_PROJECT_ID }}
+          FCM_STORAGE_BUCKET: ${{ secrets.FCM_STORAGE_BUCKET }}
         run: |
           if [ ! -f android/key.properties ]; then
             echo "::error::No signing config; refusing to build an app bundle that Play will reject."
@@ -203,7 +218,12 @@ jobs:
           flutter build appbundle --release \
             --build-name="$VERSION" \
             --build-number="${{ steps.version_code.outputs.code }}" \
-            --dart-define=APP_VERSION="$VERSION"
+            --dart-define=APP_VERSION="$VERSION" \
+            --dart-define=FCM_API_KEY="$FCM_API_KEY" \
+            --dart-define=FCM_APP_ID="$FCM_APP_ID" \
+            --dart-define=FCM_MESSAGING_SENDER_ID="$FCM_MESSAGING_SENDER_ID" \
+            --dart-define=FCM_PROJECT_ID="$FCM_PROJECT_ID" \
+            --dart-define=FCM_STORAGE_BUCKET="$FCM_STORAGE_BUCKET"
 
       - name: Upload App Bundle artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
