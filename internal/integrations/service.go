@@ -51,6 +51,7 @@ type Service struct {
 	fcmMu       sync.Mutex
 	fcmToken    string
 	fcmTokenExp time.Time
+	fcmKey      string // fingerprint of the credentials the cached token was minted for
 
 	// wake lets Dispatch nudge RunOutbox so a queued delivery does not wait for
 	// the next tick. Lazily created so a zero-value Service is still usable.

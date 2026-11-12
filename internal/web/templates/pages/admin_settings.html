@@ -24,6 +24,7 @@
         <li><a href="#email">Email</a></li>
         <li><a href="#analytics">Analytics</a></li>
         <li><a href="#push">Push</a></li>
+        <li><a href="#mobile-push">Mobile push</a></li>
         <li><a href="#access">Access</a></li>
         <li><a href="#ai">AI</a></li>
         <li><a href="#observability">Observability</a></li>
@@ -220,6 +221,70 @@
             <button class="btn btn-save" type="submit">Save push</button>
           </div>
         </form>
+      </section>
+
+      <section class="settings-card" id="mobile-push" aria-labelledby="settings-mobile-push-title">
+        <div class="settings-card-head">
+          <h2 id="settings-mobile-push-title">Mobile push</h2>
+          <span class="settings-badge settings-badge-source" data-source="{{if .FCMSource}}{{.FCMSource}}{{else}}default{{end}}">Source: {{if .FCMSource}}{{.FCMSource}}{{else}}default{{end}}</span>
+          <span class="settings-badge settings-badge-status" data-enabled="{{if .FCMReady}}true{{else}}false{{end}}">FCM: {{if .FCMReady}}Enabled{{else}}Disabled{{end}}</span>
+        </div>
+        <p class="settings-intro">Native Android notifications are delivered through Firebase Cloud Messaging. Paste the service-account key from the Firebase console; it is stored encrypted and never shown again. Without it the server skips native push, and the app still falls back to live in-app updates while it is open.</p>
+
+        <form method="post" action="/admin/settings/fcm" class="settings-form" aria-labelledby="settings-mobile-push-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+
+          <div class="secret-block">
+            <div class="secret-current">
+              <span class="static-label">Saved service account</span>
+              {{if .FCMAccountSet}}
+                <p class="secret-readout">
+                  <span class="secret-mask" aria-hidden="true">••••••</span>
+                  <span class="sr-only">Set.</span>
+                </p>
+              {{else}}
+                <p class="secret-readout muted">No service account saved.</p>
+              {{end}}
+              {{if .FCMConfigured}}
+                <p class="hint">{{if .FCMReady}}Credentials accepted{{if .FCMDetail}} ({{.FCMDetail}}){{end}}.{{else}}Saved credentials are not usable yet: {{.FCMDetail}}{{end}}</p>
+              {{end}}
+            </div>
+
+            <label for="settings-fcm-service-account">Service account JSON
+              <textarea id="settings-fcm-service-account" name="fcm_service_account" rows="6" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-fcm-service-account-hint"></textarea>
+              <span class="hint" id="settings-fcm-service-account-hint">The whole JSON key file, including client_email, private_key and project_id. Stored encrypted; leave blank to keep the saved credentials.</span>
+            </label>
+          </div>
+
+          <label for="settings-fcm-project-id">Project ID override
+            <input id="settings-fcm-project-id" name="fcm_project_id" value="{{with .FCMProjectID}}{{.}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="settings-fcm-project-id-hint">
+            <span class="hint" id="settings-fcm-project-id-hint">Optional. Leave blank to use the project_id from the JSON.</span>
+          </label>
+
+          {{if .FCMAccountSet}}
+          <label class="check-row">
+            <input type="checkbox" name="clear_fcm_service_account" value="1">
+            <span class="check-copy">
+              <strong>Clear saved service account</strong>
+              <span class="hint">Removes the stored credentials and disables native push until a new key is saved.</span>
+            </span>
+          </label>
+          {{end}}
+
+          <div class="form-actions">
+            <button class="btn btn-save" type="submit">Save mobile push</button>
+          </div>
+        </form>
+
+        {{if .FCMConfigured}}
+        <form method="post" action="/admin/settings/fcm/test" class="settings-form" aria-labelledby="settings-mobile-push-title">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+          <div class="form-actions">
+            <button class="btn" type="submit">Send test notification</button>
+          </div>
+          <p class="hint">Sends a notification to your newest registered Android device. Open the Sodapop app and allow notifications first.</p>
+        </form>
+        {{end}}
       </section>
 
       <section class="settings-card" id="access" aria-labelledby="settings-access-title">

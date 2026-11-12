@@ -15,6 +15,7 @@ import (
 	"sodapop/ent"
 	"sodapop/ent/user"
 	"sodapop/internal/email"
+	"sodapop/internal/integrations"
 	"sodapop/internal/settings"
 )
 
@@ -620,6 +621,109 @@ func TestAdminSettingsPushSaveMaskAndStatus(t *testing.T) {
 	req := h.request(http.MethodPost, "/admin/settings/push", admin, url.Values{"vapid_public_key": {pub}})
 	rec = httptest.NewRecorder()
 	h.srv.adminSettingsPush(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF status = %d, want 403", rec.Code)
+	}
+}
+
+func TestAdminSettingsFCM(t *testing.T) {
+	h := newSettingsHarness(t)
+	admin := h.verifiedUser(t, "fcm-admin", user.RoleAdmin)
+	account := `{"type":"service_account","client_email":"push@example.iam.gserviceaccount.com",` +
+		`"private_key":"-----BEGIN PRIVATE KEY-----\nMIIB\n-----END PRIVATE KEY-----\n",` +
+		`"project_id":"firebase-project"}`
+
+	body := h.getSettings(t, admin).Body.String()
+	if !strings.Contains(body, `action="/admin/settings/fcm"`) || !strings.Contains(body, "FCM: Disabled") {
+		t.Fatalf("initial mobile push section missing")
+	}
+	if !strings.Contains(body, "No service account saved.") {
+		t.Fatal("initial mobile push state missing")
+	}
+
+	rec := h.post(t, admin, h.srv.adminSettingsFCM, "/admin/settings/fcm", url.Values{
+		"fcm_service_account": {account},
+		"fcm_project_id":      {"panel-project"},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("fcm save status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	if loc := rec.Header().Get("Location"); loc != "/admin/settings?notice=fcm_saved" {
+		t.Fatalf("redirect = %q", loc)
+	}
+	snap := h.settings.Snapshot()
+	if fcm := snap.FCM(); !fcm.Configured() || fcm.ServiceAccount != account || fcm.ProjectID != "panel-project" {
+		t.Fatalf("saved FCM = %+v", fcm)
+	}
+	if got := snap.Source(settings.KeyFCMServiceAccount); got != "db" {
+		t.Fatalf("service account source = %q, want db", got)
+	}
+
+	body = h.getSettings(t, admin).Body.String()
+	if !strings.Contains(body, "FCM: Enabled") {
+		t.Fatal("enabled status missing")
+	}
+	if strings.Contains(body, "BEGIN PRIVATE KEY") || strings.Contains(body, "MIIB") {
+		t.Fatal("settings page leaked the service account")
+	}
+
+	// A blank service account keeps the stored document; the project override
+	// can still be edited on its own.
+	rec = h.post(t, admin, h.srv.adminSettingsFCM, "/admin/settings/fcm", url.Values{
+		"fcm_project_id": {""},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("blank service account status = %d, want 303", rec.Code)
+	}
+	if got := h.settings.Snapshot().FCM().ServiceAccount; got != account {
+		t.Fatal("blank service account changed the stored credentials")
+	}
+	if got := h.settings.Snapshot().FCM().ProjectID; got != "" {
+		t.Fatalf("project override = %q, want cleared", got)
+	}
+
+	// Invalid JSON is rejected without touching the saved credentials.
+	before := h.settings.Snapshot().FCM()
+	rec = h.post(t, admin, h.srv.adminSettingsFCM, "/admin/settings/fcm", url.Values{
+		"fcm_service_account": {"{oops"},
+	})
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), settings.KeyFCMServiceAccount) {
+		t.Fatalf("invalid service account = %d: %s", rec.Code, rec.Body.String())
+	}
+	if after := h.settings.Snapshot().FCM(); after != before {
+		t.Fatalf("invalid form changed FCM from %+v to %+v", before, after)
+	}
+
+	// With the integrations service attached, the page reports the real verdict
+	// and the test action explains that these credentials do not parse.
+	h.srv.Integrations = integrations.New(h.db, h.srv.Cfg, h.srv.Log, h.settings)
+	body = h.getSettings(t, admin).Body.String()
+	if !strings.Contains(body, "FCM: Disabled") || !strings.Contains(body, "not usable yet") {
+		t.Fatalf("invalid credentials were not reported: %s", body)
+	}
+	rec = h.post(t, admin, h.srv.adminSettingsFCMTest, "/admin/settings/fcm/test", url.Values{})
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "not configured") {
+		t.Fatalf("unusable test action = %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Clearing the service account disables native push.
+	rec = h.post(t, admin, h.srv.adminSettingsFCM, "/admin/settings/fcm", url.Values{
+		"clear_fcm_service_account": {"1"},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("clear status = %d, want 303", rec.Code)
+	}
+	if h.settings.Snapshot().FCM().Configured() {
+		t.Fatal("cleared service account still reports as configured")
+	}
+	if set, _ := h.settings.Snapshot().SecretState(settings.KeyFCMServiceAccount); set {
+		t.Fatal("cleared service account still reports as set")
+	}
+
+	// CSRF is required.
+	req := h.request(http.MethodPost, "/admin/settings/fcm", admin, url.Values{"fcm_project_id": {"x"}})
+	rec = httptest.NewRecorder()
+	h.srv.adminSettingsFCM(rec, req)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("missing CSRF status = %d, want 403", rec.Code)
 	}

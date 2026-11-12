@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -780,6 +781,117 @@ func TestVAPIDSettingsValidation(t *testing.T) {
 	}
 	if err := Validate(KeyVAPIDPrivateKey, "bad key"); !errors.Is(err, ErrInvalidValue) {
 		t.Fatalf("Validate bad private key = %v, want ErrInvalidValue", err)
+	}
+}
+
+func testFCMAccountJSON(t *testing.T, project string) string {
+	t.Helper()
+	raw, err := json.Marshal(map[string]string{
+		"type":         "service_account",
+		"client_email": "push@example.iam.gserviceaccount.com",
+		"private_key":  "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n-----END PRIVATE KEY-----\n",
+		"project_id":   project,
+	})
+	if err != nil {
+		t.Fatalf("marshal service account: %v", err)
+	}
+	return string(raw)
+}
+
+func TestFCMSettingsValidationAndMasking(t *testing.T) {
+	ctx := context.Background()
+	s, database := newTestService(t, testConfig(), "", nil)
+	account := testFCMAccountJSON(t, "firebase-project")
+
+	if err := s.Set(ctx, KeyFCMServiceAccount, account, true, "admin-1"); err != nil {
+		t.Fatalf("service account: %v", err)
+	}
+	if err := s.Set(ctx, KeyFCMProjectID, "override-project", false, "admin-1"); err != nil {
+		t.Fatalf("project override: %v", err)
+	}
+
+	snap := s.Snapshot()
+	fcm := snap.FCM()
+	if !fcm.Configured() || fcm.ServiceAccount != account || fcm.ProjectID != "override-project" {
+		t.Fatalf("snapshot FCM = %+v", fcm)
+	}
+	if got := snap.Source(KeyFCMServiceAccount); got != "db" {
+		t.Fatalf("service account source = %q, want db", got)
+	}
+
+	// The service account is encrypted at rest and never previewed.
+	row, err := database.Client.RuntimeSetting.Query().
+		Where(runtimesetting.KeyEQ(KeyFCMServiceAccount)).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("load stored row: %v", err)
+	}
+	if !row.IsSecret || row.EncryptedValue == "" || strings.Contains(row.Value, "PRIVATE KEY") {
+		t.Fatalf("service account row is not encrypted: %+v", row)
+	}
+	if set, last4 := snap.SecretState(KeyFCMServiceAccount); !set || last4 != "" {
+		t.Fatalf("SecretState = %v, %q; want set with no preview", set, last4)
+	}
+
+	bad := []struct {
+		key    string
+		value  string
+		secret bool
+	}{
+		{KeyFCMServiceAccount, "not json", true},
+		{KeyFCMServiceAccount, `{"private_key":"x","project_id":"p"}`, true},
+		{KeyFCMServiceAccount, `{"client_email":"a@b","private_key":"not pem","project_id":"p"}`, true},
+		{KeyFCMServiceAccount, `{"client_email":"a@b","private_key":"-----BEGIN PRIVATE KEY-----","project_id":""}`, true},
+		{KeyFCMServiceAccount, strings.Repeat("x", maxFCMServiceAccountLen+1), true},
+		{KeyFCMProjectID, "Upper-Case", false},
+		{KeyFCMProjectID, "has space", false},
+	}
+	for _, tc := range bad {
+		if err := s.Set(ctx, tc.key, tc.value, tc.secret, "admin-1"); !errors.Is(err, ErrInvalidValue) {
+			t.Fatalf("Set(%s, %.20q) err = %v, want ErrInvalidValue", tc.key, tc.value, err)
+		}
+	}
+
+	// A blank secret keeps the stored document and is a valid form value.
+	if err := Validate(KeyFCMServiceAccount, "   "); err != nil {
+		t.Fatalf("blank service account should be accepted: %v", err)
+	}
+	if err := s.Set(ctx, KeyFCMServiceAccount, "  ", true, "admin-1"); err != nil {
+		t.Fatalf("blank service account changed the secret: %v", err)
+	}
+	if got := s.Snapshot().FCM().ServiceAccount; got != account {
+		t.Fatal("blank service account did not keep the saved credentials")
+	}
+
+	// Clearing the project override falls back to the JSON's project_id.
+	if err := s.Delete(ctx, KeyFCMProjectID, "admin-1"); err != nil {
+		t.Fatalf("delete override: %v", err)
+	}
+	if got := s.Snapshot().FCM().ProjectID; got != "" {
+		t.Fatalf("project override after delete = %q", got)
+	}
+}
+
+func TestFCMEnvironmentPrecedence(t *testing.T) {
+	ctx := context.Background()
+	cfg := testConfig()
+	cfg.FCMServiceAccountJSON = testFCMAccountJSON(t, "env-project")
+	cfg.FCMProjectID = "env-override"
+
+	s, _ := newTestService(t, cfg, "", nil)
+	snap := s.Snapshot()
+	if snap.FCM().ServiceAccount != cfg.FCMServiceAccountJSON || snap.FCM().ProjectID != "env-override" {
+		t.Fatalf("environment FCM = %+v", snap.FCM())
+	}
+	if got := snap.Source(KeyFCMServiceAccount); got != "env" {
+		t.Fatalf("service account source = %q, want env", got)
+	}
+
+	if err := s.Set(ctx, KeyFCMServiceAccount, testFCMAccountJSON(t, "db-project"), true, "admin-1"); err != nil {
+		t.Fatalf("save runtime credentials: %v", err)
+	}
+	if got := s.Snapshot().Source(KeyFCMServiceAccount); got != "db" {
+		t.Fatalf("service account source after save = %q, want db", got)
 	}
 }
 

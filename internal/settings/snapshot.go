@@ -40,6 +40,18 @@ func (v VAPIDSettings) Enabled() bool {
 	return v.PublicKey != "" && v.PrivateKey != ""
 }
 
+// FCMSettings is the effective Firebase Cloud Messaging credential set.
+// ServiceAccount holds the raw service-account JSON and must never be rendered
+// or logged; ProjectID is the optional override of the JSON's project_id.
+type FCMSettings struct {
+	ServiceAccount string
+	ProjectID      string
+}
+
+// Configured reports whether a service account is stored. It does not prove the
+// key parses; that check happens when credentials are used.
+func (f FCMSettings) Configured() bool { return f.ServiceAccount != "" }
+
 // Snapshot is an immutable view of every runtime setting. Consumers hold the
 // pointer returned by Service.Snapshot; it is never mutated after publication.
 type Snapshot struct {
@@ -48,6 +60,7 @@ type Snapshot struct {
 	smtp                  SMTPSettings
 	umami                 UmamiSettings
 	vapid                 VAPIDSettings
+	fcm                   FCMSettings
 	registrationOpen      bool
 	aiEnabled             bool
 	allowPasswordFallback bool
@@ -84,6 +97,14 @@ func (s *Snapshot) VAPID() VAPIDSettings {
 		v.Subject = DefaultVAPIDSubject
 	}
 	return v
+}
+
+// FCM returns the effective Firebase Cloud Messaging credentials.
+func (s *Snapshot) FCM() FCMSettings {
+	if s == nil {
+		return FCMSettings{}
+	}
+	return s.fcm
 }
 
 // RegistrationOpen reports whether local registration is enabled.
@@ -150,6 +171,7 @@ func buildSnapshot(cfg *config.Config, rows []*ent.RuntimeSetting, box *secretbo
 	applyEnv(cfg, values, sources)
 	applyOTELEnv(values, sources)
 	applyVAPIDEnv(values, sources)
+	applyFCMEnv(cfg, values, sources)
 
 	for _, row := range rows {
 		if row == nil {
@@ -221,6 +243,10 @@ func buildSnapshot(cfg *config.Config, rows []*ent.RuntimeSetting, box *secretbo
 			PrivateKey: values[KeyVAPIDPrivateKey],
 			Subject:    values[KeyVAPIDSubject],
 		},
+		fcm: FCMSettings{
+			ServiceAccount: values[KeyFCMServiceAccount],
+			ProjectID:      values[KeyFCMProjectID],
+		},
 		registrationOpen:      values[KeyRegistrationOpen] == "1",
 		aiEnabled:             values[KeyAIEnabled] == "1",
 		allowPasswordFallback: values[KeyAllowPasswordFallback] == "1",
@@ -235,6 +261,15 @@ func buildSnapshot(cfg *config.Config, rows []*ent.RuntimeSetting, box *secretbo
 	}
 	for key, spec := range specs {
 		if !spec.secret {
+			continue
+		}
+		if values[key] == "" {
+			continue
+		}
+		if key == KeyFCMServiceAccount {
+			// The tail of a JSON document is punctuation, not a useful preview.
+			// Record that it is set without exposing any characters.
+			snap.secretLast4[key] = ""
 			continue
 		}
 		if last4, ok := lastFour(values[key]); ok {
@@ -333,6 +368,25 @@ func applyVAPIDEnv(values, sources map[string]string) {
 	set(KeyVAPIDPublicKey, strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY")))
 	set(KeyVAPIDPrivateKey, strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY")))
 	set(KeyVAPIDSubject, strings.TrimSpace(os.Getenv("VAPID_SUBJECT")))
+}
+
+// applyFCMEnv mirrors applyVAPIDEnv for the Firebase service account. The
+// environment remains the fallback for deployments that configure native push
+// without the admin panel; a runtime row always wins.
+func applyFCMEnv(cfg *config.Config, values, sources map[string]string) {
+	if cfg == nil {
+		return
+	}
+	set := func(key, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		values[key] = value
+		sources[key] = "env"
+	}
+	set(KeyFCMServiceAccount, cfg.FCMServiceAccountJSON)
+	set(KeyFCMProjectID, cfg.FCMProjectID)
 }
 
 // VAPIDFromEnvironment resolves VAPID credentials from the environment for

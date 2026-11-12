@@ -23,6 +23,7 @@ import (
 	"sodapop/internal/config"
 	"sodapop/internal/db"
 	"sodapop/internal/integrations"
+	"sodapop/internal/settings"
 )
 
 func main() {
@@ -49,7 +50,19 @@ func main() {
 	}
 	defer func() { _ = database.Close() }()
 
-	svc := integrations.New(database, cfg, log)
+	// Load runtime settings so credentials saved in /admin/settings are used,
+	// with the environment as the fallback.
+	settingsSvc, err := settings.New(database.Client, cfg, string(cfg.SessionKey), log)
+	if err != nil {
+		log.Error("load settings", "err", err)
+		os.Exit(1)
+	}
+	if err := settingsSvc.Load(context.Background()); err != nil {
+		log.Error("load settings", "err", err)
+		os.Exit(1)
+	}
+
+	svc := integrations.New(database, cfg, log, settingsSvc)
 	ready, detail := svc.FCMReady()
 	if !ready {
 		log.Error("fcm is not usable", "reason", detail)

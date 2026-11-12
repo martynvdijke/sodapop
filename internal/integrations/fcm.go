@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -42,6 +43,14 @@ var (
 	ErrInvalidDeviceToken = errors.New("invalid device token")
 	// ErrUnsupportedPlatform means this server only accepts Android devices.
 	ErrUnsupportedPlatform = errors.New("unsupported device platform")
+	// ErrFCMNotConfigured means no usable service account is stored or set in
+	// the environment. The wrapped reason is safe to show to an operator.
+	ErrFCMNotConfigured = errors.New("firebase cloud messaging is not configured")
+	// ErrNoFCMDevice means the user has no registered Android device.
+	ErrNoFCMDevice = errors.New("no registered android device")
+	// ErrStaleFCMDevice means FCM rejected the stored token, so the device needs
+	// to register again from the app.
+	ErrStaleFCMDevice = errors.New("the registered device token is no longer valid")
 
 	fcmTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_:.-]{32,512}$`)
 
@@ -67,7 +76,8 @@ type fcmServiceAccount struct {
 	ProjectID   string `json:"project_id"`
 	TokenURI    string `json:"token_uri"`
 
-	key *rsa.PrivateKey
+	key         *rsa.PrivateKey
+	fingerprint string
 }
 
 type fcmMessage struct {
@@ -223,6 +233,62 @@ func (s *Service) DevicesForUser(ctx context.Context, userID string) ([]Device, 
 	return out, nil
 }
 
+// LatestDevice returns the user's most recently active native device. It backs
+// the admin panel's test-notification action, which should reach the phone the
+// operator is most likely holding.
+func (s *Service) LatestDevice(ctx context.Context, userID string) (Device, bool, error) {
+	if userID == "" {
+		return Device{}, false, nil
+	}
+	row, err := s.Client.PushDevice.Query().
+		Where(pushdevice.UserID(userID)).
+		Order(
+			ent.Desc(pushdevice.FieldLastSeenAt),
+			ent.Desc(pushdevice.FieldCreatedAt),
+			ent.Desc(pushdevice.FieldID),
+		).
+		First(ctx)
+	if ent.IsNotFound(err) {
+		return Device{}, false, nil
+	}
+	if err != nil {
+		return Device{}, false, err
+	}
+	return Device{
+		ID:       row.ID,
+		UserID:   row.UserID,
+		Token:    row.Token,
+		Platform: string(row.Platform),
+	}, true, nil
+}
+
+// SendTestFCM delivers one test notification to a user's newest device. The
+// returned errors are intended for an operator, so they explain what to fix
+// without exposing credentials.
+func (s *Service) SendTestFCM(ctx context.Context, userID string) error {
+	if ok, reason := s.FCMReady(); !ok {
+		return fmt.Errorf("%w: %s", ErrFCMNotConfigured, reason)
+	}
+	device, ok, err := s.LatestDevice(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("look up push device: %w", err)
+	}
+	if !ok {
+		return ErrNoFCMDevice
+	}
+	pruned, err := s.SendFCM(ctx, device.Token,
+		"Sodapop test",
+		"This is a test notification from your Sodapop server.",
+		"/notifications")
+	if err != nil {
+		return err
+	}
+	if pruned {
+		return ErrStaleFCMDevice
+	}
+	return nil
+}
+
 // SendFCM delivers one notification token. It is a no-op when credentials are
 // unset. Invalid configured credentials and delivery failures return an error
 // so the outbox records them. The bool reports a token FCM has permanently
@@ -365,6 +431,7 @@ func (s *Service) resetFCMToken() {
 	s.fcmMu.Lock()
 	s.fcmToken = ""
 	s.fcmTokenExp = time.Time{}
+	s.fcmKey = ""
 	s.fcmMu.Unlock()
 }
 
@@ -384,20 +451,21 @@ func (s *Service) FCMReady() (bool, string) {
 		return false, err.Error()
 	}
 	if account == nil {
-		return false, "FCM_SERVICE_ACCOUNT_JSON is not set"
+		return false, "no service account is configured"
 	}
 	return true, "project " + account.ProjectID
 }
 
 func (s *Service) fcmAccount() (*fcmServiceAccount, error) {
-	if s == nil || s.Cfg == nil || strings.TrimSpace(s.Cfg.FCMServiceAccountJSON) == "" {
+	raw, project := s.fcmCredentials()
+	if strings.TrimSpace(raw) == "" {
 		return nil, nil
 	}
 	var account fcmServiceAccount
-	if err := json.Unmarshal([]byte(s.Cfg.FCMServiceAccountJSON), &account); err != nil {
+	if err := json.Unmarshal([]byte(raw), &account); err != nil {
 		return nil, fmt.Errorf("parse fcm service account: %w", err)
 	}
-	project := strings.TrimSpace(s.Cfg.FCMProjectID)
+	project = strings.TrimSpace(project)
 	if project == "" {
 		project = strings.TrimSpace(account.ProjectID)
 	}
@@ -411,7 +479,40 @@ func (s *Service) fcmAccount() (*fcmServiceAccount, error) {
 		return nil, err
 	}
 	account.key = key
+	account.fingerprint = fcmFingerprint(&account)
 	return &account, nil
+}
+
+// fcmCredentials resolves the service-account JSON and the optional project
+// override. Runtime settings win so an operator can set native push up from
+// /admin/settings; the environment stays as the fallback for deployments that
+// configure it with FCM_SERVICE_ACCOUNT_JSON.
+func (s *Service) fcmCredentials() (string, string) {
+	override := ""
+	if s != nil && s.Settings != nil {
+		if snap := s.Settings.Snapshot(); snap != nil {
+			fcm := snap.FCM()
+			if fcm.Configured() {
+				return fcm.ServiceAccount, fcm.ProjectID
+			}
+			// A project override can apply to environment credentials too.
+			override = fcm.ProjectID
+		}
+	}
+	if s == nil || s.Cfg == nil {
+		return "", override
+	}
+	if override != "" {
+		return s.Cfg.FCMServiceAccountJSON, override
+	}
+	return s.Cfg.FCMServiceAccountJSON, s.Cfg.FCMProjectID
+}
+
+// fcmFingerprint identifies the credentials a cached OAuth token belongs to so
+// saving a new service account takes effect without a restart.
+func fcmFingerprint(account *fcmServiceAccount) string {
+	sum := sha256.Sum256([]byte(account.ClientEmail + "\x00" + account.ProjectID + "\x00" + account.PrivateKey))
+	return hex.EncodeToString(sum[:])
 }
 
 // fcmTokenURI only honours a service-account token_uri that points at an HTTPS
@@ -457,7 +558,7 @@ func parseFCMPrivateKey(value string) (*rsa.PrivateKey, error) {
 func (s *Service) fcmAccessToken(ctx context.Context, account *fcmServiceAccount) (string, error) {
 	s.fcmMu.Lock()
 	defer s.fcmMu.Unlock()
-	if s.fcmToken != "" && time.Now().UTC().Before(s.fcmTokenExp) {
+	if s.fcmToken != "" && s.fcmKey == account.fingerprint && time.Now().UTC().Before(s.fcmTokenExp) {
 		return s.fcmToken, nil
 	}
 	assertion, err := fcmAssertion(account, time.Now().UTC())
@@ -495,6 +596,7 @@ func (s *Service) fcmAccessToken(ctx context.Context, account *fcmServiceAccount
 	ttl := tokenResp.ExpiresIn
 	s.fcmToken = tokenResp.AccessToken
 	s.fcmTokenExp = fcmTokenExpiry(time.Now().UTC(), ttl)
+	s.fcmKey = account.fingerprint
 	return s.fcmToken, nil
 }
 

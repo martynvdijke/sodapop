@@ -2,6 +2,7 @@ package settings
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -32,6 +33,8 @@ const (
 	KeyVAPIDPublicKey        = "vapid_public_key"
 	KeyVAPIDPrivateKey       = "vapid_private_key"
 	KeyVAPIDSubject          = "vapid_subject"
+	KeyFCMServiceAccount     = "fcm_service_account"
+	KeyFCMProjectID          = "fcm_project_id"
 	KeyRegistrationOpen      = "registration_open"
 	KeyAIEnabled             = "ai_enabled"
 	KeyAllowPasswordFallback = "allow_password_fallback"
@@ -108,6 +111,8 @@ var specs = map[string]keySpec{
 	KeyVAPIDPublicKey:        {},
 	KeyVAPIDPrivateKey:       {secret: true},
 	KeyVAPIDSubject:          {},
+	KeyFCMServiceAccount:     {secret: true},
+	KeyFCMProjectID:          {},
 	KeyRegistrationOpen:      {},
 	KeyAIEnabled:             {},
 	KeyAllowPasswordFallback: {},
@@ -146,6 +151,8 @@ func builtinDefaults() map[string]string {
 		KeyVAPIDPublicKey:        "",
 		KeyVAPIDPrivateKey:       "",
 		KeyVAPIDSubject:          "",
+		KeyFCMServiceAccount:     "",
+		KeyFCMProjectID:          "",
 		KeyRegistrationOpen:      boolString(defaultRegistrationOpen),
 		KeyAIEnabled:             boolString(defaultAIEnabled),
 		KeyAllowPasswordFallback: boolString(defaultAllowPasswordFallback),
@@ -246,6 +253,12 @@ func normalizeValue(key, raw string) (string, error) {
 
 	case KeyVAPIDSubject:
 		return normalizeVAPIDSubject(raw)
+
+	case KeyFCMServiceAccount:
+		return normalizeFCMServiceAccount(raw)
+
+	case KeyFCMProjectID:
+		return normalizeProjectID(raw)
 
 	case KeyRegistrationOpen, KeyAIEnabled, KeyAllowPasswordFallback:
 		v, err := parseBool(raw)
@@ -409,6 +422,63 @@ func normalizeVAPIDSubject(raw string) (string, error) {
 		return "", invalid("%s must start with mailto: or https://", KeyVAPIDSubject)
 	}
 	return u.String(), nil
+}
+
+// maxFCMServiceAccountLen bounds the stored document. A real service-account
+// key is about 2.4 KiB; the limit leaves room for formatting without letting a
+// settings row grow unbounded.
+const maxFCMServiceAccountLen = 16 << 10
+
+// normalizeFCMServiceAccount accepts an unset value or the JSON key Firebase
+// issues for a service account. Only the shape is checked here: the PEM block is
+// parsed when credentials are actually used, so this package stays free of
+// crypto imports and a syntax error is caught before anything is stored.
+func normalizeFCMServiceAccount(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", nil
+	}
+	if len(v) > maxFCMServiceAccountLen {
+		return "", invalid("%s is too large", KeyFCMServiceAccount)
+	}
+	var account struct {
+		ClientEmail string `json:"client_email"`
+		PrivateKey  string `json:"private_key"`
+		ProjectID   string `json:"project_id"`
+	}
+	if err := json.Unmarshal([]byte(v), &account); err != nil {
+		return "", invalid("%s must be the JSON service-account key from Firebase", KeyFCMServiceAccount)
+	}
+	if strings.TrimSpace(account.ClientEmail) == "" || strings.TrimSpace(account.PrivateKey) == "" {
+		return "", invalid("%s is missing client_email or private_key", KeyFCMServiceAccount)
+	}
+	if !strings.Contains(account.PrivateKey, "BEGIN PRIVATE KEY") && !strings.Contains(account.PrivateKey, "BEGIN RSA PRIVATE KEY") {
+		return "", invalid("%s has a private_key that is not PEM encoded", KeyFCMServiceAccount)
+	}
+	if strings.TrimSpace(account.ProjectID) == "" {
+		return "", invalid("%s is missing project_id", KeyFCMServiceAccount)
+	}
+	return v, nil
+}
+
+// normalizeProjectID accepts an unset value or a Google Cloud project ID. It is
+// interpolated into the FCM request path, so only the documented alphabet is
+// allowed even though the ID is path-escaped at the call site.
+func normalizeProjectID(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", nil
+	}
+	if len(v) > 64 {
+		return "", invalid("%s is too long", KeyFCMProjectID)
+	}
+	for _, r := range v {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '.' {
+			continue
+		}
+		return "", invalid("%s must contain only lowercase letters, digits, hyphens and dots", KeyFCMProjectID)
+	}
+	return v, nil
 }
 
 // validHost restricts hostnames to characters safe to interpolate into CSP

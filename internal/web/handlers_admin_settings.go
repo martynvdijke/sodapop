@@ -1,9 +1,11 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
+	"sodapop/internal/integrations"
 	"sodapop/internal/settings"
 )
 
@@ -103,6 +105,8 @@ var settingsNotices = map[string]string{
 	"ai_saved":        "AI settings saved.",
 	"otel_saved":      "Observability settings saved. Restart the server to apply them.",
 	"push_saved":      "Push settings saved.",
+	"fcm_saved":       "Firebase Cloud Messaging settings saved.",
+	"fcm_test_sent":   "Test notification sent to your newest registered device.",
 }
 
 // vapidPublicKey returns the effective public key so the integrations page and
@@ -146,6 +150,16 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 	vapid := snap.VAPID()
 	passwordSet, passwordLast4 := snap.SecretState(settings.KeySMTPPassword)
 	vapidPrivateSet, vapidPrivateLast4 := snap.SecretState(settings.KeyVAPIDPrivateKey)
+	fcm := snap.FCM()
+	fcmAccountSet, _ := snap.SecretState(settings.KeyFCMServiceAccount)
+	fcmReady := fcm.Configured()
+	fcmDetail := ""
+	if fcm.Configured() && s.Integrations != nil {
+		// The render is the operator's only feedback that a saved key parses, so
+		// report the same verdict startup logs. Without the service (tests and
+		// legacy construction) a stored key is the best available signal.
+		fcmReady, fcmDetail = s.Integrations.FCMReady()
+	}
 	s.render(w, r, status, "admin_settings", map[string]any{
 		"Title":             "Settings",
 		"SiteName":          snap.SiteName(),
@@ -168,6 +182,12 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 		"VAPIDEnabled":      vapid.Enabled(),
 		"VAPIDPrivateSet":   vapidPrivateSet,
 		"VAPIDPrivateLast4": vapidPrivateLast4,
+		"FCMProjectID":      fcm.ProjectID,
+		"FCMSource":         snap.Source(settings.KeyFCMServiceAccount),
+		"FCMConfigured":     fcm.Configured(),
+		"FCMReady":          fcmReady,
+		"FCMDetail":         fcmDetail,
+		"FCMAccountSet":     fcmAccountSet,
 		"RegistrationOpen":  snap.RegistrationOpen(),
 		"PasswordFallback":  snap.AllowPasswordFallback(),
 		"AllowedEmails":     strings.Join(snap.AllowedEmails(), ", "),
@@ -379,6 +399,85 @@ func (s *Server) adminSettingsPush(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Redirect(w, r, "/admin/settings?notice=push_saved", http.StatusSeeOther)
+}
+
+func (s *Server) adminSettingsFCM(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	if s.Settings == nil {
+		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	serviceAccount := strings.TrimSpace(r.FormValue("fcm_service_account"))
+	fields := map[string]string{
+		settings.KeyFCMProjectID: strings.TrimSpace(r.FormValue("fcm_project_id")),
+	}
+	if err := validateSettings(fields); err != nil {
+		s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+		return
+	}
+	if serviceAccount != "" {
+		if err := validateSettings(map[string]string{settings.KeyFCMServiceAccount: serviceAccount}); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+			return
+		}
+	}
+	actor := s.settingsUpdatedBy(r)
+	if err := s.Settings.Set(r.Context(), settings.KeyFCMProjectID, fields[settings.KeyFCMProjectID], false, actor); err != nil {
+		s.renderAdminSettings(w, r, http.StatusBadRequest, err.Error(), "")
+		return
+	}
+	if r.FormValue("clear_fcm_service_account") == "1" {
+		if err := s.Settings.Delete(r.Context(), settings.KeyFCMServiceAccount, actor); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, "The FCM service account could not be cleared.", "")
+			return
+		}
+	}
+	if serviceAccount != "" {
+		if err := s.Settings.Set(r.Context(), settings.KeyFCMServiceAccount, serviceAccount, true, actor); err != nil {
+			s.renderAdminSettings(w, r, http.StatusBadRequest, "The FCM service account could not be saved.", "")
+			return
+		}
+	}
+	http.Redirect(w, r, "/admin/settings?notice=fcm_saved", http.StatusSeeOther)
+}
+
+// adminSettingsFCMTest delivers a notification to the admin's newest Android
+// device so the saved credentials can be proven end to end without waiting for
+// real activity.
+func (s *Server) adminSettingsFCMTest(w http.ResponseWriter, r *http.Request) {
+	if !s.csrfOK(w, r) {
+		return
+	}
+	if s.Settings == nil {
+		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	u := UserFromContext(r)
+	if u == nil {
+		s.renderAdminSettings(w, r, http.StatusBadRequest, "Your account could not be resolved.", "")
+		return
+	}
+	if s.Integrations == nil {
+		s.renderAdminSettings(w, r, http.StatusServiceUnavailable, "Native push is not available on this server.", "")
+		return
+	}
+	if err := s.Integrations.SendTestFCM(r.Context(), u.ID); err != nil {
+		switch {
+		case errors.Is(err, integrations.ErrFCMNotConfigured):
+			s.renderAdminSettings(w, r, http.StatusBadRequest, "Firebase Cloud Messaging is not configured. Save a service account, then try again.", "")
+		case errors.Is(err, integrations.ErrNoFCMDevice):
+			s.renderAdminSettings(w, r, http.StatusBadRequest, "No Android device is registered for your account. Open the Sodapop app, allow notifications, then try again.", "")
+		case errors.Is(err, integrations.ErrStaleFCMDevice):
+			s.renderAdminSettings(w, r, http.StatusBadRequest, "The registered device token is no longer valid. Open the Sodapop app so it can register again.", "")
+		default:
+			s.Log.Warn("admin test fcm failed", "err", err)
+			s.renderAdminSettings(w, r, http.StatusBadGateway, "The test notification could not be delivered. Check the server logs for details.", "")
+		}
+		return
+	}
+	http.Redirect(w, r, "/admin/settings?notice=fcm_test_sent", http.StatusSeeOther)
 }
 
 func (s *Server) adminSettingsAccess(w http.ResponseWriter, r *http.Request) {

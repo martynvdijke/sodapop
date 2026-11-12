@@ -35,7 +35,7 @@ and `data.url`, the same relative href the inbox uses. The app routes a tap:
 | Firebase project | Firebase console | everything below |
 | Android app registration | Firebase console → Project settings → Your apps → Add app → Android, package `xyz.vandijke.sodapop` | enables tokens for that project |
 | `apiKey`, `appId`, `messagingSenderId`, `projectId` | Project settings → General → Your apps → SDK setup | app build (dart-defines) |
-| Service-account JSON | Google Cloud console → IAM → Service accounts → Keys | server (`FCM_SERVICE_ACCOUNT_JSON`) |
+| Service-account JSON | Google Cloud console → IAM → Service accounts → Keys | `/admin/settings` or `FCM_SERVICE_ACCOUNT_JSON` |
 
 The app and the service account must belong to the **same** Firebase project;
 a token issued by one project is not accepted by another.
@@ -63,10 +63,19 @@ a token issued by one project is not accepted by another.
 4. Open the account → **Keys → Add key → Create new key → JSON**. Download the
    file once; Google will not show it again.
 
-Keep the file out of the repository. Store it on the server with mode `0600`,
-for example `/etc/sodapop/fcm-service-account.json`.
+Keep the file out of the repository.
 
 ## 3. Configure the server
+
+Paste the JSON key into **`/admin/settings` → Mobile push**. It is stored
+encrypted with `SESSION_SECRET`, never rendered again, and the card shows
+whether the key parses (`FCM: Enabled` / `FCM: Disabled`) and which source the
+credentials come from (`default`, `env` or `db`). The **Send test notification**
+button posts one message to your newest registered Android device, so you can
+prove the whole path before relying on it.
+
+The environment remains a fallback for deployments that configure secrets
+outside the database:
 
 ```sh
 FCM_SERVICE_ACCOUNT_JSON=/etc/sodapop/fcm-service-account.json
@@ -75,12 +84,14 @@ FCM_PROJECT_ID=your-project-id
 ```
 
 `FCM_SERVICE_ACCOUNT_JSON` accepts either a path to the JSON file or the raw
-JSON itself, which is convenient for container secrets. On startup the server
-logs one of:
+JSON itself, which is convenient for container secrets. Runtime settings win
+over the environment; deleting the saved key falls back to these values.
+
+On startup the server logs one of:
 
 ```
 fcm native push enabled  detail="project your-project-id"
-fcm native push disabled reason="FCM_SERVICE_ACCOUNT_JSON is not set"
+fcm native push disabled reason="no service account is configured"
 ```
 
 A malformed or unreadable value is reported as disabled with the reason, so a
@@ -115,7 +126,9 @@ exist. With no secrets the builds still succeed and ship a push-less APK.
 2. Confirm the device registered (any of):
    - the app does not show "push unavailable" in Settings;
    - `sqlite3 data/sodapop.db 'select user_id, platform, last_seen_at from push_devices';`
-3. Send a test notification through the configured credentials:
+3. Send a test notification through the configured credentials. The fastest
+   route is **Send test notification** on the Mobile push card in
+   `/admin/settings`; from a shell:
 
    ```sh
    go run ./cmd/fcmtest -handle <your-handle>
@@ -123,9 +136,9 @@ exist. With no secrets the builds still succeed and ship a push-less APK.
    go run ./cmd/fcmtest -token <device-token> -title "Hi" -body "It works"
    ```
 
-   The command reads the same environment as the server and prints the Google
-   error verbatim when delivery fails. It prunes a token Google rejects, just
-   like the worker does.
+   The command reads the saved settings (falling back to the environment) and
+   prints the Google error verbatim when delivery fails. It prunes a token
+   Google rejects, just like the worker does.
 4. Trigger a real event (a friend comments on your check-in) with the app
    backgrounded.
 
@@ -133,7 +146,9 @@ exist. With no secrets the builds still succeed and ship a push-less APK.
 
 | Symptom | Check |
 |---|---|
-| `fcm native push disabled` at startup | `FCM_SERVICE_ACCOUNT_JSON` is set and readable inside the container, not just on the host |
+| `fcm native push disabled` at startup | no service account is saved under `/admin/settings → Mobile push`, and `FCM_SERVICE_ACCOUNT_JSON` is unset or unreadable inside the container (not just on the host) |
+| Mobile push card says "not usable yet" | the saved JSON is not a valid service-account key; the card names the parse error |
+| Test notification says "no Android device" | open the app, allow notifications, then retry — the token registers on launch |
 | `fcm send failed: ... 401` | the service account lacks `roles/firebasecloudmessaging.admin`, or the FCM API is not enabled |
 | `... 404 SENDER_ID_MISMATCH` | the app was built for a different project than the service account |
 | `... 404 UNREGISTERED` | the app was reinstalled or the token expired; reopen the app so it registers again |
@@ -151,8 +166,9 @@ Android settings also stops push until it is opened again.
 - Payloads contain a title, a body and a relative URL — the same text the inbox
   stores. Nothing else is sent to Google, and no analytics identifiers are
   attached.
-- Rotate the service-account key by creating a new key, updating the secret,
-  restarting the server, and deleting the old key in the Cloud console. Old
+- Rotate the service-account key by creating a new key, saving it at
+  `/admin/settings → Mobile push` (or updating the environment variable and
+  restarting), and deleting the old key in the Cloud console. Old
   keys keep working until deleted.
 - Web Push (VAPID) remains a separate, independent path configured under
   `/admin/settings`; see `docs/architecture.md`.

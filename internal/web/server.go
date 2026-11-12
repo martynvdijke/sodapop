@@ -243,6 +243,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/settings/email/test", s.requireAdminStrict(s.adminSettingsEmailTest))
 	mux.HandleFunc("POST /admin/settings/analytics", s.requireAdminStrict(s.adminSettingsAnalytics))
 	mux.HandleFunc("POST /admin/settings/push", s.requireAdminStrict(s.adminSettingsPush))
+	mux.HandleFunc("POST /admin/settings/fcm", s.requireAdminStrict(s.adminSettingsFCM))
+	mux.HandleFunc("POST /admin/settings/fcm/test", s.requireAdminStrict(s.adminSettingsFCMTest))
 	mux.HandleFunc("POST /admin/settings/access", s.requireAdminStrict(s.adminSettingsAccess))
 	mux.HandleFunc("POST /admin/settings/ai", s.requireAdminStrict(s.adminSettingsAI))
 	mux.HandleFunc("POST /admin/settings/observability", s.requireAdminStrict(s.adminSettingsObservability))
