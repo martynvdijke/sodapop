@@ -42,6 +42,10 @@
   ],
   "packageRules": [
     {
+      "matchCurrentVersion": "/^0/",
+      "groupName": "0.x dependencies"
+    },
+    {
       "matchCategories": [
         "docker"
       ],
