@@ -22,18 +22,22 @@
     ":ignoreModulesAndTests"
   ],
   "platform": "github",
-  "platformAutomerge": false,
+  "platformAutomerge": true,
   "prCreation": "immediate",
   "prHourlyLimit": 10,
-  "rebaseWhen": "conflicted",
+  "rebaseWhen": "auto",
   "configMigration": true,
   "repositories": [
     "martynvdijke/sodapop"
   ],
   "timezone": "Europe/Amsterdam",
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "automerge": true
   },
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
   "packageRules": [
     {
       "matchCategories": [
