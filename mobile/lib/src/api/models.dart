@@ -1,5 +1,7 @@
 import 'dart:collection';
 
+import '../utils/gtin.dart';
+
 int? _int(Object? value) =>
     value is num ? value.toInt() : int.tryParse('${value ?? ''}');
 
@@ -7,6 +9,12 @@ double? _double(Object? value) =>
     value is num ? value.toDouble() : double.tryParse('${value ?? ''}');
 
 String _string(Object? value) => value == null ? '' : '$value';
+
+/// A string that stays null when the server omits it or sends it empty.
+String? _nullableString(Object? value) {
+  final text = value == null ? '' : '$value'.trim();
+  return text.isEmpty ? null : text;
+}
 
 /// The drink's beverage type, defaulting to `soda` when the server omits it.
 /// The nested Ent projection uses a Go field name, so accept both spellings.
@@ -163,6 +171,8 @@ class Drink {
     required this.name,
     this.brand = '',
     this.style = '',
+    this.brandSlug,
+    this.styleSlug,
     this.beverageType = 'soda',
     this.abvPercent = 0,
     this.volumeMl = 0,
@@ -179,6 +189,7 @@ class Drink {
     this.raterCount = 0,
     this.ratingShown = false,
     this.flavours = const [],
+    this.flavourSlugs = const [],
     this.aliases = const [],
     this.barcodeCount = 0,
   });
@@ -188,6 +199,13 @@ class Drink {
   final String name;
   final String brand;
   final String style;
+
+  /// The brand's taxonomy slug, or null when the server has none. Trusted for
+  /// slug-based filters — never re-slugify [brand].
+  final String? brandSlug;
+
+  /// The style's taxonomy slug, or null when the server has none.
+  final String? styleSlug;
 
   /// One of `soda`, `water`, `tea`, `coffee`, `na_beer`, `na_wine`,
   /// `na_spirit` or `other`. Older servers omit the field, so it defaults to
@@ -210,6 +228,10 @@ class Drink {
   final int raterCount;
   final bool ratingShown;
   final List<DrinkFlavour> flavours;
+
+  /// Slugs parallel to [flavours], for prefilling slug-based filters. Empty
+  /// when the server sends none.
+  final List<String> flavourSlugs;
   final List<String> aliases;
   final int barcodeCount;
 
@@ -233,6 +255,13 @@ class Drink {
       drink.cast<String, dynamic>(),
       brand: _firstString([json['BrandName'], json['brand']]),
       style: _firstString([json['StyleName'], json['style']]),
+      brandSlug: _nullableString(
+        _firstString([json['BrandSlug'], json['brand_slug']]),
+      ),
+      styleSlug: _nullableString(
+        _firstString([json['StyleSlug'], json['style_slug']]),
+      ),
+      flavourSlugs: _firstList([json['FlavourSlugs'], json['flavour_slugs']]),
     );
   }
 
@@ -241,6 +270,9 @@ class Drink {
     Map<String, dynamic> json, {
     String? brand,
     String? style,
+    String? brandSlug,
+    String? styleSlug,
+    List<dynamic>? flavourSlugs,
   }) {
     final ratingJson = _map(json['rating']);
     final flavoursJson = _list(json['flavours']);
@@ -250,6 +282,8 @@ class Drink {
       name: _firstString([json['name'], 'Unknown soda']),
       brand: brand ?? _string(json['brand']),
       style: style ?? _string(json['style']),
+      brandSlug: brandSlug ?? _nullableString(json['brand_slug']),
+      styleSlug: styleSlug ?? _nullableString(json['style_slug']),
       beverageType: _beverageType(json),
       abvPercent: _double(_firstValue([json['abv_percent'], json['abv']])) ?? 0,
       volumeMl: _int(json['volume_ml']) ?? 0,
@@ -278,6 +312,10 @@ class Drink {
       flavours: flavoursJson
           .whereType<Map>()
           .map((row) => DrinkFlavour.fromJson(row.cast<String, dynamic>()))
+          .toList(),
+      flavourSlugs: (flavourSlugs ?? _list(json['flavour_slugs']))
+          .map(_string)
+          .where((slug) => slug.isNotEmpty)
           .toList(),
       aliases: _list(
         json['aliases'],
@@ -737,6 +775,8 @@ class CheckinDetail {
     this.canToast = false,
     this.canComment = false,
     this.commentsCount = 0,
+    this.priceCents,
+    this.priceCurrency,
   });
 
   final String id;
@@ -771,6 +811,13 @@ class CheckinDetail {
   final bool canToast;
   final bool canComment;
   final int commentsCount;
+
+  /// The recorded price in integer cents, or null when none was entered.
+  final int? priceCents;
+
+  /// The price's ISO-4217 code. The server may omit it even when a price is
+  /// recorded, so this is null rather than an empty string in that case.
+  final String? priceCurrency;
 
   factory CheckinDetail.fromJson(Map<String, dynamic> json) {
     final user = _map(json['user']);
@@ -834,6 +881,8 @@ class CheckinDetail {
       commentsCount:
           _int(_firstValue([json['comments_count'], json['comment_count']])) ??
           0,
+      priceCents: _int(json['price_cents']),
+      priceCurrency: _nullableString(json['price_currency']),
     );
   }
 }
@@ -1055,6 +1104,7 @@ class Comment {
     this.initial = '',
     this.body = '',
     this.createdAt = '',
+    this.editedAt,
     this.canDelete = false,
   });
 
@@ -1065,6 +1115,9 @@ class Comment {
   final String initial;
   final String body;
   final String createdAt;
+
+  /// When the author last edited the comment; null when never edited.
+  final DateTime? editedAt;
   final bool canDelete;
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -1087,6 +1140,9 @@ class Comment {
       ]),
       body: _firstString([json['body'], json['text']]),
       createdAt: _firstString([json['created_at'], json['createdAt']]),
+      editedAt: DateTime.tryParse(
+        _firstString([json['edited_at'], json['editedAt']]),
+      ),
       canDelete: _bool(json['can_delete']),
     );
   }
@@ -1531,6 +1587,29 @@ class InsightDrink {
   );
 }
 
+/// Money spent in one currency inside the insights window. Totals stay per
+/// currency because cents in different units cannot be added together.
+class InsightSpend {
+  const InsightSpend({
+    this.currency = '',
+    this.totalCents = 0,
+    this.count = 0,
+  });
+
+  /// ISO-4217 code, or blank when a priced check-in carried no currency.
+  final String currency;
+  final int totalCents;
+
+  /// How many priced check-ins contributed to [totalCents].
+  final int count;
+
+  factory InsightSpend.fromJson(Map<String, dynamic> json) => InsightSpend(
+    currency: _string(json['currency']),
+    totalCents: _int(json['total_cents']) ?? 0,
+    count: _int(json['count']) ?? 0,
+  );
+}
+
 /// Nutrition summary for the viewer's check-ins in a rolling window.
 class Insights {
   const Insights({
@@ -1545,6 +1624,7 @@ class Insights {
     this.avgCaffeinePerDayMg = 0,
     this.series = const [],
     this.topDrinks = const [],
+    this.spend = const [],
     this.bedtime = '',
     this.lastCaffeineAt = '',
     this.caffeineClearBy = '',
@@ -1562,6 +1642,10 @@ class Insights {
   final double avgCaffeinePerDayMg;
   final List<InsightPoint> series;
   final List<InsightDrink> topDrinks;
+
+  /// Per-currency spend totals in server order (total descending); empty when
+  /// the window holds no priced check-in.
+  final List<InsightSpend> spend;
   final String bedtime;
   final String lastCaffeineAt;
   final String caffeineClearBy;
@@ -1584,6 +1668,10 @@ class Insights {
     topDrinks: _list(_firstValue([json['top_drinks'], json['topDrinks']]))
         .whereType<Map>()
         .map((row) => InsightDrink.fromJson(row.cast<String, dynamic>()))
+        .toList(),
+    spend: _list(json['spend'])
+        .whereType<Map>()
+        .map((row) => InsightSpend.fromJson(row.cast<String, dynamic>()))
         .toList(),
     bedtime: _string(json['bedtime']),
     lastCaffeineAt: _string(json['last_caffeine_at']),
@@ -2871,4 +2959,163 @@ class YearRecap {
         .map((row) => RecapBadge.fromJson(row.cast<String, dynamic>()))
         .toList(),
   );
+}
+
+/// One standing drop-alert subscription (`GET /api/v1/me/searches`).
+///
+/// A saved search is not a replayable query: the server evaluates its stored
+/// filters when a drink enters the catalog. There is no update endpoint, so
+/// changing one means deleting it and creating another.
+class SavedSearch {
+  const SavedSearch({
+    required this.id,
+    this.name = '',
+    this.query = '',
+    this.beverageType = '',
+    this.styleSlug,
+    this.brandSlug,
+    this.flavourSlug,
+    this.caffeineFree = false,
+    this.sugarFree = false,
+    this.notifyDrops = true,
+    this.createdAt = '',
+    this.lastNotifiedAt = '',
+  });
+
+  final int id;
+  final String name;
+  final String query;
+  final String beverageType;
+
+  /// Empty slugs are null, matching how the server omits an unused filter.
+  final String? styleSlug;
+  final String? brandSlug;
+  final String? flavourSlug;
+
+  final bool caffeineFree;
+  final bool sugarFree;
+
+  /// False when the member opted out of drop alerts for this search. The
+  /// server omits the field when creating with the default (on).
+  final bool notifyDrops;
+
+  final String createdAt;
+
+  /// Empty until the search has produced its first alert.
+  final String lastNotifiedAt;
+
+  factory SavedSearch.fromJson(Map<String, dynamic> json) => SavedSearch(
+    id: _int(json['id']) ?? 0,
+    name: _string(json['name']),
+    query: _string(json['query']),
+    beverageType: _string(json['beverage_type']),
+    styleSlug: _nullableString(json['style_slug']),
+    brandSlug: _nullableString(json['brand_slug']),
+    flavourSlug: _nullableString(json['flavour_slug']),
+    caffeineFree: _bool(json['caffeine_free']),
+    sugarFree: _bool(json['sugar_free']),
+    notifyDrops: json['notify_drops'] == null
+        ? true
+        : _bool(json['notify_drops']),
+    createdAt: _firstString([json['created_at'], json['createdAt']]),
+    lastNotifiedAt: _string(json['last_notified_at']),
+  );
+}
+
+/// True when a saved-search draft carries at least one filter. The server
+/// rejects an unfiltered search with a 400, so the create form checks this
+/// before submitting.
+bool hasSavedSearchFilter({
+  String query = '',
+  String beverageType = '',
+  String? styleSlug,
+  String? brandSlug,
+  String? flavourSlug,
+  bool caffeineFree = false,
+  bool sugarFree = false,
+}) =>
+    query.trim().isNotEmpty ||
+    beverageType.trim().isNotEmpty ||
+    (styleSlug ?? '').trim().isNotEmpty ||
+    (brandSlug ?? '').trim().isNotEmpty ||
+    (flavourSlug ?? '').trim().isNotEmpty ||
+    caffeineFree ||
+    sugarFree;
+
+/// Validates a GTIN-8/12/13/14 value's GS1 check digit. Non-digits are ignored;
+/// an unsupported length is invalid.
+bool isValidGtin(String raw) => normalizeGtin(raw) != null;
+
+/// The symbology to report for a GTIN, picked by its digit count. Empty means
+/// unknown, which the API accepts and stores as such.
+String symbologyForGtin(String raw) {
+  switch (raw.replaceAll(RegExp(r'[^0-9]'), '').length) {
+    case 8:
+      return 'ean8';
+    case 12:
+      return 'upca';
+    case 13:
+      return 'ean13';
+    case 14:
+      return 'gtin14';
+  }
+  return '';
+}
+
+/// One member in a follower or following list (`GET
+/// /api/v1/users/{handle}/followers|following`).
+class FollowUser {
+  const FollowUser({
+    this.handle = '',
+    this.displayName = '',
+    this.avatarUrl,
+    this.bio = '',
+    this.followedByViewer = false,
+    this.isFriend = false,
+  });
+
+  final String handle;
+  final String displayName;
+
+  /// Absolute URL for the avatar, or null when the member has none.
+  final String? avatarUrl;
+  final String bio;
+
+  /// Whether the viewer follows this member back.
+  final bool followedByViewer;
+  final bool isFriend;
+
+  factory FollowUser.fromJson(Map<String, dynamic> json) => FollowUser(
+    handle: _string(json['handle']),
+    displayName: _string(json['display_name']),
+    avatarUrl: _nullableString(json['avatar_url']),
+    bio: _string(json['bio']),
+    followedByViewer: _bool(json['followed_by_viewer']),
+    isFriend: _bool(json['is_friend']),
+  );
+}
+
+/// One keyset page of a follower/following list. [nextCursor] is null on the
+/// last page; pass it back as `before` to fetch the next one.
+class FollowPage {
+  const FollowPage({this.items = const [], this.nextCursor});
+
+  final List<FollowUser> items;
+  final String? nextCursor;
+
+  bool get hasMore => nextCursor != null;
+
+  /// Accepts the wrapped `{"data": [...], "meta": {"next_cursor": ...}}` body
+  /// the follow endpoints send.
+  factory FollowPage.fromJson(Map<String, dynamic> json) {
+    final data = json['data'];
+    final rows = data is List ? data : const <dynamic>[];
+    return FollowPage(
+      items: rows
+          .whereType<Map>()
+          .map((row) => FollowUser.fromJson(row.cast<String, dynamic>()))
+          .toList(),
+      nextCursor: _nullableString(_map(json['meta'])['next_cursor']),
+    );
+  }
 }

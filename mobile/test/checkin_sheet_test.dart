@@ -215,6 +215,8 @@ class _FakeApi extends ApiClient {
     double? lng,
     bool atHome = false,
     List<String> friendIds = const [],
+    int? priceCents,
+    String? priceCurrency,
   }) async {
     calls.add(
       _Call(
@@ -241,7 +243,7 @@ class _FakeApi extends ApiClient {
 }
 
 void _useTallScreen(WidgetTester tester) {
-  tester.view.physicalSize = const Size(420, 1500);
+  tester.view.physicalSize = const Size(420, 1700);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 }

@@ -1317,7 +1317,11 @@ void main() {
         ],
         'years_with_data': [2024, 2025, 2026],
         'badges': [
-          {'slug': 'first-pour', 'name': 'First Pour', 'awarded_at': '2026-03-02T09:00:00Z'},
+          {
+            'slug': 'first-pour',
+            'name': 'First Pour',
+            'awarded_at': '2026-03-02T09:00:00Z',
+          },
         ],
         'fingerprint': {
           'has_data': true,
@@ -1402,6 +1406,257 @@ void main() {
       expect(recap.fingerprint, isNull);
       expect(recap.totals.avgRating, isNull);
       expect(recap.ratedCount, 0);
+    });
+  });
+
+  group('CheckinDetail price', () {
+    test('reads price_cents and price_currency', () {
+      final detail = CheckinDetail.fromJson({
+        'id': 'c1',
+        'price_cents': 250,
+        'price_currency': 'EUR',
+      });
+
+      expect(detail.priceCents, 250);
+      expect(detail.priceCurrency, 'EUR');
+    });
+
+    test('keeps an absent or blank price null', () {
+      final absent = CheckinDetail.fromJson({'id': 'c1'});
+      expect(absent.priceCents, isNull);
+      expect(absent.priceCurrency, isNull);
+
+      final priced = CheckinDetail.fromJson({
+        'id': 'c2',
+        'price_cents': 99,
+        'price_currency': '',
+      });
+      expect(priced.priceCents, 99);
+      expect(priced.priceCurrency, isNull);
+    });
+  });
+
+  group('Comment editedAt', () {
+    test('parses edited_at into a DateTime', () {
+      final comment = Comment.fromJson({
+        'id': 'm1',
+        'body': 'second',
+        'edited_at': '2026-11-18T10:00:00Z',
+      });
+
+      expect(comment.editedAt, DateTime.utc(2026, 11, 18, 10));
+    });
+
+    test('leaves editedAt null when the server omits it', () {
+      final comment = Comment.fromJson({'id': 'm1', 'body': 'first'});
+      expect(comment.editedAt, isNull);
+    });
+  });
+
+  group('Insights spend', () {
+    test('parses the per-currency spend rows in server order', () {
+      final insights = Insights.fromJson({
+        'days': 30,
+        'spend': [
+          {'currency': 'EUR', 'total_cents': 1050, 'count': 4},
+          {'currency': 'USD', 'total_cents': 300, 'count': 1},
+        ],
+      });
+
+      expect(insights.spend, hasLength(2));
+      expect(insights.spend.first.currency, 'EUR');
+      expect(insights.spend.first.totalCents, 1050);
+      expect(insights.spend.first.count, 4);
+      expect(insights.spend.last.currency, 'USD');
+    });
+
+    test('defaults to an empty list when nothing is priced', () {
+      final insights = Insights.fromJson({'days': 30});
+      expect(insights.spend, isEmpty);
+    });
+  });
+
+  group('Drink slugs', () {
+    test('reads style, brand and flavour slugs from the flat payload', () {
+      final drink = Drink.fromJson({
+        'id': 5,
+        'slug': 'cola',
+        'name': 'Cola',
+        'brand': 'Soda Co',
+        'brand_slug': 'soda-co',
+        'style': 'Cola',
+        'style_slug': 'cola-style',
+        'flavours': [
+          {'name': 'Cola', 'slug': 'cola', 'intensity': 4},
+        ],
+        'flavour_slugs': ['cola', 'vanilla', ''],
+      });
+
+      expect(drink.brandSlug, 'soda-co');
+      expect(drink.styleSlug, 'cola-style');
+      expect(drink.flavourSlugs, ['cola', 'vanilla']);
+    });
+
+    test('keeps absent and blank slugs null with an empty flavour list', () {
+      final drink = Drink.fromJson({
+        'id': 6,
+        'slug': 'water',
+        'name': 'Water',
+        'brand_slug': '',
+        'style_slug': '   ',
+      });
+
+      expect(drink.brandSlug, isNull);
+      expect(drink.styleSlug, isNull);
+      expect(drink.flavourSlugs, isEmpty);
+    });
+
+    test('reads the wrapper slugs from the nested barcode shape', () {
+      final drink = Drink.fromDetail({
+        'Drink': {'id': 5, 'slug': 'cola', 'name': 'Cola'},
+        'BrandName': 'Soda Co',
+        'BrandSlug': 'soda-co',
+        'StyleName': 'Cola',
+        'StyleSlug': 'cola-style',
+        'FlavourSlugs': ['cola'],
+      });
+
+      expect(drink.brand, 'Soda Co');
+      expect(drink.brandSlug, 'soda-co');
+      expect(drink.styleSlug, 'cola-style');
+      expect(drink.flavourSlugs, ['cola']);
+    });
+  });
+
+  group('SavedSearch', () {
+    test('round-trips the list payload', () {
+      final search = SavedSearch.fromJson({
+        'id': 7,
+        'name': 'New colas',
+        'query': 'cola',
+        'beverage_type': 'soda',
+        'style_slug': 'cola-style',
+        'brand_slug': 'soda-co',
+        'flavour_slug': 'vanilla',
+        'caffeine_free': true,
+        'sugar_free': false,
+        'notify_drops': false,
+        'created_at': '2026-11-18T09:00:00Z',
+        'last_notified_at': '2026-11-18T10:00:00Z',
+      });
+
+      expect(search.id, 7);
+      expect(search.name, 'New colas');
+      expect(search.query, 'cola');
+      expect(search.beverageType, 'soda');
+      expect(search.styleSlug, 'cola-style');
+      expect(search.brandSlug, 'soda-co');
+      expect(search.flavourSlug, 'vanilla');
+      expect(search.caffeineFree, isTrue);
+      expect(search.sugarFree, isFalse);
+      expect(search.notifyDrops, isFalse);
+      expect(search.createdAt, '2026-11-18T09:00:00Z');
+      expect(search.lastNotifiedAt, '2026-11-18T10:00:00Z');
+    });
+
+    test('defaults notify_drops to on and blank filters to null', () {
+      final search = SavedSearch.fromJson({
+        'id': 8,
+        'name': 'Anything',
+        'style_slug': '',
+        'last_notified_at': null,
+      });
+
+      expect(search.notifyDrops, isTrue);
+      expect(search.styleSlug, isNull);
+      expect(search.brandSlug, isNull);
+      expect(search.flavourSlug, isNull);
+      expect(search.lastNotifiedAt, '');
+    });
+  });
+
+  group('saved-search filters', () {
+    test('needs at least one filter', () {
+      expect(hasSavedSearchFilter(), isFalse);
+      expect(hasSavedSearchFilter(query: '   '), isFalse);
+      expect(hasSavedSearchFilter(query: 'cola'), isTrue);
+      expect(hasSavedSearchFilter(beverageType: 'tea'), isTrue);
+      expect(hasSavedSearchFilter(styleSlug: 'cola-style'), isTrue);
+      expect(hasSavedSearchFilter(brandSlug: 'soda-co'), isTrue);
+      expect(hasSavedSearchFilter(flavourSlug: 'vanilla'), isTrue);
+      expect(hasSavedSearchFilter(caffeineFree: true), isTrue);
+      expect(hasSavedSearchFilter(sugarFree: true), isTrue);
+    });
+  });
+
+  group('GTIN helpers', () {
+    test('validates the GS1 check digit for every supported length', () {
+      expect(isValidGtin('96385074'), isTrue); // EAN-8
+      expect(isValidGtin('036000291452'), isTrue); // UPC-A
+      expect(isValidGtin('5449000000996'), isTrue); // EAN-13
+      expect(isValidGtin('00036000291452'), isTrue); // GTIN-14
+      expect(isValidGtin('5449000000997'), isFalse);
+      expect(isValidGtin('123'), isFalse);
+      expect(isValidGtin(''), isFalse);
+    });
+
+    test('derives the symbology from the digit count', () {
+      expect(symbologyForGtin('96385074'), 'ean8');
+      expect(symbologyForGtin('036000291452'), 'upca');
+      expect(symbologyForGtin('5449000000996'), 'ean13');
+      expect(symbologyForGtin('00036000291452'), 'gtin14');
+      expect(symbologyForGtin('123'), '');
+      expect(symbologyForGtin('54 4900 0000996'), 'ean13');
+    });
+  });
+
+  group('FollowPage', () {
+    test('parses items and the next cursor', () {
+      final page = FollowPage.fromJson({
+        'data': [
+          {
+            'handle': 'ada',
+            'display_name': 'Ada',
+            'avatar_url': 'https://soda.test/api/v1/media/m1',
+            'bio': 'cola fan',
+            'followed_by_viewer': true,
+            'is_friend': false,
+          },
+          {'handle': 'bob', 'display_name': 'Bob', 'avatar_url': null},
+        ],
+        'meta': {'count': 2, 'has_more': true, 'next_cursor': 'ada'},
+      });
+
+      expect(page.items, hasLength(2));
+      expect(page.items.first.handle, 'ada');
+      expect(page.items.first.displayName, 'Ada');
+      expect(page.items.first.avatarUrl, 'https://soda.test/api/v1/media/m1');
+      expect(page.items.first.bio, 'cola fan');
+      expect(page.items.first.followedByViewer, isTrue);
+      expect(page.items.first.isFriend, isFalse);
+      expect(page.items.last.avatarUrl, isNull);
+      expect(page.nextCursor, 'ada');
+      expect(page.hasMore, isTrue);
+    });
+
+    test('ends the list when next_cursor is null', () {
+      final page = FollowPage.fromJson({
+        'data': [
+          {'handle': 'ada'},
+        ],
+        'meta': {'count': 1, 'has_more': false, 'next_cursor': null},
+      });
+
+      expect(page.items.single.handle, 'ada');
+      expect(page.nextCursor, isNull);
+      expect(page.hasMore, isFalse);
+    });
+
+    test('tolerates a sparse body', () {
+      final page = FollowPage.fromJson({});
+      expect(page.items, isEmpty);
+      expect(page.nextCursor, isNull);
+      expect(page.hasMore, isFalse);
     });
   });
 }

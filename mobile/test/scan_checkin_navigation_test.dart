@@ -95,6 +95,8 @@ class _Api extends ApiClient {
     double? lng,
     bool atHome = false,
     List<String> friendIds = const [],
+    int? priceCents,
+    String? priceCurrency,
   }) async {
     createCalls++;
     return 'c9';
@@ -143,7 +145,7 @@ void main() {
   testWidgets('a scan-led save opens the created check-in detail', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 1500);
+    tester.view.physicalSize = const Size(420, 1700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 

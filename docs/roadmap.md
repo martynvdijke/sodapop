@@ -62,7 +62,7 @@ Phase E is shipped as of v1.4.0, so there is no open phase: durable delivery (`d
 
 ### Remaining gaps after v1.12
 
-- **Mobile editing parity is not shipped**: the Android app can create check-ins but cannot edit a check-in or a comment, attach a barcode to a drink, manage saved searches, set a price/currency on a check-in, or browse follower/following lists. Those surfaces are web and API only. The app does not show spend totals either.
+- **Mobile parity, release 1 shipped**: the Android app now edits a member's own check-ins for 24 hours (rating, serving, prep, note, venue, visibility, price and currency), edits their own comments with an (edited) marker, and shows per-currency spend totals in insights. Saved-search management, crowdsourced barcode contribution and follower/following lists remain web and API only until the lane's second release.
 - Wishlist alerts and catalog drop alerts are in-app only by design (no Web Push, FCM or outbox fan-out).
 - The palate comparison has one overall-rating row because check-ins carry no per-taste rating column.
 - Shelf alerts cover saved venues only because `@home` is a hidden venue that cannot carry reports.

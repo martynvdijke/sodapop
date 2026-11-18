@@ -131,6 +131,8 @@ class _Api extends ApiClient {
     double? lng,
     bool atHome = false,
     List<String> friendIds = const [],
+    int? priceCents,
+    String? priceCurrency,
   }) async {
     calls.add(
       _Call(

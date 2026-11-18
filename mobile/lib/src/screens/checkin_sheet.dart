@@ -1,17 +1,19 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../offline/checkin_outbox.dart';
 import '../theme/soda_theme.dart';
+import '../utils/checkin_edit.dart';
 import '../utils/url.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
@@ -36,7 +38,14 @@ class CheckinSave {
   bool get saved => queued || id.isNotEmpty;
 }
 
-Future<CheckinSave?> showCheckinSheet(BuildContext context, Drink drink) async {
+/// Opens the check-in sheet. Passing [existing] switches it to edit mode: the
+/// sheet seeds itself from that check-in and saves with `PATCH` instead of
+/// creating a new row.
+Future<CheckinSave?> showCheckinSheet(
+  BuildContext context,
+  Drink drink, {
+  CheckinDetail? existing,
+}) async {
   return showModalBottomSheet<CheckinSave>(
     context: context,
     isScrollControlled: true,
@@ -45,7 +54,7 @@ Future<CheckinSave?> showCheckinSheet(BuildContext context, Drink drink) async {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (_) => CheckinSheet(drink: drink),
+    builder: (_) => CheckinSheet(drink: drink, existing: existing),
   );
 }
 
@@ -53,6 +62,7 @@ class CheckinSheet extends ConsumerStatefulWidget {
   const CheckinSheet({
     super.key,
     required this.drink,
+    this.existing,
     this.pickImage,
     this.pickVideo,
     this.locationProvider,
@@ -64,6 +74,10 @@ class CheckinSheet extends ConsumerStatefulWidget {
   });
 
   final Drink drink;
+
+  /// The check-in being edited. When present the sheet is in edit mode: fields
+  /// are seeded from this row and `_save()` PATCHes it instead of creating one.
+  final CheckinDetail? existing;
 
   /// Optional overrides so widget tests can attach media without a camera.
   final CheckinImagePicker? pickImage;
@@ -115,16 +129,21 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
 
   final _note = TextEditingController();
   final _prepNote = TextEditingController();
+  final _price = TextEditingController();
+  final _currency = TextEditingController();
   int _quarters = 0;
   bool _notRated = true;
   bool _saving = false;
   bool _picking = false;
   String _serving = 'can';
+  bool _servingTouched = false;
   String _visibility = 'private';
   String _prepMethod = 'none';
   Venue? _venue;
   bool _atHome = false;
   String? _error;
+  String? _priceError;
+  String? _currencyError;
 
   final List<FriendUser> _tagged = [];
   double? _lat;
@@ -146,10 +165,81 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
   /// One key per sheet, reused if a direct write fails and the row is queued.
   String? _key;
 
+  /// True when the sheet is editing an existing check-in rather than creating
+  /// one. Edit mode skips the offline outbox and hides the attachment section.
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    if (existing != null) {
+      _seedFromExisting(existing);
+    } else {
+      _loadLastCurrency();
+    }
+  }
+
+  /// Seeds the editable fields from an existing check-in. Serving is the one
+  /// field the detail payload does not carry, so it keeps the sheet's default;
+  /// the user may still change it and the PATCH will carry the new value.
+  void _seedFromExisting(CheckinDetail existing) {
+    _note.text = existing.note;
+    _prepNote.text = existing.prepNote;
+    final rating = existing.rating;
+    if (rating != null && rating > 0) {
+      _quarters = rating.round().clamp(0, 20);
+      _notRated = false;
+    }
+    if (existing.prepMethod.isNotEmpty) _prepMethod = existing.prepMethod;
+    if (_visibilities.any((option) => option.$1 == existing.visibility)) {
+      _visibility = existing.visibility;
+    }
+    final venueId = existing.venueId;
+    if (venueId != null && existing.venueName.isNotEmpty) {
+      _venue = Venue(id: venueId, name: existing.venueName, kind: 'other');
+    }
+    _atHome = existing.atHome;
+    final cents = existing.priceCents;
+    if (cents != null) _price.text = formatMajorUnits(cents);
+    final currency = existing.priceCurrency;
+    if (currency != null && currency.isNotEmpty) {
+      _currency.text = currency.toUpperCase();
+    }
+  }
+
+  /// Remembers the currency so the next check-in starts on the right one. A
+  /// miss is harmless: the sheet just opens with an empty currency field.
+  Future<void> _loadLastCurrency() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_currencyPrefKey) ?? '';
+      if (!mounted || saved.isEmpty || _currency.text.isNotEmpty) return;
+      setState(() => _currency.text = saved);
+    } catch (_) {
+      // Preferences are a convenience, never a requirement.
+    }
+  }
+
+  Future<void> _rememberCurrency(String code) async {
+    if (code.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_currencyPrefKey, code);
+    } catch (_) {
+      // Preference writes are best-effort.
+    }
+  }
+
+  /// Where the last-used currency is remembered between check-ins.
+  static const _currencyPrefKey = 'sodapop.price.currency.v1';
+
   @override
   void dispose() {
     _note.dispose();
     _prepNote.dispose();
+    _price.dispose();
+    _currency.dispose();
     super.dispose();
   }
 
@@ -542,20 +632,86 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
     await (widget.serviceSettingsOpener ?? Geolocator.openLocationSettings)();
   }
 
+  /// Validates the price fields. Returns the parsed price when the row is
+  /// usable; otherwise sets the field error and returns null.
+  ///
+  /// A blank amount means "no price": any currency text is ignored, so
+  /// clearing the amount clears the whole row (spec §3).
+  ParsedPrice? _validatePrice() {
+    final parsed = parsePriceCents(_price.text);
+    final currency = _currency.text.trim().toUpperCase();
+    String? priceError;
+    String? currencyError;
+    if (parsed.isInvalid) {
+      priceError = 'Enter an amount like 2.50.';
+    } else if (!parsed.isBlank &&
+        currency.isNotEmpty &&
+        !RegExp(r'^[A-Z]{3}$').hasMatch(currency)) {
+      currencyError = 'Use a three-letter code like EUR.';
+    }
+    if (priceError != null || currencyError != null) {
+      setState(() {
+        _priceError = priceError;
+        _currencyError = currencyError;
+      });
+      return null;
+    }
+    return parsed;
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _saving = true;
       _error = null;
+      _priceError = null;
+      _currencyError = null;
     });
+
+    final price = _validatePrice();
+    if (price == null) {
+      setState(() => _saving = false);
+      return;
+    }
+    final currency = _currency.text.trim().toUpperCase();
 
     final api = ref.read(apiProvider);
     final messenger = ScaffoldMessenger.of(context);
     final rating = _notRated ? null : _quarters;
     final key = _key ??= newIdempotencyKey();
     final video = _videoBytes;
+    final existing = widget.existing;
     try {
+      if (existing != null) {
+        // Edit mode: a partial PATCH. A failed write surfaces its server error
+        // instead of queueing — edits need connectivity to be meaningful.
+        final updated = await api.updateCheckin(
+          existing.id,
+          rating: rating,
+          clearRating: rating == null,
+          // Serving is not on the detail payload, so it is only sent when the
+          // user actually picked one here; otherwise the stored value stands.
+          serving: _servingTouched ? _serving : null,
+          prepMethod: _prepMethod,
+          prepNote: _prepNote.text,
+          note: _noteText,
+          venueId: _venueId,
+          clearVenue: _venueId == null && existing.venueId != null,
+          visibility: _visibility,
+          priceCents: price.cents,
+          clearPrice: price.isBlank,
+          priceCurrency: price.isBlank ? null : currency,
+        );
+        if (!mounted) return;
+        unawaited(_rememberCurrency(currency));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Check-in updated')),
+        );
+        Navigator.of(context).pop(CheckinSave.saved(updated.id));
+        return;
+      }
+
       final id = await api.createCheckin(
         drinkId: widget.drink.id,
         rating: rating,
@@ -573,8 +729,11 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
         photo: video ?? _photoBytes,
         photoFilename: video != null ? _videoName : _photoName,
         photoMime: video != null ? _videoMime : _photoMime,
+        priceCents: price.cents,
+        priceCurrency: price.cents == null ? null : currency,
       );
       if (!mounted) return;
+      unawaited(_rememberCurrency(currency));
       final shelfVenueId = _venueId;
       final shelfSlug = widget.drink.slug;
       messenger.showSnackBar(
@@ -592,8 +751,23 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
       Navigator.of(context).pop(CheckinSave.saved(id));
     } catch (error) {
       if (!mounted) return;
+      if (error is ApiException && error.code == 'edit_window_closed') {
+        setState(() {
+          _saving = false;
+          _error = 'Check-ins can be edited for 24 hours.';
+        });
+        return;
+      }
       final status = _statusOf(error);
       if (status != null && status >= 400 && status < 500) {
+        setState(() {
+          _saving = false;
+          _error = ApiClient.describe(error).message;
+        });
+        return;
+      }
+      if (existing != null) {
+        // No outbox for edits: the sheet stays open with the failure.
         setState(() {
           _saving = false;
           _error = ApiClient.describe(error).message;
@@ -712,7 +886,7 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Log a soda',
+                    _isEdit ? 'Edit check-in' : 'Log a soda',
                     style: theme.textTheme.labelSmall?.copyWith(
                       letterSpacing: 1.4,
                       fontWeight: FontWeight.w700,
@@ -749,15 +923,26 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
                   const SizedBox(height: 22),
                   _noteSection(theme),
                   const SizedBox(height: 22),
-                  _attachmentSection(theme),
+                  _priceSection(theme),
+                  // PATCH carries no photo field, so edit mode hides the
+                  // attachment section and leaves the existing photo alone.
+                  if (!_isEdit) ...[
+                    const SizedBox(height: 22),
+                    _attachmentSection(theme),
+                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 16),
                     _errorBanner(theme),
                   ],
                   const SizedBox(height: 20),
                   FilledButton(
+                    key: const Key('checkin-save'),
                     onPressed: _saving || _picking || _locating ? null : _save,
-                    child: Text(_saving ? 'Saving…' : 'Save check-in'),
+                    child: Text(
+                      _saving
+                          ? 'Saving…'
+                          : (_isEdit ? 'Save changes' : 'Save check-in'),
+                    ),
                   ),
                 ],
               ),
@@ -849,7 +1034,10 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
           selected: _serving,
           onChanged: (value) {
             if (_saving) return;
-            setState(() => _serving = value);
+            setState(() {
+              _serving = value;
+              _servingTouched = true;
+            });
           },
         ),
       ],
@@ -1147,6 +1335,123 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
     );
   }
 
+  Widget _priceSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(theme, 'Price', trailing: 'Optional'),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                key: const Key('checkin-price'),
+                controller: _price,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Amount paid',
+                  hintText: '2.50',
+                  errorText: _priceError,
+                ),
+                onChanged: (_) {
+                  if (_priceError != null || _currencyError != null) {
+                    setState(() {
+                      _priceError = null;
+                      _currencyError = null;
+                    });
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                key: const Key('checkin-price-currency'),
+                controller: _currency,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
+                  LengthLimitingTextInputFormatter(3),
+                  const _UpperCaseTextFormatter(),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Currency',
+                  hintText: 'EUR',
+                  errorText: _currencyError,
+                  suffixIcon: _currencyPicker(theme),
+                ),
+                onChanged: (_) {
+                  if (_priceError != null || _currencyError != null) {
+                    setState(() {
+                      _priceError = null;
+                      _currencyError = null;
+                    });
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'A three-letter currency code. Used only for your own spend totals.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Curated picker beside the currency field. Typing stays possible for codes
+  /// outside this short list; the menu is a shortcut, not the limit.
+  Widget _currencyPicker(ThemeData theme) {
+    return PopupMenuButton<String>(
+      key: const Key('checkin-price-currency-menu'),
+      tooltip: 'Pick a currency',
+      icon: const Icon(Icons.arrow_drop_down_rounded),
+      onSelected: (code) {
+        setState(() {
+          _currency.text = code;
+          _currencyError = null;
+        });
+      },
+      itemBuilder: (_) => [
+        for (final (code, label) in _currencies)
+          PopupMenuItem(value: code, child: Text('$code · $label')),
+      ],
+    );
+  }
+
+  /// A short ISO-4217 set: enough for most pours without a 180-item menu.
+  static const _currencies = <(String, String)>[
+    ('EUR', 'Euro'),
+    ('USD', 'US dollar'),
+    ('GBP', 'Pound sterling'),
+    ('CAD', 'Canadian dollar'),
+    ('AUD', 'Australian dollar'),
+    ('NZD', 'New Zealand dollar'),
+    ('CHF', 'Swiss franc'),
+    ('SEK', 'Swedish krona'),
+    ('NOK', 'Norwegian krone'),
+    ('DKK', 'Danish krone'),
+    ('PLN', 'Polish złoty'),
+    ('CZK', 'Czech koruna'),
+    ('JPY', 'Japanese yen'),
+    ('BRL', 'Brazilian real'),
+    ('MXN', 'Mexican peso'),
+    ('INR', 'Indian rupee'),
+    ('ZAR', 'South African rand'),
+  ];
+
   Widget _attachmentSection(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1370,6 +1675,28 @@ class _CheckinSheetState extends ConsumerState<CheckinSheet> {
       default:
         return 'video/mp4';
     }
+  }
+}
+
+/// Upper-cases currency input as it is typed or pasted. Kept ASCII-only so the
+/// value is exactly what the server's ISO-4217 check expects.
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  const _UpperCaseTextFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text
+        .replaceAll(RegExp('[^A-Za-z]'), '')
+        .toUpperCase();
+    if (text == newValue.text) return newValue;
+    return newValue.copyWith(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: TextRange.empty,
+    );
   }
 }
 

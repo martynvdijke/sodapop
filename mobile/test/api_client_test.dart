@@ -151,10 +151,7 @@ void main() {
       );
 
       expect(id, 'c-home');
-      expect(h.adapter.requests.single.data, {
-        'drink_id': 7,
-        'at_home': true,
-      });
+      expect(h.adapter.requests.single.data, {'drink_id': 7, 'at_home': true});
     });
   });
 
@@ -244,24 +241,27 @@ void main() {
       expect(id, 'c10');
     });
 
-    test('at_home drops venue and coordinates from the multipart form', () async {
-      final h = _Harness(body: '{"data":{"id":"c-home"}}', status: 201);
-      final id = await h.api.createCheckin(
-        drinkId: 7,
-        venueId: 2,
-        lat: 51.50722,
-        lng: -0.1275,
-        atHome: true,
-        photo: Uint8List.fromList([1]),
-      );
+    test(
+      'at_home drops venue and coordinates from the multipart form',
+      () async {
+        final h = _Harness(body: '{"data":{"id":"c-home"}}', status: 201);
+        final id = await h.api.createCheckin(
+          drinkId: 7,
+          venueId: 2,
+          lat: 51.50722,
+          lng: -0.1275,
+          atHome: true,
+          photo: Uint8List.fromList([1]),
+        );
 
-      final fields = _fields(h.captured!);
-      expect(fields['at_home'], 'true');
-      expect(fields.containsKey('venue_id'), isFalse);
-      expect(fields.containsKey('lat'), isFalse);
-      expect(fields.containsKey('lng'), isFalse);
-      expect(id, 'c-home');
-    });
+        final fields = _fields(h.captured!);
+        expect(fields['at_home'], 'true');
+        expect(fields.containsKey('venue_id'), isFalse);
+        expect(fields.containsKey('lat'), isFalse);
+        expect(fields.containsKey('lng'), isFalse);
+        expect(id, 'c-home');
+      },
+    );
   });
 
   group('media helpers', () {
@@ -719,51 +719,54 @@ void main() {
   });
 
   group('check-in filters', () {
-    test('myCheckins sends every filter and parses the page metadata', () async {
-      final h = _Harness(
-        body: jsonEncode({
-          'data': [
-            {'id': 'c1', 'drink_name': 'Cola', 'rating': 17},
-          ],
-          'meta': {'count': 1, 'has_next': true, 'page': 3},
-        }),
-        status: 200,
-      );
+    test(
+      'myCheckins sends every filter and parses the page metadata',
+      () async {
+        final h = _Harness(
+          body: jsonEncode({
+            'data': [
+              {'id': 'c1', 'drink_name': 'Cola', 'rating': 17},
+            ],
+            'meta': {'count': 1, 'has_next': true, 'page': 3},
+          }),
+          status: 200,
+        );
 
-      final page = await h.api.myCheckins(
-        limit: 5,
-        before: ' 2026-10-01T00:00:00Z ',
-        from: '2026-09-01',
-        to: '2026-10-01',
-        ratingMin: 8,
-        ratingMax: 20,
-        minLikes: 2,
-        hasPhoto: true,
-        visibility: 'friends',
-        sort: 'likes',
-        page: 3,
-      );
+        final page = await h.api.myCheckins(
+          limit: 5,
+          before: ' 2026-10-01T00:00:00Z ',
+          from: '2026-09-01',
+          to: '2026-10-01',
+          ratingMin: 8,
+          ratingMax: 20,
+          minLikes: 2,
+          hasPhoto: true,
+          visibility: 'friends',
+          sort: 'likes',
+          page: 3,
+        );
 
-      final request = h.adapter.requests.single;
-      expect(request.path, 'api/v1/me/checkins');
-      expect(request.queryParameters, {
-        'limit': 5,
-        'before': '2026-10-01T00:00:00Z',
-        'from': '2026-09-01',
-        'to': '2026-10-01',
-        'rating_min': 8,
-        'rating_max': 20,
-        'min_likes': 2,
-        'has_photo': 1,
-        'visibility': 'friends',
-        'sort': 'likes',
-        'page': 3,
-      });
-      expect(page.single.id, 'c1');
-      expect(page.hasNext, isTrue);
-      expect(page.page, 3);
-      expect(page.count, 1);
-    });
+        final request = h.adapter.requests.single;
+        expect(request.path, 'api/v1/me/checkins');
+        expect(request.queryParameters, {
+          'limit': 5,
+          'before': '2026-10-01T00:00:00Z',
+          'from': '2026-09-01',
+          'to': '2026-10-01',
+          'rating_min': 8,
+          'rating_max': 20,
+          'min_likes': 2,
+          'has_photo': 1,
+          'visibility': 'friends',
+          'sort': 'likes',
+          'page': 3,
+        });
+        expect(page.single.id, 'c1');
+        expect(page.hasNext, isTrue);
+        expect(page.page, 3);
+        expect(page.count, 1);
+      },
+    );
 
     test('omits blank filters and a false has_photo', () async {
       final h = _Harness(body: '{"data":[]}', status: 200);
@@ -1898,6 +1901,359 @@ void main() {
           isA<ApiException>()
               .having((e) => e.message, 'message', 'boom')
               .having((e) => e.statusCode, 'statusCode', 500),
+        ),
+      );
+    });
+
+    test('keeps the server error code reachable', () async {
+      final h = _Harness(
+        status: 400,
+        body:
+            '{"error":{"code":"edit_window_closed",'
+            '"message":"check-ins can only be edited within 24 hours"}}',
+      );
+      await expectLater(
+        h.api.updateCheckin('c1', note: 'late'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'edit_window_closed')
+              .having((e) => e.statusCode, 'statusCode', 400),
+        ),
+      );
+    });
+  });
+
+  group('updateCheckin', () {
+    test('PATCHes only the supplied fields', () async {
+      final h = _Harness(
+        status: 200,
+        body:
+            '{"data":{"id":"c1","note":"Crisp","price_cents":150,'
+            '"price_currency":"EUR"}}',
+      );
+
+      final detail = await h.api.updateCheckin(
+        'c1',
+        rating: 17,
+        note: '  Crisp  ',
+        priceCents: 150,
+        priceCurrency: 'EUR',
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'PATCH');
+      expect(request.path, 'api/v1/checkins/c1');
+      expect(request.data, {
+        'rating': 17,
+        'note': 'Crisp',
+        'price_cents': 150,
+        'price_currency': 'EUR',
+      });
+      expect(detail.note, 'Crisp');
+      expect(detail.priceCents, 150);
+      expect(detail.priceCurrency, 'EUR');
+    });
+
+    test('sends explicit nulls for the nillable columns', () async {
+      final h = _Harness(status: 200, body: '{"data":{"id":"c1"}}');
+
+      await h.api.updateCheckin(
+        'c1',
+        clearRating: true,
+        clearVenue: true,
+        clearPrice: true,
+      );
+
+      expect(h.adapter.requests.single.data, {
+        'rating': null,
+        'venue_id': null,
+        'price_cents': null,
+      });
+    });
+  });
+
+  group('updateComment', () {
+    test('PATCHes the body and parses edited_at', () async {
+      final h = _Harness(
+        status: 200,
+        body:
+            '{"data":{"id":"m1","body":"second","created_at":"2026-11-18T09:00:00Z",'
+            '"edited_at":"2026-11-18T10:00:00Z"}}',
+      );
+
+      final comment = await h.api.updateComment('m1', 'second');
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'PATCH');
+      expect(request.path, 'api/v1/comments/m1');
+      expect(request.data, {'body': 'second'});
+      expect(comment.body, 'second');
+      expect(comment.editedAt, DateTime.utc(2026, 11, 18, 10));
+    });
+  });
+
+  group('saved searches', () {
+    test('lists saved searches from the data array', () async {
+      final h = _Harness(
+        status: 200,
+        body:
+            '{"data":[{"id":7,"name":"New colas","query":"cola",'
+            '"beverage_type":"soda","style_slug":"cola-style",'
+            '"caffeine_free":true,"notify_drops":false,'
+            '"created_at":"2026-11-18T09:00:00Z"}],'
+            '"meta":{"count":1,"max":25}}',
+      );
+
+      final searches = await h.api.savedSearches();
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'GET');
+      expect(request.path, 'api/v1/me/searches');
+      expect(searches, hasLength(1));
+      expect(searches.single.id, 7);
+      expect(searches.single.name, 'New colas');
+      expect(searches.single.query, 'cola');
+      expect(searches.single.beverageType, 'soda');
+      expect(searches.single.styleSlug, 'cola-style');
+      expect(searches.single.caffeineFree, isTrue);
+      expect(searches.single.notifyDrops, isFalse);
+    });
+
+    test(
+      'creates a search with filters and omits notify_drops when true',
+      () async {
+        final h = _Harness(
+          status: 201,
+          body: '{"data":{"id":9,"name":"Cola","query":"cola"}}',
+        );
+
+        final search = await h.api.createSavedSearch(
+          name: '  Cola  ',
+          query: ' cola ',
+          beverageType: 'soda',
+          styleSlug: 'cola-style',
+          brandSlug: 'soda-co',
+          flavourSlug: 'vanilla',
+          caffeineFree: true,
+        );
+
+        final request = h.adapter.requests.single;
+        expect(request.method, 'POST');
+        expect(request.path, 'api/v1/me/searches');
+        expect(request.data, {
+          'name': 'Cola',
+          'query': 'cola',
+          'beverage_type': 'soda',
+          'style_slug': 'cola-style',
+          'brand_slug': 'soda-co',
+          'flavour_slug': 'vanilla',
+          'caffeine_free': true,
+          'sugar_free': false,
+        });
+        expect(search.id, 9);
+        expect(search.name, 'Cola');
+      },
+    );
+
+    test('sends notify_drops false only when the member opted out', () async {
+      final h = _Harness(
+        status: 201,
+        body: '{"data":{"id":9,"name":"Cola","query":"cola"}}',
+      );
+
+      await h.api.createSavedSearch(query: 'cola', notifyDrops: false);
+
+      expect(h.adapter.requests.single.data, {
+        'name': '',
+        'query': 'cola',
+        'beverage_type': '',
+        'caffeine_free': false,
+        'sugar_free': false,
+        'notify_drops': false,
+      });
+    });
+
+    test('surfaces the 25-per-user cap as limit_reached', () async {
+      final h = _Harness(
+        status: 400,
+        body:
+            '{"error":{"code":"limit_reached",'
+            '"message":"saved search limit reached"}}',
+      );
+
+      await expectLater(
+        h.api.createSavedSearch(query: 'cola'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'limit_reached')
+              .having((e) => e.statusCode, 'statusCode', 400),
+        ),
+      );
+    });
+
+    test('deletes one saved search by id', () async {
+      final h = _Harness(status: 204, body: '');
+
+      await h.api.deleteSavedSearch(7);
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'DELETE');
+      expect(request.path, 'api/v1/me/searches/7');
+    });
+  });
+
+  group('contributeBarcode', () {
+    test('answers true for a newly attached code (201)', () async {
+      final h = _Harness(
+        status: 201,
+        body: '{"gtin":"5449000000996","created":true}',
+      );
+
+      final created = await h.api.contributeBarcode(
+        'cola',
+        gtin: ' 5449000000996 ',
+        symbology: 'ean13',
+      );
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, 'api/v1/drinks/cola/barcodes');
+      expect(request.data, {'gtin': '5449000000996', 'symbology': 'ean13'});
+      expect(created, isTrue);
+    });
+
+    test(
+      'answers false when the code was already on the drink (200)',
+      () async {
+        final h = _Harness(
+          status: 200,
+          body: '{"gtin":"5449000000996","created":false}',
+        );
+
+        final created = await h.api.contributeBarcode(
+          'cola',
+          gtin: '5449000000996',
+        );
+
+        expect(h.adapter.requests.single.data, {
+          'gtin': '5449000000996',
+          'symbology': '',
+        });
+        expect(created, isFalse);
+      },
+    );
+
+    test('surfaces barcode_taken with the owning drink name (409)', () async {
+      final h = _Harness(
+        status: 409,
+        body:
+            '{"error":{"code":"barcode_taken",'
+            '"message":"that barcode already belongs to Pepsi"}}',
+      );
+
+      await expectLater(
+        h.api.contributeBarcode('cola', gtin: '5449000000996'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'barcode_taken')
+              .having((e) => e.message, 'message', contains('Pepsi')),
+        ),
+      );
+    });
+
+    test('surfaces invalid_barcode (400)', () async {
+      final h = _Harness(
+        status: 400,
+        body: '{"error":{"code":"invalid_barcode","message":"bad code"}}',
+      );
+
+      await expectLater(
+        h.api.contributeBarcode('cola', gtin: '123'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'invalid_barcode')
+              .having((e) => e.statusCode, 'statusCode', 400),
+        ),
+      );
+    });
+
+    test('surfaces the rate limit (429)', () async {
+      final h = _Harness(
+        status: 429,
+        body: '{"error":{"code":"rate_limited","message":"slow down"}}',
+      );
+
+      await expectLater(
+        h.api.contributeBarcode('cola', gtin: '5449000000996'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'rate_limited')
+              .having((e) => e.statusCode, 'statusCode', 429),
+        ),
+      );
+    });
+  });
+
+  group('follow lists', () {
+    String body({bool more = false}) => jsonEncode({
+      'data': [
+        {
+          'handle': 'ada',
+          'display_name': 'Ada',
+          'avatar_url': 'https://soda.test/api/v1/media/m1',
+          'bio': 'cola fan',
+          'followed_by_viewer': true,
+          'is_friend': false,
+        },
+      ],
+      'meta': {
+        'count': 1,
+        'has_more': more,
+        'next_cursor': more ? 'ada' : null,
+      },
+    });
+
+    test('defaults to 20 rows and no cursor', () async {
+      final h = _Harness(status: 200, body: body());
+
+      final page = await h.api.listFollowers('ada');
+
+      final request = h.adapter.requests.single;
+      expect(request.method, 'GET');
+      expect(request.path, 'api/v1/users/ada/followers');
+      expect(request.queryParameters, {'limit': 20});
+      expect(page.items.single.handle, 'ada');
+      expect(page.items.single.displayName, 'Ada');
+      expect(page.items.single.avatarUrl, 'https://soda.test/api/v1/media/m1');
+      expect(page.items.single.followedByViewer, isTrue);
+      expect(page.nextCursor, isNull);
+      expect(page.hasMore, isFalse);
+    });
+
+    test('passes the before cursor and clamps the limit to 50', () async {
+      final h = _Harness(status: 200, body: body(more: true));
+
+      final page = await h.api.listFollowing('ada', limit: 99, before: ' c1 ');
+
+      final request = h.adapter.requests.single;
+      expect(request.path, 'api/v1/users/ada/following');
+      expect(request.queryParameters, {'limit': 50, 'before': 'c1'});
+      expect(page.nextCursor, 'ada');
+      expect(page.hasMore, isTrue);
+    });
+
+    test('surfaces a hidden profile as a 404', () async {
+      final h = _Harness(
+        status: 404,
+        body: '{"error":{"code":"not_found","message":"not found"}}',
+      );
+
+      await expectLater(
+        h.api.listFollowers('ghost'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 404)
+              .having((e) => e.code, 'code', 'not_found'),
         ),
       );
     });

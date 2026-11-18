@@ -9,10 +9,14 @@ import '../utils/url.dart';
 import 'models.dart';
 
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode});
+  ApiException(this.message, {this.statusCode, this.code});
 
   final String message;
   final int? statusCode;
+
+  /// The server's machine-readable error code (for example
+  /// `edit_window_closed`), when the response body carried one.
+  final String? code;
 
   @override
   String toString() => message;
@@ -38,6 +42,10 @@ class ApiClient {
   final Dio _dio;
   String? _server;
   String? _token;
+
+  /// The follow-list endpoint's default and maximum page sizes.
+  static const int _followPageSize = 20;
+  static const int _followMaxPageSize = 50;
 
   bool get configured => _server != null;
   String? get server => _server;
@@ -446,6 +454,31 @@ class ApiClient {
     );
   });
 
+  /// Attaches [gtin] to [drinkSlug]. [symbology] is one of `ean8`, `upca`,
+  /// `ean13`, `gtin14`, or empty when unknown.
+  ///
+  /// Answers true for a newly attached code (201) and false when it was
+  /// already on the drink (200). A code held by another drink throws an
+  /// [ApiException] with code `barcode_taken` whose message names that drink;
+  /// an invalid code is `invalid_barcode` and the rate limit is `rate_limited`.
+  Future<bool> contributeBarcode(
+    String drinkSlug, {
+    required String gtin,
+    String symbology = '',
+  }) => _guard(() async {
+    final response = await _dio.post<dynamic>(
+      'api/v1/drinks/${Uri.encodeComponent(drinkSlug)}/barcodes',
+      data: {'gtin': gtin.trim(), 'symbology': symbology.trim()},
+      options: _options(),
+    );
+    // The response is flat: {"gtin": ..., "created": true|false}.
+    final body = response.data;
+    if (body is Map && body['created'] is bool) {
+      return body['created'] as bool;
+    }
+    return response.statusCode == 201;
+  });
+
   /// One drink's full detail: nutrition, flavour notes, aliases and rating.
   Future<Drink> drink(String slug) => _guard(() async {
     final response = await _dio.get<dynamic>(
@@ -748,6 +781,8 @@ class ApiClient {
     double? lng,
     bool atHome = false,
     List<String> friendIds = const [],
+    int? priceCents,
+    String? priceCurrency,
   }) => _guard(() async {
     final key = idempotencyKey ?? newIdempotencyKey();
     final ratingValue = rating == null ? null : rating / 4;
@@ -758,6 +793,7 @@ class ApiClient {
     final hasPrep =
         prepMethodText != null && prepMethodText.toLowerCase() != 'none';
     final visibilityText = _trimmed(visibility);
+    final priceCurrencyText = _trimmed(priceCurrency);
     // At home is a place of its own: no coordinates and no venue id may ride
     // along with it. Otherwise the server rejects one coordinate without the
     // other, so send neither.
@@ -785,6 +821,10 @@ class ApiClient {
       if (noteText.isNotEmpty) payload['note'] = noteText;
       if (hasPrep) payload['prep_method'] = prepMethodText;
       if (prepNoteText != null) payload['prep_note'] = prepNoteText;
+      if (priceCents != null) payload['price_cents'] = priceCents;
+      if (priceCurrencyText != null) {
+        payload['price_currency'] = priceCurrencyText;
+      }
       if (tagged.isNotEmpty) payload['friend_ids'] = tagged;
       final response = await _dio.post<dynamic>(
         'api/v1/checkins',
@@ -815,6 +855,12 @@ class ApiClient {
     if (servingText != null) form.fields.add(MapEntry('serving', servingText));
     if (visibilityText != null) {
       form.fields.add(MapEntry('visibility', visibilityText));
+    }
+    if (priceCents != null) {
+      form.fields.add(MapEntry('price_cents', '$priceCents'));
+    }
+    if (priceCurrencyText != null) {
+      form.fields.add(MapEntry('price_currency', priceCurrencyText));
     }
     if (hasLocation) {
       form.fields.add(MapEntry('lat', '$lat'));
@@ -885,6 +931,72 @@ class ApiClient {
     );
   });
 
+  /// Edits an owned check-in inside the server's 24-hour window.
+  ///
+  /// The body is a partial patch: a field left out is not sent, so the stored
+  /// value is untouched. The three nillable columns need an explicit clear
+  /// flag because a Dart argument cannot distinguish "absent" from "null":
+  /// [clearRating], [clearVenue] and [clearPrice] each send an explicit JSON
+  /// null so the server empties that column.
+  ///
+  /// [rating] is the quarter-star integer 0–20 (unlike [createCheckin], which
+  /// takes the same scale and divides by four on the wire).
+  ///
+  /// A `400` body keeps its error code on the thrown [ApiException], so an
+  /// expired window (`edit_window_closed`) stays distinguishable from a field
+  /// validation failure.
+  Future<CheckinDetail> updateCheckin(
+    String id, {
+    int? rating,
+    bool clearRating = false,
+    String? serving,
+    String? prepMethod,
+    String? prepNote,
+    String? note,
+    int? venueId,
+    bool clearVenue = false,
+    String? visibility,
+    int? priceCents,
+    bool clearPrice = false,
+    String? priceCurrency,
+  }) => _guard(() async {
+    final payload = <String, dynamic>{};
+    if (clearRating) {
+      payload['rating'] = null;
+    } else if (rating != null) {
+      payload['rating'] = rating;
+    }
+    final servingText = _trimmed(serving);
+    if (servingText != null) payload['serving'] = servingText;
+    final prepMethodText = _trimmed(prepMethod);
+    if (prepMethodText != null) payload['prep_method'] = prepMethodText;
+    if (prepNote != null) payload['prep_note'] = prepNote.trim();
+    if (note != null) payload['note'] = note.trim();
+    if (clearVenue) {
+      payload['venue_id'] = null;
+    } else if (venueId != null) {
+      payload['venue_id'] = venueId;
+    }
+    final visibilityText = _trimmed(visibility);
+    if (visibilityText != null) payload['visibility'] = visibilityText;
+    if (clearPrice) {
+      payload['price_cents'] = null;
+    } else if (priceCents != null) {
+      payload['price_cents'] = priceCents;
+    }
+    final currencyText = _trimmed(priceCurrency);
+    if (currencyText != null) payload['price_currency'] = currencyText;
+
+    final response = await _dio.patch<dynamic>(
+      'api/v1/checkins/$id',
+      data: payload,
+      options: _options(),
+    );
+    return CheckinDetail.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
   /// One page of comments, oldest first. `meta.next_before` is the id of the
   /// oldest comment on the page, so the caller can page backwards.
   Future<CommentPage> commentPage(
@@ -929,6 +1041,19 @@ class ApiClient {
     );
   });
 
+  /// Rewrites a comment the token holder authored. The server answers with the
+  /// updated row, including `edited_at`, so the caller can swap it in place.
+  Future<Comment> updateComment(String commentId, String body) => _guard(
+    () async {
+      final response = await _dio.patch<dynamic>(
+        'api/v1/comments/$commentId',
+        data: {'body': body},
+        options: _options(),
+      );
+      return Comment.fromJson((_data(response) as Map).cast<String, dynamic>());
+    },
+  );
+
   Future<void> deleteCheckin(String id) => _guard(() async {
     await _dio.delete<dynamic>('api/v1/checkins/$id', options: _options());
   });
@@ -955,6 +1080,46 @@ class ApiClient {
       'api/v1/users/$handle/follow',
       options: _options(),
     );
+  });
+
+  /// One page of the members following [handle]. Defaults to 20 per page, the
+  /// server's default; anything above its cap of 50 is clamped. [before] is the
+  /// previous page's `next_cursor`.
+  Future<FollowPage> listFollowers(
+    String handle, {
+    int? limit,
+    String? before,
+  }) => _followPage('followers', handle, limit: limit, before: before);
+
+  /// One page of the members [handle] follows.
+  Future<FollowPage> listFollowing(
+    String handle, {
+    int? limit,
+    String? before,
+  }) => _followPage('following', handle, limit: limit, before: before);
+
+  Future<FollowPage> _followPage(
+    String kind,
+    String handle, {
+    int? limit,
+    String? before,
+  }) => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/users/${Uri.encodeComponent(handle)}/$kind',
+      queryParameters: {
+        'limit': (limit ?? _followPageSize).clamp(1, _followMaxPageSize),
+        'before': ?_trimmed(before),
+      },
+      options: _options(),
+    );
+    final body = response.data;
+    if (body is! Map) {
+      throw ApiException(
+        'Unexpected response from the server',
+        statusCode: response.statusCode,
+      );
+    }
+    return FollowPage.fromJson(body.cast<String, dynamic>());
   });
 
   Future<void> acceptFriendRequest(String id) => _guard(() async {
@@ -1202,6 +1367,63 @@ class ApiClient {
       data: {'token': token},
       options: _options(),
     );
+  });
+
+  /// The caller's saved searches (drop alerts), newest first. There is no way
+  /// to read another member's list and no update endpoint.
+  Future<List<SavedSearch>> savedSearches() => _guard(() async {
+    final response = await _dio.get<dynamic>(
+      'api/v1/me/searches',
+      options: _options(),
+    );
+    return _rows(_data(response))
+        .whereType<Map>()
+        .map((row) => SavedSearch.fromJson(row.cast<String, dynamic>()))
+        .toList();
+  });
+
+  /// Creates one standing drop alert. [name] blank asks the server to
+  /// auto-name it; at least one filter is required or the server answers 400.
+  ///
+  /// `notify_drops` is omitted when [notifyDrops] is true, per the API
+  /// contract, and sent as `false` only when the member opted out. The 25th
+  /// saved search is the per-user cap: beyond it the server answers 400 with
+  /// code `limit_reached`.
+  Future<SavedSearch> createSavedSearch({
+    String name = '',
+    String query = '',
+    String beverageType = '',
+    String? styleSlug,
+    String? brandSlug,
+    String? flavourSlug,
+    bool caffeineFree = false,
+    bool sugarFree = false,
+    bool notifyDrops = true,
+  }) => _guard(() async {
+    final response = await _dio.post<dynamic>(
+      'api/v1/me/searches',
+      data: {
+        'name': name.trim(),
+        'query': query.trim(),
+        'beverage_type': beverageType.trim(),
+        'style_slug': ?_trimmed(styleSlug),
+        'brand_slug': ?_trimmed(brandSlug),
+        'flavour_slug': ?_trimmed(flavourSlug),
+        'caffeine_free': caffeineFree,
+        'sugar_free': sugarFree,
+        if (!notifyDrops) 'notify_drops': false,
+      },
+      options: _options(),
+    );
+    return SavedSearch.fromJson(
+      (_data(response) as Map).cast<String, dynamic>(),
+    );
+  });
+
+  /// Removes one of the caller's saved searches. Another member's row answers
+  /// 404 exactly like a missing one.
+  Future<void> deleteSavedSearch(int id) => _guard(() async {
+    await _dio.delete<dynamic>('api/v1/me/searches/$id', options: _options());
   });
 
   Future<List<SavedVenue>> savedVenues() => _guard(() async {
@@ -1665,9 +1887,11 @@ class ApiClient {
     if (error is DioException) {
       final body = error.response?.data;
       if (body is Map && body['error'] is Map) {
+        final detail = body['error'] as Map;
         return ApiException(
-          '${body['error']['message']}',
+          '${detail['message']}',
           statusCode: error.response?.statusCode,
+          code: detail['code'] == null ? null : '${detail['code']}',
         );
       }
       if (error.type == DioExceptionType.connectionError ||

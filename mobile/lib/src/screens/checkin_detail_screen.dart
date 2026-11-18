@@ -8,10 +8,12 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
+import '../utils/checkin_edit.dart';
 import '../utils/url.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
+import 'checkin_sheet.dart';
 import 'drink_detail_screen.dart';
 import 'user_profile_screen.dart';
 
@@ -47,6 +49,7 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
   bool _saveBusy = false;
   bool _posting = false;
   bool _deletingComment = false;
+  bool _editingComment = false;
   bool _deletingCheckin = false;
   bool _hasEarlier = false;
   bool _loadingEarlier = false;
@@ -304,6 +307,51 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
     }
   }
 
+  /// Rewrites one of the viewer's own comments. The dialog returns the new
+  /// body; the server echoes the stored comment so the tile can be replaced in
+  /// place, which is also what surfaces the `(edited)` marker.
+  Future<void> _editComment(Comment comment) async {
+    if (_editingComment || _deletingComment) return;
+    final body = await showDialog<String>(
+      context: context,
+      builder: (_) => _CommentEditDialog(initialBody: comment.body),
+    );
+    if (body == null || !mounted) return;
+
+    setState(() => _editingComment = true);
+    try {
+      final updated = await ref
+          .read(apiProvider)
+          .updateComment(comment.id, body);
+      if (!mounted) return;
+      setState(() {
+        _comments = [
+          for (final row in _comments) row.id == updated.id ? updated : row,
+        ];
+        _editingComment = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      final failure = ApiClient.describe(error);
+      // A comment deleted from another device answers 404; drop the stale row
+      // rather than leaving an edit affordance for something that is gone.
+      final gone = failure.statusCode == 404;
+      setState(() {
+        _editingComment = false;
+        if (gone) {
+          _comments = _comments.where((row) => row.id != comment.id).toList();
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            gone ? 'That comment is no longer here.' : failure.message,
+          ),
+        ),
+      );
+    }
+  }
+
   void _openAuthor(String handle) {
     if (handle.isEmpty) return;
     UserProfileScreen.open(context, handle);
@@ -317,6 +365,35 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
       entity: 'checkin',
       id: detail.id,
       title: 'Report this check-in?',
+    );
+  }
+
+  /// Opens the sheet in edit mode on this check-in, then refreshes the detail
+  /// so the new values show without a second trip through the feed.
+  Future<void> _editCheckin() async {
+    final detail = _detail;
+    if (detail == null) return;
+    if (!checkinEditWindowOpen(detail.createdAt)) {
+      _showEditWindowClosed();
+      return;
+    }
+    // The detail payload carries the drink's display fields but not its id;
+    // edit mode PATCHes the check-in and never needs the drink id.
+    final drink = Drink(
+      id: 0,
+      slug: detail.drinkSlug,
+      name: detail.drinkName.isEmpty ? 'Check-in' : detail.drinkName,
+      brand: detail.brand,
+      style: detail.style,
+    );
+    final saved = await showCheckinSheet(context, drink, existing: detail);
+    if (!mounted || saved == null || !saved.saved) return;
+    await _load();
+  }
+
+  void _showEditWindowClosed() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Check-ins can be edited for 24 hours.')),
     );
   }
 
@@ -381,10 +458,18 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
             PopupMenuButton<String>(
               tooltip: 'Check-in options',
               onSelected: (value) {
+                if (value == 'edit') _editCheckin();
                 if (value == 'delete') _deleteCheckin();
                 if (value == 'report') _reportCheckin();
               },
               itemBuilder: (context) => [
+                if (detail != null &&
+                    detail.canDelete &&
+                    checkinEditWindowOpen(detail.createdAt))
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Text('Edit check-in'),
+                  ),
                 if (detail?.canDelete == true)
                   const PopupMenuItem(
                     value: 'delete',
@@ -703,6 +788,26 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                 ],
               ),
             ],
+            if (detail.priceCents != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                key: const Key('checkin-price-row'),
+                children: [
+                  Icon(
+                    Icons.sell_outlined,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _priceLabel(detail),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             Divider(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
@@ -764,6 +869,13 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
     );
   }
 
+  /// "EUR 2.50" when the currency is known, "2.50" when it is not.
+  String _priceLabel(CheckinDetail detail) {
+    final amount = formatMajorUnits(detail.priceCents ?? 0);
+    final currency = (detail.priceCurrency ?? '').trim();
+    return currency.isEmpty ? amount : '$currency $amount';
+  }
+
   Widget _photo(CheckinDetail detail) {
     final theme = Theme.of(context);
     final api = ref.read(apiProvider);
@@ -818,6 +930,12 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
         ? '@${comment.handle}'
         : comment.displayName;
     final date = sodaDate(comment.createdAt);
+    // Mirrors the web thread: the timestamp carries a quiet marker once the
+    // author has edited the comment. `edited_at` is server-set.
+    final stamp = [
+      if (date.isNotEmpty) date,
+      if (comment.editedAt != null) '(edited)',
+    ].join(' · ');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -851,9 +969,9 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                         ),
                       ),
                     ),
-                    if (date.isNotEmpty)
+                    if (stamp.isNotEmpty)
                       Text(
-                        date,
+                        stamp,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -888,7 +1006,14 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
                       ),
                     if (comment.canDelete)
                       TextButton(
-                        onPressed: _deletingComment
+                        onPressed: _editingComment || _deletingComment
+                            ? null
+                            : () => _editComment(comment),
+                        child: const Text('Edit'),
+                      ),
+                    if (comment.canDelete)
+                      TextButton(
+                        onPressed: _deletingComment || _editingComment
                             ? null
                             : () => _deleteComment(comment),
                         child: const Text('Delete'),
@@ -927,6 +1052,74 @@ class _CheckinDetailScreenState extends ConsumerState<CheckinDetailScreen> {
             label: Text(_posting ? 'Posting…' : 'Post'),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// The compose dialog reused for edits: prefilled with the comment's current
+/// body and closed with the new text, which the caller PATCHes.
+class _CommentEditDialog extends StatefulWidget {
+  const _CommentEditDialog({required this.initialBody});
+
+  final String initialBody;
+
+  @override
+  State<_CommentEditDialog> createState() => _CommentEditDialogState();
+}
+
+class _CommentEditDialogState extends State<_CommentEditDialog> {
+  static const _maxLength = 1000;
+
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialBody,
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final body = _controller.text.trim();
+    // The API accepts 1–1000 runes; both bounds are checked here so a bad body
+    // never reaches the server.
+    if (body.isEmpty) {
+      setState(() => _error = 'A comment needs some words.');
+      return;
+    }
+    if (body.runes.length > _maxLength) {
+      setState(() => _error = 'Keep it to $_maxLength characters or fewer.');
+      return;
+    }
+    Navigator.pop(context, body);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit comment'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        minLines: 3,
+        maxLines: 6,
+        maxLength: _maxLength,
+        textCapitalization: TextCapitalization.sentences,
+        inputFormatters: [LengthLimitingTextInputFormatter(_maxLength)],
+        decoration: InputDecoration(hintText: 'Comment', errorText: _error),
+        onChanged: (_) {
+          if (_error != null) setState(() => _error = null);
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Save')),
       ],
     );
   }

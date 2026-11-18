@@ -7,6 +7,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
 import '../theme/soda_theme.dart';
+import '../utils/checkin_edit.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 
@@ -139,6 +140,8 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
             const SizedBox(height: 22),
             _chart(data),
           ],
+          const SizedBox(height: 26),
+          _spend(data.spend),
           if (data.topDrinks.isNotEmpty) ...[
             const SizedBox(height: 26),
             const SodaSectionTitle(title: 'Top drinks'),
@@ -359,6 +362,104 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _spend(List<InsightSpend> spend) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.payments_outlined,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Spend',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (spend.isEmpty)
+              Text(
+                'No prices in this range. A price on a check-in is totalled here.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+            else ...[
+              Text(
+                'What you paid, per currency. Different currencies are never '
+                'added together.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              for (var index = 0; index < spend.length; index++) ...[
+                if (index > 0)
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+                  ),
+                _spendRow(spend[index]),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _spendRow(InsightSpend entry) {
+    final theme = Theme.of(context);
+    final code = entry.currency.trim();
+    // A priced check-in with no currency has no code to show; the amount is
+    // still a real total, so it keeps a plain label rather than disappearing
+    // (the web page simply omits the suffix).
+    final label = code.isEmpty ? 'No currency' : code;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sodaCount(entry.count, 'priced check-in'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            formatMajorUnits(entry.totalCents),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
