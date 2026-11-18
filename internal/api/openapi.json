@@ -670,8 +670,21 @@
           "brand": {
             "type": "string"
           },
+          "brand_slug": {
+            "type": "string"
+          },
           "style": {
             "type": "string"
+          },
+          "style_slug": {
+            "type": "string"
+          },
+          "flavour_slugs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Slugs parallel to the flavours display names; an empty list is valid."
           },
           "container": {
             "type": "string",

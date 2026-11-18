@@ -15,6 +15,7 @@ import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'admin_overview_screen.dart';
 import 'legal_screen.dart';
+import 'saved_searches_screen.dart';
 
 /// One picked profile photo, already read into memory so the upload does not
 /// depend on the picker's temporary file staying alive.
@@ -713,6 +714,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 24),
         _wishlistAlertsSection(theme),
         const SizedBox(height: 24),
+        _savedSearchesSection(theme),
+        const SizedBox(height: 24),
         _privacySection(theme, settings.prefs),
         const SizedBox(height: 24),
         _caffeineSection(theme, settings.prefs),
@@ -1123,6 +1126,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
+      ],
+    );
+  }
+
+  /// Saved searches are standing drop alerts, managed on their own screen:
+  /// create, list and delete, exactly like the web page.
+  Widget _savedSearchesSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SodaSectionTitle(title: 'Saved searches'),
+        const SizedBox(height: 10),
+        Card(
+          child: ListTile(
+            key: const Key('settings-saved-searches'),
+            contentPadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+            leading: Icon(
+              Icons.bookmark_added_outlined,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            title: const Text('Saved searches'),
+            subtitle: const Text(
+              'Drop alerts for catalog queries you keep an eye on.',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => SavedSearchesScreen.open(context),
+          ),
+        ),
       ],
     );
   }

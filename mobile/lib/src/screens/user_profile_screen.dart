@@ -10,6 +10,7 @@ import '../widgets/report_sheet.dart';
 import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'drink_detail_screen.dart';
+import 'follow_list_screen.dart';
 import 'list_detail_screen.dart';
 
 /// A profile as seen by the signed-in member. Private, missing and blocked
@@ -378,18 +379,59 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 ),
               ],
               const SizedBox(height: 6),
-              Text(
-                '${sodaCount(profile.followerCount, 'follower')} · ${profile.followingCount} following',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+              _followCounts(profile),
               if (profile.bio.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(profile.bio, style: theme.textTheme.bodyMedium),
               ],
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  /// The follower/following counts are the way into the two people lists, so
+  /// each is its own button rather than one static line of text.
+  Widget _followCounts(UserProfile profile) {
+    final theme = Theme.of(context);
+    final style = TextButton.styleFrom(
+      foregroundColor: theme.colorScheme.onSurfaceVariant,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      minimumSize: const Size(44, 44),
+      tapTargetSize: MaterialTapTargetSize.padded,
+      textStyle: theme.textTheme.bodySmall,
+    );
+
+    return Wrap(
+      spacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        TextButton(
+          key: const Key('profile-followers'),
+          style: style,
+          onPressed: () => FollowListScreen.open(
+            context,
+            handle: profile.handle,
+            mode: FollowListMode.followers,
+          ),
+          child: Text(sodaCount(profile.followerCount, 'follower')),
+        ),
+        Text(
+          '·',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        TextButton(
+          key: const Key('profile-following'),
+          style: style,
+          onPressed: () => FollowListScreen.open(
+            context,
+            handle: profile.handle,
+            mode: FollowListMode.following,
+          ),
+          child: Text('${profile.followingCount} following'),
         ),
       ],
     );

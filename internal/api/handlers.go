@@ -1007,6 +1007,7 @@ func drinkDTO(d *catalog.DrinkDetail) map[string]any {
 	return map[string]any{
 		"id": dr.ID, "slug": dr.Slug, "name": dr.Name, "description": dr.Description,
 		"brand": d.BrandName, "style": d.StyleName, "container": dr.Container, "volume_ml": dr.VolumeMl,
+		"brand_slug": d.BrandSlug, "style_slug": d.StyleSlug, "flavour_slugs": d.FlavourSlugs,
 		"beverage_type": dr.BeverageType, "abv_percent": dr.AbvPercent,
 		"caffeine_mg_per_100ml": dr.CaffeineMgPer100ml, "sugar_g_per_100ml": dr.SugarGPer100ml,
 		"calories_kcal_per_100ml": dr.CaloriesKcalPer100ml, "sweetener": dr.Sweetener,

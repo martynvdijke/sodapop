@@ -16,6 +16,7 @@ import '../widgets/soda_format.dart';
 import '../widgets/soda_ui.dart';
 import 'checkin_sheet.dart';
 import 'compare_screen.dart';
+import 'saved_searches_screen.dart';
 
 /// One soda's full record: facts, flavour notes and the community gallery.
 class DrinkDetailScreen extends ConsumerStatefulWidget {
@@ -62,6 +63,10 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
   String? _error;
   String? _galleryError;
 
+  /// Codes added during this visit. The detail payload's count only refreshes
+  /// on reload, so the section adds these on top until the next fetch.
+  int _extraBarcodes = 0;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +80,7 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
       _error = null;
       _galleryLoading = true;
       _galleryError = null;
+      _extraBarcodes = 0;
     });
     final api = ref.read(apiProvider);
 
@@ -172,6 +178,36 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
     final saved = await showCheckinSheet(context, drink);
     if (!mounted || saved == null) return;
     await _load();
+  }
+
+  Future<void> _addBarcode(Drink drink) async {
+    if (_needsConnection()) return;
+    final slug = drink.slug.isNotEmpty ? drink.slug : widget.slug;
+    final outcome = await showModalBottomSheet<_BarcodeOutcome>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _BarcodeSheet(drinkSlug: slug),
+    );
+    if (!mounted || outcome == null) return;
+    if (outcome == _BarcodeOutcome.added) {
+      setState(() => _extraBarcodes += 1);
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            outcome == _BarcodeOutcome.added
+                ? 'Barcode added'
+                : 'Already on file',
+          ),
+        ),
+      );
   }
 
   Future<void> _addPhoto() async {
@@ -439,6 +475,7 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
             const SizedBox(height: 26),
             _flavours(drink),
           ],
+          _moreLikeThis(drink),
           if (drink.aliases.isNotEmpty) ...[
             const SizedBox(height: 22),
             SodaSectionTitle(title: 'Also known as'),
@@ -450,6 +487,8 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 26),
+          _barcodes(drink),
           const SizedBox(height: 26),
           _gallerySection(),
         ],
@@ -758,6 +797,112 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
     );
   }
 
+  /// Body-level row that turns this soda's own catalog slugs into a drop alert.
+  /// Slugs come straight from the detail payload — never slugified client-side.
+  Widget _moreLikeThis(Drink drink) {
+    if (!ref.watch(authProvider).signedIn) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: const Key('drink-drop-alert'),
+          onTap: () => SavedSearchesScreen.open(
+            context,
+            beverageType: drink.beverageType,
+            styleSlug: drink.styleSlug ?? '',
+            brandSlug: drink.brandSlug ?? '',
+            flavourSlug: drink.flavourSlugs.isEmpty
+                ? ''
+                : drink.flavourSlugs.first,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.notifications_active_outlined,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'More like this',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Alert me when similar drinks drop',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _barcodes(Drink drink) {
+    final theme = Theme.of(context);
+    final signedIn = ref.watch(authProvider).signedIn;
+    final count = drink.barcodeCount + _extraBarcodes;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SodaSectionTitle(title: 'Barcodes', trailing: '$count'),
+        const SizedBox(height: 4),
+        Text(
+          'The digits under the barcode on the package. Everyone can add one '
+          'they have in hand.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          count == 0 ? 'No barcodes yet.' : sodaCount(count, 'barcode'),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: count == 0 ? theme.colorScheme.onSurfaceVariant : null,
+            fontWeight: count == 0 ? null : FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (signedIn)
+          OutlinedButton.icon(
+            key: const Key('drink-add-barcode'),
+            onPressed: () => _addBarcode(drink),
+            icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+            label: const Text('Add a barcode'),
+          )
+        else
+          Text(
+            'Barcodes are added by members who are signed in.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _gallerySection() {
     final theme = Theme.of(context);
     final signedIn = ref.watch(authProvider).signedIn;
@@ -956,6 +1101,189 @@ class _DrinkDetailScreenState extends ConsumerState<DrinkDetailScreen> {
         ],
       ),
     );
+  }
+}
+
+/// What the barcode sheet tells the drink page when it closes.
+enum _BarcodeOutcome { added, alreadyOnFile }
+
+/// The digits-only add form. Validation is local (GS1 check digit) so a typo
+/// never reaches the server; the symbology follows the digit count.
+class _BarcodeSheet extends ConsumerStatefulWidget {
+  const _BarcodeSheet({required this.drinkSlug});
+
+  final String drinkSlug;
+
+  @override
+  ConsumerState<_BarcodeSheet> createState() => _BarcodeSheetState();
+}
+
+class _BarcodeSheetState extends ConsumerState<_BarcodeSheet> {
+  final _code = TextEditingController();
+  bool _submitting = false;
+  String? _fieldError;
+  String? _error;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  static const _invalidMessage =
+      'That is not a valid barcode. Check the digits and try again.';
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    final raw = _code.text.trim();
+    if (!isValidGtin(raw)) {
+      setState(() {
+        _fieldError = _invalidMessage;
+        _error = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _fieldError = null;
+      _error = null;
+    });
+    try {
+      final created = await ref
+          .read(apiProvider)
+          .contributeBarcode(
+            widget.drinkSlug,
+            gtin: raw,
+            symbology: symbologyForGtin(raw),
+          );
+      if (!mounted) return;
+      Navigator.pop(
+        context,
+        created ? _BarcodeOutcome.added : _BarcodeOutcome.alreadyOnFile,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      final described = ApiClient.describe(error);
+      setState(() => _submitting = false);
+      if (described.code == 'barcode_taken') {
+        await _showTakenDialog(described.message);
+      } else if (described.code == 'invalid_barcode') {
+        setState(() => _fieldError = _invalidMessage);
+      } else if (described.code == 'rate_limited') {
+        setState(
+          () => _error = 'Too many barcodes added at once. Try again in a '
+              'minute.',
+        );
+      } else {
+        setState(() => _error = described.message);
+      }
+    }
+  }
+
+  Future<void> _showTakenDialog(String message) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Barcode already taken'),
+        content: Text(
+          message.trim().isEmpty
+              ? 'Another drink already has this barcode.'
+              : message,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final symbology = symbologyForGtin(_code.text);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Add a barcode',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Enter the digits under the barcode. The check digit is verified '
+            'before it is saved.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            key: const Key('barcode-input'),
+            controller: _code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(14),
+            ],
+            onChanged: (_) => setState(() {
+              _fieldError = null;
+              _error = null;
+            }),
+            decoration: InputDecoration(
+              labelText: 'Barcode digits',
+              hintText: '0123456789012',
+              helperText: _symbologyLabel(symbology),
+              errorText: _fieldError,
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _error!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          FilledButton(
+            key: const Key('barcode-submit'),
+            onPressed: _submitting ? null : _submit,
+            child: Text(_submitting ? 'Adding…' : 'Add barcode'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _symbologyLabel(String symbology) {
+  switch (symbology) {
+    case 'ean8':
+      return 'EAN-8';
+    case 'upca':
+      return 'UPC-A';
+    case 'ean13':
+      return 'EAN-13';
+    case 'gtin14':
+      return 'GTIN-14';
+    default:
+      return '8 to 14 digits';
   }
 }
 

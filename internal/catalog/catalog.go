@@ -81,12 +81,17 @@ type SearchResult struct {
 
 // DrinkDetail is a single-drink payload.
 type DrinkDetail struct {
-	Drink      *ent.Drink
-	BrandName  string
-	StyleName  string
-	Aliases    []string
-	Flavours   []FlavourInfo
-	BarcodeNum int
+	Drink     *ent.Drink
+	BrandName string
+	BrandSlug string
+	StyleName string
+	StyleSlug string
+	Aliases   []string
+	Flavours  []FlavourInfo
+	// FlavourSlugs runs parallel to Flavours, so clients can prefill
+	// slug-based filters without slugifying display names themselves.
+	FlavourSlugs []string
+	BarcodeNum   int
 	// Barcodes lists the GTINs attached to the drink, newest first, so the drink
 	// page can show them and offer a contribution form.
 	Barcodes []*ent.DrinkBarcode
@@ -194,9 +199,11 @@ func (s *Service) detail(ctx context.Context, d *ent.Drink) (*DrinkDetail, error
 	out := &DrinkDetail{Drink: d}
 	if d.Edges.Brand != nil {
 		out.BrandName = d.Edges.Brand.Name
+		out.BrandSlug = d.Edges.Brand.Slug
 	}
 	if d.Edges.Style != nil {
 		out.StyleName = d.Edges.Style.Name
+		out.StyleSlug = d.Edges.Style.Slug
 	}
 	aliases, err := s.SQL.QueryContext(ctx, `SELECT alias FROM drink_alias WHERE drink_id = ? ORDER BY alias`, d.ID)
 	if err == nil {
@@ -218,6 +225,7 @@ func (s *Service) detail(ctx context.Context, d *ent.Drink) (*DrinkDetail, error
 				out.Flavours = append(out.Flavours, FlavourInfo{
 					Name: f.Edges.Flavour.Name, Slug: f.Edges.Flavour.Slug, Intensity: f.Intensity,
 				})
+				out.FlavourSlugs = append(out.FlavourSlugs, f.Edges.Flavour.Slug)
 			}
 		}
 	}

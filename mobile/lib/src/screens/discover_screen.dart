@@ -36,12 +36,60 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   List<Drink> _results = const [];
   bool _searching = false;
   bool _searched = false;
+  bool _savingAlert = false;
+  bool _queryActive = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _query.addListener(_onQueryChanged);
+  }
 
   @override
   void dispose() {
     _query.dispose();
     super.dispose();
+  }
+
+  /// The quick-save entry appears only while the search box has text, so a
+  /// whole rebuild is needed just on the empty/non-empty transition.
+  void _onQueryChanged() {
+    final active = _query.text.trim().isNotEmpty;
+    if (active != _queryActive && mounted) {
+      setState(() => _queryActive = active);
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Captures the typed words as a standing drop alert: the query alone
+  /// satisfies the server's at-least-one-filter rule, so no form is needed
+  /// where the search already happened.
+  Future<void> _saveDropAlert() async {
+    final value = _query.text.trim();
+    if (value.isEmpty || _savingAlert) return;
+    setState(() => _savingAlert = true);
+    try {
+      await ref.read(apiProvider).createSavedSearch(query: value);
+      if (!mounted) return;
+      setState(() => _savingAlert = false);
+      _snack('Drop alert saved for “$value”.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _savingAlert = false);
+      final described = ApiClient.describe(error);
+      _snack(
+        described.code == 'limit_reached'
+            ? 'You have reached 25 saved searches. Delete one in settings first.'
+            : described.message,
+      );
+    }
   }
 
   Future<void> _search() async {
@@ -69,6 +117,33 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         _error = ApiClient.describe(error).message;
       });
     }
+  }
+
+  /// Shown only when the search box carries words. Tapping it turns those
+  /// words into a saved search, because a drop alert is where searching
+  /// already happens.
+  Widget _saveSearchEntry(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          key: const Key('discover-save-search'),
+          onPressed: _savingAlert ? null : _saveDropAlert,
+          icon: _savingAlert
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Soda.lime,
+                  ),
+                )
+              : const Icon(Icons.notifications_active_outlined, size: 18),
+          label: const Text('Save as drop alert'),
+        ),
+      ),
+    );
   }
 
   /// A quiet shortcut under the search field: drafting starts from notes, so
@@ -224,6 +299,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               ],
             ),
           ),
+          if (_queryActive) _saveSearchEntry(theme),
           _draftEntry(theme),
           if (_error != null)
             Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
