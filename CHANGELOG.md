@@ -1,3 +1,11 @@
+# [1.36.0](https://github.com/martynvdijke/sodapop/compare/v1.35.4...v1.36.0) (2026-11-18)
+
+
+### Features
+
+* **mobile:** check-in and comment editing, prices and spend insights ([d9b0691](https://github.com/martynvdijke/sodapop/commit/d9b0691f9f5b3157defbc01e1915aecca2b81525))
+* **mobile:** saved searches, barcode contribution, follow lists and drop-alert prefill ([8085b5a](https://github.com/martynvdijke/sodapop/commit/8085b5ab86c76f526264e6c2263a0de9e9a27ebc))
+
 ## [1.35.4](https://github.com/martynvdijke/sodapop/compare/v1.35.3...v1.35.4) (2026-11-17)
 
 ## [1.35.3](https://github.com/martynvdijke/sodapop/compare/v1.35.2...v1.35.3) (2026-11-16)
