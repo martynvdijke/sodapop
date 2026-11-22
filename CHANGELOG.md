@@ -1,3 +1,10 @@
+## [1.36.3](https://github.com/martynvdijke/sodapop/compare/v1.36.2...v1.36.3) (2026-11-22)
+
+
+### Reverts
+
+* undo the failed 1.36.3 release commit ([d17e96c](https://github.com/martynvdijke/sodapop/commit/d17e96c7bda9c6e2cc07a920f912660dc3874959))
+
 ## [1.36.2](https://github.com/martynvdijke/sodapop/compare/v1.36.1...v1.36.2) (2026-11-19)
 
 ## [1.36.1](https://github.com/martynvdijke/sodapop/compare/v1.36.0...v1.36.1) (2026-11-18)
