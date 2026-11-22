@@ -1,3 +1,10 @@
+## [1.36.4](https://github.com/martynvdijke/sodapop/compare/v1.36.3...v1.36.4) (2026-11-22)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#26](https://github.com/martynvdijke/sodapop/issues/26)) ([ceee212](https://github.com/martynvdijke/sodapop/commit/ceee2126e03a680f8160994162a48a0c8a9724d4))
+
 ## [1.36.3](https://github.com/martynvdijke/sodapop/compare/v1.36.2...v1.36.3) (2026-11-22)
 
 
