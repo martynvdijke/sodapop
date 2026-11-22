@@ -19,9 +19,16 @@ const _drink = Drink(
   style: 'Cola',
 );
 
+/// A timestamp an hour ago, so fixtures stay inside the 24-hour edit window
+/// instead of expiring as the calendar moves on.
+String _recentCreatedAt() => DateTime.now()
+    .toUtc()
+    .subtract(const Duration(hours: 1))
+    .toIso8601String();
+
 /// A check-in well inside the 24-hour window with every editable field set.
 CheckinDetail _existing({
-  String createdAt = '2026-11-18T10:00:00Z',
+  String? createdAt,
   int? priceCents = 250,
   String? priceCurrency = 'EUR',
 }) => CheckinDetail(
@@ -36,7 +43,7 @@ CheckinDetail _existing({
   rating: 10,
   note: 'Cold and sharp.',
   visibility: 'friends',
-  createdAt: createdAt,
+  createdAt: createdAt ?? _recentCreatedAt(),
   venueId: 7,
   venueName: 'Corner Shop',
   canDelete: true,
