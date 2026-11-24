@@ -1,3 +1,5 @@
+## [1.36.5](https://github.com/martynvdijke/sodapop/compare/v1.36.4...v1.36.5) (2026-11-24)
+
 ## [1.36.4](https://github.com/martynvdijke/sodapop/compare/v1.36.3...v1.36.4) (2026-11-22)
 
 
